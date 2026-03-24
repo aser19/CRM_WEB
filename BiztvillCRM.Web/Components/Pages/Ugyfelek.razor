@@ -1,0 +1,241 @@
+@page "/ugyfelek"
+@rendermode InteractiveAuto
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IUgyfelService UgyfelService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Ügyfelek</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Ügyfelek</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses"
+                      Label="Keresés (név, email, adószám)"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Clearable="true"
+                      Immediate="true"
+                      OnClearButtonClick="() => _kereses = string.Empty"
+                      Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="UjUgyfelMegnyitasa">
+            Új ügyfél
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Ugyfel"
+                 Items="_szurtUgyfelek"
+                 Filterable="false"
+                 SortMode="SortMode.Multiple"
+                 Hover="true"
+                 Striped="true"
+                 Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="u => u.Nev" Title="Név" />
+            <PropertyColumn Property="u => u.Adoszam" Title="Adószám" />
+            <PropertyColumn Property="u => u.UgyfelTipus" Title="Típus" />
+            <PropertyColumn Property="u => u.Email" Title="Email" />
+            <PropertyColumn Property="u => u.Telefon" Title="Telefon" />
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Telephelyek" >
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Telephelyek.Count db</MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="() => SzerkesztessMegnyitasa(context.Item)"
+                                       Title="Szerkesztés" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => TorlesMegerosites(context.Item)"
+                                       Title="Törlés" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText>Nincs megjeleníthető ügyfél.</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Betöltés...</MudText>
+        </LoadingContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Ügyfél hozzáadása / szerkesztése dialógus -->
+<MudDialog @bind-IsVisible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(_szerkesztesAlatt?.Id > 0 ? "Ügyfél szerkesztése" : "Új ügyfél hozzáadása")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Nev"
+                                  Label="Név *"
+                                  Required="true"
+                                  RequiredError="A név megadása kötelező." />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="UgyfelTipus" @bind-Value="_szerkesztesAlatt.UgyfelTipus" Label="Típus">
+                        @foreach (UgyfelTipus t in Enum.GetValues(typeof(UgyfelTipus)))
+                        {
+                            <MudSelectItem Value="@t">@t.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Adoszam" Label="Adószám" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa" Variant="Variant.Text">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<Ugyfel> _ugyfelek = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true;
+    private bool _dialogNyitva = false;
+    private bool _mentes = false;
+    private Ugyfel? _szerkesztesAlatt;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = true
+    };
+
+    private IEnumerable<Ugyfel> _szurtUgyfelek =>
+        string.IsNullOrWhiteSpace(_kereses)
+            ? _ugyfelek
+            : _ugyfelek.Where(u =>
+                (u.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Email?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Adoszam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjUgyfelMegnyitasa()
+    {
+        _szerkesztesAlatt = new Ugyfel { Aktiv = true };
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztessMegnyitasa(Ugyfel ugyfel)
+    {
+        // Másolat készítése, hogy a megszakítás ne módosítsa az eredeti rekordot
+        _szerkesztesAlatt = ugyfel.SekélyMásolat();
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa()
+    {
+        _dialogNyitva = false;
+        _szerkesztesAlatt = null;
+    }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null) return;
+        if (string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
+        {
+            Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0)
+                await UgyfelService.CreateAsync(_szerkesztesAlatt);
+            else
+                await UgyfelService.UpdateAsync(_szerkesztesAlatt);
+
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a mentés során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task TorlesMegerosites(Ugyfel ugyfel)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törli a(z) „{ugyfel.Nev}" ügyfelet?",
+            yesText: "Törlés",
+            cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await UgyfelService.DeleteAsync(ugyfel.Id);
+                Snackbar.Add("Ügyfél törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

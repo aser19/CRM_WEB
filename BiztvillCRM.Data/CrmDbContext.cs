@@ -1,0 +1,203 @@
+using BiztvillCRM.Shared.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace BiztvillCRM.Data;
+
+/// <summary>
+/// Az alkalmazás fő Entity Framework Core adatbázis kontextusa.
+/// Tartalmazza az összes üzleti entitást DbSet-ként.
+/// </summary>
+public class CrmDbContext : DbContext
+{
+    public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options) { }
+
+    // --- Törzsadatok ---
+    public DbSet<Ugyfel> Ugyfelek { get; set; }
+    public DbSet<Telephely> Telephelyek { get; set; }
+    public DbSet<Gyarto> Gyartok { get; set; }
+    public DbSet<Eszkoz> Eszkozok { get; set; }
+
+    // --- Mérések ---
+    public DbSet<MeresTipus> MeresTipusok { get; set; }
+    public DbSet<Meres> Meresek { get; set; }
+
+    // --- Hitelesítések ---
+    public DbSet<Hatosag> Hatosagok { get; set; }
+    public DbSet<Hitelesites> Hitelesitesek { get; set; }
+
+    // --- Tanúsítványok / Képzések ---
+    public DbSet<Tanusitvany> Tanusitvanyok { get; set; }
+    public DbSet<Kepzes> Kepzesek { get; set; }
+
+    // --- Karbantartás ---
+    public DbSet<Karbantartas> Karbantartasok { get; set; }
+
+    // --- Jogszabályok ---
+    public DbSet<Jogszabaly> Jogszabalyok { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // --- Ugyfel ---
+        modelBuilder.Entity<Ugyfel>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Adoszam).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.Telefon).HasMaxLength(50);
+            entity.Property(e => e.Cim).HasMaxLength(500);
+        });
+
+        // --- Telephely ---
+        modelBuilder.Entity<Telephely>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Cim).HasMaxLength(500);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.Telefon).HasMaxLength(50);
+            entity.Property(e => e.Kapcsolattarto).HasMaxLength(200);
+
+            // Telephely → Ugyfel (kaszkád törlés kikapcsolva)
+            entity.HasOne(e => e.Ugyfel)
+                  .WithMany(u => u.Telephelyek)
+                  .HasForeignKey(e => e.UgyfelId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- Gyarto ---
+        modelBuilder.Entity<Gyarto>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Orszag).HasMaxLength(100);
+            entity.Property(e => e.Weboldal).HasMaxLength(500);
+        });
+
+        // --- Eszkoz ---
+        modelBuilder.Entity<Eszkoz>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.GyariSzam).HasMaxLength(100);
+            entity.Property(e => e.Tipus).HasMaxLength(100);
+
+            entity.HasOne(e => e.Gyarto)
+                  .WithMany()
+                  .HasForeignKey(e => e.GyartoId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Ugyfel)
+                  .WithMany()
+                  .HasForeignKey(e => e.UgyfelId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Telephely)
+                  .WithMany()
+                  .HasForeignKey(e => e.TelephelyId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- MeresTipus ---
+        modelBuilder.Entity<MeresTipus>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Leiras).HasMaxLength(1000);
+        });
+
+        // --- Meres ---
+        modelBuilder.Entity<Meres>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Eredmeny).HasMaxLength(500);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Eszkoz)
+                  .WithMany()
+                  .HasForeignKey(e => e.EszkozId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.MeresTipus)
+                  .WithMany()
+                  .HasForeignKey(e => e.MeresTipusId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- Hatosag ---
+        modelBuilder.Entity<Hatosag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Rovidites).HasMaxLength(20);
+            entity.Property(e => e.Cim).HasMaxLength(500);
+            entity.Property(e => e.Weboldal).HasMaxLength(500);
+        });
+
+        // --- Hitelesites ---
+        modelBuilder.Entity<Hitelesites>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Ugyszam).HasMaxLength(100);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Eszkoz)
+                  .WithMany()
+                  .HasForeignKey(e => e.EszkozId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Hatosag)
+                  .WithMany()
+                  .HasForeignKey(e => e.HatosagId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- Tanusitvany ---
+        modelBuilder.Entity<Tanusitvany>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Szam).HasMaxLength(100);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Ugyfel)
+                  .WithMany()
+                  .HasForeignKey(e => e.UgyfelId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- Kepzes ---
+        modelBuilder.Entity<Kepzes>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Resztvevo).HasMaxLength(500);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+        });
+
+        // --- Karbantartas ---
+        modelBuilder.Entity<Karbantartas>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Leiras).HasMaxLength(1000);
+            entity.Property(e => e.Elvegzo).HasMaxLength(200);
+
+            entity.HasOne(e => e.Eszkoz)
+                  .WithMany()
+                  .HasForeignKey(e => e.EszkozId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- Jogszabaly ---
+        modelBuilder.Entity<Jogszabaly>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Szam).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Cim).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Url).HasMaxLength(500);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+        });
+    }
+}

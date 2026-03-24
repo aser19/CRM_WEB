@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "htg6XqUsDe4=",
+  "success": true,
+  "projectFilePath": "/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/BiztvillCRM.Shared.csproj",
+  "expectedPackageFiles": [
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/fluentvalidation/11.11.0/fluentvalidation.11.11.0.nupkg.sha512",
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.23/microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.23/microsoft.aspnetcore.app.ref.8.0.23.nupkg.sha512"
+  ],
+  "logs": []
+}
