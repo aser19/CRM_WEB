@@ -1,4 +1,6 @@
 using BiztvillCRM.Data;
+using BiztvillCRM.Services;
+using BiztvillCRM.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
@@ -15,14 +17,14 @@ builder.Services.AddRazorComponents()
 // --- MySQL + EF Core ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<CrmDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 // --- Autentikáció (később bővítjük) ---
 // builder.Services.AddAuthentication(...)
 // builder.Services.AddAuthorization(...)
 
-// --- Szolgáltatások regisztrálása (később bővítjük) ---
-// builder.Services.AddScoped<IUgyfelService, UgyfelService>();
+// --- Szolgáltatások regisztrálása ---
+builder.Services.AddScoped<IUgyfelService, UgyfelService>();
 
 var app = builder.Build();
 
