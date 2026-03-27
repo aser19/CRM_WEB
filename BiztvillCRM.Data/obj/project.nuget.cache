@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Li4BpSlAdik=",
+  "dgSpecHash": "CrUNWNq3Xvo=",
   "success": true,
   "projectFilePath": "/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Data/BiztvillCRM.Data.csproj",
   "expectedPackageFiles": [
@@ -49,8 +49,8 @@
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.runtime.compilerservices.unsafe/6.0.0/system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.text.encoding.codepages/6.0.0/system.text.encoding.codepages.6.0.0.nupkg.sha512",
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.threading.channels/6.0.0/system.threading.channels.6.0.0.nupkg.sha512",
-    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.23/microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
-    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.23/microsoft.aspnetcore.app.ref.8.0.23.nupkg.sha512"
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.25/microsoft.netcore.app.ref.8.0.25.nupkg.sha512",
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.25/microsoft.aspnetcore.app.ref.8.0.25.nupkg.sha512"
   ],
   "logs": []
 }

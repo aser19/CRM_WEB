@@ -1,0 +1,13 @@
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/bin/Debug/net8.0/BiztvillCRM.Shared.deps.json
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/bin/Debug/net8.0/BiztvillCRM.Shared.dll
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/bin/Debug/net8.0/BiztvillCRM.Shared.pdb
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.csproj.AssemblyReference.cache
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.AssemblyInfoInputs.cache
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.AssemblyInfo.cs
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.csproj.CoreCompileInputs.cache
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.sourcelink.json
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.dll
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/refint/BiztvillCRM.Shared.dll
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/BiztvillCRM.Shared.pdb
+/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Shared/obj/Debug/net8.0/ref/BiztvillCRM.Shared.dll

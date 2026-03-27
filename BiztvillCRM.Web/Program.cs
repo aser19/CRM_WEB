@@ -28,6 +28,21 @@ builder.Services.AddScoped<IUgyfelService, UgyfelService>();
 
 var app = builder.Build();
 
+// --- Adatbázis inicializálás (táblák + teszt adatok) ---
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        DbInitializer.Initialize(db);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Hiba az adatbázis inicializálása közben.");
+    }
+}
+
 // --- Middleware pipeline ---
 if (app.Environment.IsDevelopment()) {
     app.UseWebAssemblyDebugging();

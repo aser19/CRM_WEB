@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "dYVLAVe4QuI=",
+  "dgSpecHash": "6zDwSI6K7/8=",
   "success": true,
   "projectFilePath": "/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Web/BiztvillCRM.Web.csproj",
   "expectedPackageFiles": [
@@ -52,9 +52,9 @@
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.formats.asn1/8.0.1/system.formats.asn1.8.0.1.nupkg.sha512",
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.io.pipelines/8.0.0/system.io.pipelines.8.0.0.nupkg.sha512",
     "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/system.security.cryptography.pkcs/8.0.1/system.security.cryptography.pkcs.8.0.1.nupkg.sha512",
-    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.23/microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
-    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.23/microsoft.aspnetcore.app.ref.8.0.23.nupkg.sha512",
-    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.host.linux-x64/8.0.23/microsoft.netcore.app.host.linux-x64.8.0.23.nupkg.sha512"
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.25/microsoft.netcore.app.ref.8.0.25.nupkg.sha512",
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.25/microsoft.aspnetcore.app.ref.8.0.25.nupkg.sha512",
+    "/tmp/codeql-scratch-79e5f8fec8ebd50b/dbs/csharp/working/packages/microsoft.netcore.app.host.linux-x64/8.0.25/microsoft.netcore.app.host.linux-x64.8.0.25.nupkg.sha512"
   ],
   "logs": []
 }
