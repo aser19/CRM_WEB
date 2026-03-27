@@ -27,7 +27,7 @@ jobs:
         run: dotnet restore
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build BiztvillCRM.Web/BiztvillCRM.Web.csproj --configuration Release --no-restore
 
       - name: dotnet publish
         run: dotnet publish BiztvillCRM.Web/BiztvillCRM.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
