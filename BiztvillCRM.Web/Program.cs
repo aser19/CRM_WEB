@@ -40,7 +40,7 @@ using (var scope = app.Services.CreateScope())
 
 // --- Middleware pipeline ---
 if (app.Environment.IsDevelopment()) {
-    app.UseWebAssemblyDebugging();
+    app.UseDeveloperExceptionPage();
 } else {
     app.UseExceptionHandler("/Error");
     app.UseHsts();

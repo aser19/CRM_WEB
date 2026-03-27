@@ -61,12 +61,12 @@
                                        Color="Color.Primary"
                                        Size="Size.Small"
                                        OnClick="() => SzerkesztessMegnyitasa(context.Item)"
-                                       Title="Szerkesztés" />
+                                       aria-label="Szerkesztés" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                        Color="Color.Error"
                                        Size="Size.Small"
                                        OnClick="() => TorlesMegerosites(context.Item)"
-                                       Title="Törlés" />
+                                       aria-label="Törlés" />
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
@@ -81,7 +81,7 @@
 </MudPaper>
 
 <!-- Ügyfél hozzáadása / szerkesztése dialógus -->
-<MudDialog @bind-IsVisible="_dialogNyitva" Options="_dialogOptions">
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">
             @(_szerkesztesAlatt?.Id > 0 ? "Ügyfél szerkesztése" : "Új ügyfél hozzáadása")
