@@ -8,11 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="MudBlazor" Version="7.15.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.12" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BiztvillCRM.Client\BiztvillCRM.Client.csproj" />
     <ProjectReference Include="..\BiztvillCRM.Shared\BiztvillCRM.Shared.csproj" />
     <ProjectReference Include="..\BiztvillCRM.Data\BiztvillCRM.Data.csproj" />
     <ProjectReference Include="..\BiztvillCRM.Services\BiztvillCRM.Services.csproj" />

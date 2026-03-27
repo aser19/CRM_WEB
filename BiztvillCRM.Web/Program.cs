@@ -11,17 +11,12 @@ builder.Services.AddMudServices();
 
 // --- Blazor ---
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents();
+    .AddInteractiveServerComponents();
 
 // --- MySQL + EF Core ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<CrmDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-
-// --- Autentikáció (később bővítjük) ---
-// builder.Services.AddAuthentication(...)
-// builder.Services.AddAuthorization(...)
 
 // --- Szolgáltatások regisztrálása ---
 builder.Services.AddScoped<IUgyfelService, UgyfelService>();
@@ -57,8 +52,6 @@ app.UseAntiforgery();
 
 // --- Blazor renderelés ---
 app.MapRazorComponents<BiztvillCRM.Web.Components.App>()
-    .AddInteractiveServerRenderMode()
-    .AddInteractiveWebAssemblyRenderMode()
-    .AddAdditionalAssemblies(typeof(BiztvillCRM.Client._Imports).Assembly);
+    .AddInteractiveServerRenderMode();
 
 app.Run();
