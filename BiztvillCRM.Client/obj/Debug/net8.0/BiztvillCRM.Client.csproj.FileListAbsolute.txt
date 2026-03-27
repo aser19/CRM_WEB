@@ -1,8 +1,0 @@
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.csproj.AssemblyReference.cache
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/rpswa.dswa.cache.json
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.GeneratedMSBuildEditorConfig.editorconfig
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.AssemblyInfoInputs.cache
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.AssemblyInfo.cs
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.csproj.CoreCompileInputs.cache
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.MvcApplicationPartsAssemblyInfo.cache
-/home/runner/work/CRM_WEB/CRM_WEB/BiztvillCRM.Client/obj/Debug/net8.0/BiztvillCRM.Client.sourcelink.json
