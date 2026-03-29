@@ -13,10 +13,10 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// --- MySQL + EF Core ---
+// --- Azure SQL + EF Core ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<CrmDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseSqlServer(connectionString));
 
 // --- Szolgáltatások regisztrálása ---
 builder.Services.AddScoped<IUgyfelService, UgyfelService>();
