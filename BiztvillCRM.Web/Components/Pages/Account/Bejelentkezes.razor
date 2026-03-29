@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Antiforgery
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject SignInManager<Felhasznalo> SignInManager
 
 <PageTitle>Bejelentkezés - Biztovill CRM</PageTitle>
 
@@ -42,6 +43,9 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery]
+    public string? HibaParam { get; set; }
+
     private LoginModel _loginModel = new();
     private bool _betoltes;
     private string? _hibaUzenet;
@@ -53,15 +57,12 @@
         public string Password { get; set; } = string.Empty;
         public bool RememberMe { get; set; }
     }
-    protected override void OnParametersSet()
+    protected override void OnParametersSet() => _hibaUzenet = HibaParam switch
     {
-        _hibaUzenet = HibaParam switch
-        {
-            "zarolt" => "A fiók ideiglenesen zárolva van.",
-            "hibas" => "Hibás email cím vagy jelszó.",
-            _ => null
-        };
-    }
+        "zarolt" => "A fiók ideiglenesen zárolva van.",
+        "hibas" => "Hibás email cím vagy jelszó.",
+        _ => null
+    };
 
     private async Task BejelentkezesAsync()
     {

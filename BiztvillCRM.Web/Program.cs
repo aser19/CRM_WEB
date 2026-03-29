@@ -121,6 +121,30 @@ app.UseAuthorization();
 app.MapRazorComponents<BiztvillCRM.Web.Components.App>()
     .AddInteractiveServerRenderMode();
 
+// --- Bejelentkezési endpoint (Interactive Server módban a HttpContext válasza már le van zárva,
+//     ezért egy valódi HTTP POST végponton keresztül állítjuk be a sütit.) ---
+app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager) =>
+{
+    var form = ctx.Request.Form;
+    var email = form["email"].FirstOrDefault() ?? string.Empty;
+    var password = form["password"].FirstOrDefault() ?? string.Empty;
+    bool.TryParse(form["rememberMe"].FirstOrDefault(), out var rememberMe);
+
+    var result = await signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
+    if (result.Succeeded)
+        return Results.LocalRedirect("/");
+    SignInResult signInResult = await signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
+    
+
+    if (result.Succeeded)
+        return Results.LocalRedirect("/");
+
+
+    var hiba = result.IsLockedOut ? "zarolt" : "hibas";
+    return Results.Redirect($"/bejelentkezes?hiba={hiba}");
+});
+
+
 app.Run();
 
 // --- Szerepkörök létrehozása ---
