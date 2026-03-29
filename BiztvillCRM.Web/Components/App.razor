@@ -36,5 +36,25 @@
     </CascadingAuthenticationState>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
+    <script>
+        window.submitLoginForm = function (email, password, rememberMe, antiforgeryToken) {
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/account/login';
+            function addField(name, value) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+            addField('email', email);
+            addField('password', password);
+            addField('rememberMe', rememberMe.toString());
+            addField('__RequestVerificationToken', antiforgeryToken);
+            document.body.appendChild(form);
+            form.submit();
+        };
+    </script>
 </body>
 </html>

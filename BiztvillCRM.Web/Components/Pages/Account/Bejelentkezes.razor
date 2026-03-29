@@ -1,9 +1,12 @@
 @page "/bejelentkezes"
+@rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
 @using Microsoft.AspNetCore.Identity
-@inject SignInManager<Felhasznalo> SignInManager
+@using Microsoft.AspNetCore.Antiforgery
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IAntiforgery Antiforgery
 
 <PageTitle>Bejelentkezés - Biztovill CRM</PageTitle>
 
@@ -41,15 +44,42 @@
 </MudContainer>
 
 @code {
-    private LoginModel _loginModel = new();
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "hiba")]
+    public string? HibaParam { get; set; }
+
+    private readonly LoginModel _loginModel = new();
     private bool _betoltes;
     private string? _hibaUzenet;
+    private string _antiforgeryToken = string.Empty;
 
     private class LoginModel
     {
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public bool RememberMe { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext != null)
+        {
+            var tokens = Antiforgery.GetAndStoreTokens(HttpContext);
+            _antiforgeryToken = tokens.RequestToken ?? string.Empty;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _hibaUzenet = HibaParam switch
+        {
+            "zarolt" => "A fiók ideiglenesen zárolva van.",
+            "hibas" => "Hibás email cím vagy jelszó.",
+            _ => null
+        };
     }
 
     private async Task BejelentkezesAsync()
@@ -59,31 +89,15 @@
 
         try
         {
-            var result = await SignInManager.PasswordSignInAsync(
-                _loginModel.Email, 
-                _loginModel.Password, 
-                _loginModel.RememberMe, 
-                lockoutOnFailure: false);
-
-            if (result.Succeeded)
-            {
-                Navigation.NavigateTo("/", forceLoad: true);
-            }
-            else if (result.IsLockedOut)
-            {
-                _hibaUzenet = "A fiók ideiglenesen zárolva van.";
-            }
-            else
-            {
-                _hibaUzenet = "Hibás email cím vagy jelszó.";
-            }
+            await JS.InvokeVoidAsync("submitLoginForm",
+                _loginModel.Email,
+                _loginModel.Password,
+                _loginModel.RememberMe,
+                _antiforgeryToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _hibaUzenet = $"Hiba történt: {ex.Message}";
-        }
-        finally
-        {
+            _hibaUzenet = "Bejelentkezés sikertelen. Kérjük, próbálja újra.";
             _betoltes = false;
         }
     }
