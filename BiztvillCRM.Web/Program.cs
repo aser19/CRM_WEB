@@ -15,7 +15,10 @@ builder.Services.AddMudServices();
 
 // --- Blazor ---
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+    {
+        options.DetailedErrors = builder.Environment.IsDevelopment();
+    });
 
 // --- Azure SQL + EF Core ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
