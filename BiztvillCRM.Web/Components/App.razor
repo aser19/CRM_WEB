@@ -6,54 +6,30 @@
     <base href="/" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="BiztvillCRM.Web.styles.css" rel="stylesheet" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-    <CascadingAuthenticationState>
-        <Router AppAssembly="typeof(Program).Assembly">
-            <Found Context="routeData">
-                <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
-                    <NotAuthorized>
-                        @if (context.User.Identity?.IsAuthenticated != true)
-                        {
-                            <BiztvillCRM.Web.Components.Account.RedirectToLogin />
-                        }
-                        else
-                        {
-                            <BiztvillCRM.Web.Components.Pages.Account.HozzaferesMegtagadva />
-                        }
-                    </NotAuthorized>
-                </AuthorizeRouteView>
-                <FocusOnNavigate RouteData="routeData" Selector="h1" />
-            </Found>
-            <NotFound>
-                <LayoutView Layout="typeof(Layout.MainLayout)">
-                    <MudText Typo="Typo.h4">Az oldal nem található (404)</MudText>
-                </LayoutView>
-            </NotFound>
-        </Router>
-    </CascadingAuthenticationState>
+    <Routes @rendermode="InteractiveServer" />
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
     <script>
         window.submitLoginForm = function (email, password, rememberMe, antiforgeryToken) {
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/account/login';
-        function addField(name, value) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-        }
-        addField('email', email);
-        addField('password', password);
-        addField('rememberMe', rememberMe.toString());
-        addField('__RequestVerificationToken', antiforgeryToken);
-        document.body.appendChild(form);
-        form.submit();
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/account/login';
+            function addField(name, value) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+            addField('email', email);
+            addField('password', password);
+            addField('rememberMe', rememberMe.toString());
+            addField('__RequestVerificationToken', antiforgeryToken);
+            document.body.appendChild(form);
+            form.submit();
         };
     </script>
 </body>

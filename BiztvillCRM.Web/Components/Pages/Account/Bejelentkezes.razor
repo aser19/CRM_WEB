@@ -3,15 +3,8 @@
 @using BiztvillCRM.Shared.Models
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Antiforgery
-@using Microsoft.EntityFrameworkCore
-@inject SignInManager<Felhasznalo> SignInManager
-@inject UserManager<Felhasznalo> UserManager
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
-@inject IAntiforgery Antiforgery
-@inject IConfiguration Configuration
-@inject ILogger<Microsoft.AspNetCore.Components.ComponentBase> Logger
 
 <PageTitle>Bejelentkezés - Biztovill CRM</PageTitle>
 
@@ -49,13 +42,7 @@
 </MudContainer>
 
 @code {
-    [CascadingParameter]
-    public HttpContext? HttpContext { get; set; }
-
-    [Parameter]
-    [SupplyParameterFromQuery(Name = "hiba")]
-    public string? HibaParam { get; set; }
-    private readonly LoginModel _loginModel = new();
+    private LoginModel _loginModel = new();
     private bool _betoltes;
     private string? _hibaUzenet;
     private string _antiforgeryToken = string.Empty;
@@ -76,7 +63,6 @@
         };
     }
 
-
     private async Task BejelentkezesAsync()
     {
         _betoltes = true;
@@ -84,56 +70,31 @@
 
         try
         {
-            var email = _loginModel.Email.Trim();
+            var result = await SignInManager.PasswordSignInAsync(
+                _loginModel.Email, 
+                _loginModel.Password, 
+                _loginModel.RememberMe, 
+                lockoutOnFailure: false);
 
-            // 0) Logoljuk az aktuális connection string-et (diagnosztika)
-            var conn = Configuration.GetConnectionString("DefaultConnection") ?? "(no connection string)";
-            Logger.LogInformation("Bejelentkezés: connection string = {Conn}", conn);
-            Snackbar.Add("Connection: " + (conn.Length > 80 ? conn[..80] + "..." : conn), Severity.Info);
-
-            // 1) Keressük a felhasználót email alapján
-            var userByEmail = await UserManager.FindByEmailAsync(email);
-            // 2) Ellenőrizzük FindByNameAsync is (ha a UserName és Email eltérhet)
-            var userByName = await UserManager.FindByNameAsync(email);
-
-            // 3) Közvetlen DB lekérdezés (UserManager.Users)
-            var totalUsers = await UserManager.Users.CountAsync();
-            var matchingByEmailCount = await UserManager.Users.Where(u => u.Email == email).CountAsync();
-            var matchingByNormalizedEmailCount = await UserManager.Users.Where(u => u.NormalizedEmail == email.ToUpperInvariant()).CountAsync();
-
-            // Log és rövid visszajelzés
-            Logger.LogInformation("Users total: {Total}, byEmail: {ByEmail}, byNormalized: {ByNorm}", totalUsers, matchingByEmailCount, matchingByNormalizedEmailCount);
-
-            if (userByEmail == null && userByName == null)
+            if (result.Succeeded)
             {
-                _hibaUzenet = "Felhasználó nem található.";
-                Snackbar.Add($"Diagnosztika: totalUsers={totalUsers}, matchingByEmail={matchingByEmailCount}, matchingByNormalizedEmail={matchingByNormalizedEmailCount}", Severity.Error);
-                return;
+                Navigation.NavigateTo("/", forceLoad: true);
             }
-
-            // Válasszuk ki a megtalált user-t (prefer email)
-            var user = userByEmail ?? userByName!;
-
-            // Ellenőrizzük az Aktiv mezőt
-            if (!user.Aktiv)
+            else if (result.IsLockedOut)
             {
-                _hibaUzenet = "A felhasználó inaktív. Lépj kapcsolatba a rendszergazdával.";
-                Snackbar.Add(_hibaUzenet, Severity.Warning);
-                return;
+                _hibaUzenet = "A fiók ideiglenesen zárolva van.";
             }
-
-            // Jelszó ellenőrzés
-            await JS.InvokeVoidAsync("submitLoginForm",
-     _loginModel.Email,
-     _loginModel.Password,
-     _loginModel.RememberMe);
+            else
+            {
+                _hibaUzenet = "Hibás email cím vagy jelszó.";
+            }
         }
         catch (Exception ex)
         {
             _hibaUzenet = $"Hiba történt: {ex.Message}";
-            Logger.LogError(ex, "Bejelentkezés hiba");
-            Snackbar.Add(_hibaUzenet, Severity.Error);
-        
+        }
+        finally
+        {
             _betoltes = false;
         }
     }
