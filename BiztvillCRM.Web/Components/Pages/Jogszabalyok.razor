@@ -1,33 +1,54 @@
 @page "/jogszabalyok"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject IJogszabalyService JogszabalyService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Jogszabályok</PageTitle>
+<PageTitle>Jogszabályok és Szabványok</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Jogszabályok</MudText>
+<MudText Typo="Typo.h4" Class="mb-4">Jogszabályok és Szabványok</MudText>
 
 <MudPaper Class="pa-4">
     <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-        <MudTextField @bind-Value="_kereses" Label="Keresés (szám, cím)" Adornment="Adornment.Start"
+        <MudTextField @bind-Value="_kereses" Label="Keresés (szám, cím, leírás)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új jogszabály</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új jogszabály/szabvány</MudButton>
     </MudStack>
 
     <MudDataGrid T="Jogszabaly" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
+            <TemplateColumn Title="Típus" Sortable="true">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Item.Tipus == JogszabalyTipus.Szabvany ? Color.Info : Color.Primary)">
+                        @context.Item.Tipus
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="j => j.Szam" Title="Szám" />
             <PropertyColumn Property="j => j.Cim" Title="Cím" />
-            <PropertyColumn Property="j => j.HatalyosDatum" Title="Hatályos" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="j => j.Leiras" Title="Leírás" />
+            <PropertyColumn Property="j => j.HatalyosKezdet" Title="Hatályos (kezdet)" Format="yyyy.MM.dd" />
+            <TemplateColumn Title="Hatályos (vége)">
+                <CellTemplate>
+                    @if (context.Item.HatalyosVege.HasValue)
+                    {
+                        @context.Item.HatalyosVege.Value.ToString("yyyy.MM.dd")
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Jelenleg hatályos</MudChip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Link">
                 <CellTemplate>
                     @if (!string.IsNullOrEmpty(context.Item.Url))
                     {
-                        <MudLink Href="@context.Item.Url" Target="_blank">Megnyitás</MudLink>
+                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Href="@context.Item.Url" Target="_blank" Size="Size.Small" Color="Color.Info" />
                     }
                 </CellTemplate>
             </TemplateColumn>
@@ -46,20 +67,30 @@
                 </CellTemplate>
             </TemplateColumn>
         </Columns>
-        <NoRecordsContent><MudText>Nincs megjeleníthető jogszabály.</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText>Nincs megjeleníthető jogszabály vagy szabvány.</MudText></NoRecordsContent>
     </MudDataGrid>
 </MudPaper>
 
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
-    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Jogszabály szerkesztése" : "Új jogszabály")</MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Szerkesztés" : "Új jogszabály/szabvány")</MudText></TitleContent>
     <DialogContent>
         @if (_szerkesztesAlatt is not null)
         {
             <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="JogszabalyTipus" @bind-Value="_szerkesztesAlatt.Tipus" Label="Típus *">
+                        @foreach (JogszabalyTipus t in Enum.GetValues(typeof(JogszabalyTipus)))
+                        {
+                            <MudSelectItem Value="@t">@t</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Szám *" Required="true" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosDatum" Label="Hatályos dátum" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Url" Label="URL" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosKezdet" Label="Hatályos kezdete" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosVege" Label="Hatályos vége (üres = jelenleg hatályos)" Clearable="true" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Url" Label="URL (link)" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
                 <MudItem xs="12"><MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" /></MudItem>
             </MudGrid>
@@ -76,31 +107,89 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private Jogszabaly? _szerkesztesAlatt;
-    private DateTime? _hatalyosDatum;
+    private DateTime? _hatalyosKezdet, _hatalyosVege;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     private IEnumerable<Jogszabaly> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
         : _lista.Where(j => (j.Szam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (j.Cim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+                            (j.Cim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (j.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    protected override async Task OnInitializedAsync() => await BetoltesAsync();
-    private async Task BetoltesAsync() { _betoltes = true; _lista = await JogszabalyService.GetAllAsync(); _betoltes = false; }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a betöltés során: {ex.Message}", Severity.Error);
+            _betoltes = false;
+        }
+    }
 
-    private void UjMegnyitasa() { _szerkesztesAlatt = new Jogszabaly { Aktiv = true }; _hatalyosDatum = null; _dialogNyitva = true; }
-    private void SzerkesztesMegnyitasa(Jogszabaly item) { _szerkesztesAlatt = new Jogszabaly { Id = item.Id, Szam = item.Szam, Cim = item.Cim, Url = item.Url, Megjegyzes = item.Megjegyzes, Aktiv = item.Aktiv }; _hatalyosDatum = item.HatalyosDatum; _dialogNyitva = true; }
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        try
+        {
+            _lista = await JogszabalyService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new Jogszabaly { Aktiv = true };
+        _hatalyosKezdet = DateTime.Today;
+        _hatalyosVege = null;
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(Jogszabaly item)
+    {
+        _szerkesztesAlatt = new Jogszabaly
+        {
+            Id = item.Id,
+            Szam = item.Szam,
+            Cim = item.Cim,
+            Leiras = item.Leiras,
+            Tipus = item.Tipus,
+            Url = item.Url,
+            Megjegyzes = item.Megjegyzes,
+            Aktiv = item.Aktiv
+        };
+        _hatalyosKezdet = item.HatalyosKezdet;
+        _hatalyosVege = item.HatalyosVege;
+        _dialogNyitva = true;
+    }
+
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
 
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Szam) || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Cim))
-        { Snackbar.Add("A szám és cím megadása kötelező!", Severity.Warning); return; }
-        _szerkesztesAlatt.HatalyosDatum = _hatalyosDatum;
+        {
+            Snackbar.Add("A szám és cím megadása kötelező!", Severity.Warning);
+            return;
+        }
+        _szerkesztesAlatt.HatalyosKezdet = _hatalyosKezdet;
+        _szerkesztesAlatt.HatalyosVege = _hatalyosVege;
         _mentes = true;
         try
         {
             if (_szerkesztesAlatt.Id == 0) await JogszabalyService.CreateAsync(_szerkesztesAlatt);
             else await JogszabalyService.UpdateAsync(_szerkesztesAlatt);
-            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            DialogBezarasa();
+            await BetoltesAsync();
         }
         catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         finally { _mentes = false; }

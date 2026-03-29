@@ -26,10 +26,20 @@ public class KalibracioService : IKalibracioService
 
     public async Task<Kalibracio> UpdateAsync(Kalibracio kalibracio)
     {
-        kalibracio.Modositva = DateTime.UtcNow;
-        _context.Entry(kalibracio).State = EntityState.Modified;
+        var existing = await _context.Kalibraciok.FindAsync(kalibracio.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.EszkozId = kalibracio.EszkozId;
+        existing.Datum = kalibracio.Datum;
+        existing.KovetkezoDatum = kalibracio.KovetkezoDatum;
+        existing.Bizonyitvany = kalibracio.Bizonyitvany;
+        existing.Elvegzo = kalibracio.Elvegzo;
+        existing.Sikeres = kalibracio.Sikeres;
+        existing.Megjegyzes = kalibracio.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return kalibracio;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

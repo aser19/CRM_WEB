@@ -33,10 +33,20 @@ public class MeresService : IMeresService
 
     public async Task<Meres> UpdateAsync(Meres meres)
     {
-        meres.Modositva = DateTime.UtcNow;
-        _context.Entry(meres).State = EntityState.Modified;
+        var existing = await _context.Meresek.FindAsync(meres.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.EszkozId = meres.EszkozId;
+        existing.MeresTipusId = meres.MeresTipusId;
+        existing.Datum = meres.Datum;
+        existing.KovetkezoDatum = meres.KovetkezoDatum;
+        existing.Eredmeny = meres.Eredmeny;
+        existing.MeresStatusz = meres.MeresStatusz;
+        existing.Megjegyzes = meres.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return meres;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

@@ -27,10 +27,19 @@ public class TanusitvanyService : ITanusitvanyService
 
     public async Task<Tanusitvany> UpdateAsync(Tanusitvany tanusitvany)
     {
-        tanusitvany.Modositva = DateTime.UtcNow;
-        _context.Entry(tanusitvany).State = EntityState.Modified;
+        var existing = await _context.Tanusitvanyok.FindAsync(tanusitvany.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = tanusitvany.Nev;
+        existing.Szam = tanusitvany.Szam;
+        existing.KiadoDatum = tanusitvany.KiadoDatum;
+        existing.LejaratDatum = tanusitvany.LejaratDatum;
+        existing.UgyfelId = tanusitvany.UgyfelId;
+        existing.Megjegyzes = tanusitvany.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return tanusitvany;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

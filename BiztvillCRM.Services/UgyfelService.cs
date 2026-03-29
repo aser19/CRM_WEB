@@ -44,13 +44,25 @@ public class UgyfelService : IUgyfelService
     }
 
     /// <inheritdoc/>
+    // UgyfelService.UpdateAsync
     public async Task<Ugyfel> UpdateAsync(Ugyfel ugyfel)
     {
-        ugyfel.Modositva = DateTime.UtcNow;
-        _context.Entry(ugyfel).State = EntityState.Modified;
+        var existing = await _context.Ugyfelek.FindAsync(ugyfel.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = ugyfel.Nev;
+        existing.Adoszam = ugyfel.Adoszam;
+        existing.Cim = ugyfel.Cim;
+        existing.Email = ugyfel.Email;
+        existing.Telefon = ugyfel.Telefon;
+        existing.UgyfelTipus = ugyfel.UgyfelTipus;
+        existing.Aktiv = ugyfel.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return ugyfel;
+        return existing;
     }
+
 
     /// <inheritdoc/>
     public async Task DeleteAsync(int id)

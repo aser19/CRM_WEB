@@ -25,12 +25,20 @@ public class GyartoService : IGyartoService
         return gyarto;
     }
 
+    // GyartoService.UpdateAsync
     public async Task<Gyarto> UpdateAsync(Gyarto gyarto)
     {
-        gyarto.Modositva = DateTime.UtcNow;
-        _context.Entry(gyarto).State = EntityState.Modified;
+        var existing = await _context.Gyartok.FindAsync(gyarto.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = gyarto.Nev;
+        existing.Orszag = gyarto.Orszag;
+        existing.Weboldal = gyarto.Weboldal;
+        existing.Aktiv = gyarto.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return gyarto;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

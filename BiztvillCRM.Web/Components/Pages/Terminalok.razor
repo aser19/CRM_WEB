@@ -84,8 +84,36 @@
                             (t.Azonosito?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
                             (t.IpCim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    protected override async Task OnInitializedAsync() { await BetoltesAsync(); _telephelyek = await TelephelyService.GetAllAsync(); }
-    private async Task BetoltesAsync() { _betoltes = true; _lista = await TerminalService.GetAllAsync(); _betoltes = false; }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _telephelyek = await TelephelyService.GetAllAsync();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a betöltés során: {ex.Message}", Severity.Error);
+            _betoltes = false;
+        }
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        try
+        {
+            _lista = await TerminalService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
 
     private void UjMegnyitasa() { _szerkesztesAlatt = new Terminal { Aktiv = true }; _dialogNyitva = true; }
     private void SzerkesztesMegnyitasa(Terminal item) { _szerkesztesAlatt = new Terminal { Id = item.Id, Nev = item.Nev, Azonosito = item.Azonosito, IpCim = item.IpCim, TelephelyId = item.TelephelyId, Megjegyzes = item.Megjegyzes, Aktiv = item.Aktiv }; _dialogNyitva = true; }

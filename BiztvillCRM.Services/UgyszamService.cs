@@ -26,10 +26,21 @@ public class UgyszamService : IUgyszamService
 
     public async Task<Ugyszam> UpdateAsync(Ugyszam ugyszam)
     {
-        ugyszam.Modositva = DateTime.UtcNow;
-        _context.Entry(ugyszam).State = EntityState.Modified;
+        var existing = await _context.Ugyszamok.FindAsync(ugyszam.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Szam = ugyszam.Szam;
+        existing.Targy = ugyszam.Targy;
+        existing.UgyfelId = ugyszam.UgyfelId;
+        existing.HatosagId = ugyszam.HatosagId;
+        existing.Beerkezett = ugyszam.Beerkezett;
+        existing.Hatarido = ugyszam.Hatarido;
+        existing.Lezart = ugyszam.Lezart;
+        existing.Megjegyzes = ugyszam.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return ugyszam;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

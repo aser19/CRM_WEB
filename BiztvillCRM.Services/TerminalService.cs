@@ -26,10 +26,19 @@ public class TerminalService : ITerminalService
 
     public async Task<Terminal> UpdateAsync(Terminal terminal)
     {
-        terminal.Modositva = DateTime.UtcNow;
-        _context.Entry(terminal).State = EntityState.Modified;
+        var existing = await _context.Terminalok.FindAsync(terminal.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = terminal.Nev;
+        existing.Azonosito = terminal.Azonosito;
+        existing.IpCim = terminal.IpCim;
+        existing.TelephelyId = terminal.TelephelyId;
+        existing.Megjegyzes = terminal.Megjegyzes;
+        existing.Aktiv = terminal.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return terminal;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

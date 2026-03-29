@@ -35,10 +35,20 @@ public class EszkozService : IEszkozService
 
     public async Task<Eszkoz> UpdateAsync(Eszkoz eszkoz)
     {
-        eszkoz.Modositva = DateTime.UtcNow;
-        _context.Entry(eszkoz).State = EntityState.Modified;
+        var existing = await _context.Eszkozok.FindAsync(eszkoz.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = eszkoz.Nev;
+        existing.GyariSzam = eszkoz.GyariSzam;
+        existing.Tipus = eszkoz.Tipus;
+        existing.GyartoId = eszkoz.GyartoId;
+        existing.UgyfelId = eszkoz.UgyfelId;
+        existing.TelephelyId = eszkoz.TelephelyId;
+        existing.Aktiv = eszkoz.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return eszkoz;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

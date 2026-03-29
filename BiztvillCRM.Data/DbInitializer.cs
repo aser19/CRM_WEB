@@ -282,15 +282,21 @@ public static class DbInitializer
         db.SaveChanges();
 
         // -----------------------------------------------------------------------
-        // 12. JOGSZABÁLYOK (5 db) – reális magyar jogszabályok
+        // 12. JOGSZABÁLYOK és SZABVÁNYOK (8 db)
         // -----------------------------------------------------------------------
         var jogszabalyok = new List<Jogszabaly>
         {
-            new() { Szam = "365/2014. (XII. 30.) Korm. rendelet", Cim = "A villamosenergia-ipari építésügyi hatósági engedélyezési eljárásokról",                       HatalyosDatum = new DateTime(2015, 1, 1),  Url = "https://njt.hu/jogszabaly/2014-365-20-22", Aktiv = true,  Megjegyzes = "Villamos energetikai engedélyek",                Letrehozva = now.AddMonths(-24) },
-            new() { Szam = "2007. évi LXXXVI. törvény",            Cim = "A villamos energiáról szóló törvény (VET)",                                                   HatalyosDatum = new DateTime(2008, 1, 1),  Url = "https://njt.hu/jogszabaly/2007-86-00-00", Aktiv = true,  Megjegyzes = "A villamosenergia-szektor alapszabályozása",      Letrehozva = now.AddMonths(-24) },
-            new() { Szam = "2008. évi XL. törvény",                Cim = "A földgázellátásról szóló törvény (GET)",                                                     HatalyosDatum = new DateTime(2008, 7, 1),  Url = "https://njt.hu/jogszabaly/2008-40-00-00", Aktiv = true,  Megjegyzes = "Gázipari tevékenységek szabályozása",            Letrehozva = now.AddMonths(-24) },
-            new() { Szam = "127/1991. (X. 9.) Korm. rendelet",    Cim = "A mérésügyről szóló törvény végrehajtásáról szóló rendelet",                                   HatalyosDatum = new DateTime(1991, 10, 9), Url = "https://njt.hu/jogszabaly/1991-127-20-22", Aktiv = true,  Megjegyzes = "Mérőeszközök hitelesítési követelményei",        Letrehozva = now.AddMonths(-24) },
-            new() { Szam = "1991. évi XLV. törvény",               Cim = "A mérésügyről szóló törvény",                                                                 HatalyosDatum = new DateTime(1992, 1, 1),  Url = "https://njt.hu/jogszabaly/1991-45-00-00", Aktiv = true,  Megjegyzes = "Mérésügy, hitelesítés, mintavétel alapszabálya", Letrehozva = now.AddMonths(-24) },
+            // Jogszabályok
+            new() { Szam = "365/2014. (XII. 30.) Korm. rendelet", Cim = "A villamosenergia-ipari építésügyi hatósági engedélyezési eljárásokról", Tipus = JogszabalyTipus.Rendelet, Leiras = "Villamos energetikai engedélyek szabályozása", HatalyosKezdet = new DateTime(2015, 1, 1), HatalyosVege = null, Url = "https://njt.hu/jogszabaly/2014-365-20-22", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-24) },
+            new() { Szam = "2007. évi LXXXVI. törvény", Cim = "A villamos energiáról szóló törvény (VET)", Tipus = JogszabalyTipus.Jogszabaly, Leiras = "A villamosenergia-szektor alapszabályozása", HatalyosKezdet = new DateTime(2008, 1, 1), HatalyosVege = null, Url = "https://njt.hu/jogszabaly/2007-86-00-00", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-24) },
+            new() { Szam = "2008. évi XL. törvény", Cim = "A földgázellátásról szóló törvény (GET)", Tipus = JogszabalyTipus.Jogszabaly, Leiras = "Gázipari tevékenységek szabályozása", HatalyosKezdet = new DateTime(2008, 7, 1), HatalyosVege = null, Url = "https://njt.hu/jogszabaly/2008-40-00-00", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-24) },
+            new() { Szam = "127/1991. (X. 9.) Korm. rendelet", Cim = "A mérésügyről szóló törvény végrehajtásáról szóló rendelet", Tipus = JogszabalyTipus.Rendelet, Leiras = "Mérőeszközök hitelesítési követelményei", HatalyosKezdet = new DateTime(1991, 10, 9), HatalyosVege = null, Url = "https://njt.hu/jogszabaly/1991-127-20-22", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-24) },
+            new() { Szam = "1991. évi XLV. törvény", Cim = "A mérésügyről szóló törvény", Tipus = JogszabalyTipus.Jogszabaly, Leiras = "Mérésügy, hitelesítés, mintavétel alapszabálya", HatalyosKezdet = new DateTime(1992, 1, 1), HatalyosVege = null, Url = "https://njt.hu/jogszabaly/1991-45-00-00", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-24) },
+            
+            // Szabványok
+            new() { Szam = "MSZ EN ISO 9001:2015", Cim = "Minőségirányítási rendszerek - Követelmények", Tipus = JogszabalyTipus.Szabvany, Leiras = "Minőségirányítási rendszer követelményei", HatalyosKezdet = new DateTime(2015, 9, 15), HatalyosVege = null, Url = "https://www.mszt.hu", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-20) },
+            new() { Szam = "MSZ EN ISO/IEC 17025:2017", Cim = "Vizsgáló- és kalibrálólaboratóriumok megfelelőségének általános követelményei", Tipus = JogszabalyTipus.Szabvany, Leiras = "Laboratóriumi akkreditáció szabványa", HatalyosKezdet = new DateTime(2017, 11, 1), HatalyosVege = null, Url = "https://www.mszt.hu", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-18) },
+            new() { Szam = "MSZ EN 50110-1:2013", Cim = "Villamos berendezések üzemeltetése", Tipus = JogszabalyTipus.Szabvany, Leiras = "Villamos berendezések biztonságos üzemeltetése", HatalyosKezdet = new DateTime(2013, 6, 1), HatalyosVege = null, Url = "https://www.mszt.hu", Aktiv = true, Megjegyzes = null, Letrehozva = now.AddMonths(-22) },
         };
         db.Jogszabalyok.AddRange(jogszabalyok);
         db.SaveChanges();

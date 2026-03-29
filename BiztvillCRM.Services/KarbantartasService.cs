@@ -27,10 +27,18 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<Karbantartas> UpdateAsync(Karbantartas karbantartas)
     {
-        karbantartas.Modositva = DateTime.UtcNow;
-        _context.Entry(karbantartas).State = EntityState.Modified;
+        var existing = await _context.Karbantartasok.FindAsync(karbantartas.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.EszkozId = karbantartas.EszkozId;
+        existing.Datum = karbantartas.Datum;
+        existing.KovetkezoDatum = karbantartas.KovetkezoDatum;
+        existing.Leiras = karbantartas.Leiras;
+        existing.Elvegzo = karbantartas.Elvegzo;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return karbantartas;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

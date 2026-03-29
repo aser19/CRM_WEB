@@ -186,6 +186,7 @@ public class CrmDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Szam).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Cim).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Leiras).HasMaxLength(2000);
             entity.Property(e => e.Url).HasMaxLength(500);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
         });

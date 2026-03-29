@@ -12,10 +12,15 @@ public class MeresTipusService : IMeresTipusService
     public MeresTipusService(CrmDbContext context) => _context = context;
 
     public async Task<List<MeresTipus>> GetAllAsync() =>
-        await _context.MeresTipusok.OrderBy(m => m.Nev).ToListAsync();
+        await _context.MeresTipusok
+            .AsNoTracking()
+            .OrderBy(m => m.Nev)
+            .ToListAsync();
 
     public async Task<MeresTipus?> GetByIdAsync(int id) =>
-        await _context.MeresTipusok.FindAsync(id);
+        await _context.MeresTipusok
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == id);
 
     public async Task<MeresTipus> CreateAsync(MeresTipus meresTipus)
     {
@@ -27,10 +32,16 @@ public class MeresTipusService : IMeresTipusService
 
     public async Task<MeresTipus> UpdateAsync(MeresTipus meresTipus)
     {
-        meresTipus.Modositva = DateTime.UtcNow;
-        _context.Entry(meresTipus).State = EntityState.Modified;
+        var existing = await _context.MeresTipusok.FindAsync(meresTipus.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = meresTipus.Nev;
+        existing.Leiras = meresTipus.Leiras;
+        existing.ErvenyessegHonap = meresTipus.ErvenyessegHonap;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return meresTipus;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

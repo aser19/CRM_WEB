@@ -11,14 +11,18 @@ public class HitelesitesService : IHitelesitesService
 
     public HitelesitesService(CrmDbContext context) => _context = context;
 
+    // ✅ AsNoTracking() - gyorsabb, nincs tracking konfliktus
     public async Task<List<Hitelesites>> GetAllAsync() =>
         await _context.Hitelesitesek
+            .AsNoTracking()
             .Include(h => h.Eszkoz)
             .Include(h => h.Hatosag)
-            .OrderByDescending(h => h.Datum).ToListAsync();
+            .OrderByDescending(h => h.Datum)
+            .ToListAsync();
 
     public async Task<Hitelesites?> GetByIdAsync(int id) =>
         await _context.Hitelesitesek
+            .AsNoTracking()
             .Include(h => h.Eszkoz)
             .Include(h => h.Hatosag)
             .FirstOrDefaultAsync(h => h.Id == id);
@@ -31,12 +35,24 @@ public class HitelesitesService : IHitelesitesService
         return hitelesites;
     }
 
+    // ✅ Fetch + Update minta - biztonságos, nincs tracking konfliktus
     public async Task<Hitelesites> UpdateAsync(Hitelesites hitelesites)
     {
-        hitelesites.Modositva = DateTime.UtcNow;
-        _context.Entry(hitelesites).State = EntityState.Modified;
+        var existing = await _context.Hitelesitesek.FindAsync(hitelesites.Id) 
+            ?? throw new InvalidOperationException("Nem található a hitelesítés.");
+
+        // Csak a módosítható mezők frissítése
+        existing.EszkozId = hitelesites.EszkozId;
+        existing.HatosagId = hitelesites.HatosagId;
+        existing.Ugyszam = hitelesites.Ugyszam;
+        existing.Datum = hitelesites.Datum;
+        existing.LejaratDatum = hitelesites.LejaratDatum;
+        existing.HitelesitesStatusz = hitelesites.HitelesitesStatusz;
+        existing.Megjegyzes = hitelesites.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return hitelesites;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

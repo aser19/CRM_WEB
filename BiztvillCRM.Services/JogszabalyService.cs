@@ -12,10 +12,16 @@ public class JogszabalyService : IJogszabalyService
     public JogszabalyService(CrmDbContext context) => _context = context;
 
     public async Task<List<Jogszabaly>> GetAllAsync() =>
-        await _context.Jogszabalyok.OrderBy(j => j.Szam).ToListAsync();
+        await _context.Jogszabalyok
+            .AsNoTracking()
+            .OrderBy(j => j.Tipus)
+            .ThenBy(j => j.Szam)
+            .ToListAsync();
 
     public async Task<Jogszabaly?> GetByIdAsync(int id) =>
-        await _context.Jogszabalyok.FindAsync(id);
+        await _context.Jogszabalyok
+            .AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == id);
 
     public async Task<Jogszabaly> CreateAsync(Jogszabaly jogszabaly)
     {
@@ -27,10 +33,22 @@ public class JogszabalyService : IJogszabalyService
 
     public async Task<Jogszabaly> UpdateAsync(Jogszabaly jogszabaly)
     {
-        jogszabaly.Modositva = DateTime.UtcNow;
-        _context.Entry(jogszabaly).State = EntityState.Modified;
+        var existing = await _context.Jogszabalyok.FindAsync(jogszabaly.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Szam = jogszabaly.Szam;
+        existing.Cim = jogszabaly.Cim;
+        existing.Leiras = jogszabaly.Leiras;
+        existing.Tipus = jogszabaly.Tipus;
+        existing.HatalyosKezdet = jogszabaly.HatalyosKezdet;
+        existing.HatalyosVege = jogszabaly.HatalyosVege;
+        existing.Url = jogszabaly.Url;
+        existing.Megjegyzes = jogszabaly.Megjegyzes;
+        existing.Aktiv = jogszabaly.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return jogszabaly;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

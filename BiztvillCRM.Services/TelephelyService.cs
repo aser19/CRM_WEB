@@ -27,10 +27,20 @@ public class TelephelyService : ITelephelyService
 
     public async Task<Telephely> UpdateAsync(Telephely telephely)
     {
-        telephely.Modositva = DateTime.UtcNow;
-        _context.Entry(telephely).State = EntityState.Modified;
+        var existing = await _context.Telephelyek.FindAsync(telephely.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = telephely.Nev;
+        existing.Cim = telephely.Cim;
+        existing.UgyfelId = telephely.UgyfelId;
+        existing.Kapcsolattarto = telephely.Kapcsolattarto;
+        existing.Telefon = telephely.Telefon;
+        existing.Email = telephely.Email;
+        existing.Aktiv = telephely.Aktiv;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return telephely;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

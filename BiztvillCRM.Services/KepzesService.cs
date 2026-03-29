@@ -27,10 +27,18 @@ public class KepzesService : IKepzesService
 
     public async Task<Kepzes> UpdateAsync(Kepzes kepzes)
     {
-        kepzes.Modositva = DateTime.UtcNow;
-        _context.Entry(kepzes).State = EntityState.Modified;
+        var existing = await _context.Kepzesek.FindAsync(kepzes.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        existing.Nev = kepzes.Nev;
+        existing.Datum = kepzes.Datum;
+        existing.LejaratDatum = kepzes.LejaratDatum;
+        existing.Resztvevo = kepzes.Resztvevo;
+        existing.Megjegyzes = kepzes.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return kepzes;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

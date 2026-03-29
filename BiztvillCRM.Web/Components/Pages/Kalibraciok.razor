@@ -21,7 +21,9 @@
 
     <MudDataGrid T="Kalibracio" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
-            <PropertyColumn Property="k => k.Eszkoz!.Nev" Title="Eszköz" />
+            <TemplateColumn Title="Eszköz">
+                <CellTemplate>@(context.Item.Eszkoz?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
             <PropertyColumn Property="k => k.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
             <PropertyColumn Property="k => k.Bizonyitvany" Title="Bizonyítvány" />
@@ -84,8 +86,36 @@
         : _lista.Where(k => (k.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
                             (k.Bizonyitvany?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    protected override async Task OnInitializedAsync() { await BetoltesAsync(); _eszkozok = await EszkozService.GetAllAsync(); }
-    private async Task BetoltesAsync() { _betoltes = true; _lista = await KalibracioService.GetAllAsync(); _betoltes = false; }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _eszkozok = await EszkozService.GetAllAsync();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a betöltés során: {ex.Message}", Severity.Error);
+            _betoltes = false;
+        }
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        try
+        {
+            _lista = await KalibracioService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
 
     private void UjMegnyitasa() { _szerkesztesAlatt = new Kalibracio { Sikeres = true }; _datum = DateTime.Today; _kovetkezoDatum = null; _dialogNyitva = true; }
     private void SzerkesztesMegnyitasa(Kalibracio item) { _szerkesztesAlatt = new Kalibracio { Id = item.Id, EszkozId = item.EszkozId, Bizonyitvany = item.Bizonyitvany, Elvegzo = item.Elvegzo, Sikeres = item.Sikeres, Megjegyzes = item.Megjegyzes }; _datum = item.Datum; _kovetkezoDatum = item.KovetkezoDatum; _dialogNyitva = true; }
