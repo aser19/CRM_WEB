@@ -1,13 +1,139 @@
 @page "/meresek"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IMeresService MeresService
+@inject IEszkozService EszkozService
+@inject IMeresTipusService MeresTipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Mérések</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Mérések</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (eszköz, eredmény)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új mérés</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Meres" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="m => m.Eszkoz!.Nev" Title="Eszköz" />
+            <PropertyColumn Property="m => m.MeresTipus!.Nev" Title="Típus" />
+            <PropertyColumn Property="m => m.Datum" Title="Dátum" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="m => m.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="m => m.Eredmeny" Title="Eredmény" />
+            <PropertyColumn Property="m => m.MeresStatusz" Title="Státusz" />
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető mérés.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Mérés szerkesztése" : "Új mérés")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.EszkozId" Label="Eszköz *">
+                        @foreach (var e in _eszkozok)
+                        {
+                            <MudSelectItem Value="@e.Id">@e.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.MeresTipusId" Label="Típus *">
+                        @foreach (var t in _tipusok)
+                        {
+                            <MudSelectItem Value="@t.Id">@t.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Eredmeny" Label="Eredmény" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="MeresStatusz" @bind-Value="_szerkesztesAlatt.MeresStatusz" Label="Státusz">
+                        @foreach (MeresStatusz s in Enum.GetValues(typeof(MeresStatusz)))
+                        {
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Meres> _lista = new();
+    private List<Eszkoz> _eszkozok = new();
+    private List<MeresTipus> _tipusok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Meres? _szerkesztesAlatt;
+    private DateTime? _datum, _kovetkezoDatum;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Meres> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(m => (m.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (m.Eredmeny?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+        _eszkozok = await EszkozService.GetAllAsync();
+        _tipusok = await MeresTipusService.GetAllAsync();
+    }
+
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await MeresService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Meres(); _datum = DateTime.Today; _kovetkezoDatum = null; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Meres item) { _szerkesztesAlatt = new Meres { Id = item.Id, EszkozId = item.EszkozId, MeresTipusId = item.MeresTipusId, Eredmeny = item.Eredmeny, MeresStatusz = item.MeresStatusz, Megjegyzes = item.Megjegyzes }; _datum = item.Datum; _kovetkezoDatum = item.KovetkezoDatum; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+        _szerkesztesAlatt.Datum = _datum.Value;
+        _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await MeresService.CreateAsync(_szerkesztesAlatt);
+            else await MeresService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Meres item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli ezt a mérést?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await MeresService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }

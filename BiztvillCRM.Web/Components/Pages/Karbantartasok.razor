@@ -1,13 +1,113 @@
 @page "/karbantartasok"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IKarbantartasService KarbantartasService
+@inject IEszkozService EszkozService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Karbantartások</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Karbantartások</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (eszköz, leírás)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új karbantartás</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Karbantartas" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="k => k.Eszkoz!.Nev" Title="Eszköz" />
+            <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
+            <PropertyColumn Property="k => k.Leiras" Title="Leírás" />
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető karbantartás.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Karbantartás szerkesztése" : "Új karbantartás")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.EszkozId" Label="Eszköz *">
+                        @foreach (var e in _eszkozok)
+                        {
+                            <MudSelectItem Value="@e.Id">@e.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Elvegzo" Label="Elvégző" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Karbantartas> _lista = new();
+    private List<Eszkoz> _eszkozok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Karbantartas? _szerkesztesAlatt;
+    private DateTime? _datum, _kovetkezoDatum;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Karbantartas> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(k => (k.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (k.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync() { await BetoltesAsync(); _eszkozok = await EszkozService.GetAllAsync(); }
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await KarbantartasService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Karbantartas(); _datum = DateTime.Today; _kovetkezoDatum = null; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Karbantartas item) { _szerkesztesAlatt = new Karbantartas { Id = item.Id, EszkozId = item.EszkozId, Elvegzo = item.Elvegzo, Leiras = item.Leiras }; _datum = item.Datum; _kovetkezoDatum = item.KovetkezoDatum; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+        _szerkesztesAlatt.Datum = _datum.Value;
+        _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await KarbantartasService.CreateAsync(_szerkesztesAlatt);
+            else await KarbantartasService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Karbantartas item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli ezt a karbantartást?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await KarbantartasService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }

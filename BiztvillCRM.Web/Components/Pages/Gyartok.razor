@@ -1,13 +1,104 @@
 @page "/gyartok"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IGyartoService GyartoService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Gyártók</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Gyártók</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (név, ország)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új gyártó</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Gyarto" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="g => g.Nev" Title="Név" />
+            <PropertyColumn Property="g => g.Orszag" Title="Ország" />
+            <PropertyColumn Property="g => g.Weboldal" Title="Weboldal" />
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Aktiv? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető gyártó.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Gyártó szerkesztése" : "Új gyártó")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Orszag" Label="Ország" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Weboldal" Label="Weboldal" /></MudItem>
+                <MudItem xs="12"><MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Gyarto> _lista = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Gyarto? _szerkesztesAlatt;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Gyarto> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(g => (g.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (g.Orszag?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync() => await BetoltesAsync();
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await GyartoService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Gyarto { Aktiv = true }; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Gyarto item) { _szerkesztesAlatt = new Gyarto { Id = item.Id, Nev = item.Nev, Orszag = item.Orszag, Weboldal = item.Weboldal, Aktiv = item.Aktiv }; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev)) { Snackbar.Add("A név megadása kötelező!", Severity.Warning); return; }
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await GyartoService.CreateAsync(_szerkesztesAlatt);
+            else await GyartoService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Gyarto item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli: \"{item.Nev}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await GyartoService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }

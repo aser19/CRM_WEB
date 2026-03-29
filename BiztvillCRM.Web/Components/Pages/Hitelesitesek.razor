@@ -1,13 +1,143 @@
 @page "/hitelesitesek"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IHitelesitesService HitelesitesService
+@inject IEszkozService EszkozService
+@inject IHatosagService HatosagService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Hitelesítések</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Hitelesítések</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (ügyszám, eszköz)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új hitelesítés</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Hitelesites" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <TemplateColumn Title="Eszköz">
+                <CellTemplate>@(context.Item.Eszkoz?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Hatóság">
+                <CellTemplate>@(context.Item.Hatosag?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="h => h.Ugyszam" Title="Ügyszám" />
+            <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="h => h.LejaratDatum" Title="Lejárat" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="h => h.HitelesitesStatusz" Title="Státusz" />
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető hitelesítés.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Hitelesítés szerkesztése" : "Új hitelesítés")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.EszkozId" Label="Eszköz *">
+                        @foreach (var e in _eszkozok)
+                        {
+                            <MudSelectItem Value="@e.Id">@e.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.HatosagId" Label="Hatóság" Clearable="true">
+                        @foreach (var h in _hatosagok)
+                        {
+                            <MudSelectItem Value="@((int?)h.Id)">@h.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Ugyszam" Label="Ügyszám" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="HitelesitesStatusz" @bind-Value="_szerkesztesAlatt.HitelesitesStatusz" Label="Státusz">
+                        @foreach (HitelesitesStatusz s in Enum.GetValues(typeof(HitelesitesStatusz)))
+                        {
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Hitelesites> _lista = new();
+    private List<Eszkoz> _eszkozok = new();
+    private List<Hatosag> _hatosagok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Hitelesites? _szerkesztesAlatt;
+    private DateTime? _datum, _lejaratDatum;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Hitelesites> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(h => (h.Ugyszam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (h.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+        _eszkozok = await EszkozService.GetAllAsync();
+        _hatosagok = await HatosagService.GetAllAsync();
+    }
+
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await HitelesitesService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Hitelesites(); _datum = DateTime.Today; _lejaratDatum = null; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Hitelesites item) { _szerkesztesAlatt = new Hitelesites { Id = item.Id, EszkozId = item.EszkozId, HatosagId = item.HatosagId, Ugyszam = item.Ugyszam, HitelesitesStatusz = item.HitelesitesStatusz, Megjegyzes = item.Megjegyzes }; _datum = item.Datum; _lejaratDatum = item.LejaratDatum; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+        _szerkesztesAlatt.Datum = _datum.Value;
+        _szerkesztesAlatt.LejaratDatum = _lejaratDatum;
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await HitelesitesService.CreateAsync(_szerkesztesAlatt);
+            else await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Hitelesites item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli ezt a hitelesítést?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await HitelesitesService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }

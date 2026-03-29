@@ -20,6 +20,20 @@ builder.Services.AddDbContext<CrmDbContext>(options =>
 
 // --- Szolgáltatások regisztrálása ---
 builder.Services.AddScoped<IUgyfelService, UgyfelService>();
+builder.Services.AddScoped<ITelephelyService, TelephelyService>();
+builder.Services.AddScoped<IGyartoService, GyartoService>();
+builder.Services.AddScoped<IEszkozService, EszkozService>();
+builder.Services.AddScoped<IMeresService, MeresService>();
+builder.Services.AddScoped<IMeresTipusService, MeresTipusService>();
+builder.Services.AddScoped<IKarbantartasService, KarbantartasService>();
+builder.Services.AddScoped<ITanusitvanyService, TanusitvanyService>();
+builder.Services.AddScoped<IKepzesService, KepzesService>();
+builder.Services.AddScoped<IHitelesitesService, HitelesitesService>();
+builder.Services.AddScoped<IHatosagService, HatosagService>();
+builder.Services.AddScoped<IJogszabalyService, JogszabalyService>();
+builder.Services.AddScoped<IKalibracioService, KalibracioService>();
+builder.Services.AddScoped<ITerminalService, TerminalService>();
+builder.Services.AddScoped<IUgyszamService, UgyszamService>();
 
 var app = builder.Build();
 
@@ -39,9 +53,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 // --- Middleware pipeline ---
-if (app.Environment.IsDevelopment()) {
+if (app.Environment.IsDevelopment())
+{
     app.UseDeveloperExceptionPage();
-} else {
+}
+else
+{
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }

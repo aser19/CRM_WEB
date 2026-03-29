@@ -1,13 +1,136 @@
 @page "/ugyszamok"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IUgyszamService UgyszamService
+@inject IUgyfelService UgyfelService
+@inject IHatosagService HatosagService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Ügyszámok</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Ügyszámok</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (szám, tárgy)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új ügyszám</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Ugyszam" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="u => u.Szam" Title="Ügyszám" />
+            <PropertyColumn Property="u => u.Targy" Title="Tárgy" />
+            <TemplateColumn Title="Ügyfél">
+                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Hatóság">
+                <CellTemplate>@(context.Item.Hatosag?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="u => u.Beerkezett" Title="Beérkezett" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="u => u.Hatarido" Title="Határidő" Format="yyyy.MM.dd" />
+            <TemplateColumn Title="Lezárt">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Lezart ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                             Color="@(context.Item.Lezart ? Color.Success : Color.Default)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető ügyszám.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Ügyszám szerkesztése" : "Új ügyszám")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Ügyszám *" Required="true" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.UgyfelId" Label="Ügyfél" Clearable="true">
+                        @foreach (var u in _ugyfelek) { <MudSelectItem Value="@((int?)u.Id)">@u.Nev</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Targy" Label="Tárgy" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.HatosagId" Label="Hatóság" Clearable="true">
+                        @foreach (var h in _hatosagok) { <MudSelectItem Value="@((int?)h.Id)">@h.Nev</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_beerkezett" Label="Beérkezett" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatarido" Label="Határidő" /></MudItem>
+                <MudItem xs="12" md="6"><MudSwitch @bind-Value="_szerkesztesAlatt.Lezart" Label="Lezárt" Color="Color.Success" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Ugyszam> _lista = new();
+    private List<Ugyfel> _ugyfelek = new();
+    private List<Hatosag> _hatosagok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Ugyszam? _szerkesztesAlatt;
+    private DateTime? _beerkezett, _hatarido;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Ugyszam> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(u => (u.Szam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (u.Targy?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _hatosagok = await HatosagService.GetAllAsync();
+    }
+
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await UgyszamService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Ugyszam(); _beerkezett = DateTime.Today; _hatarido = null; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Ugyszam item) { _szerkesztesAlatt = new Ugyszam { Id = item.Id, Szam = item.Szam, Targy = item.Targy, UgyfelId = item.UgyfelId, HatosagId = item.HatosagId, Lezart = item.Lezart, Megjegyzes = item.Megjegyzes }; _beerkezett = item.Beerkezett; _hatarido = item.Hatarido; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Szam)) { Snackbar.Add("Az ügyszám megadása kötelező!", Severity.Warning); return; }
+        _szerkesztesAlatt.Beerkezett = _beerkezett;
+        _szerkesztesAlatt.Hatarido = _hatarido;
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await UgyszamService.CreateAsync(_szerkesztesAlatt);
+            else await UgyszamService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Ugyszam item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli: \"{item.Szam}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await UgyszamService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }

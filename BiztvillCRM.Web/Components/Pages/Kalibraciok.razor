@@ -1,13 +1,118 @@
 @page "/kalibraciok"
 @rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IKalibracioService KalibracioService
+@inject IEszkozService EszkozService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Kalibrációk</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Kalibrációk</MudText>
 
-<MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-    Hamarosan elérhető
-</MudAlert>
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (eszköz, bizonyítvány)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új kalibráció</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Kalibracio" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="k => k.Eszkoz!.Nev" Title="Eszköz" />
+            <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.Bizonyitvany" Title="Bizonyítvány" />
+            <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
+            <TemplateColumn Title="Sikeres">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Sikeres ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                             Color="@(context.Item.Sikeres ? Color.Success : Color.Error)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető kalibráció.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Kalibráció szerkesztése" : "Új kalibráció")</MudText></TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.EszkozId" Label="Eszköz *">
+                        @foreach (var e in _eszkozok) { <MudSelectItem Value="@e.Id">@e.Nev</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Elvegzo" Label="Elvégző" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Bizonyitvany" Label="Bizonyítvány száma" /></MudItem>
+                <MudItem xs="12" md="6"><MudSwitch @bind-Value="_szerkesztesAlatt.Sikeres" Label="Sikeres" Color="Color.Success" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
+    private List<Kalibracio> _lista = new();
+    private List<Eszkoz> _eszkozok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private Kalibracio? _szerkesztesAlatt;
+    private DateTime? _datum, _kovetkezoDatum;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<Kalibracio> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(k => (k.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (k.Bizonyitvany?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync() { await BetoltesAsync(); _eszkozok = await EszkozService.GetAllAsync(); }
+    private async Task BetoltesAsync() { _betoltes = true; _lista = await KalibracioService.GetAllAsync(); _betoltes = false; }
+
+    private void UjMegnyitasa() { _szerkesztesAlatt = new Kalibracio { Sikeres = true }; _datum = DateTime.Today; _kovetkezoDatum = null; _dialogNyitva = true; }
+    private void SzerkesztesMegnyitasa(Kalibracio item) { _szerkesztesAlatt = new Kalibracio { Id = item.Id, EszkozId = item.EszkozId, Bizonyitvany = item.Bizonyitvany, Elvegzo = item.Elvegzo, Sikeres = item.Sikeres, Megjegyzes = item.Megjegyzes }; _datum = item.Datum; _kovetkezoDatum = item.KovetkezoDatum; _dialogNyitva = true; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+        _szerkesztesAlatt.Datum = _datum.Value;
+        _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0) await KalibracioService.CreateAsync(_szerkesztesAlatt);
+            else await KalibracioService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(Kalibracio item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", "Biztosan törli ezt a kalibrációt?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try { await KalibracioService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
 }
