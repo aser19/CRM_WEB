@@ -1,0 +1,42 @@
+@page "/kijelentkezes"
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<Felhasznalo> SignInManager
+@inject NavigationManager Navigation
+
+<PageTitle>Kijelentkezés - Biztovill CRM</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="min-height: 100vh;">
+    <MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 450px;">
+        <MudStack AlignItems="AlignItems.Center" Class="mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Large" Color="Color.Warning" />
+            <MudText Typo="Typo.h5">Kijelentkezés</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Align="Align.Center">
+                Biztosan ki szeretne jelentkezni a rendszerből?
+            </MudText>
+        </MudStack>
+
+        <MudStack Row="true" Justify="Justify.Center" Spacing="3">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Vissza">
+                Mégsem
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="KijelentkezesAsync">
+                <MudIcon Icon="@Icons.Material.Filled.Logout" Class="mr-2" />
+                Kijelentkezés
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private void Vissza()
+    {
+        Navigation.NavigateTo("/", forceLoad: false);
+    }
+
+    private async Task KijelentkezesAsync()
+    {
+        await SignInManager.SignOutAsync();
+        Navigation.NavigateTo("/bejelentkezes", forceLoad: true);
+    }
+}

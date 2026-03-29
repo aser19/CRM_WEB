@@ -1,11 +1,15 @@
 using BiztvillCRM.Shared.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BiztvillCRM.Data;
 
-public class CrmDbContext : DbContext
+public class CrmDbContext : IdentityDbContext<Felhasznalo>
 {
     public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options) { }
+
+    // --- Cégek (tenants) ---
+    public DbSet<Ceg> Cegek { get; set; }
 
     // --- Törzsadatok ---
     public DbSet<Ugyfel> Ugyfelek { get; set; }
@@ -29,7 +33,7 @@ public class CrmDbContext : DbContext
     public DbSet<Kepzes> Kepzesek { get; set; }
 
     // --- Karbantartás ---
-    public DbSet<Karbantartas> Karbantartasok { get; set; }
+    public DbSet<Karbantartas> Karbantartasok { get; set; }  // <-- JAVÍTVA: Karbantartasok volt Karbantartasok
 
     // --- Jogszabályok ---
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
@@ -37,6 +41,27 @@ public class CrmDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // --- Ceg ---
+        modelBuilder.Entity<Ceg>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Adoszam).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.Telefon).HasMaxLength(50);
+            entity.Property(e => e.Cim).HasMaxLength(500);
+            entity.Property(e => e.Weboldal).HasMaxLength(500);
+        });
+
+        // --- Felhasznalo ---
+        modelBuilder.Entity<Felhasznalo>(entity =>
+        {
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Beosztas).HasMaxLength(100);
+            entity.Property(e => e.Telefon).HasMaxLength(50);
+            entity.HasOne(e => e.Ceg).WithMany(c => c.Felhasznalok).HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         // --- Ugyfel ---
         modelBuilder.Entity<Ugyfel>(entity =>
@@ -47,6 +72,7 @@ public class CrmDbContext : DbContext
             entity.Property(e => e.Email).HasMaxLength(200);
             entity.Property(e => e.Telefon).HasMaxLength(50);
             entity.Property(e => e.Cim).HasMaxLength(500);
+            entity.HasOne(e => e.Ceg).WithMany(c => c.Ugyfelek).HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // --- Telephely ---
@@ -79,7 +105,7 @@ public class CrmDbContext : DbContext
             entity.Property(e => e.Tipus).HasMaxLength(100);
             entity.HasOne(e => e.Gyarto).WithMany().HasForeignKey(e => e.GyartoId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Ugyfel).WithMany().HasForeignKey(e => e.UgyfelId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // --- Terminal ---

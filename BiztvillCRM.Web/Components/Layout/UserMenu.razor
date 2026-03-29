@@ -1,0 +1,37 @@
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Identity
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<Felhasznalo> UserManager
+
+<AuthorizeView>
+    <Authorized>
+        <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight">
+            <ChildContent>
+                <MudMenuItem Icon="@Icons.Material.Filled.Person" Href="/profil">Profilom</MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" Href="/kijelentkezes">Kijelentkezés</MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+        <MudText Typo="Typo.body2" Class="ml-2">@_felhasznaloNev</MudText>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Href="/bejelentkezes" Variant="Variant.Text" Color="Color.Inherit">
+            <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+            Bejelentkezés
+        </MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string _felhasznaloNev = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(authState.User);
+            _felhasznaloNev = user?.Nev ?? "Felhasználó";
+        }
+    }
+}

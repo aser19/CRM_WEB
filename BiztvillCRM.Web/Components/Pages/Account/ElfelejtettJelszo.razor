@@ -1,0 +1,102 @@
+@page "/elfelejtett-jelszo"
+@layout EmptyLayout
+@using System.ComponentModel.DataAnnotations
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<Felhasznalo> UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Elfelejtett jelszó - Biztovill CRM</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="min-height: 100vh;">
+    <MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 450px;">
+        <MudStack AlignItems="AlignItems.Center" Class="mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">Elfelejtett jelszó</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                Adja meg az email címét, és küldünk egy jelszó-visszaállító linket.
+            </MudText>
+        </MudStack>
+
+        @if (_elkuldve)
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-4">
+                Ha a megadott email cím létezik a rendszerben, küldtünk egy jelszó-visszaállító emailt.
+            </MudAlert>
+            <MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => NavigationManager.NavigateTo("/bejelentkezes"))">
+                Vissza a bejelentkezéshez
+            </MudButton>
+        }
+        else
+        {
+            <EditForm Model="_model" OnValidSubmit="KuldesAsync" FormName="forgot-password">
+                <DataAnnotationsValidator />
+
+                <MudTextField @bind-Value="_model.Email"
+                              Label="Email cím"
+                              InputType="InputType.Email"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              Class="mb-4"
+                              Required="true" />
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Size="Size.Large"
+                           Disabled="_betoltes">
+                    @if (_betoltes)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    <span>Link küldése</span>
+                </MudButton>
+            </EditForm>
+
+            <MudDivider Class="my-4" />
+
+            <MudStack Row="true" Justify="Justify.Center">
+                <MudLink Href="/bejelentkezes" Color="Color.Primary">Vissza a bejelentkezéshez</MudLink>
+            </MudStack>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private EmailModel _model = new();
+    private bool _betoltes;
+    private bool _elkuldve;
+
+    private async Task KuldesAsync()
+    {
+        _betoltes = true;
+
+        try
+        {
+            var user = await UserManager.FindByEmailAsync(_model.Email);
+            if (user != null && user.Aktiv)
+            {
+                var token = await UserManager.GeneratePasswordResetTokenAsync(user);
+                // TODO: Email küldés implementálása
+                // var callbackUrl = NavigationManager.ToAbsoluteUri($"/jelszo-visszaallitas?email={user.Email}&token={Uri.EscapeDataString(token)}");
+                // await EmailService.SendPasswordResetAsync(user.Email, callbackUrl.ToString());
+            }
+
+            // Mindig siker üzenetet mutatunk (biztonsági okokból)
+            _elkuldve = true;
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+
+    public class EmailModel
+    {
+        [Required(ErrorMessage = "Az email cím megadása kötelező")]
+        [EmailAddress(ErrorMessage = "Érvénytelen email cím formátum")]
+        public string Email { get; set; } = string.Empty;
+    }
+}

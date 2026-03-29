@@ -1,0 +1,282 @@
+@page "/profil"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
+@using BiztvillCRM.Data
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<Felhasznalo> UserManager
+@inject SignInManager<Felhasznalo> SignInManager
+@inject CrmDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Profil - Biztovill CRM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Profilom</MudText>
+
+@if (_felhasznalo == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-2" />
+                    Személyes adatok
+                </MudText>
+
+                <EditForm Model="_profilModel" OnValidSubmit="ProfilMentesAsync">
+                    <DataAnnotationsValidator />
+
+                    <MudTextField @bind-Value="_profilModel.Nev"
+                                  Label="Teljes név"
+                                  Required="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_profilModel.Email"
+                                  Label="Email cím"
+                                  InputType="InputType.Email"
+                                  Disabled="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_profilModel.Beosztas"
+                                  Label="Beosztás"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_profilModel.Telefon"
+                                  Label="Telefonszám"
+                                  Class="mb-3" />
+
+                    <MudTextField Value="@_felhasznalo.Ceg?.Nev"
+                                  Label="Cég"
+                                  Disabled="true"
+                                  Class="mb-4" />
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="_mentes">
+                        @if (_mentes)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-2" />
+                        Mentés
+                    </MudButton>
+                </EditForm>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" />
+                    Jelszó módosítása
+                </MudText>
+
+                <EditForm Model="_jelszoModel" OnValidSubmit="JelszoModositasAsync">
+                    <DataAnnotationsValidator />
+
+                    <MudTextField @bind-Value="_jelszoModel.JelenlegiJelszo"
+                                  Label="Jelenlegi jelszó"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_jelszoModel.UjJelszo"
+                                  Label="Új jelszó"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  HelperText="Minimum 8 karakter, kis- és nagybetű, szám"
+                                  Class="mb-3" />
+
+                    <MudTextField @bind-Value="_jelszoModel.UjJelszoMegerosites"
+                                  Label="Új jelszó megerősítése"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  Class="mb-4" />
+
+                    @if (!string.IsNullOrEmpty(_jelszoHiba))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mb-4">@_jelszoHiba</MudAlert>
+                    }
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Warning"
+                               Disabled="_jelszoMentes">
+                        @if (_jelszoMentes)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        <MudIcon Icon="@Icons.Material.Filled.LockReset" Class="mr-2" />
+                        Jelszó módosítása
+                    </MudButton>
+                </EditForm>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+                    Fiók adatok
+                </MudText>
+
+                <MudSimpleTable Dense="true" Hover="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Regisztráció</strong></td>
+                            <td>@_felhasznalo.Letrehozva.ToString("yyyy.MM.dd HH:mm")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Utolsó belépés</strong></td>
+                            <td>@(_felhasznalo.UtolsoBelepes?.ToString("yyyy.MM.dd HH:mm") ?? "–")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Státusz</strong></td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small" Color="@(_felhasznalo.Aktiv ? Color.Success : Color.Error)">
+                                    @(_felhasznalo.Aktiv ? "Aktív" : "Inaktív")
+                                </MudChip>
+                            </td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private Felhasznalo? _felhasznalo;
+    private ProfilModel _profilModel = new();
+    private JelszoModel _jelszoModel = new();
+    private bool _mentes;
+    private bool _jelszoMentes;
+    private string? _jelszoHiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userId = UserManager.GetUserId(user);
+            _felhasznalo = await Db.Users
+                .Include(f => f.Ceg)
+                .FirstOrDefaultAsync(f => f.Id == userId);
+
+            if (_felhasznalo != null)
+            {
+                _profilModel = new ProfilModel
+                {
+                    Nev = _felhasznalo.Nev,
+                    Email = _felhasznalo.Email ?? "",
+                    Beosztas = _felhasznalo.Beosztas,
+                    Telefon = _felhasznalo.Telefon
+                };
+            }
+        }
+    }
+
+    private async Task ProfilMentesAsync()
+    {
+        if (_felhasznalo == null) return;
+
+        _mentes = true;
+        try
+        {
+            _felhasznalo.Nev = _profilModel.Nev;
+            _felhasznalo.Beosztas = _profilModel.Beosztas;
+            _felhasznalo.Telefon = _profilModel.Telefon;
+            _felhasznalo.Modositva = DateTime.Now;
+
+            await UserManager.UpdateAsync(_felhasznalo);
+            Snackbar.Add("Profil sikeresen mentve!", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Hiba történt a mentés során.", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task JelszoModositasAsync()
+    {
+        if (_felhasznalo == null) return;
+
+        _jelszoMentes = true;
+        _jelszoHiba = null;
+
+        try
+        {
+            if (_jelszoModel.UjJelszo != _jelszoModel.UjJelszoMegerosites)
+            {
+                _jelszoHiba = "Az új jelszavak nem egyeznek!";
+                return;
+            }
+
+            var result = await UserManager.ChangePasswordAsync(
+                _felhasznalo,
+                _jelszoModel.JelenlegiJelszo,
+                _jelszoModel.UjJelszo);
+
+            if (result.Succeeded)
+            {
+                Snackbar.Add("Jelszó sikeresen módosítva!", Severity.Success);
+                _jelszoModel = new JelszoModel();
+            }
+            else
+            {
+                _jelszoHiba = string.Join(" ", result.Errors.Select(e => e.Description));
+            }
+        }
+        catch (Exception)
+        {
+            _jelszoHiba = "Hiba történt a jelszó módosítása során.";
+        }
+        finally
+        {
+            _jelszoMentes = false;
+        }
+    }
+
+    public class ProfilModel
+    {
+        [Required(ErrorMessage = "A név megadása kötelező")]
+        [StringLength(200, ErrorMessage = "A név maximum 200 karakter lehet")]
+        public string Nev { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? Beosztas { get; set; }
+
+        [StringLength(50)]
+        public string? Telefon { get; set; }
+    }
+
+    public class JelszoModel
+    {
+        [Required(ErrorMessage = "A jelenlegi jelszó megadása kötelező")]
+        public string JelenlegiJelszo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Az új jelszó megadása kötelező")]
+        [MinLength(8, ErrorMessage = "A jelszó minimum 8 karakter hosszú kell legyen")]
+        public string UjJelszo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Az új jelszó megerősítése kötelező")]
+        [Compare(nameof(UjJelszo), ErrorMessage = "A jelszavak nem egyeznek")]
+        public string UjJelszoMegerosites { get; set; } = string.Empty;
+    }
+}

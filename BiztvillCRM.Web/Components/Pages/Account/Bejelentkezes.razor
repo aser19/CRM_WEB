@@ -1,0 +1,90 @@
+@page "/bejelentkezes"
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<Felhasznalo> SignInManager
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Bejelentkezés - Biztovill CRM</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+    <MudPaper Class="pa-8 ma-auto" Elevation="4" Style="width: 100%; max-width: 400px;">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">Biztovill CRM</MudText>
+        <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-4">Bejelentkezés</MudText>
+
+        <EditForm Model="_loginModel" OnValidSubmit="BejelentkezesAsync" FormName="login">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_loginModel.Email" Label="Email cím" 
+                          InputType="InputType.Email" Required="true" Class="mb-3" />
+            
+            <MudTextField @bind-Value="_loginModel.Password" Label="Jelszó" 
+                          InputType="InputType.Password" Required="true" Class="mb-4" />
+            
+            <MudCheckBox @bind-Value="_loginModel.RememberMe" Label="Emlékezz rám" Color="Color.Primary" Class="mb-4" />
+            
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" 
+                       FullWidth="true" Disabled="_betoltes">
+                @if (_betoltes)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Bejelentkezés
+            </MudButton>
+        </EditForm>
+        
+        @if (!string.IsNullOrEmpty(_hibaUzenet))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@_hibaUzenet</MudAlert>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginModel _loginModel = new();
+    private bool _betoltes;
+    private string? _hibaUzenet;
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool RememberMe { get; set; }
+    }
+
+    private async Task BejelentkezesAsync()
+    {
+        _betoltes = true;
+        _hibaUzenet = null;
+
+        try
+        {
+            var result = await SignInManager.PasswordSignInAsync(
+                _loginModel.Email, 
+                _loginModel.Password, 
+                _loginModel.RememberMe, 
+                lockoutOnFailure: false);
+
+            if (result.Succeeded)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else if (result.IsLockedOut)
+            {
+                _hibaUzenet = "A fiók ideiglenesen zárolva van.";
+            }
+            else
+            {
+                _hibaUzenet = "Hibás email cím vagy jelszó.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _hibaUzenet = $"Hiba történt: {ex.Message}";
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+}

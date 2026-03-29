@@ -21,24 +21,47 @@ public static class DbInitializer
         var now = DateTime.Now;
 
         // -----------------------------------------------------------------------
-        // 1. ÜGYFELEK (10 db)
+        // 0. CÉG LÉTREHOZÁSA (ha még nincs)
+        // -----------------------------------------------------------------------
+        Ceg ceg;
+        if (!db.Cegek.Any())
+        {
+            ceg = new Ceg
+            {
+                Nev = "Biztovill CRM Demo",
+                Email = "info@biztovill.hu",
+                Aktiv = true,
+                Letrehozva = now
+            };
+            db.Cegek.Add(ceg);
+            db.SaveChanges();
+        }
+        else
+        {
+            ceg = db.Cegek.First();
+        }
+
+        // -----------------------------------------------------------------------
+        // 1. ÜGYFELEK (10 db) - CegId hozzáadva!
         // -----------------------------------------------------------------------
         var ugyfelek = new List<Ugyfel>
         {
-            new() { Nev = "Biztovill Kft.",               UgyfelTipus = UgyfelTipus.Kft,         Cim = "1117 Budapest, Irinyi József u. 4.",         Email = "biztovill@example.hu",         Telefon = "+36 1 234 5678", Adoszam = "11111111-2-41", Aktiv = true,  Letrehozva = now.AddMonths(-18) },
-            new() { Nev = "MérésTechnika Zrt.",            UgyfelTipus = UgyfelTipus.Zrt,         Cim = "4025 Debrecen, Piac u. 22.",                 Email = "merestechnika@example.hu",      Telefon = "+36 52 123 456", Adoszam = "22222222-2-09", Aktiv = true,  Letrehozva = now.AddMonths(-14) },
-            new() { Nev = "Kovács János",                  UgyfelTipus = UgyfelTipus.Maganszemely, Cim = "6720 Szeged, Klauzál tér 7.",               Email = "kovacs.janos@example.hu",       Telefon = "+36 62 987 654", Adoszam = "33333333-1-06", Aktiv = true,  Letrehozva = now.AddMonths(-10) },
-            new() { Nev = "Dunántúli Energia Bt.",         UgyfelTipus = UgyfelTipus.Bt,          Cim = "7621 Pécs, Király u. 15.",                   Email = "dunantulienergia@example.hu",   Telefon = "+36 72 456 789", Adoszam = "44444444-2-02", Aktiv = true,  Letrehozva = now.AddMonths(-22) },
-            new() { Nev = "Magyar Gázszolgáltató Rt.",     UgyfelTipus = UgyfelTipus.Rt,          Cim = "3525 Miskolc, Széchenyi u. 12.",             Email = "magyargaz@example.hu",          Telefon = "+36 46 321 654", Adoszam = "55555555-2-05", Aktiv = true,  Letrehozva = now.AddMonths(-30) },
-            new() { Nev = "Fehérvári Műszerész Kft.",      UgyfelTipus = UgyfelTipus.Kft,         Cim = "8000 Székesfehérvár, Budai u. 1.",           Email = "fehervarimuszeresz@example.hu", Telefon = "+36 22 654 321", Adoszam = "66666666-2-07", Aktiv = true,  Letrehozva = now.AddMonths(-8)  },
-            new() { Nev = "Szabó Péter EV",                UgyfelTipus = UgyfelTipus.Egyeni,      Cim = "9021 Győr, Baross u. 3.",                    Email = "szabo.peter@example.hu",        Telefon = "+36 96 111 222", Adoszam = "77777777-1-08", Aktiv = true,  Letrehozva = now.AddMonths(-6)  },
-            new() { Nev = "GreenPower Nonprofit Kft.",     UgyfelTipus = UgyfelTipus.Nonprofit,   Cim = "6000 Kecskemét, Rákóczi u. 20.",             Email = "greenpower@example.hu",         Telefon = "+36 76 333 444", Adoszam = "88888888-2-03", Aktiv = true,  Letrehozva = now.AddMonths(-12) },
-            new() { Nev = "Alföldi Hitelesítő Kft.",       UgyfelTipus = UgyfelTipus.Kft,         Cim = "5000 Szolnok, Ady Endre u. 5.",              Email = "alfoldi@example.hu",            Telefon = "+36 56 555 666", Adoszam = "99999999-2-16", Aktiv = true,  Letrehozva = now.AddMonths(-9)  },
-            new() { Nev = "Városi Közművek Zrt.",           UgyfelTipus = UgyfelTipus.Zrt,         Cim = "4400 Nyíregyháza, Kossuth tér 1.",           Email = "varosikozmuvek@example.hu",     Telefon = "+36 42 777 888", Adoszam = "10101010-2-15", Aktiv = false, Letrehozva = now.AddMonths(-36) },
+            new() { CegId = ceg.Id, Nev = "Biztovill Kft.",               UgyfelTipus = UgyfelTipus.Kft,         Cim = "1117 Budapest, Irinyi József u. 4.",         Email = "biztovill@example.hu",         Telefon = "+36 1 234 5678", Adoszam = "11111111-2-41", Aktiv = true,  Letrehozva = now.AddMonths(-18) },
+            new() { CegId = ceg.Id, Nev = "MérésTechnika Zrt.",            UgyfelTipus = UgyfelTipus.Zrt,         Cim = "4025 Debrecen, Piac u. 22.",                 Email = "merestechnika@example.hu",      Telefon = "+36 52 123 456", Adoszam = "22222222-2-09", Aktiv = true,  Letrehozva = now.AddMonths(-14) },
+            new() { CegId = ceg.Id, Nev = "Kovács János",                  UgyfelTipus = UgyfelTipus.Maganszemely, Cim = "6720 Szeged, Klauzál tér 7.",               Email = "kovacs.janos@example.hu",       Telefon = "+36 62 987 654", Adoszam = "33333333-1-06", Aktiv = true,  Letrehozva = now.AddMonths(-10) },
+            new() { CegId = ceg.Id, Nev = "Dunántúli Energia Bt.",         UgyfelTipus = UgyfelTipus.Bt,          Cim = "7621 Pécs, Király u. 15.",                   Email = "dunantulienergia@example.hu",   Telefon = "+36 72 456 789", Adoszam = "44444444-2-02", Aktiv = true,  Letrehozva = now.AddMonths(-22) },
+            new() { CegId = ceg.Id, Nev = "Magyar Gázszolgáltató Rt.",     UgyfelTipus = UgyfelTipus.Rt,          Cim = "3525 Miskolc, Széchenyi u. 12.",             Email = "magyargaz@example.hu",          Telefon = "+36 46 321 654", Adoszam = "55555555-2-05", Aktiv = true,  Letrehozva = now.AddMonths(-30) },
+            new() { CegId = ceg.Id, Nev = "Fehérvári Műszerész Kft.",      UgyfelTipus = UgyfelTipus.Kft,         Cim = "8000 Székesfehérvár, Budai u. 1.",           Email = "fehervarimuszeresz@example.hu", Telefon = "+36 22 654 321", Adoszam = "66666666-2-07", Aktiv = true,  Letrehozva = now.AddMonths(-8)  },
+            new() { CegId = ceg.Id, Nev = "Szabó Péter EV",                UgyfelTipus = UgyfelTipus.Egyeni,      Cim = "9021 Győr, Baross u. 3.",                    Email = "szabo.peter@example.hu",        Telefon = "+36 96 111 222", Adoszam = "77777777-1-08", Aktiv = true,  Letrehozva = now.AddMonths(-6)  },
+            new() { CegId = ceg.Id, Nev = "GreenPower Nonprofit Kft.",     UgyfelTipus = UgyfelTipus.Nonprofit,   Cim = "6000 Kecskemét, Rákóczi u. 20.",             Email = "greenpower@example.hu",         Telefon = "+36 76 333 444", Adoszam = "88888888-2-03", Aktiv = true,  Letrehozva = now.AddMonths(-12) },
+            new() { CegId = ceg.Id, Nev = "Alföldi Hitelesítő Kft.",       UgyfelTipus = UgyfelTipus.Kft,         Cim = "5000 Szolnok, Ady Endre u. 5.",              Email = "alfoldi@example.hu",            Telefon = "+36 56 555 666", Adoszam = "99999999-2-16", Aktiv = true,  Letrehozva = now.AddMonths(-9)  },
+            new() { CegId = ceg.Id, Nev = "Városi Közművek Zrt.",           UgyfelTipus = UgyfelTipus.Zrt,         Cim = "4400 Nyíregyháza, Kossuth tér 1.",           Email = "varosikozmuvek@example.hu",     Telefon = "+36 42 777 888", Adoszam = "10101010-2-15", Aktiv = false, Letrehozva = now.AddMonths(-36) },
         };
         db.Ugyfelek.AddRange(ugyfelek);
         db.SaveChanges();
 
+      
+   
         // -----------------------------------------------------------------------
         // 2. TELEPHELYEK (15 db) – 2-3 telephely ügyfelenként
         // -----------------------------------------------------------------------

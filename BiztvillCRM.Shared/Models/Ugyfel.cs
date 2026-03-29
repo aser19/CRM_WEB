@@ -17,6 +17,10 @@ public class Ugyfel
     public UgyfelTipus UgyfelTipus { get; set; }
     public bool Aktiv { get; set; } = true;
 
+    // Céghez tartozás (tenant) - az ügyfél melyik céghez tartozik
+    public int CegId { get; set; }
+    public Ceg Ceg { get; set; } = null!;
+
     // Navigációs property
     public List<Telephely> Telephelyek { get; set; } = new();
 
@@ -31,6 +35,7 @@ public class Ugyfel
         Telefon = Telefon,
         UgyfelTipus = UgyfelTipus,
         Aktiv = Aktiv,
+        CegId = CegId,
         Letrehozva = Letrehozva,
         Modositva = Modositva
     };

@@ -1,10 +1,11 @@
-namespace BiztvillCRM.Shared.Enums;
-
-/// <summary>A felhasználó szerepkörét jelölő enum.</summary>
-public enum FelhasznaloSzerepkor
+namespace BiztvillCRM.Shared.Enums
 {
-    Admin,
-    Menedzser,
-    Technikus,
-    Megfigyelo
+    public enum FelhasznaloSzerepkor
+    {
+        Admin,
+        CegAdmin,
+        Felhasznalo,
+        Megtekinto,
+        Vendeg
+    }
 }

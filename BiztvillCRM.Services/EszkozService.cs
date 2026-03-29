@@ -1,5 +1,6 @@
 using BiztvillCRM.Data;
 using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,25 +9,58 @@ namespace BiztvillCRM.Services;
 public class EszkozService : IEszkozService
 {
     private readonly CrmDbContext _context;
+    private readonly ITenantService _tenantService;
 
-    public EszkozService(CrmDbContext context) => _context = context;
+    public EszkozService(CrmDbContext context, ITenantService tenantService)
+    {
+        _context = context;
+        _tenantService = tenantService;
+    }
 
-    public async Task<List<Eszkoz>> GetAllAsync() =>
-        await _context.Eszkozok
+    public async Task<List<Eszkoz>> GetAllAsync()
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        var query = _context.Eszkozok
             .Include(e => e.Gyarto)
             .Include(e => e.Ugyfel)
             .Include(e => e.Telephely)
-            .OrderBy(e => e.Nev).ToListAsync();
+            .AsQueryable();
 
-    public async Task<Eszkoz?> GetByIdAsync(int id) =>
-        await _context.Eszkozok
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            query = query.Where(e => e.Ugyfel.CegId == cegId);
+        }
+
+        return await query.OrderBy(e => e.Nev).ToListAsync();
+    }
+
+    public async Task<Eszkoz?> GetByIdAsync(int id)
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        var query = _context.Eszkozok
             .Include(e => e.Gyarto)
             .Include(e => e.Ugyfel)
             .Include(e => e.Telephely)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .AsQueryable();
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            query = query.Where(e => e.Ugyfel.CegId == cegId);
+        }
+
+        return await query.FirstOrDefaultAsync(e => e.Id == id);
+    }
 
     public async Task<Eszkoz> CreateAsync(Eszkoz eszkoz)
     {
+        var cegId = _tenantService.GetCurrentCegId();
+        var ugyfel = await _context.Ugyfelek.FindAsync(eszkoz.UgyfelId);
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Nincs jogosultsága eszköz létrehozásához ennél az ügyfélnél.");
+        }
+
         eszkoz.Letrehozva = DateTime.UtcNow;
         _context.Eszkozok.Add(eszkoz);
         await _context.SaveChangesAsync();
@@ -35,8 +69,16 @@ public class EszkozService : IEszkozService
 
     public async Task<Eszkoz> UpdateAsync(Eszkoz eszkoz)
     {
-        var existing = await _context.Eszkozok.FindAsync(eszkoz.Id)
+        var cegId = _tenantService.GetCurrentCegId();
+        var existing = await _context.Eszkozok
+            .Include(e => e.Ugyfel)
+            .FirstOrDefaultAsync(e => e.Id == eszkoz.Id)
             ?? throw new InvalidOperationException("Nem található.");
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Nincs jogosultsága az eszköz módosításához.");
+        }
 
         existing.Nev = eszkoz.Nev;
         existing.GyariSzam = eszkoz.GyariSzam;
@@ -53,9 +95,18 @@ public class EszkozService : IEszkozService
 
     public async Task DeleteAsync(int id)
     {
-        var eszkoz = await _context.Eszkozok.FindAsync(id);
+        var cegId = _tenantService.GetCurrentCegId();
+        var eszkoz = await _context.Eszkozok
+            .Include(e => e.Ugyfel)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
         if (eszkoz is not null)
         {
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz.Ugyfel.CegId != cegId)
+            {
+                throw new UnauthorizedAccessException("Nincs jogosultsága az eszköz törléséhez.");
+            }
+
             _context.Eszkozok.Remove(eszkoz);
             await _context.SaveChangesAsync();
         }

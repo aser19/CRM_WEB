@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -13,7 +14,8 @@
         <MudSpacer />
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                        Color="Color.Inherit" OnClick="@ToggleDarkMode" />
-        <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" />
+        <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" 
+                       OnClick="Kijelentkezes" Title="Kijelentkezés" />
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Mini">
@@ -59,4 +61,9 @@
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
+    
+    private void Kijelentkezes()
+    {
+        Navigation.NavigateTo("/kijelentkezes", forceLoad: true);
+    }
 }
