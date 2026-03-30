@@ -4,9 +4,11 @@ using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +49,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/hozzaferes-megtagadva";
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
+    // NE legyen OnRedirectToLogin event!
 });
 
 // --- Auth cascade ---
@@ -74,6 +77,11 @@ builder.Services.AddScoped<IJogszabalyService, JogszabalyService>();
 builder.Services.AddScoped<IKalibracioService, KalibracioService>();
 builder.Services.AddScoped<ITerminalService, TerminalService>();
 builder.Services.AddScoped<IUgyszamService, UgyszamService>();
+builder.Services.AddAuthenticationCore();
+builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+
+// Egyszerű authorization, FallbackPolicy NÉLKÜL
+builder.Services.AddAuthorizationCore();
 
 var app = builder.Build();
 
@@ -110,12 +118,15 @@ else
 }
 
 app.UseHttpsRedirection();
+
+// ⚠️ FONTOS: UseStaticFiles ELŐBB kell, mint UseAuthentication!
 app.UseStaticFiles();
-app.UseAntiforgery();
 
 // --- Authentication & Authorization ---
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseAntiforgery();
 
 // --- Blazor renderelés ---
 app.MapRazorComponents<BiztvillCRM.Web.Components.App>()
@@ -123,27 +134,39 @@ app.MapRazorComponents<BiztvillCRM.Web.Components.App>()
 
 // --- Bejelentkezési endpoint (Interactive Server módban a HttpContext válasza már le van zárva,
 //     ezért egy valódi HTTP POST végponton keresztül állítjuk be a sütit.) ---
-app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager) =>
+app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager, ILogger<Program> logger) =>
 {
     var form = ctx.Request.Form;
     var email = form["email"].FirstOrDefault() ?? string.Empty;
     var password = form["password"].FirstOrDefault() ?? string.Empty;
     bool.TryParse(form["rememberMe"].FirstOrDefault(), out var rememberMe);
 
+    logger.LogInformation("Bejelentkezési kísérlet: Email={Email}, RememberMe={RememberMe}", email, rememberMe);
+
     var result = await signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
-    if (result.Succeeded)
-        return Results.LocalRedirect("/");
-    SignInResult signInResult = await signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
-    
 
     if (result.Succeeded)
+    {
+        logger.LogInformation("Bejelentkezés sikeres: {Email}", email);
         return Results.LocalRedirect("/");
+    }
 
+    if (result.IsLockedOut)
+    {
+        logger.LogWarning("A fiók zárolva: {Email}", email);
+        return Results.Redirect($"/bejelentkezes?hiba=zarolt");
+    }
 
-    var hiba = result.IsLockedOut ? "zarolt" : "hibas";
-    return Results.Redirect($"/bejelentkezes?hiba={hiba}");
-});
+    logger.LogWarning("Hibás bejelentkezési kísérlet: {Email}", email);
+    return Results.Redirect($"/bejelentkezes?hiba=hibas");
+}).AllowAnonymous();  // <-- HOZZÁADVA
 
+// --- Kijelentkezési endpoint ---
+app.MapGet("/account/logout", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.Redirect("/bejelentkezes");
+}).AllowAnonymous();  // <-- HOZZÁADVA
 
 app.Run();
 

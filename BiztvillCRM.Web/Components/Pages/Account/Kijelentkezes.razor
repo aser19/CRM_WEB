@@ -1,8 +1,8 @@
 @page "/kijelentkezes"
-@using BiztvillCRM.Shared.Models
-@using Microsoft.AspNetCore.Identity
-@inject SignInManager<Felhasznalo> SignInManager
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Kijelentkezés - Biztovill CRM</PageTitle>
 
@@ -36,7 +36,7 @@
 
     private async Task KijelentkezesAsync()
     {
-        await SignInManager.SignOutAsync();
-        Navigation.NavigateTo("/bejelentkezes", forceLoad: true);
+        // Navigáljunk a kijelentkezési végpontra
+        Navigation.NavigateTo("/account/logout", forceLoad: true);
     }
 }

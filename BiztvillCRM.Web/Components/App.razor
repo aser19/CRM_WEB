@@ -10,10 +10,12 @@
 </head>
 <body>
     <Routes @rendermode="InteractiveServer" />
+
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
     <script>
-        window.submitLoginForm = function (email, password, rememberMe, antiforgeryToken) {
+        window.submitLoginForm = function (email, password, rememberMe) {
+            console.log('submitLoginForm called');
             var form = document.createElement('form');
             form.method = 'POST';
             form.action = '/account/login';
@@ -27,10 +29,34 @@
             addField('email', email);
             addField('password', password);
             addField('rememberMe', rememberMe.toString());
-            addField('__RequestVerificationToken', antiforgeryToken);
             document.body.appendChild(form);
             form.submit();
         };
     </script>
 </body>
 </html>
+
+@code {
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+
+    private async Task HandleNavigation(Microsoft.AspNetCore.Components.Routing.NavigationContext args)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user == null || !user.Identity?.IsAuthenticated == true)
+        {
+            // Ha a felhasználó nincs bejelentkezve, és nem a bejelentkezési oldalra navigál
+            if (!args.Path.Contains("bejelentkezes", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!Navigation.Uri.Contains("/bejelentkezes"))
+                {
+                    Navigation.NavigateTo("/bejelentkezes", true);
+                }
+            }
+        }
+    }
+}
+
