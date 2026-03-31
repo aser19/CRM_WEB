@@ -1,6 +1,10 @@
 @page "/"
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
+@using BiztvillCRM.Services.Interfaces
+@inject IUgyfelService UgyfelService
+@inject IMeresService MeresService
+@inject IHitelesitesService HitelesitesService
 
 <PageTitle>Dashboard - Biztovill CRM</PageTitle>
 
@@ -13,7 +17,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Ügyfelek</MudText>
-                    <MudText Typo="Typo.h5">0</MudText>
+                    <MudText Typo="Typo.h5">@_ugyfelekSzama</MudText>
                 </MudStack>
             </MudStack>
         </MudPaper>
@@ -25,7 +29,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.Speed" Color="Color.Info" Size="Size.Large" />
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Mérések</MudText>
-                    <MudText Typo="Typo.h5">0</MudText>
+                    <MudText Typo="Typo.h5">@_meresekSzama</MudText>
                 </MudStack>
             </MudStack>
         </MudPaper>
@@ -37,7 +41,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (30 nap)</MudText>
-                    <MudText Typo="Typo.h5">0</MudText>
+                    <MudText Typo="Typo.h5">@_lejaroSzama</MudText>
                 </MudStack>
             </MudStack>
         </MudPaper>
@@ -49,7 +53,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Lejárt</MudText>
-                    <MudText Typo="Typo.h5">0</MudText>
+                    <MudText Typo="Typo.h5">@_lejartSzama</MudText>
                 </MudStack>
             </MudStack>
         </MudPaper>
@@ -60,14 +64,89 @@
     <MudItem xs="12" md="6">
         <MudPaper Class="pa-4" Elevation="2">
             <MudText Typo="Typo.h6" Class="mb-2">Hamarosan lejáró mérések</MudText>
-            <MudAlert Severity="Severity.Info">Még nincsenek adatok.</MudAlert>
+            @if (_lejaroMeresek.Any())
+            {
+                <MudList T="string">
+                    @foreach (var meres in _lejaroMeresek.Take(5))
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning">
+                            @meres.Ugyfel?.Nev - @meres.Telephely?.Nev - @meres.KovetkezoDatum?.ToString("yyyy.MM.dd")
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">Még nincsenek adatok.</MudAlert>
+            }
         </MudPaper>
     </MudItem>
 
     <MudItem xs="12" md="6">
         <MudPaper Class="pa-4" Elevation="2">
             <MudText Typo="Typo.h6" Class="mb-2">Hamarosan lejáró hitelesítések</MudText>
-            <MudAlert Severity="Severity.Info">Még nincsenek adatok.</MudAlert>
+            @if (_lejaroHitelesitesek.Any())
+            {
+                <MudList T="string">
+                    @foreach (var hitelesites in _lejaroHitelesitesek.Take(5))
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning">
+                            @hitelesites.Eszkoz?.Nev - @hitelesites.LejaratDatum?.ToString("yyyy.MM.dd")
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">Még nincsenek adatok.</MudAlert>
+            }
         </MudPaper>
     </MudItem>
 </MudGrid>
+
+@code {
+    private int _ugyfelekSzama;
+    private int _meresekSzama;
+    private int _lejaroSzama;
+    private int _lejartSzama;
+    private List<BiztvillCRM.Shared.Models.Meres> _lejaroMeresek = new();
+    private List<BiztvillCRM.Shared.Models.Hitelesites> _lejaroHitelesitesek = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        var ugyfelek = await UgyfelService.GetAllAsync();
+        _ugyfelekSzama = ugyfelek.Count();
+
+        var meresek = await MeresService.GetAllAsync();
+        _meresekSzama = meresek.Count();
+
+        var ma = DateTime.Today;
+        var harminc_nap_mulva = ma.AddDays(30);
+
+        // Lejáró mérések (30 napon belül)
+        _lejaroMeresek = meresek
+            .Where(m => m.KovetkezoDatum.HasValue && 
+                        m.KovetkezoDatum.Value > ma && 
+                        m.KovetkezoDatum.Value <= harminc_nap_mulva)
+            .OrderBy(m => m.KovetkezoDatum)
+            .ToList();
+        _lejaroSzama = _lejaroMeresek.Count;
+
+        // Lejárt mérések
+        _lejartSzama = meresek.Count(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value < ma);
+
+        // Lejáró hitelesítések
+        var hitelesitesek = await HitelesitesService.GetAllAsync();
+        _lejaroHitelesitesek = hitelesitesek
+            .Where(h => h.LejaratDatum.HasValue && 
+                        h.LejaratDatum.Value > ma && 
+                        h.LejaratDatum.Value <= harminc_nap_mulva)
+            .OrderBy(h => h.LejaratDatum)
+            .ToList();
+    }
+}

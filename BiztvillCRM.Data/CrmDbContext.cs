@@ -133,7 +133,8 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Eredmeny).HasMaxLength(500);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
-            entity.HasOne(e => e.Eszkoz).WithMany().HasForeignKey(e => e.EszkozId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Ugyfel).WithMany().HasForeignKey(e => e.UgyfelId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.MeresTipus).WithMany().HasForeignKey(e => e.MeresTipusId).OnDelete(DeleteBehavior.Restrict);
         });
 

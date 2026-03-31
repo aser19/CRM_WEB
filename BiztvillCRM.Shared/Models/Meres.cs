@@ -9,7 +9,10 @@ public class Meres
     public DateTime Letrehozva { get; set; }
     public DateTime? Modositva { get; set; }
 
-    public int EszkozId { get; set; }
+    // Ügyfél és telephely kapcsolat (Eszköz helyett)
+    public int UgyfelId { get; set; }
+    public int TelephelyId { get; set; }
+    
     public int MeresTipusId { get; set; }
     public DateTime Datum { get; set; }
     public DateTime? KovetkezoDatum { get; set; }
@@ -18,6 +21,7 @@ public class Meres
     public string? Megjegyzes { get; set; }
 
     // Navigációs propertyk
-    public Eszkoz? Eszkoz { get; set; }
+    public Ugyfel? Ugyfel { get; set; }
+    public Telephely? Telephely { get; set; }
     public MeresTipus? MeresTipus { get; set; }
 }

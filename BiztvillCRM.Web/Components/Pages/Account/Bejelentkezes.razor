@@ -12,10 +12,12 @@
         <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-4">Bejelentkezés</MudText>
 
         <MudTextField @bind-Value="_email" Label="Email cím" 
-                      InputType="InputType.Email" Required="true" Class="mb-3" />
+                      InputType="InputType.Email" Required="true" Class="mb-3"
+                      OnKeyUp="@OnEnterPressed" />
         
         <MudTextField @bind-Value="_password" Label="Jelszó" 
-                      InputType="InputType.Password" Required="true" Class="mb-4" />
+                      InputType="InputType.Password" Required="true" Class="mb-4"
+                      OnKeyUp="@OnEnterPressed" />
         
         <MudCheckBox @bind-Value="_rememberMe" Label="Emlékezz rám" Color="Color.Primary" Class="mb-4" />
         
@@ -55,6 +57,14 @@
         };
     }
 
+    private async Task OnEnterPressed(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BejelentkezesAsync();
+        }
+    }
+
     private async Task BejelentkezesAsync()
     {
         if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
@@ -68,8 +78,7 @@
 
         try
         {
-            // JavaScript form submit a /account/login végpontra
-            await JS.InvokeVoidAsync("submitLoginForm", _email, _password, _rememberMe, "");
+            await JS.InvokeVoidAsync("submitLoginForm", _email, _password, _rememberMe);
         }
         catch (Exception ex)
         {

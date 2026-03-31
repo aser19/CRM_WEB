@@ -21,14 +21,14 @@ public class MeresService : IMeresService
     {
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Meresek
-            .Include(m => m.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+            .Include(m => m.Ugyfel)
+            .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(m => m.Eszkoz.Ugyfel.CegId == cegId);
+            query = query.Where(m => m.Ugyfel!.CegId == cegId);
         }
 
         return await query.OrderByDescending(m => m.Datum).ToListAsync();
@@ -38,14 +38,14 @@ public class MeresService : IMeresService
     {
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Meresek
-            .Include(m => m.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+            .Include(m => m.Ugyfel)
+            .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(m => m.Eszkoz.Ugyfel.CegId == cegId);
+            query = query.Where(m => m.Ugyfel!.CegId == cegId);
         }
 
         return await query.FirstOrDefaultAsync(m => m.Id == id);
@@ -54,11 +54,18 @@ public class MeresService : IMeresService
     public async Task<Meres> CreateAsync(Meres meres)
     {
         var cegId = _tenantService.GetCurrentCegId();
-        var eszkoz = await _context.Eszkozok.Include(e => e.Ugyfel).FirstOrDefaultAsync(e => e.Id == meres.EszkozId);
+        var ugyfel = await _context.Ugyfelek.FirstOrDefaultAsync(u => u.Id == meres.UgyfelId);
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz?.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága mérés létrehozásához ennél az eszköznél.");
+            throw new UnauthorizedAccessException("Nincs jogosultsága mérés létrehozásához ennél az ügyfélnél.");
+        }
+
+        // Ellenőrizzük, hogy a telephely az ügyfélhez tartozik-e
+        var telephely = await _context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
+        if (telephely?.UgyfelId != meres.UgyfelId)
+        {
+            throw new InvalidOperationException("A telephely nem tartozik a kiválasztott ügyfélhez.");
         }
 
         meres.Letrehozva = DateTime.UtcNow;
@@ -71,17 +78,24 @@ public class MeresService : IMeresService
     {
         var cegId = _tenantService.GetCurrentCegId();
         var existing = await _context.Meresek
-            .Include(m => m.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+            .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == meres.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Eszkoz.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel?.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a mérés módosításához.");
         }
 
-        existing.EszkozId = meres.EszkozId;
+        // Ellenőrizzük, hogy a telephely az ügyfélhez tartozik-e
+        var telephely = await _context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
+        if (telephely?.UgyfelId != meres.UgyfelId)
+        {
+            throw new InvalidOperationException("A telephely nem tartozik a kiválasztott ügyfélhez.");
+        }
+
+        existing.UgyfelId = meres.UgyfelId;
+        existing.TelephelyId = meres.TelephelyId;
         existing.MeresTipusId = meres.MeresTipusId;
         existing.Datum = meres.Datum;
         existing.KovetkezoDatum = meres.KovetkezoDatum;
@@ -98,13 +112,12 @@ public class MeresService : IMeresService
     {
         var cegId = _tenantService.GetCurrentCegId();
         var meres = await _context.Meresek
-            .Include(m => m.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+            .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (meres is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Eszkoz.Ugyfel.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel?.CegId != cegId)
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
             }

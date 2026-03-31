@@ -6,6 +6,9 @@
 @inject IUgyfelService UgyfelService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ITelephelyService TelephelyService
+@inject ITenantService TenantService
+@inject ICegService CegService
 
 <PageTitle>Ügyfelek</PageTitle>
 
@@ -91,6 +94,17 @@
         @if (_szerkesztesAlatt is not null)
         {
             <MudGrid>
+                @if (_isAdmin)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég *">
+                            @foreach (var c in _cegek)
+                            {
+                                <MudSelectItem Value="@c.Id">@c.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Nev"
                                   Label="Név *"
@@ -131,6 +145,42 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Telephely hozzáadása dialógus -->
+<MudDialog @bind-Visible="_telephelyDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Új telephely hozzáadása</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTelephely is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Nev" Label="Telephely neve *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Cim" Label="Cím" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Kapcsolattarto" Label="Kapcsolattartó" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_ujTelephely.Aktiv" Label="Aktív" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _telephelyDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="TelephelyMentesAsync" Color="Color.Primary" Variant="Variant.Filled">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Ugyfel> _ugyfelek = new();
     private string _kereses = string.Empty;
@@ -138,6 +188,11 @@
     private bool _dialogNyitva = false;
     private bool _mentes = false;
     private Ugyfel? _szerkesztesAlatt;
+    private bool _telephelyDialogNyitva = false;
+    private Telephely? _ujTelephely;
+    private int _kivalasztottCegId;
+    private bool _isAdmin;
+    private List<Ceg> _cegek = new();
 
     private readonly DialogOptions _dialogOptions = new()
     {
@@ -156,6 +211,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        if (_isAdmin)
+        {
+            _cegek = await CegService.GetAllAsync(); // Inject ICegService
+        }
         await BetoltesAsync();
     }
 
@@ -195,16 +255,31 @@
         }
 
         _mentes = true;
+        bool ujUgyfel = _szerkesztesAlatt.Id == 0;
+        
         try
         {
-            if (_szerkesztesAlatt.Id == 0)
-                await UgyfelService.CreateAsync(_szerkesztesAlatt);
+            Ugyfel mentettUgyfel;
+            if (ujUgyfel)
+                mentettUgyfel = await UgyfelService.CreateAsync(_szerkesztesAlatt);
             else
+            {
+                if (_isAdmin)
+                    _szerkesztesAlatt.CegId = _kivalasztottCegId;
+                // A service automatikusan beállítja, ha nem admin
                 await UgyfelService.UpdateAsync(_szerkesztesAlatt);
+                mentettUgyfel = _szerkesztesAlatt;
+            }
 
             Snackbar.Add("Sikeres mentés!", Severity.Success);
             DialogBezarasa();
             await BetoltesAsync();
+
+            // Új ügyFYelnél kérdezzük meg, akar-e telephelyet rögzíteni
+            if (ujUgyfel)
+            {
+                await TelephelyKerdesAsync(mentettUgyfel);
+            }
         }
         catch (Exception ex)
         {
@@ -216,26 +291,111 @@
         }
     }
 
-    private async Task TorlesMegerosites(Ugyfel ugyfel)
+    private async Task TelephelyKerdesAsync(Ugyfel ugyfel)
     {
         var result = await DialogService.ShowMessageBox(
-            "Törlés megerősítése",
-            $"Biztosan törli a(z) \"{ugyfel.Nev}\" ügyfelet?",
-            yesText: "Törlés",
-            cancelText: "Mégse");
+            "Telephely rögzítése",
+            "Szeretne telephelyet rögzíteni az ügyfélhez?",
+            yesText: "Igen, ugyanazokkal az adatokkal",
+            noText: "Igen, más adatokkal",
+            cancelText: "Nem");
 
         if (result == true)
         {
-            try
+            // Ugyanazokkal az adatokkal
+            var telephely = new Telephely
             {
-                await UgyfelService.DeleteAsync(ugyfel.Id);
-                Snackbar.Add("Ügyfél törölve.", Severity.Success);
-                await BetoltesAsync();
-            }
-            catch (Exception ex)
+                UgyfelId = ugyfel.Id,
+                Nev = ugyfel.Nev,
+                Cim = ugyfel.Cim,
+                Telefon = ugyfel.Telefon,
+                Email = ugyfel.Email,
+                Aktiv = true
+            };
+            await TelephelyService.CreateAsync(telephely);
+            Snackbar.Add("Telephely rögzítve az ügyfél adataival!", Severity.Success);
+            await BetoltesAsync();
+        }
+        else if (result == false)
+        {
+            // Más adatokkal - nyissuk meg a telephely dialógust
+            _ujTelephely = new Telephely { UgyfelId = ugyfel.Id, Aktiv = true };
+            _telephelyDialogNyitva = true;
+        }
+        // Ha cancel (null), akkor nem csinálunk semmit
+    }
+
+    private async Task TorlesMegerosites(Ugyfel ugyfel)
+    {
+        var kapcsolodo = await UgyfelService.GetKapcsolodoAdatokAsync(ugyfel.Id);
+
+        if (kapcsolodo.VanKapcsolodoAdat)
+        {
+            var uzenet = $"A(z) \"{ugyfel.Nev}\" ügyfélnek hozzárendelt adatai vannak: {kapcsolodo.Osszefoglalas()}. Ezeket is kívánja törölni? [FIGYELEM] A törlés nem visszavonható!";
+
+            var result = await DialogService.ShowMessageBox(
+                "Törlés megerősítése",
+                uzenet,
+                yesText: "Igen, mindent törlök",
+                cancelText: "Mégsem");
+
+            if (result == true)
             {
-                Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+                try
+                {
+                    await UgyfelService.DeleteWithRelatedDataAsync(ugyfel.Id);
+                    Snackbar.Add($"Ügyfél és {kapcsolodo.Osszefoglalas()} törölve.", Severity.Success);
+                    await BetoltesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+                }
             }
+        }
+        else
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Törlés megerősítése",
+                $"Biztosan törli a(z) \"{ugyfel.Nev}\" ügyfelet?",
+                yesText: "Törlés",
+                cancelText: "Mégse");
+
+            if (result == true)
+            {
+                try
+                {
+                    await UgyfelService.DeleteAsync(ugyfel.Id);
+                    Snackbar.Add("Ügyfél törölve.", Severity.Success);
+                    await BetoltesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+                }
+            }
+        }
+    }
+
+    private async Task TelephelyMentesAsync()
+    {
+        if (_ujTelephely is null || string.IsNullOrWhiteSpace(_ujTelephely.Nev))
+        {
+            Snackbar.Add("A telephely neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await TelephelyService.CreateAsync(_ujTelephely);
+            Snackbar.Add("Telephely sikeresen rögzítve!", Severity.Success);
+            _telephelyDialogNyitva = false;
+            _ujTelephely = null;
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
         }
     }
 }

@@ -113,4 +113,60 @@ public class UgyfelService : IUgyfelService
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<KapcsolodoAdatok> GetKapcsolodoAdatokAsync(int ugyfelId)
+    {
+        var telephelyek = await _context.Telephelyek.CountAsync(t => t.UgyfelId == ugyfelId);
+        var meresek = await _context.Meresek.CountAsync(m => m.UgyfelId == ugyfelId);
+        var eszkozok = await _context.Eszkozok.CountAsync(e => e.UgyfelId == ugyfelId);
+        var tanusitvanyok = await _context.Tanusitvanyok.CountAsync(t => t.UgyfelId == ugyfelId);
+
+        return new KapcsolodoAdatok(telephelyek, meresek, eszkozok, tanusitvanyok);
+    }
+
+    public async Task DeleteWithRelatedDataAsync(int id)
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        var ugyfel = await _context.Ugyfelek.FindAsync(id);
+
+        if (ugyfel is null) return;
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél törléséhez.");
+        }
+
+        // Kapcsolódó adatok törlése sorrendben (idegen kulcs függőségek miatt)
+        // 1. Mérések (UgyfelId + TelephelyId)
+        var meresek = await _context.Meresek.Where(m => m.UgyfelId == id).ToListAsync();
+        _context.Meresek.RemoveRange(meresek);
+
+        // 2. Tanúsítványok
+        var tanusitvanyok = await _context.Tanusitvanyok.Where(t => t.UgyfelId == id).ToListAsync();
+        _context.Tanusitvanyok.RemoveRange(tanusitvanyok);
+
+        // 3. Eszközök (hitelesítések és karbantartások is kapcsolódhatnak)
+        var eszkozok = await _context.Eszkozok.Where(e => e.UgyfelId == id).ToListAsync();
+        foreach (var eszkoz in eszkozok)
+        {
+            var hitelesitesek = await _context.Hitelesitesek.Where(h => h.EszkozId == eszkoz.Id).ToListAsync();
+            _context.Hitelesitesek.RemoveRange(hitelesitesek);
+
+            var karbantartasok = await _context.Karbantartasok.Where(k => k.EszkozId == eszkoz.Id).ToListAsync();
+            _context.Karbantartasok.RemoveRange(karbantartasok);
+
+            var kalibraciok = await _context.Kalibraciok.Where(k => k.EszkozId == eszkoz.Id).ToListAsync();
+            _context.Kalibraciok.RemoveRange(kalibraciok);
+        }
+        _context.Eszkozok.RemoveRange(eszkozok);
+
+        // 4. Telephelyek
+        var telephelyek = await _context.Telephelyek.Where(t => t.UgyfelId == id).ToListAsync();
+        _context.Telephelyek.RemoveRange(telephelyek);
+
+        // 5. Végül az ügyfél
+        _context.Ugyfelek.Remove(ugyfel);
+
+        await _context.SaveChangesAsync();
+    }
 }
