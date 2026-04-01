@@ -3,9 +3,6 @@ on:
   push:
     branches:
     - main
-permissions:
-  id-token: write
-  contents: read
 env:
   AZURE_WEBAPP_NAME: BiztvillCRMWeb20260327201621
   AZURE_WEBAPP_PACKAGE_PATH: BiztvillCRM.Web\published
