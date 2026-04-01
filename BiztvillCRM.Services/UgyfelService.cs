@@ -63,21 +63,55 @@ public class UgyfelService : IUgyfelService
     public async Task<Ugyfel> CreateAsync(Ugyfel ugyfel)
     {
         ugyfel.Letrehozva = DateTime.UtcNow;
-        ugyfel.CegId = _tenantService.GetCurrentCegId();
+        
+        var isAdmin = _tenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        var currentCegId = _tenantService.GetCurrentCegId();
+        
+        // DEBUG - ezt később eltávolíthatod
+        Console.WriteLine($"[CreateAsync] isAdmin: {isAdmin}, currentCegId: {currentCegId}, ugyfel.CegId: {ugyfel.CegId}");
+        
+        // Admin esetén: ha explicit megadtak CegId-t, azt használjuk; egyébként a sajátját
+        // Nem-Admin esetén: mindig a saját cégét használjuk (biztonsági okokból)
+        if (isAdmin && ugyfel.CegId > 0)
+        {
+            // Admin explicit megadta a céget - megtartjuk
+        }
+        else
+        {
+            // Nem-Admin vagy nincs megadva cég: a bejelentkezett felhasználó cégét használjuk
+            if (currentCegId == 0)
+            {
+                throw new InvalidOperationException("Nincs érvényes cég hozzárendelve a felhasználóhoz!");
+            }
+            ugyfel.CegId = currentCegId;
+        }
+        
+        Console.WriteLine($"[CreateAsync] VÉGSŐ ugyfel.CegId: {ugyfel.CegId}");
+        
         _context.Ugyfelek.Add(ugyfel);
         await _context.SaveChangesAsync();
+        
+        // Ellenőrizzük, hogy valóban mentettük-e
+        Console.WriteLine($"[CreateAsync] Mentés után - ugyfel.Id: {ugyfel.Id}, ugyfel.CegId: {ugyfel.CegId}");
+        
         return ugyfel;
     }
 
     /// <inheritdoc/>
     public async Task<Ugyfel> UpdateAsync(Ugyfel ugyfel)
     {
+        Console.WriteLine($"[UpdateAsync] START - Id: {ugyfel.Id}, CegId: {ugyfel.CegId}");
+        
         var cegId = _tenantService.GetCurrentCegId();
+        var isAdmin = _tenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        
         var existing = await _context.Ugyfelek.FindAsync(ugyfel.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        // Ellenőrzés: csak saját cég ügyfele módosítható
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.CegId != cegId)
+        Console.WriteLine($"[UpdateAsync] existing.CegId: {existing.CegId}, isAdmin: {isAdmin}");
+
+        // Ellenőrzés: csak saját cég ügyfele módosítható (nem admin esetén)
+        if (!isAdmin && existing.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél módosításához.");
         }
@@ -90,8 +124,17 @@ public class UgyfelService : IUgyfelService
         existing.UgyfelTipus = ugyfel.UgyfelTipus;
         existing.Aktiv = ugyfel.Aktiv;
         existing.Modositva = DateTime.UtcNow;
+        
+        // FONTOS: Admin módosíthatja a CegId-t!
+        if (isAdmin)
+        {
+            Console.WriteLine($"[UpdateAsync] Admin - CegId módosítása: {existing.CegId} -> {ugyfel.CegId}");
+            existing.CegId = ugyfel.CegId;
+        }
 
         await _context.SaveChangesAsync();
+        
+        Console.WriteLine($"[UpdateAsync] KÉSZ - Id: {existing.Id}, CegId: {existing.CegId}");
         return existing;
     }
 
@@ -145,12 +188,12 @@ public class UgyfelService : IUgyfelService
         var tanusitvanyok = await _context.Tanusitvanyok.Where(t => t.UgyfelId == id).ToListAsync();
         _context.Tanusitvanyok.RemoveRange(tanusitvanyok);
 
-        // 3. Eszközök (hitelesítések és karbantartások is kapcsolódhatnak)
+        // 3. Eszközök (karbantartások és kalibrációk kapcsolódhatnak)
         var eszkozok = await _context.Eszkozok.Where(e => e.UgyfelId == id).ToListAsync();
         foreach (var eszkoz in eszkozok)
         {
-            var hitelesitesek = await _context.Hitelesitesek.Where(h => h.EszkozId == eszkoz.Id).ToListAsync();
-            _context.Hitelesitesek.RemoveRange(hitelesitesek);
+            // Hitelesitesek már NEM kapcsolódnak közvetlenül az eszközhöz (EszkozTipusId-t használnak)
+            // Ezért itt nem kell hitelesítéseket törölni
 
             var karbantartasok = await _context.Karbantartasok.Where(k => k.EszkozId == eszkoz.Id).ToListAsync();
             _context.Karbantartasok.RemoveRange(karbantartasok);

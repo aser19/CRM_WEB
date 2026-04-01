@@ -214,7 +214,7 @@
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
         if (_isAdmin)
         {
-            _cegek = await CegService.GetAllAsync(); // Inject ICegService
+            _cegek = await CegService.GetAllAsync(csakAktiv: false); // JAVÍTÁS: minden cég látható
         }
         await BetoltesAsync();
     }
@@ -228,7 +228,9 @@
 
     private void UjUgyfelMegnyitasa()
     {
-        _szerkesztesAlatt = new Ugyfel { Aktiv = true };
+        var cegId = _isAdmin ? (_cegek.FirstOrDefault()?.Id ?? 0) : TenantService.GetCurrentCegId();
+        _szerkesztesAlatt = new Ugyfel { Aktiv = true, CegId = cegId };
+        _kivalasztottCegId = cegId;
         _dialogNyitva = true;
     }
 
@@ -236,6 +238,7 @@
     {
         // Másolat készítése, hogy a megszakítás ne módosítsa az eredeti rekordot
         _szerkesztesAlatt = ugyfel.SekélyMásolat();
+        _kivalasztottCegId = ugyfel.CegId;
         _dialogNyitva = true;
     }
 
@@ -248,9 +251,13 @@
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null) return;
+        
+        Console.WriteLine($"[MentesAsync START] _isAdmin: {_isAdmin}, _kivalasztottCegId: {_kivalasztottCegId}, _szerkesztesAlatt.CegId: {_szerkesztesAlatt.CegId}");
+        
         if (string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
         {
             Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            Console.WriteLine("[MentesAsync] KILÉPÉS - Név üres!");
             return;
         }
 
@@ -259,23 +266,34 @@
         
         try
         {
+            // Admin esetén a kiválasztott céget állítjuk be
+            if (_isAdmin)
+            {
+                Console.WriteLine($"[MentesAsync] Admin - CegId beállítása: {_kivalasztottCegId}");
+                _szerkesztesAlatt.CegId = _kivalasztottCegId;
+            }
+            
+            Console.WriteLine($"[MentesAsync] Mentés előtt - ujUgyfel: {ujUgyfel}, CegId: {_szerkesztesAlatt.CegId}");
+            
             Ugyfel mentettUgyfel;
             if (ujUgyfel)
+            {
+                Console.WriteLine("[MentesAsync] CreateAsync hívása...");
                 mentettUgyfel = await UgyfelService.CreateAsync(_szerkesztesAlatt);
+                Console.WriteLine($"[MentesAsync] CreateAsync kész - Id: {mentettUgyfel.Id}, CegId: {mentettUgyfel.CegId}");
+            }
             else
             {
-                if (_isAdmin)
-                    _szerkesztesAlatt.CegId = _kivalasztottCegId;
-                // A service automatikusan beállítja, ha nem admin
+                Console.WriteLine("[MentesAsync] UpdateAsync hívása...");
                 await UgyfelService.UpdateAsync(_szerkesztesAlatt);
                 mentettUgyfel = _szerkesztesAlatt;
+                Console.WriteLine($"[MentesAsync] UpdateAsync kész - Id: {mentettUgyfel.Id}, CegId: {mentettUgyfel.CegId}");
             }
 
             Snackbar.Add("Sikeres mentés!", Severity.Success);
             DialogBezarasa();
             await BetoltesAsync();
 
-            // Új ügyFYelnél kérdezzük meg, akar-e telephelyet rögzíteni
             if (ujUgyfel)
             {
                 await TelephelyKerdesAsync(mentettUgyfel);
@@ -283,6 +301,8 @@
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[MentesAsync] HIBA: {ex.Message}");
+            Console.WriteLine($"[MentesAsync] Stack: {ex.StackTrace}");
             Snackbar.Add($"Hiba a mentés során: {ex.Message}", Severity.Error);
         }
         finally

@@ -78,15 +78,30 @@
 <MudDialog @bind-Visible="_dialogLatszik" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
     <TitleContent>
         <MudText Typo="Typo.h6">
-            <MudIcon Icon="@(_szerkesztettFelhasznalo?.Id == null ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)" Class="mr-2" />
-            @(_szerkesztettFelhasznalo?.Id == null ? "Új felhasználó" : "Felhasználó szerkesztése")
+            <!-- Dialógus címe -->
+            <MudIcon Icon="@(_ujFelhasznalo ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)" Class="mr-2" />
+            @(_ujFelhasznalo ? "Új felhasználó" : "Felhasználó szerkesztése")
         </MudText>
     </TitleContent>
     <DialogContent>
         @if (_szerkesztettFelhasznalo != null)
         {
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Nev" Label="Teljes név" Required="true" Class="mb-3" />
-            <MudTextField @bind-Value="_szerkesztettFelhasznalo.Email" Label="Email cím" InputType="InputType.Email" Required="true" Disabled="@(_szerkesztettFelhasznalo.Id != null)" Class="mb-3" />
+            
+            <!-- Felhasználónév (amivel beléphet) -->
+            <MudTextField @bind-Value="_felhasznaloNev" 
+                          Label="Felhasználónév (belépéshez)" 
+                          Required="true" 
+                          HelperText="@(_ujFelhasznalo ? "Ha üres, az email cím lesz a felhasználónév" : "Ezzel a névvel tud belépni")"
+                          Class="mb-3" />
+            
+            <!-- Email mező -->
+            <MudTextField @bind-Value="_szerkesztettFelhasznalo.Email" 
+              Label="Email cím" 
+              InputType="InputType.Email" 
+              Required="true" 
+              Disabled="@(!_ujFelhasznalo && !_isAdmin)" 
+              Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Beosztas" Label="Beosztás" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Telefon" Label="Telefonszám" Class="mb-3" />
 
@@ -107,7 +122,8 @@
                 }
             </MudSelect>
 
-            @if (string.IsNullOrEmpty(_szerkesztettFelhasznalo.Id))
+            <!-- Jelszó mező -->
+            @if (_ujFelhasznalo)
             {
                 <MudTextField @bind-Value="_ujJelszo" Label="Jelszó" InputType="InputType.Password" Required="true" HelperText="Minimum 8 karakter" Class="mb-3" />
             }
@@ -137,10 +153,12 @@
     private bool _dialogLatszik;
     private bool _mentes;
     private bool _isAdmin;
+    private bool _ujFelhasznalo;  // ÚJ FLAG
     private Felhasznalo? _szerkesztettFelhasznalo;
     private string _kivalasztottSzerepkor = string.Empty;
     private int _kivalasztottCegId;
     private string _ujJelszo = string.Empty;
+    private string _felhasznaloNev = string.Empty; // ÚJ
 
     private IEnumerable<Felhasznalo> _szurtLista => string.IsNullOrWhiteSpace(_kereses)
         ? _felhasznalok
@@ -199,6 +217,8 @@
         _kivalasztottCegId = cegId;
         _kivalasztottSzerepkor = FelhasznaloSzerepkor.Felhasznalo.ToString();
         _ujJelszo = string.Empty;
+        _ujFelhasznalo = true;  // ÚJ
+        _felhasznaloNev = string.Empty; // ÚJ
         _dialogLatszik = true;
     }
 
@@ -216,8 +236,10 @@
             Aktiv = felhasznalo.Aktiv
         };
         _kivalasztottCegId = felhasznalo.CegId;
+        _felhasznaloNev = felhasznalo.UserName ?? felhasznalo.Email ?? "";  // HIÁNYZOTT!
         var roles = await UserManager.GetRolesAsync(felhasznalo);
         _kivalasztottSzerepkor = roles.FirstOrDefault() ?? FelhasznaloSzerepkor.Felhasznalo.ToString();
+        _ujFelhasznalo = false;
         _dialogLatszik = true;
     }
 
@@ -235,10 +257,12 @@
 
         try
         {
-            if (string.IsNullOrEmpty(_szerkesztettFelhasznalo.Id))
+            if (_ujFelhasznalo)
             {
-                // Új felhasználó
-                _szerkesztettFelhasznalo.UserName = _szerkesztettFelhasznalo.Email;
+                // Új felhasználó - ha nincs megadva felhasználónév, az email lesz
+                _szerkesztettFelhasznalo.UserName = string.IsNullOrWhiteSpace(_felhasznaloNev) 
+                    ? _szerkesztettFelhasznalo.Email 
+                    : _felhasznaloNev;  // JAVÍTVA!
                 _szerkesztettFelhasznalo.EmailConfirmed = true;
                 _szerkesztettFelhasznalo.CegId = _kivalasztottCegId;
 
@@ -265,6 +289,17 @@
                     user.Telefon = _szerkesztettFelhasznalo.Telefon;
                     user.Aktiv = _szerkesztettFelhasznalo.Aktiv;
                     user.Modositva = DateTime.Now;
+
+                    // JAVÍTÁS: Felhasználónév módosítása
+                    if (!string.IsNullOrWhiteSpace(_felhasznaloNev) && user.UserName != _felhasznaloNev)
+                    {
+                        var setUserNameResult = await UserManager.SetUserNameAsync(user, _felhasznaloNev);
+                        if (!setUserNameResult.Succeeded)
+                        {
+                            Snackbar.Add($"Felhasználónév hiba: {string.Join(", ", setUserNameResult.Errors.Select(e => e.Description))}", Severity.Error);
+                            return;
+                        }
+                    }
 
                     if (_isAdmin)
                     {

@@ -1,8 +1,11 @@
 @page "/kepzesek"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject IKepzesService KepzesService
+@inject ICegService CegService
+@inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -24,6 +27,12 @@
             <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
             <PropertyColumn Property="k => k.LejaratDatum" Title="Lejárat" Format="yyyy.MM.dd" />
             <PropertyColumn Property="k => k.Resztvevo" Title="Résztvevő" />
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Cég">
+                    <CellTemplate>@context.Item.Ceg?.Nev</CellTemplate>
+                </TemplateColumn>
+            }
             <TemplateColumn Title="Műveletek" Sortable="false">
                 <CellTemplate>
                     <MudStack Row="true">
@@ -43,10 +52,21 @@
         @if (_szerkesztesAlatt is not null)
         {
             <MudGrid>
+                @if (_isAdmin)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég *" Required="true">
+                            @foreach (var ceg in _cegek)
+                            {
+                                <MudSelectItem Value="@ceg.Id">@ceg.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" /></MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Resztvevo" Label="Résztvevő" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
             </MudGrid>
         }
@@ -59,21 +79,50 @@
 
 @code {
     private List<Kepzes> _lista = new();
+    private List<Ceg> _cegek = new();
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private bool _isAdmin;
     private Kepzes? _szerkesztesAlatt;
     private DateTime? _datum, _lejaratDatum;
+    private int _kivalasztottCegId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     private IEnumerable<Kepzes> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
         : _lista.Where(k => (k.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
                             (k.Resztvevo?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    protected override async Task OnInitializedAsync() => await BetoltesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        if (_isAdmin)
+        {
+            _cegek = await CegService.GetAllAsync();
+        }
+        await BetoltesAsync();
+    }
+
     private async Task BetoltesAsync() { _betoltes = true; _lista = await KepzesService.GetAllAsync(); _betoltes = false; }
 
-    private void UjMegnyitasa() { _szerkesztesAlatt = new Kepzes(); _datum = null; _lejaratDatum = null; _dialogNyitva = true; }
-    private void SzerkesztesMegnyitasa(Kepzes item) { _szerkesztesAlatt = new Kepzes { Id = item.Id, Nev = item.Nev, Resztvevo = item.Resztvevo, Megjegyzes = item.Megjegyzes }; _datum = item.Datum; _lejaratDatum = item.LejaratDatum; _dialogNyitva = true; }
+    private void UjMegnyitasa()
+    {
+        var cegId = _isAdmin ? (_cegek.FirstOrDefault()?.Id ?? 0) : TenantService.GetCurrentCegId();
+        _szerkesztesAlatt = new Kepzes { CegId = cegId };
+        _kivalasztottCegId = cegId;
+        _datum = null;
+        _lejaratDatum = null;
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(Kepzes item)
+    {
+        _szerkesztesAlatt = new Kepzes { Id = item.Id, Nev = item.Nev, Resztvevo = item.Resztvevo, Megjegyzes = item.Megjegyzes, CegId = item.CegId };
+        _kivalasztottCegId = item.CegId;
+        _datum = item.Datum;
+        _lejaratDatum = item.LejaratDatum;
+        _dialogNyitva = true;
+    }
+
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
 
     private async Task MentesAsync()
@@ -81,6 +130,12 @@
         if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev)) { Snackbar.Add("A név megadása kötelező!", Severity.Warning); return; }
         _szerkesztesAlatt.Datum = _datum;
         _szerkesztesAlatt.LejaratDatum = _lejaratDatum;
+        
+        if (_isAdmin)
+        {
+            _szerkesztesAlatt.CegId = _kivalasztottCegId;
+        }
+        
         _mentes = true;
         try
         {

@@ -55,8 +55,8 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kiadoDatum" Label="Kiadás dátuma" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat dátuma" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kiadoDatum" Label="Kiadás dátuma" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat dátuma" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
             </MudGrid>
         }

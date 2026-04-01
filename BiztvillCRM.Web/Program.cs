@@ -81,6 +81,7 @@ builder.Services.AddScoped<IUgyszamService, UgyszamService>();
 builder.Services.AddScoped<ICegService, CegService>();
 builder.Services.AddAuthenticationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();
@@ -97,14 +98,14 @@ using (var scope = app.Services.CreateScope())
     
     try
     {
-        DbInitializer.Initialize(db);
+        // DbInitializer.Initialize(db); <-- TÖRÖLVE
         await SzerepkorokLetrehozasa(roleManager);
         await AdminFelhasznaloLetrehozasa(db, userManager);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Hiba az adatbázis inicializálása közben.");
-        throw; // <-- Add hozzá ideiglenesen a hiba megtekintéséhez
+        throw;
     }
 }
 
@@ -136,31 +137,57 @@ app.MapRazorComponents<BiztvillCRM.Web.Components.App>()
 
 // --- Bejelentkezési endpoint (Interactive Server módban a HttpContext válasza már le van zárva,
 //     ezért egy valódi HTTP POST végponton keresztül állítjuk be a sütit.) ---
-app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager, ILogger<Program> logger) =>
+app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager, UserManager<Felhasznalo> userManager, ILogger<Program> logger) =>
 {
     var form = ctx.Request.Form;
-    var email = form["email"].FirstOrDefault() ?? string.Empty;
+    var usernameOrEmail = form["email"].FirstOrDefault() ?? string.Empty;
     var password = form["password"].FirstOrDefault() ?? string.Empty;
     bool.TryParse(form["rememberMe"].FirstOrDefault(), out var rememberMe);
 
-    logger.LogInformation("Bejelentkezési kísérlet: Email={Email}, RememberMe={RememberMe}", email, rememberMe);
+    logger.LogInformation("Bejelentkezési kísérlet: {UsernameOrEmail}, RememberMe={RememberMe}", usernameOrEmail, rememberMe);
 
-    var result = await signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
+    // Először próbáljuk felhasználónévként
+    var user = await userManager.FindByNameAsync(usernameOrEmail);
+    
+    // Ha nem találtuk, próbáljuk email-ként
+    if (user == null)
+    {
+        user = await userManager.FindByEmailAsync(usernameOrEmail);
+    }
+
+    if (user == null)
+    {
+        logger.LogWarning("Felhasználó nem található: {UsernameOrEmail}", usernameOrEmail);
+        return Results.Redirect("/bejelentkezes?hiba=hibas");
+    }
+
+    // Ellenőrizzük, hogy aktív-e
+    if (!user.Aktiv)
+    {
+        logger.LogWarning("Inaktív felhasználó próbál belépni: {UsernameOrEmail}", usernameOrEmail);
+        return Results.Redirect("/bejelentkezes?hiba=inaktiv");
+    }
+
+    var result = await signInManager.PasswordSignInAsync(user, password, rememberMe, lockoutOnFailure: false);
 
     if (result.Succeeded)
     {
-        logger.LogInformation("Bejelentkezés sikeres: {Email}", email);
+        // Utolsó belépés frissítése
+        user.UtolsoBelepes = DateTime.Now;
+        await userManager.UpdateAsync(user);
+        
+        logger.LogInformation("Bejelentkezés sikeres: {UserName}", user.UserName);
         return Results.LocalRedirect("/");
     }
 
     if (result.IsLockedOut)
     {
-        logger.LogWarning("A fiók zárolva: {Email}", email);
-        return Results.Redirect($"/bejelentkezes?hiba=zarolt");
+        logger.LogWarning("A fiók zárolva: {UserName}", user.UserName);
+        return Results.Redirect("/bejelentkezes?hiba=zarolt");
     }
 
-    logger.LogWarning("Hibás bejelentkezési kísérlet: {Email}", email);
-    return Results.Redirect($"/bejelentkezes?hiba=hibas");
+    logger.LogWarning("Hibás jelszó: {UsernameOrEmail}", usernameOrEmail);
+    return Results.Redirect("/bejelentkezes?hiba=hibas");
 }).AllowAnonymous();  // <-- HOZZÁADVA
 
 // --- Kijelentkezési endpoint ---

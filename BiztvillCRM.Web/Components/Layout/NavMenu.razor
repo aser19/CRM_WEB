@@ -1,3 +1,7 @@
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject ITenantService TenantService
+
 <MudNavMenu>
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
         Dashboard
@@ -45,9 +49,26 @@
         <MudNavLink Href="/beallitasok/licensz" Icon="@Icons.Material.Filled.Key">Licensz</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
-        <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.ManageAccounts">Felhasználók</MudNavLink>
-        <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modulok</MudNavLink>
-        <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.CorporateFare">Cégek</MudNavLink>
-    </MudNavGroup>
+    @if (_isAdmin || _isCegAdmin)
+    {
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+            <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.ManageAccounts">Felhasználók</MudNavLink>
+            <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modulok</MudNavLink>
+            @if (_isAdmin)
+            {
+                <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.CorporateFare">Cégek</MudNavLink>
+            }
+        </MudNavGroup>
+    }
 </MudNavMenu>
+
+@code {
+    private bool _isAdmin;
+    private bool _isCegAdmin;
+
+    protected override void OnInitialized()
+    {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _isCegAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.CegAdmin);
+    }
+}

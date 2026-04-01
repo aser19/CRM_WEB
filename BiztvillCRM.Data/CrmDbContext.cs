@@ -17,6 +17,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Gyarto> Gyartok { get; set; }
     public DbSet<Eszkoz> Eszkozok { get; set; }
     public DbSet<Terminal> Terminalok { get; set; }
+    public DbSet<EszkozTipus> EszkozTipusok { get; set; }
 
     // --- Mérések ---
     public DbSet<MeresTipus> MeresTipusok { get; set; }
@@ -158,13 +159,20 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Weboldal).HasMaxLength(500);
         });
 
-        // --- Hitelesites ---
+        // --- EszkozTipus ---
+        modelBuilder.Entity<EszkozTipus>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+        });
+
+        // --- Hitelesites (FRISSÍTVE) ---
         modelBuilder.Entity<Hitelesites>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Ugyszam).HasMaxLength(100);
+            entity.Property(e => e.Ugyiratszam).HasMaxLength(100);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
-            entity.HasOne(e => e.Eszkoz).WithMany().HasForeignKey(e => e.EszkozId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.EszkozTipus).WithMany().HasForeignKey(e => e.EszkozTipusId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Hatosag).WithMany().HasForeignKey(e => e.HatosagId).OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -217,5 +225,13 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Url).HasMaxLength(500);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
         });
+
+        // Seed adatok az EszkozTipus-hoz:
+        modelBuilder.Entity<EszkozTipus>().HasData(
+            new EszkozTipus { Id = 1, Nev = "Kútoszlop", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new EszkozTipus { Id = 2, Nev = "Szintmérő", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new EszkozTipus { Id = 3, Nev = "Átfolyásmérő", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new EszkozTipus { Id = 4, Nev = "Tartály", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) }
+        );
     }
 }

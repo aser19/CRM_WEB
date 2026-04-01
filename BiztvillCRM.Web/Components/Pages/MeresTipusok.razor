@@ -1,8 +1,11 @@
 @page "/merestipusok"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
 @inject IMeresTipusService MeresTipusService
+@inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -15,7 +18,14 @@
         <MudTextField @bind-Value="_kereses" Label="Keresés (név)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új típus</MudButton>
+        @if (_isAdmin)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új típus</MudButton>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Info">Csak megtekintés</MudChip>
+        }
     </MudStack>
 
     <MudDataGrid T="MeresTipus" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
@@ -23,14 +33,17 @@
             <PropertyColumn Property="m => m.Nev" Title="Név" />
             <PropertyColumn Property="m => m.Leiras" Title="Leírás" />
             <PropertyColumn Property="m => m.ErvenyessegHonap" Title="Érvényesség (hónap)" />
-            <TemplateColumn Title="Műveletek" Sortable="false">
-                <CellTemplate>
-                    <MudStack Row="true">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
-                    </MudStack>
-                </CellTemplate>
-            </TemplateColumn>
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Műveletek" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            }
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető típus.</MudText></NoRecordsContent>
     </MudDataGrid>
@@ -58,21 +71,38 @@
     private List<MeresTipus> _lista = new();
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private bool _isAdmin;
     private MeresTipus? _szerkesztesAlatt;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     private IEnumerable<MeresTipus> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
         : _lista.Where(m => m.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false);
 
-    protected override async Task OnInitializedAsync() => await BetoltesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        await BetoltesAsync();
+    }
+
     private async Task BetoltesAsync() { _betoltes = true; _lista = await MeresTipusService.GetAllAsync(); _betoltes = false; }
 
-    private void UjMegnyitasa() { _szerkesztesAlatt = new MeresTipus(); _dialogNyitva = true; }
-    private void SzerkesztesMegnyitasa(MeresTipus item) { _szerkesztesAlatt = new MeresTipus { Id = item.Id, Nev = item.Nev, Leiras = item.Leiras, ErvenyessegHonap = item.ErvenyessegHonap }; _dialogNyitva = true; }
+    private void UjMegnyitasa()
+    {
+        if (!_isAdmin) return;
+        _szerkesztesAlatt = new MeresTipus(); _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(MeresTipus item)
+    {
+        if (!_isAdmin) return;
+        _szerkesztesAlatt = new MeresTipus { Id = item.Id, Nev = item.Nev, Leiras = item.Leiras, ErvenyessegHonap = item.ErvenyessegHonap }; _dialogNyitva = true;
+    }
+
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
 
     private async Task MentesAsync()
     {
+        if (!_isAdmin) { Snackbar.Add("Nincs jogosultsága!", Severity.Error); return; }
         if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev)) { Snackbar.Add("A név megadása kötelező!", Severity.Warning); return; }
         _mentes = true;
         try
@@ -87,6 +117,7 @@
 
     private async Task TorlesMegerosites(MeresTipus item)
     {
+        if (!_isAdmin) { Snackbar.Add("Nincs jogosultsága!", Severity.Error); return; }
         if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli: \"{item.Nev}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
         {
             try { await MeresTipusService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }

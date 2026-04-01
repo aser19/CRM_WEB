@@ -12,4 +12,8 @@ public class Kepzes
     public DateTime? LejaratDatum { get; set; }
     public string? Resztvevo { get; set; }
     public string? Megjegyzes { get; set; }
+
+    // Cég kapcsolat
+    public int CegId { get; set; }
+    public Ceg? Ceg { get; set; }
 }

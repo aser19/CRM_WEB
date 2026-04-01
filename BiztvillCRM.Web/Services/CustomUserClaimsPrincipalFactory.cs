@@ -19,7 +19,8 @@ public class CustomUserClaimsPrincipalFactory : UserClaimsPrincipalFactory<Felha
     {
         var identity = await base.GenerateClaimsAsync(user);
         
-        // CegId claim hozzáadása
+        // CegId claim hozzáadása - mindig!
+        Console.WriteLine($"[GenerateClaimsAsync] user.Id: {user.Id}, user.CegId: {user.CegId}");
         identity.AddClaim(new Claim("CegId", user.CegId.ToString()));
         
         return identity;

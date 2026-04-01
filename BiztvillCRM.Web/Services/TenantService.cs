@@ -16,7 +16,12 @@ public class TenantService : ITenantService
     public int GetCurrentCegId()
     {
         var cegIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("CegId")?.Value;
-        return int.TryParse(cegIdClaim, out var cegId) ? cegId : 0;
+        var result = int.TryParse(cegIdClaim, out var cegId) ? cegId : 0;
+        
+        // DEBUG
+        Console.WriteLine($"[TenantService.GetCurrentCegId] cegIdClaim: '{cegIdClaim}', result: {result}");
+        
+        return result;
     }
 
     public string? GetCurrentUserId()

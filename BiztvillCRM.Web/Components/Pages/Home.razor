@@ -91,7 +91,7 @@
                     @foreach (var hitelesites in _lejaroHitelesitesek.Take(5))
                     {
                         <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning">
-                            @hitelesites.Eszkoz?.Nev - @hitelesites.LejaratDatum?.ToString("yyyy.MM.dd")
+                            @hitelesites.EszkozTipus?.Nev - @hitelesites.LejaratDatum?.ToString("yyyy.MM.dd")
                         </MudListItem>
                     }
                 </MudList>

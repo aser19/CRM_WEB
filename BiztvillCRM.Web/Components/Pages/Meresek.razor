@@ -78,7 +78,16 @@
                 </MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Eredmeny" Label="Eredmény" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.body2" Class="mb-1">Eredmény</MudText>
+                    <MudToggleGroup T="string" @bind-Value="_szerkesztesAlatt.Eredmeny" 
+                                    Color="Color.Primary" 
+                                    Rounded="true" 
+                                    CheckMark="true">
+                        <MudToggleItem Value="@("MEGFELELT")" Text="Megfelelt" />
+                        <MudToggleItem Value="@("NEM MEGFELELT")" Text="Nem megfelelt" />
+                    </MudToggleGroup>
+                </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="MeresStatusz" @bind-Value="_szerkesztesAlatt.MeresStatusz" Label="Státusz">
                         @foreach (MeresStatusz s in Enum.GetValues(typeof(MeresStatusz)))
