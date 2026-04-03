@@ -3,6 +3,8 @@
 @attribute [Authorize(Roles = "Admin")]
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Web.Components.Shared
 @using Microsoft.AspNetCore.Authorization
 @inject ICegService CegService
 @inject IDialogService DialogService
@@ -27,8 +29,21 @@
         <Columns>
             <PropertyColumn Property="c => c.Ceg.Nev" Title="Cégnév" />
             <PropertyColumn Property="c => c.Ceg.Adoszam" Title="Adószám" />
+            <TemplateColumn Title="Tevékenység">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">Villamos</MudChip>
+                        }
+                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="c => c.Ceg.Email" Title="Email" />
-            <PropertyColumn Property="c => c.Ceg.Telefon" Title="Telefon" />
             <TemplateColumn Title="Felhasználók">
                 <CellTemplate>
                     <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.FelhasznalokSzama fő</MudChip>
@@ -36,7 +51,7 @@
             </TemplateColumn>
             <TemplateColumn Title="Ügyfelek">
                 <CellTemplate>
-                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.Item.UgyfelekSzama db</MudChip>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">@context.Item.UgyfelekSzama db</MudChip>
                 </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Státusz">
@@ -44,11 +59,6 @@
                     <MudChip T="string" Size="Size.Small" Color="@(context.Item.Ceg.Aktiv ? Color.Success : Color.Error)">
                         @(context.Item.Ceg.Aktiv ? "Aktív" : "Inaktív")
                     </MudChip>
-                </CellTemplate>
-            </TemplateColumn>
-            <TemplateColumn Title="Létrehozva">
-                <CellTemplate>
-                    @context.Item.Ceg.Letrehozva.ToString("yyyy.MM.dd")
                 </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
@@ -76,12 +86,15 @@
     <DialogContent>
         @if (_szerkesztettCeg != null)
         {
-            <MudTextField @bind-Value="_szerkesztettCeg.Nev" Label="Cégnév" Required="true" Class="mb-3" />
+            <MudTextField @bind-Value="_szerkesztettCeg.Nev" Label="Cégnév *" Required="true" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Adoszam" Label="Adószám" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Cim" Label="Székhely címe" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Email" Label="Email cím" InputType="InputType.Email" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Telefon" Label="Telefonszám" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Weboldal" Label="Weboldal" Class="mb-3" />
+            <div class="mb-3">
+                <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
+            </div>
         }
     </DialogContent>
     <DialogActions>
@@ -104,7 +117,9 @@
     private bool _dialogLatszik;
     private bool _mentes;
     private bool _ujCeg;
+    private bool _validacioMutatasa;
     private Ceg? _szerkesztettCeg;
+    private TevekenysegTipus _eredetiTevekenyseg = TevekenysegTipus.Nincs;
 
     private IEnumerable<CegListaElem> _szurtLista
     {
@@ -152,6 +167,7 @@
     {
         _szerkesztettCeg = new Ceg();
         _ujCeg = true;
+        _validacioMutatasa = false;
         _dialogLatszik = true;
     }
 
@@ -166,16 +182,22 @@
             Email = ceg.Email,
             Telefon = ceg.Telefon,
             Weboldal = ceg.Weboldal,
-            Aktiv = ceg.Aktiv
+            Aktiv = ceg.Aktiv,
+            Tevekenyseg = ceg.Tevekenyseg
         };
         _ujCeg = false;
+        _validacioMutatasa = false;
         _dialogLatszik = true;
+
+        // Eredeti tevékenység mentése
+        _eredetiTevekenyseg = ceg.Tevekenyseg;
     }
 
     private void DialogBezarasa()
     {
         _dialogLatszik = false;
         _szerkesztettCeg = null;
+        _validacioMutatasa = false;
     }
 
     private async Task MentesAsync()
@@ -184,6 +206,36 @@
         {
             Snackbar.Add("A cégnév megadása kötelező!", Severity.Warning);
             return;
+        }
+
+        if (_szerkesztettCeg.Tevekenyseg == TevekenysegTipus.Nincs)
+        {
+            _validacioMutatasa = true;
+            Snackbar.Add("Legalább egy tevékenységi kör kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+
+        // Downgrade figyelmeztetés (csak szerkesztésnél)
+        if (!_ujCeg && _eredetiTevekenyseg != TevekenysegTipus.Nincs)
+        {
+            var eltavolitott = _eredetiTevekenyseg & ~_szerkesztettCeg.Tevekenyseg;
+            if (eltavolitott != TevekenysegTipus.Nincs)
+            {
+                var ugyfelekSzama = await CegService.GetUgyfelekSzamaAsync(_szerkesztettCeg.Id);
+                if (ugyfelekSzama > 0)
+                {
+                    var megerosites = await DialogService.ShowMessageBox(
+                        "Figyelmeztetés",
+                        $"A tevékenységi kör szűkítése {ugyfelekSzama} ügyfél címkéjét is módosítja.\n" +
+                        "Az eltávolított címkék az ügyfelektől is törlődnek.\n\n" +
+                        "Biztosan folytatja?",
+                        yesText: "Igen, módosít",
+                        cancelText: "Mégse");
+
+                    if (megerosites != true)
+                        return;
+                }
+            }
         }
 
         _mentes = true;
@@ -198,7 +250,7 @@
             else
             {
                 await CegService.UpdateAsync(_szerkesztettCeg);
-                Snackbar.Add("Cég sikeresen módosítva!", Severity.Success);
+                Snackbar.Add("Cég sikeresen frissítve!", Severity.Success);
             }
 
             DialogBezarasa();
@@ -217,16 +269,23 @@
     private async Task StatuszValtas(Ceg ceg)
     {
         var ujStatusz = !ceg.Aktiv;
-        var result = await DialogService.ShowMessageBox(
-            ujStatusz ? "Cég aktiválása" : "Cég deaktiválása",
-            $"Biztosan {(ujStatusz ? "aktiválja" : "deaktiválja")} a(z) \"{ceg.Nev}\" céget?",
-            yesText: "Igen", cancelText: "Mégsem");
+        var uzenet = ujStatusz 
+            ? $"Biztosan aktiválja a(z) \"{ceg.Nev}\" céget?" 
+            : $"Biztosan deaktiválja a(z) \"{ceg.Nev}\" céget?";
 
-        if (result == true)
+        if (await DialogService.ShowMessageBox("Státusz módosítása", uzenet, yesText: "Igen", cancelText: "Mégsem") == true)
         {
-            await CegService.SetAktivAsync(ceg.Id, ujStatusz);
-            Snackbar.Add($"Cég {(ujStatusz ? "aktiválva" : "deaktiválva")}.", Severity.Info);
-            await BetoltesAsync();
+            try
+            {
+                ceg.Aktiv = ujStatusz;
+                await CegService.UpdateAsync(ceg);
+                Snackbar.Add($"Cég {(ujStatusz ? "aktiválva" : "deaktiválva")}!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
         }
     }
 

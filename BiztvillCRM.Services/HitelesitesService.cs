@@ -13,6 +13,8 @@ public class HitelesitesService : IHitelesitesService
 
     public async Task<List<Hitelesites>> GetAllAsync() =>
         await _context.Hitelesitesek
+            .Include(h => h.Ugyfel)
+            .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
             .OrderByDescending(h => h.Datum)
@@ -20,6 +22,8 @@ public class HitelesitesService : IHitelesitesService
 
     public async Task<Hitelesites?> GetByIdAsync(int id) =>
         await _context.Hitelesitesek
+            .Include(h => h.Ugyfel)
+            .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
             .FirstOrDefaultAsync(h => h.Id == id);
@@ -37,6 +41,8 @@ public class HitelesitesService : IHitelesitesService
         var existing = await _context.Hitelesitesek.FindAsync(hitelesites.Id)
             ?? throw new InvalidOperationException("Nem található.");
         
+        existing.UgyfelId = hitelesites.UgyfelId;
+        existing.TelephelyId = hitelesites.TelephelyId;
         existing.EszkozTipusId = hitelesites.EszkozTipusId;
         existing.HatosagId = hitelesites.HatosagId;
         existing.Ugyiratszam = hitelesites.Ugyiratszam;

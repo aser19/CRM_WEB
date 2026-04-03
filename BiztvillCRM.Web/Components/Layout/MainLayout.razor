@@ -7,20 +7,24 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
-                       OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h6" Class="ml-3">Biztovill CRM</MudText>
-        <MudSpacer />
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                       Color="Color.Inherit" OnClick="@ToggleDarkMode" />
-        <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" 
-                       OnClick="Kijelentkezes" Title="Kijelentkezés" />
-    </MudAppBar>
+    <AuthorizeView>
+        <Authorized>
+            <MudAppBar Elevation="1" Color="Color.Primary">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                               OnClick="@ToggleDrawer" />
+                <MudText Typo="Typo.h6" Class="ml-3">Biztovill CRM</MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                               Color="Color.Inherit" OnClick="@ToggleDarkMode" />
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" 
+                               OnClick="Kijelentkezes" Title="Kijelentkezés" />
+            </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Mini">
-        <NavMenu />
-    </MudDrawer>
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Mini">
+                <NavMenu />
+            </MudDrawer>
+        </Authorized>
+    </AuthorizeView>
 
     <MudMainContent Class="pa-4">
         @Body

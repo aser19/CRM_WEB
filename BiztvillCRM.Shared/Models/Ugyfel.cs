@@ -17,6 +17,9 @@ public class Ugyfel
     public UgyfelTipus UgyfelTipus { get; set; }
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>Tevékenységi kör(ök) - a cég tevékenységeiből választható.</summary>
+    public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
+
     // Céghez tartozás (tenant) - az ügyfél melyik céghez tartozik
     public int CegId { get; set; }
     public Ceg Ceg { get; set; } = null!;
@@ -36,6 +39,7 @@ public class Ugyfel
         UgyfelTipus = UgyfelTipus,
         Aktiv = Aktiv,
         CegId = CegId,
+        Tevekenyseg = Tevekenyseg,
         Letrehozva = Letrehozva,
         Modositva = Modositva
     };

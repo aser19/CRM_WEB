@@ -1,5 +1,6 @@
 using BiztvillCRM.Data;
 using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,16 +47,56 @@ public class CegService : ICegService
         if (existing == null)
             throw new InvalidOperationException("Cég nem található.");
 
+        // Ellenőrizzük, hogy van-e downgrade a tevékenységekben
+        var regiTevekenyseg = existing.Tevekenyseg;
+        var ujTevekenyseg = ceg.Tevekenyseg;
+        
+        // Downgrade: azok a címkék, amik korábban megvoltak, de most már nincsenek
+        var eltavolitottCimkek = regiTevekenyseg & ~ujTevekenyseg;
+        
+        // Ha van eltávolított címke, az ügyfelektől is el kell távolítani
+        if (eltavolitottCimkek != TevekenysegTipus.Nincs)
+        {
+            await UgyfelekTevekenysegDowngradeAsync(ceg.Id, eltavolitottCimkek);
+        }
+
+        // Cég adatainak frissítése
         existing.Nev = ceg.Nev;
         existing.Adoszam = ceg.Adoszam;
         existing.Cim = ceg.Cim;
         existing.Email = ceg.Email;
         existing.Telefon = ceg.Telefon;
         existing.Weboldal = ceg.Weboldal;
+        existing.Tevekenyseg = ceg.Tevekenyseg;  // <-- Tevekenyseg mentése
+        existing.Aktiv = ceg.Aktiv;
         existing.Modositva = DateTime.Now;
 
         await _context.SaveChangesAsync();
         return existing;
+    }
+
+    /// <summary>
+    /// Eltávolítja az ügyfelektől azokat a címkéket, amiket a cég is elvesztett (downgrade).
+    /// </summary>
+    private async Task UgyfelekTevekenysegDowngradeAsync(int cegId, TevekenysegTipus eltavolitandoCimkek)
+    {
+        // Lekérjük a céghez tartozó ügyfeleket, akiknek van érintett címkéjük
+        var ugyfelek = await _context.Ugyfelek
+            .Where(u => u.CegId == cegId)
+            .ToListAsync();
+
+        foreach (var ugyfel in ugyfelek)
+        {
+            // Csak akkor módosítjuk, ha az ügyfélnek van olyan címkéje, amit el kell távolítani
+            if ((ugyfel.Tevekenyseg & eltavolitandoCimkek) != TevekenysegTipus.Nincs)
+            {
+                // Eltávolítjuk az érintett címkéket
+                ugyfel.Tevekenyseg &= ~eltavolitandoCimkek;
+                ugyfel.Modositva = DateTime.Now;
+            }
+        }
+
+        // A SaveChangesAsync a hívó metódusban történik
     }
 
     public async Task<bool> SetAktivAsync(int id, bool aktiv)

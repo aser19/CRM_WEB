@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using BiztvillCRM.Shared.Enums;
+
 namespace BiztvillCRM.Shared.Models;
 
 /// <summary>Cég (tenant) törzsadatai - multi-tenant rendszer alapja.</summary>
@@ -14,6 +19,9 @@ public class Ceg
     public string? Telefon { get; set; }
     public string? Weboldal { get; set; }
     public bool Aktiv { get; set; } = true;
+
+    /// <summary>Tevékenységi kör(ök) - kötelező, legalább egy kiválasztása szükséges.</summary>
+    public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
 
     // Navigációs property-k
     public List<Felhasznalo> Felhasznalok { get; set; } = new();

@@ -3,6 +3,7 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Web.Helpers
 @inject IHatosagService HatosagService
 @inject ITenantService TenantService
 @inject IDialogService DialogService
@@ -61,17 +62,49 @@
         @if (_szerkesztesAlatt is not null)
         {
             <MudGrid>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Rovidites" Label="Rövidítés" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Weboldal" Label="Weboldal" /></MudItem>
-                <MudItem xs="12"><MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Nev" 
+                                  Label="Név *" 
+                                  Required="true"
+                                  MaxLength="200"
+                                  Counter="200"
+                                  Immediate="true"
+                                  Validation="@(new Func<string, string>(s => ValidationHelpers.ValidateMaxLength(s, 200, "Név")))" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Rovidites" 
+                                  Label="Rövidítés"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Immediate="true"
+                                  HelperText="Max. 100 karakter"
+                                  Validation="@(new Func<string, string>(s => ValidateLength(s, 100, "Rövidítés")))" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Cim" 
+                                  Label="Cím"
+                                  MaxLength="500"
+                                  Counter="500"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Weboldal" 
+                                  Label="Weboldal"
+                                  MaxLength="500"
+                                  Counter="500"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" />
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
-        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -132,5 +165,17 @@
             try { await HatosagService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         }
+    }
+
+    /// <summary>Validálja a mező hosszát és hibaüzenetet ad vissza ha túl hosszú.</summary>
+    private static string ValidateLength(string? value, int maxLength, string fieldName)
+    {
+        if (string.IsNullOrEmpty(value))
+            return null!;
+        
+        if (value.Length > maxLength)
+            return $"A(z) {fieldName} mező maximum {maxLength} karakter lehet! (jelenleg: {value.Length})";
+        
+        return null!;
     }
 }

@@ -33,6 +33,20 @@
             <PropertyColumn Property="g => g.Nev" Title="Név" />
             <PropertyColumn Property="g => g.Orszag" Title="Ország" />
             <PropertyColumn Property="g => g.Weboldal" Title="Weboldal" />
+            <TemplateColumn Title="Tevékenység">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        @if (context.Item.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">Villamos</MudChip>
+                        }
+                        @if (context.Item.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Aktív">
                 <CellTemplate>
                     <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
@@ -64,6 +78,9 @@
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" /></MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Orszag" Label="Ország" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Weboldal" Label="Weboldal" /></MudItem>
+                <MudItem xs="12">
+                    <TevekenysegValaszto @bind-Value="_szerkesztesAlatt.Tevekenyseg" ShowValidation="_validacioMutatasa" />
+                </MudItem>
                 <MudItem xs="12"><MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" /></MudItem>
             </MudGrid>
         }
@@ -79,6 +96,7 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
+    private bool _validacioMutatasa = false;
     private Gyarto? _szerkesztesAlatt;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
@@ -97,21 +115,42 @@
     private void UjMegnyitasa()
     {
         if (!_isAdmin) return;
-        _szerkesztesAlatt = new Gyarto { Aktiv = true }; _dialogNyitva = true;
+        _szerkesztesAlatt = new Gyarto { Aktiv = true };
+        _validacioMutatasa = false;
+        _dialogNyitva = true;
     }
 
     private void SzerkesztesMegnyitasa(Gyarto item)
     {
         if (!_isAdmin) return;
-        _szerkesztesAlatt = new Gyarto { Id = item.Id, Nev = item.Nev, Orszag = item.Orszag, Weboldal = item.Weboldal, Aktiv = item.Aktiv }; _dialogNyitva = true;
+        _szerkesztesAlatt = new Gyarto 
+        { 
+            Id = item.Id, 
+            Nev = item.Nev, 
+            Orszag = item.Orszag, 
+            Weboldal = item.Weboldal, 
+            Aktiv = item.Aktiv,
+            Tevekenyseg = item.Tevekenyseg
+        };
+        _validacioMutatasa = false;
+        _dialogNyitva = true;
     }
 
-    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; _validacioMutatasa = false; }
 
     private async Task MentesAsync()
     {
         if (!_isAdmin) { Snackbar.Add("Nincs jogosultsága!", Severity.Error); return; }
         if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev)) { Snackbar.Add("A név megadása kötelező!", Severity.Warning); return; }
+        
+        // Tevékenység validáció
+        if (_szerkesztesAlatt.Tevekenyseg == TevekenysegTipus.Nincs)
+        {
+            _validacioMutatasa = true;
+            Snackbar.Add("Legalább egy tevékenységi kör kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+        
         _mentes = true;
         try
         {

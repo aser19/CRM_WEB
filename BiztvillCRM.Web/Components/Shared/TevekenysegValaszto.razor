@@ -1,0 +1,48 @@
+@using BiztvillCRM.Shared.Enums
+
+<MudStack Spacing="1">
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">Tevékenységi kör *</MudText>
+    <MudStack Row="true" Spacing="3">
+        <MudCheckBox T="bool" 
+                     Value="@VillanosMeresKivalasztva" 
+                     ValueChanged="@OnVillamosChanged"
+                     Label="Villamos mérés"
+                     Color="Color.Primary" />
+        <MudCheckBox T="bool" 
+                     Value="@BenzinkuttechnikaKivalasztva" 
+                     ValueChanged="@OnBenzinkutChanged"
+                     Label="Benzinkúttechnika"
+                     Color="Color.Secondary" />
+    </MudStack>
+    @if (Value == TevekenysegTipus.Nincs && ShowValidation)
+    {
+        <MudText Color="Color.Error" Typo="Typo.caption">
+            Legalább egy tevékenységi kör kiválasztása kötelező!
+        </MudText>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public TevekenysegTipus Value { get; set; }
+    [Parameter] public EventCallback<TevekenysegTipus> ValueChanged { get; set; }
+    [Parameter] public bool ShowValidation { get; set; } = true;
+
+    private bool VillanosMeresKivalasztva => Value.HasFlag(TevekenysegTipus.VillanosMeres);
+    private bool BenzinkuttechnikaKivalasztva => Value.HasFlag(TevekenysegTipus.Benzinkuttechnika);
+
+    private async Task OnVillamosChanged(bool isChecked)
+    {
+        var newValue = isChecked 
+            ? Value | TevekenysegTipus.VillanosMeres 
+            : Value & ~TevekenysegTipus.VillanosMeres;
+        await ValueChanged.InvokeAsync(newValue);
+    }
+
+    private async Task OnBenzinkutChanged(bool isChecked)
+    {
+        var newValue = isChecked 
+            ? Value | TevekenysegTipus.Benzinkuttechnika 
+            : Value & ~TevekenysegTipus.Benzinkuttechnika;
+        await ValueChanged.InvokeAsync(newValue);
+    }
+}

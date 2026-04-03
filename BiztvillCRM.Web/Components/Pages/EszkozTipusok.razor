@@ -1,0 +1,183 @@
+@page "/eszkoztipusok"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@inject IEszkozTipusService EszkozTipusService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Eszköztípusok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Eszköztípusok kezelése</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+            Új eszköztípus
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="EszkozTipus" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="e => e.Nev" Title="Név" />
+            <TemplateColumn Title="Hitelesítési időtartam">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                        @context.Item.HitelesitesiIdotartamHonap hónap (@(context.Item.HitelesitesiIdotartamHonap / 12) év)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="e => e.Letrehozva" Title="Létrehozva" Format="yyyy.MM.dd" />
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                       OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                       OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető eszköztípus.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Eszköztípus dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Eszköztípus szerkesztése" : "Új eszköztípus")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" 
+                                  MaxLength="200" Counter="200" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_szerkesztesAlatt.HitelesitesiIdotartamHonap" 
+                                     Label="Hitelesítési időtartam (hónap) *" 
+                                     Min="1" Max="120" 
+                                     HelperText="pl. 12 = 1 év, 24 = 2 év" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<EszkozTipus> _lista = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private EszkozTipus? _szerkesztesAlatt;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<EszkozTipus> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
+        : _lista.Where(e => e.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync() 
+    { 
+        _betoltes = true; 
+        _lista = await EszkozTipusService.GetAllAsync(); 
+        _betoltes = false; 
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new EszkozTipus 
+        { 
+            Aktiv = true, 
+            HitelesitesiIdotartamHonap = 12 
+        };
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(EszkozTipus item)
+    {
+        _szerkesztesAlatt = new EszkozTipus
+        {
+            Id = item.Id,
+            Nev = item.Nev,
+            HitelesitesiIdotartamHonap = item.HitelesitesiIdotartamHonap,
+            Aktiv = item.Aktiv,
+            Letrehozva = item.Letrehozva
+        };
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
+        {
+            Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0)
+                await EszkozTipusService.CreateAsync(_szerkesztesAlatt);
+            else
+                await EszkozTipusService.UpdateAsync(_szerkesztesAlatt);
+
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TorlesMegerosites(EszkozTipus item)
+    {
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", 
+            $"Biztosan törli: \"{item.Nev}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await EszkozTipusService.DeleteAsync(item.Id);
+                Snackbar.Add("Törölve (inaktiválva).", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
+}

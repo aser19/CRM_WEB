@@ -6,6 +6,8 @@
 @inject IHitelesitesService HitelesitesService
 @inject IEszkozTipusService EszkozTipusService
 @inject IHatosagService HatosagService
+@inject IUgyfelService UgyfelService
+@inject ITelephelyService TelephelyService
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -16,7 +18,7 @@
 
 <MudPaper Class="pa-4">
     <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-        <MudTextField @bind-Value="_kereses" Label="Keresés (ügyiratszám, típus)" Adornment="Adornment.Start"
+        <MudTextField @bind-Value="_kereses" Label="Keresés (ügyfél, telephely, típus)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
         @if (_isAdmin)
@@ -29,17 +31,34 @@
 
     <MudDataGrid T="Hitelesites" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
+            <TemplateColumn Title="Ügyfél">
+                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Telephely">
+                <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Eszköztípus">
                 <CellTemplate>@(context.Item.EszkozTipus?.Nev ?? "-")</CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="h => h.Darabszam" Title="Darab" />
-            <TemplateColumn Title="Hatóság">
-                <CellTemplate>@(context.Item.Hatosag?.Nev ?? "-")</CellTemplate>
-            </TemplateColumn>
-            <PropertyColumn Property="h => h.Ugyiratszam" Title="Ügyiratszám" />
             <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" />
             <PropertyColumn Property="h => h.LejaratDatum" Title="Lejárat" Format="yyyy.MM.dd" />
-            <PropertyColumn Property="h => h.HitelesitesStatusz" Title="Státusz" />
+            <TemplateColumn Title="Státusz">
+                <CellTemplate>
+                    @switch (context.Item.HitelesitesStatusz)
+                    {
+                        case HitelesitesStatusz.Sikeres:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Sikeres</MudChip>
+                            break;
+                        case HitelesitesStatusz.Sikertelen:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Cancel">Sikertelen</MudChip>
+                            break;
+                        case HitelesitesStatusz.Lejart:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning">Lejárt</MudChip>
+                            break;
+                    }
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Műveletek" Sortable="false">
                 <CellTemplate>
                     <MudStack Row="true">
@@ -61,10 +80,29 @@
         {
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.EszkozTipusId" Label="Eszköztípus *" Required="true">
+                    <MudSelect T="int?" Value="_kivalasztottUgyfelId" ValueChanged="OnUgyfelValtozas" Label="Ügyfél *" Required="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
+                        @foreach (var u in _ugyfelek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)u.Id)">@u.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *" Required="true" 
+                               Disabled="@(_kivalasztottUgyfelId == null)">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
+                        @foreach (var t in _szurtTelephelyek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" Value="_szerkesztesAlatt.EszkozTipusId" ValueChanged="OnEszkozTipusValtozas" Label="Eszköztípus *" Required="true">
                         @foreach (var t in _eszkozTipusok)
                         {
-                            <MudSelectItem Value="@t.Id">@t.Nev</MudSelectItem>
+                            <MudSelectItem Value="@t.Id">@t.Nev (@(t.HitelesitesiIdotartamHonap / 12) év)</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -72,27 +110,27 @@
                     <MudNumericField T="int" @bind-Value="_szerkesztesAlatt.Darabszam" Label="Darabszám" Min="1" Max="999" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.HatosagId" Label="Hatóság *" Required="true">
-                        @foreach (var h in _hatosagok)
-                        {
-                            <MudSelectItem Value="@((int?)h.Id)">@h.Nev</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" Editable="true" DateFormat="yyyy.MM.dd" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_szerkesztesAlatt.Ugyiratszam" Label="Ügyiratszám" Placeholder="Ügyiratszám" />
+                    <MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat (auto)" Editable="true" DateFormat="yyyy.MM.dd" />
                 </MudItem>
+                
+                <!-- Eredmény - mint a méréseknél -->
                 <MudItem xs="12" md="6">
-                    <MudSelect T="HitelesitesStatusz" @bind-Value="_szerkesztesAlatt.HitelesitesStatusz" Label="Státusz">
-                        @foreach (HitelesitesStatusz s in Enum.GetValues(typeof(HitelesitesStatusz)))
-                        {
-                            <MudSelectItem Value="@s">@s</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudText Typo="Typo.body2" Class="mb-1">Eredmény</MudText>
+                    <MudToggleGroup T="HitelesitesStatusz" @bind-Value="_szerkesztesAlatt.HitelesitesStatusz" 
+                                    Color="Color.Primary" 
+                                    Rounded="true" 
+                                    CheckMark="true">
+                        <MudToggleItem Value="HitelesitesStatusz.Sikeres" Text="Sikeres" />
+                        <MudToggleItem Value="HitelesitesStatusz.Sikertelen" Text="Sikertelen" />
+                    </MudToggleGroup>
                 </MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+                
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" />
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
@@ -102,32 +140,72 @@
     </DialogActions>
 </MudDialog>
 
-<!-- Eszköztípusok kezelése dialógus (csak Admin) -->
+<!-- Eszköztípusok kezelése dialógus -->
 <MudDialog @bind-Visible="_eszkozTipusDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true }">
     <TitleContent>
         <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />Eszköztípusok kezelése</MudText>
     </TitleContent>
     <DialogContent>
-        <MudStack Row="true" Class="mb-3">
+        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.End">
             <MudTextField @bind-Value="_ujEszkozTipusNev" Label="Új típus neve" Style="flex:1" />
+            <MudNumericField @bind-Value="_ujEszkozTipusHonap" Label="Hónap" Min="1" Max="120" Style="width:100px" />
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UjEszkozTipusHozzaadasaAsync" 
                        Disabled="@string.IsNullOrWhiteSpace(_ujEszkozTipusNev)">Hozzáadás</MudButton>
         </MudStack>
+        
+        <MudDivider Class="my-3" />
+        
         <MudList T="EszkozTipus" Dense="true">
             @foreach (var tipus in _eszkozTipusok)
             {
                 <MudListItem T="EszkozTipus">
                     <div class="d-flex align-center justify-space-between" style="width:100%">
-                        <MudText>@tipus.Nev</MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
-                                       OnClick="() => EszkozTipusTorlese(tipus)" />
+                        @if (_szerkesztettEszkozTipusId == tipus.Id)
+                        {
+                            <!-- Szerkesztési mód -->
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Style="flex:1" Class="mr-2">
+                                <MudTextField @bind-Value="_szerkesztettEszkozTipusNev" 
+                                              Label="Név" 
+                                              Style="flex:1" 
+                                              Margin="Margin.Dense" />
+                                <MudNumericField @bind-Value="_szerkesztettEszkozTipusHonap" 
+                                                 Label="Hónap" 
+                                                 Min="1" Max="120" 
+                                                 Style="width:80px" 
+                                                 Margin="Margin.Dense" />
+                            </MudStack>
+                            <MudStack Row="true">
+                                <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" 
+                                               OnClick="EszkozTipusMentese" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" 
+                                               OnClick="EszkozTipusSzerkesztesMegse" />
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <!-- Megjelenítési mód - KATTINTHATÓ -->
+                            <MudStack Row="true" AlignItems="AlignItems.Center" 
+                                      Style="flex:1; cursor:pointer" 
+                                      @onclick="() => EszkozTipusSzerkesztes(tipus)">
+                                <MudText Style="user-select:none">@tipus.Nev</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Style="cursor:pointer">
+                                    @tipus.HitelesitesiIdotartamHonap hónap
+                                </MudChip>
+                            </MudStack>
+                            <MudStack Row="true">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                               OnClick="() => EszkozTipusSzerkesztes(tipus)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                               OnClick="() => EszkozTipusTorlese(tipus)" />
+                            </MudStack>
+                        }
                     </div>
                 </MudListItem>
             }
         </MudList>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _eszkozTipusDialogNyitva = false">Bezárás</MudButton>
+        <MudButton OnClick="() => { _eszkozTipusDialogNyitva = false; _szerkesztettEszkozTipusId = null; }">Bezárás</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -135,20 +213,35 @@
     private List<Hitelesites> _lista = new();
     private List<EszkozTipus> _eszkozTipusok = new();
     private List<Hatosag> _hatosagok = new();
+    private List<Ugyfel> _ugyfelek = new();
+    private List<Telephely> _telephelyek = new();
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
     private Hitelesites? _szerkesztesAlatt;
     private DateTime? _datum, _lejaratDatum;
+    private int? _kivalasztottUgyfelId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     // Eszköztípus kezelés
     private bool _eszkozTipusDialogNyitva = false;
     private string _ujEszkozTipusNev = string.Empty;
+    private int _ujEszkozTipusHonap = 12;
+    
+    // Eszköztípus szerkesztés változók
+    private int? _szerkesztettEszkozTipusId = null;
+    private string _szerkesztettEszkozTipusNev = string.Empty;
+    private int _szerkesztettEszkozTipusHonap = 12;
+
+    private IEnumerable<Telephely> _szurtTelephelyek => _kivalasztottUgyfelId.HasValue 
+        ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value) 
+        : Enumerable.Empty<Telephely>();
 
     private IEnumerable<Hitelesites> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
-        : _lista.Where(h => (h.Ugyiratszam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+        : _lista.Where(h => 
+            (h.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,15 +249,28 @@
         await BetoltesAsync();
         _eszkozTipusok = await EszkozTipusService.GetAllAsync();
         _hatosagok = await HatosagService.GetAllAsync();
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _telephelyek = await TelephelyService.GetAllAsync();
     }
 
     private async Task BetoltesAsync() { _betoltes = true; _lista = await HitelesitesService.GetAllAsync(); _betoltes = false; }
 
     private void UjMegnyitasa() 
     { 
-        _szerkesztesAlatt = new Hitelesites { Darabszam = 1 }; 
+        var elsoTipus = _eszkozTipusok.FirstOrDefault();
+        
+        _szerkesztesAlatt = new Hitelesites 
+        { 
+            Darabszam = 1,
+            EszkozTipusId = elsoTipus?.Id ?? 0
+        }; 
+        _kivalasztottUgyfelId = null;
         _datum = DateTime.Today; 
-        _lejaratDatum = null; 
+        _lejaratDatum = null;
+        
+        // Lejárat számolása rögtön
+        SzamoljLejaratot();
+        
         _dialogNyitva = true; 
     }
 
@@ -173,27 +279,79 @@
         _szerkesztesAlatt = new Hitelesites 
         { 
             Id = item.Id, 
+            UgyfelId = item.UgyfelId,
+            TelephelyId = item.TelephelyId,
             EszkozTipusId = item.EszkozTipusId, 
             HatosagId = item.HatosagId, 
-            Ugyiratszam = item.Ugyiratszam, 
+            Ugyiratszam = item.Ugyiratszam,
             Darabszam = item.Darabszam,
             HitelesitesStatusz = item.HitelesitesStatusz, 
             Megjegyzes = item.Megjegyzes 
         }; 
+        _kivalasztottUgyfelId = item.UgyfelId;
         _datum = item.Datum; 
         _lejaratDatum = item.LejaratDatum; 
         _dialogNyitva = true; 
     }
 
-    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+    private void OnUgyfelValtozas(int? ujUgyfelId)
+    {
+        _kivalasztottUgyfelId = ujUgyfelId;
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.UgyfelId = ujUgyfelId;
+            _szerkesztesAlatt.TelephelyId = null;
+        }
+    }
+
+    private void OnEszkozTipusValtozas(int ujEszkozTipusId)
+    {
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.EszkozTipusId = ujEszkozTipusId;
+            SzamoljLejaratot();
+        }
+    }
+
+    private void OnDatumValtozas(DateTime? ujDatum)
+    {
+        _datum = ujDatum;
+        SzamoljLejaratot();
+    }
+
+    /// <summary>Automatikusan kiszámolja a lejárati dátumot az eszköztípus alapján.</summary>
+    private void SzamoljLejaratot()
+    {
+        if (_szerkesztesAlatt == null || _datum == null || _szerkesztesAlatt.EszkozTipusId == 0) 
+            return;
+
+        // ⚠️ JAVÍTVA: _szerkesztettEszkozTipusId-t használjuk, NEM _szerkesztettEszkozTipusId-t!
+        var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.EszkozTipusId);
+        if (tipus != null && tipus.HitelesitesiIdotartamHonap > 0)
+        {
+            _lejaratDatum = _datum.Value.AddMonths(tipus.HitelesitesiIdotartamHonap);
+            StateHasChanged();
+        }
+    }
+
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; _kivalasztottUgyfelId = null; }
 
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+        if (_szerkesztesAlatt.UgyfelId == null) { Snackbar.Add("Az ügyfél kiválasztása kötelező!", Severity.Warning); return; }
+        if (_szerkesztesAlatt.TelephelyId == null) { Snackbar.Add("A telephely kiválasztása kötelező!", Severity.Warning); return; }
         if (_szerkesztesAlatt.EszkozTipusId == 0) { Snackbar.Add("Az eszköztípus kiválasztása kötelező!", Severity.Warning); return; }
         
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.LejaratDatum = _lejaratDatum;
+        
+        // Automatikus lejárt státusz
+        if (_lejaratDatum.HasValue && _lejaratDatum.Value.Date < DateTime.Today && _szerkesztesAlatt.HitelesitesStatusz == HitelesitesStatusz.Sikeres)
+        {
+            _szerkesztesAlatt.HitelesitesStatusz = HitelesitesStatusz.Lejart;
+        }
+        
         _mentes = true;
         try
         {
@@ -207,30 +365,66 @@
 
     private async Task TorlesMegerosites(Hitelesites item)
     {
-        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli ezt a hitelesítést?", yesText: "Törlés", cancelText: "Mégse") == true)
+        if (await DialogService.ShowMessageBox("Törlés megerősítése", "Biztosan törli?", yesText: "Törlés", cancelText: "Mégse") == true)
         {
             try { await HitelesitesService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         }
     }
 
-    // Eszköztípusok kezelése (Admin)
-    private void EszkozTipusokMegnyitasa()
+    // ========== ESZKÖZTÍPUS KEZELÉS ==========
+    
+    private void EszkozTipusokMegnyitasa() 
+    { 
+        _ujEszkozTipusNev = string.Empty; 
+        _ujEszkozTipusHonap = 12; 
+        _szerkesztettEszkozTipusId = null;
+        _eszkozTipusDialogNyitva = true; 
+    }
+
+    private void EszkozTipusSzerkesztes(EszkozTipus tipus)
     {
-        _ujEszkozTipusNev = string.Empty;
-        _eszkozTipusDialogNyitva = true;
+        _szerkesztettEszkozTipusId = tipus.Id;
+        _szerkesztettEszkozTipusNev = tipus.Nev;
+        _szerkesztettEszkozTipusHonap = tipus.HitelesitesiIdotartamHonap;
+    }
+
+    private void EszkozTipusSzerkesztesMegse()
+    {
+        _szerkesztettEszkozTipusId = null;
+        _szerkesztettEszkozTipusNev = string.Empty;
+        _szerkesztettEszkozTipusHonap = 12;
+    }
+
+    private async Task EszkozTipusMentese()
+    {
+        if (_szerkesztettEszkozTipusId == null || string.IsNullOrWhiteSpace(_szerkesztettEszkozTipusNev)) return;
+        
+        try
+        {
+            var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztettEszkozTipusId);
+            if (tipus != null)
+            {
+                tipus.Nev = _szerkesztettEszkozTipusNev;
+                tipus.HitelesitesiIdotartamHonap = _szerkesztettEszkozTipusHonap;
+                await EszkozTipusService.UpdateAsync(tipus);
+                _eszkozTipusok = await EszkozTipusService.GetAllAsync();
+                Snackbar.Add("Eszköztípus módosítva!", Severity.Success);
+            }
+            EszkozTipusSzerkesztesMegse();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
     }
 
     private async Task UjEszkozTipusHozzaadasaAsync()
     {
         if (string.IsNullOrWhiteSpace(_ujEszkozTipusNev)) return;
-        
         try
         {
-            var ujTipus = new EszkozTipus { Nev = _ujEszkozTipusNev, Letrehozva = DateTime.UtcNow };
+            var ujTipus = new EszkozTipus { Nev = _ujEszkozTipusNev, HitelesitesiIdotartamHonap = _ujEszkozTipusHonap, Letrehozva = DateTime.UtcNow };
             await EszkozTipusService.CreateAsync(ujTipus);
             _eszkozTipusok = await EszkozTipusService.GetAllAsync();
-            _ujEszkozTipusNev = string.Empty;
+            _ujEszkozTipusNev = string.Empty; _ujEszkozTipusHonap = 12;
             Snackbar.Add("Eszköztípus hozzáadva!", Severity.Success);
         }
         catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }

@@ -44,6 +44,24 @@
             <PropertyColumn Property="u => u.Nev" Title="Név" />
             <PropertyColumn Property="u => u.Adoszam" Title="Adószám" />
             <PropertyColumn Property="u => u.UgyfelTipus" Title="Típus" />
+            <TemplateColumn Title="Tevékenység">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        @if (context.Item.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">Villamos</MudChip>
+                        }
+                        @if (context.Item.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
+                        }
+                        @if (context.Item.Tevekenyseg == TevekenysegTipus.Nincs)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">-</MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="u => u.Email" Title="Email" />
             <PropertyColumn Property="u => u.Telefon" Title="Telefon" />
             <TemplateColumn Title="Aktív">
@@ -52,7 +70,7 @@
                              Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Telephelyek" >
+            <TemplateColumn Title="Telephelyek">
                 <CellTemplate>
                     <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Telephelyek.Count db</MudChip>
                 </CellTemplate>
@@ -97,7 +115,7 @@
                 @if (_isAdmin)
                 {
                     <MudItem xs="12">
-                        <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég *">
+                        <MudSelect T="int" Value="_kivalasztottCegId" ValueChanged="OnCegValtozas" Label="Cég *">
                             @foreach (var c in _cegek)
                             {
                                 <MudSelectItem Value="@c.Id">@c.Nev</MudSelectItem>
@@ -119,6 +137,62 @@
                         }
                     </MudSelect>
                 </MudItem>
+                
+                <!-- Tevékenység választó -->
+                <MudItem xs="12">
+                    @if (_aktualisCegTevekenyseg != TevekenysegTipus.Nincs)
+                    {
+                        @if (CsakEgyTevekenyseg(_aktualisCegTevekenyseg))
+                        {
+                            <!-- Ha csak egy tevékenysége van a cégnek, csak megjelenítjük -->
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Tevékenységi kör</MudText>
+                                <MudStack Row="true" Spacing="1">
+                                    @if (_aktualisCegTevekenyseg == TevekenysegTipus.VillanosMeres)
+                                    {
+                                        <MudChip T="string" Color="Color.Primary">Villamos mérés</MudChip>
+                                    }
+                                    else if (_aktualisCegTevekenyseg == TevekenysegTipus.Benzinkuttechnika)
+                                    {
+                                        <MudChip T="string" Color="Color.Secondary">Benzinkúttechnika</MudChip>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <!-- Ha több tevékenysége van a cégnek, választható -->
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Tevékenységi kör *</MudText>
+                                <MudStack Row="true" Spacing="3">
+                                    @if (_aktualisCegTevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
+                                    {
+                                        <MudCheckBox T="bool"
+                                                     Value="@_szerkesztesAlatt.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres)"
+                                                     ValueChanged="@(v => OnTevekenysegValtozas(TevekenysegTipus.VillanosMeres, v))"
+                                                     Label="Villamos mérés"
+                                                     Color="Color.Primary" />
+                                    }
+                                    @if (_aktualisCegTevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                                    {
+                                        <MudCheckBox T="bool"
+                                                     Value="@_szerkesztesAlatt.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika)"
+                                                     ValueChanged="@(v => OnTevekenysegValtozas(TevekenysegTipus.Benzinkuttechnika, v))"
+                                                     Label="Benzinkúttechnika"
+                                                     Color="Color.Secondary" />
+                                    }
+                                </MudStack>
+                                @if (_szerkesztesAlatt.Tevekenyseg == TevekenysegTipus.Nincs && _validacioMutatasa)
+                                {
+                                    <MudText Color="Color.Error" Typo="Typo.caption">
+                                        Legalább egy tevékenységi kör kiválasztása kötelező!
+                                    </MudText>
+                                }
+                            </MudStack>
+                        }
+                    }
+                </MudItem>
+                
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Adoszam" Label="Adószám" />
                 </MudItem>
@@ -193,6 +267,9 @@
     private int _kivalasztottCegId;
     private bool _isAdmin;
     private List<Ceg> _cegek = new();
+    private TevekenysegTipus _aktualisCegTevekenyseg = TevekenysegTipus.Nincs;
+    private bool _validacioMutatasa = false;
+    private Ceg? _sajatCeg;
 
     private readonly DialogOptions _dialogOptions = new()
     {
@@ -214,7 +291,13 @@
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
         if (_isAdmin)
         {
-            _cegek = await CegService.GetAllAsync(csakAktiv: false); // JAVÍTÁS: minden cég látható
+            _cegek = await CegService.GetAllAsync(csakAktiv: false);
+        }
+        else
+        {
+            // Nem admin: saját cég betöltése
+            var cegId = TenantService.GetCurrentCegId();
+            _sajatCeg = await CegService.GetByIdAsync(cegId);
         }
         await BetoltesAsync();
     }
@@ -228,66 +311,150 @@
 
     private void UjUgyfelMegnyitasa()
     {
-        var cegId = _isAdmin ? (_cegek.FirstOrDefault()?.Id ?? 0) : TenantService.GetCurrentCegId();
-        _szerkesztesAlatt = new Ugyfel { Aktiv = true, CegId = cegId };
+        int cegId;
+        if (_isAdmin)
+        {
+            cegId = _cegek.FirstOrDefault()?.Id ?? 0;
+            _aktualisCegTevekenyseg = _cegek.FirstOrDefault()?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        }
+        else
+        {
+            cegId = TenantService.GetCurrentCegId();
+            _aktualisCegTevekenyseg = _sajatCeg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        }
+
+        // Ha csak egy tevékenysége van a cégnek, automatikusan beállítjuk
+        var alapTevekenyseg = CsakEgyTevekenyseg(_aktualisCegTevekenyseg) 
+            ? _aktualisCegTevekenyseg 
+            : TevekenysegTipus.Nincs;
+
+        _szerkesztesAlatt = new Ugyfel 
+        { 
+            Aktiv = true, 
+            CegId = cegId,
+            Tevekenyseg = alapTevekenyseg
+        };
         _kivalasztottCegId = cegId;
+        _validacioMutatasa = false;
         _dialogNyitva = true;
     }
 
     private void SzerkesztessMegnyitasa(Ugyfel ugyfel)
     {
-        // Másolat készítése, hogy a megszakítás ne módosítsa az eredeti rekordot
         _szerkesztesAlatt = ugyfel.SekélyMásolat();
         _kivalasztottCegId = ugyfel.CegId;
+        
+        // Cég tevékenységének betöltése
+        if (_isAdmin)
+        {
+            var ceg = _cegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            _aktualisCegTevekenyseg = ceg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        }
+        else
+        {
+            _aktualisCegTevekenyseg = _sajatCeg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        }
+        
+        _validacioMutatasa = false;
         _dialogNyitva = true;
+    }
+
+    private void OnCegValtozas(int ujCegId)
+    {
+        _kivalasztottCegId = ujCegId;
+        var ceg = _cegek.FirstOrDefault(c => c.Id == ujCegId);
+        _aktualisCegTevekenyseg = ceg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.CegId = ujCegId;
+            
+            // Ha csak egy tevékenysége van a cégnek, automatikusan beállítjuk
+            if (CsakEgyTevekenyseg(_aktualisCegTevekenyseg))
+            {
+                _szerkesztesAlatt.Tevekenyseg = _aktualisCegTevekenyseg;
+            }
+            else
+            {
+                // Ha több van, reseteljük és újra kell választani
+                _szerkesztesAlatt.Tevekenyseg = TevekenysegTipus.Nincs;
+            }
+        }
+    }
+
+    private void OnTevekenysegValtozas(TevekenysegTipus tipus, bool bekapcsol)
+    {
+        if (_szerkesztesAlatt == null) return;
+
+        if (bekapcsol)
+        {
+            _szerkesztesAlatt.Tevekenyseg |= tipus;
+        }
+        else
+        {
+            _szerkesztesAlatt.Tevekenyseg &= ~tipus;
+        }
+    }
+
+    private static bool CsakEgyTevekenyseg(TevekenysegTipus tevekenyseg)
+    {
+        // Csak akkor igaz, ha pontosan egy bit van beállítva (és nem nulla)
+        return tevekenyseg != TevekenysegTipus.Nincs && 
+               (tevekenyseg == TevekenysegTipus.VillanosMeres || 
+                tevekenyseg == TevekenysegTipus.Benzinkuttechnika);
     }
 
     private void DialogBezarasa()
     {
         _dialogNyitva = false;
         _szerkesztesAlatt = null;
+        _validacioMutatasa = false;
     }
 
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null) return;
-        
-        Console.WriteLine($"[MentesAsync START] _isAdmin: {_isAdmin}, _kivalasztottCegId: {_kivalasztottCegId}, _szerkesztesAlatt.CegId: {_szerkesztesAlatt.CegId}");
-        
+
         if (string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
         {
             Snackbar.Add("A név megadása kötelező!", Severity.Warning);
-            Console.WriteLine("[MentesAsync] KILÉPÉS - Név üres!");
             return;
+        }
+
+        // Tevékenység validáció (ha a cégnek több tevékenysége van)
+        if (!CsakEgyTevekenyseg(_aktualisCegTevekenyseg) && 
+            _szerkesztesAlatt.Tevekenyseg == TevekenysegTipus.Nincs)
+        {
+            _validacioMutatasa = true;
+            Snackbar.Add("Legalább egy tevékenységi kör kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+
+        // Ha csak egy tevékenysége van a cégnek, automatikusan beállítjuk
+        if (CsakEgyTevekenyseg(_aktualisCegTevekenyseg))
+        {
+            _szerkesztesAlatt.Tevekenyseg = _aktualisCegTevekenyseg;
         }
 
         _mentes = true;
         bool ujUgyfel = _szerkesztesAlatt.Id == 0;
-        
+
         try
         {
-            // Admin esetén a kiválasztott céget állítjuk be
             if (_isAdmin)
             {
-                Console.WriteLine($"[MentesAsync] Admin - CegId beállítása: {_kivalasztottCegId}");
                 _szerkesztesAlatt.CegId = _kivalasztottCegId;
             }
-            
-            Console.WriteLine($"[MentesAsync] Mentés előtt - ujUgyfel: {ujUgyfel}, CegId: {_szerkesztesAlatt.CegId}");
-            
+
             Ugyfel mentettUgyfel;
             if (ujUgyfel)
             {
-                Console.WriteLine("[MentesAsync] CreateAsync hívása...");
                 mentettUgyfel = await UgyfelService.CreateAsync(_szerkesztesAlatt);
-                Console.WriteLine($"[MentesAsync] CreateAsync kész - Id: {mentettUgyfel.Id}, CegId: {mentettUgyfel.CegId}");
             }
             else
             {
-                Console.WriteLine("[MentesAsync] UpdateAsync hívása...");
                 await UgyfelService.UpdateAsync(_szerkesztesAlatt);
                 mentettUgyfel = _szerkesztesAlatt;
-                Console.WriteLine($"[MentesAsync] UpdateAsync kész - Id: {mentettUgyfel.Id}, CegId: {mentettUgyfel.CegId}");
             }
 
             Snackbar.Add("Sikeres mentés!", Severity.Success);
@@ -301,8 +468,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MentesAsync] HIBA: {ex.Message}");
-            Console.WriteLine($"[MentesAsync] Stack: {ex.StackTrace}");
             Snackbar.Add($"Hiba a mentés során: {ex.Message}", Severity.Error);
         }
         finally
@@ -322,78 +487,25 @@
 
         if (result == true)
         {
-            // Ugyanazokkal az adatokkal
+            // Automatikus telephely létrehozás az ügyfél adataival
             var telephely = new Telephely
             {
-                UgyfelId = ugyfel.Id,
-                Nev = ugyfel.Nev,
+                Nev = ugyfel.Nev + " - Székhely",
                 Cim = ugyfel.Cim,
                 Telefon = ugyfel.Telefon,
                 Email = ugyfel.Email,
+                UgyfelId = ugyfel.Id,
                 Aktiv = true
             };
             await TelephelyService.CreateAsync(telephely);
-            Snackbar.Add("Telephely rögzítve az ügyfél adataival!", Severity.Success);
+            Snackbar.Add("Telephely automatikusan létrehozva!", Severity.Success);
             await BetoltesAsync();
         }
         else if (result == false)
         {
-            // Más adatokkal - nyissuk meg a telephely dialógust
+            // Manuális telephely létrehozás
             _ujTelephely = new Telephely { UgyfelId = ugyfel.Id, Aktiv = true };
             _telephelyDialogNyitva = true;
-        }
-        // Ha cancel (null), akkor nem csinálunk semmit
-    }
-
-    private async Task TorlesMegerosites(Ugyfel ugyfel)
-    {
-        var kapcsolodo = await UgyfelService.GetKapcsolodoAdatokAsync(ugyfel.Id);
-
-        if (kapcsolodo.VanKapcsolodoAdat)
-        {
-            var uzenet = $"A(z) \"{ugyfel.Nev}\" ügyfélnek hozzárendelt adatai vannak: {kapcsolodo.Osszefoglalas()}. Ezeket is kívánja törölni? [FIGYELEM] A törlés nem visszavonható!";
-
-            var result = await DialogService.ShowMessageBox(
-                "Törlés megerősítése",
-                uzenet,
-                yesText: "Igen, mindent törlök",
-                cancelText: "Mégsem");
-
-            if (result == true)
-            {
-                try
-                {
-                    await UgyfelService.DeleteWithRelatedDataAsync(ugyfel.Id);
-                    Snackbar.Add($"Ügyfél és {kapcsolodo.Osszefoglalas()} törölve.", Severity.Success);
-                    await BetoltesAsync();
-                }
-                catch (Exception ex)
-                {
-                    Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
-                }
-            }
-        }
-        else
-        {
-            var result = await DialogService.ShowMessageBox(
-                "Törlés megerősítése",
-                $"Biztosan törli a(z) \"{ugyfel.Nev}\" ügyfelet?",
-                yesText: "Törlés",
-                cancelText: "Mégse");
-
-            if (result == true)
-            {
-                try
-                {
-                    await UgyfelService.DeleteAsync(ugyfel.Id);
-                    Snackbar.Add("Ügyfél törölve.", Severity.Success);
-                    await BetoltesAsync();
-                }
-                catch (Exception ex)
-                {
-                    Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
-                }
-            }
         }
     }
 
@@ -408,7 +520,7 @@
         try
         {
             await TelephelyService.CreateAsync(_ujTelephely);
-            Snackbar.Add("Telephely sikeresen rögzítve!", Severity.Success);
+            Snackbar.Add("Telephely sikeresen létrehozva!", Severity.Success);
             _telephelyDialogNyitva = false;
             _ujTelephely = null;
             await BetoltesAsync();
@@ -416,6 +528,29 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerosites(Ugyfel ugyfel)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretné a(z) \"{ugyfel.Nev}\" nevű ügyfelet?",
+            yesText: "Törlés",
+            cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await UgyfelService.DeleteAsync(ugyfel.Id);
+                Snackbar.Add("Ügyfél törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+            }
         }
     }
 }

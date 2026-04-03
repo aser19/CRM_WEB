@@ -154,7 +154,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Rovidites).HasMaxLength(20);
+            entity.Property(e => e.Rovidites).HasMaxLength(100);  // <-- 20-ról 100-ra növelve
             entity.Property(e => e.Cim).HasMaxLength(500);
             entity.Property(e => e.Weboldal).HasMaxLength(500);
         });
@@ -172,6 +172,8 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Ugyiratszam).HasMaxLength(100);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+            entity.HasOne(e => e.Ugyfel).WithMany().HasForeignKey(e => e.UgyfelId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.EszkozTipus).WithMany().HasForeignKey(e => e.EszkozTipusId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Hatosag).WithMany().HasForeignKey(e => e.HatosagId).OnDelete(DeleteBehavior.SetNull);
         });

@@ -12,6 +12,10 @@
         <MudNavLink Href="/telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
         <MudNavLink Href="/gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
         <MudNavLink Href="/eszkozok" Icon="@Icons.Material.Filled.Build">Eszközök</MudNavLink>
+        @if (_isAdmin)
+        {
+            <MudNavLink Href="/eszkoztipusok" Icon="@Icons.Material.Filled.Category">Eszköztípusok</MudNavLink>
+        }
     </MudNavGroup>
 
     <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed" Expanded="false">
