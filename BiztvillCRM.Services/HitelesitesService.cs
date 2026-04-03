@@ -31,6 +31,10 @@ public class HitelesitesService : IHitelesitesService
     public async Task<Hitelesites> CreateAsync(Hitelesites hitelesites)
     {
         hitelesites.Letrehozva = DateTime.UtcNow;
+        
+        // Lejárat dátum automatikus számítása az eszköztípus alapján
+        await SzamolLejaratDatumAsync(hitelesites);
+        
         _context.Hitelesitesek.Add(hitelesites);
         await _context.SaveChangesAsync();
         return hitelesites;
@@ -52,6 +56,9 @@ public class HitelesitesService : IHitelesitesService
         existing.Megjegyzes = hitelesites.Megjegyzes;
         existing.Modositva = DateTime.UtcNow;
         
+        // Lejárat dátum automatikus számítása az eszköztípus alapján
+        await SzamolLejaratDatumAsync(existing);
+        
         await _context.SaveChangesAsync();
         return existing;
     }
@@ -63,6 +70,19 @@ public class HitelesitesService : IHitelesitesService
         {
             _context.Hitelesitesek.Remove(hitelesites);
             await _context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Automatikusan kiszámolja a lejárat dátumát az eszköztípus hitelesítési időtartama alapján.
+    /// </summary>
+    private async Task SzamolLejaratDatumAsync(Hitelesites hitelesites)
+    {
+        var eszkozTipus = await _context.EszkozTipusok.FindAsync(hitelesites.EszkozTipusId);
+        
+        if (eszkozTipus is not null && eszkozTipus.HitelesitesiIdotartamHonap > 0)
+        {
+            hitelesites.LejaratDatum = hitelesites.Datum.AddMonths(eszkozTipus.HitelesitesiIdotartamHonap);
         }
     }
 }

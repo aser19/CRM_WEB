@@ -224,12 +224,12 @@
     private int? _kivalasztottUgyfelId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
-    // Eszköztípus kezelés
+    // Eszköztípus kezelés dialógushoz
     private bool _eszkozTipusDialogNyitva = false;
     private string _ujEszkozTipusNev = string.Empty;
     private int _ujEszkozTipusHonap = 12;
     
-    // Eszköztípus szerkesztés változók
+    // Eszköztípus szerkesztés változók (CSAK az eszköztípus dialógushoz!)
     private int? _szerkesztettEszkozTipusId = null;
     private string _szerkesztettEszkozTipusNev = string.Empty;
     private int _szerkesztettEszkozTipusHonap = 12;
@@ -303,7 +303,7 @@
             
             // Automatikusan kiválasztja az első telephelyet
             var elsoTelephely = _szurtTelephelyek.FirstOrDefault();
-            _szerkesztesAlatt.TelephelyId = elsoTelephely?.Id;
+            _szerkesztesAlatt.TelephelyId = elsoTelephely?.Id;  // JAVÍTVA
         }
     }
 
@@ -311,7 +311,7 @@
     {
         if (_szerkesztesAlatt != null)
         {
-            _szerkesztesAlatt.EszkozTipusId = ujEszkozTipusId;
+            _szerkesztesAlatt.EszkozTipusId = ujEszkozTipusId;  // JAVÍTVA
             SzamoljLejaratot();
         }
     }
@@ -325,10 +325,10 @@
     /// <summary>Automatikusan kiszámolja a lejárati dátumot az eszköztípus alapján.</summary>
     private void SzamoljLejaratot()
     {
-        if (_szerkesztesAlatt == null || _datum == null || _szerkesztettEszkozTipusId == 0) 
+        if (_szerkesztesAlatt == null || _datum == null || _szerkesztesAlatt.EszkozTipusId == 0)  // JAVÍTVA
             return;
 
-        var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztettEszkozTipusId);
+        var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.EszkozTipusId);  // JAVÍTVA
         if (tipus != null && tipus.HitelesitesiIdotartamHonap > 0)
         {
             _lejaratDatum = _datum.Value.AddMonths(tipus.HitelesitesiIdotartamHonap);
@@ -374,7 +374,7 @@
         }
     }
 
-    // ========== ESZKÖZTÍPUS KEZELÉS ==========
+    // ========== ESZKÖZTÍPUS KEZELÉS (külön dialógus) ==========
     
     private void EszkozTipusokMegnyitasa() 
     { 

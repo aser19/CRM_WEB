@@ -51,7 +51,7 @@
         {
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *" 
+                    <MudSelect T="int" Value="_szerkesztesAlatt.UgyfelId" Label="Ügyfél *" 
                                ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
                                ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")">
                         @foreach (var u in _ugyfelek)
@@ -71,16 +71,18 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.MeresTipusId" Label="Típus *"
+                    <MudSelect T="int" Value="_szerkesztesAlatt.MeresTipusId" 
+                               ValueChanged="OnMeresTipusValtozas"
+                               Label="Típus *"
                                ToStringFunc="@(id => _tipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
                         @foreach (var t in _tipusok)
                         {
-                            <MudSelectItem Value="@t.Id">@t.Nev</MudSelectItem>
+                            <MudSelectItem Value="@t.Id">@t.Nev @(t.ErvenyessegHonap > 0 ? $"({t.ErvenyessegHonap} hónap)" : "")</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum *" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum (auto)" /></MudItem>
                 <MudItem xs="12" md="6">
                     <MudText Typo="Typo.body2" Class="mb-1">Eredmény</MudText>
                     <MudToggleGroup T="string" @bind-Value="_szerkesztesAlatt.Eredmeny" 
@@ -139,11 +141,20 @@
 
     private void UjMegnyitasa() 
     { 
-        _szerkesztesAlatt = new Meres(); 
+        var elsoTipus = _tipusok.FirstOrDefault();
+        
+        _szerkesztesAlatt = new Meres 
+        { 
+            MeresTipusId = elsoTipus?.Id ?? 0
+        }; 
         _datum = DateTime.Today; 
         _kovetkezoDatum = null; 
         _kivalasztottUgyfelId = 0;
         _szurtTelephelyek = new();
+        
+        // Következő dátum számolása rögtön
+        SzamolKovetkezoDatum();
+        
         _dialogNyitva = true; 
     }
 
@@ -178,6 +189,35 @@
         return Task.CompletedTask;
     }
 
+    private void OnMeresTipusValtozas(int ujTipusId)
+    {
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.MeresTipusId = ujTipusId;
+            SzamolKovetkezoDatum();
+        }
+    }
+
+    private void OnDatumValtozas(DateTime? ujDatum)
+    {
+        _datum = ujDatum;
+        SzamolKovetkezoDatum();
+    }
+
+    /// <summary>Automatikusan kiszámolja a következő mérés dátumát a típus érvényességi ideje alapján.</summary>
+    private void SzamolKovetkezoDatum()
+    {
+        if (_szerkesztesAlatt == null || _datum == null || _szerkesztesAlatt.MeresTipusId == 0) 
+            return;
+
+        var tipus = _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId);
+        if (tipus != null && tipus.ErvenyessegHonap > 0)
+        {
+            _kovetkezoDatum = _datum.Value.AddMonths(tipus.ErvenyessegHonap);
+            StateHasChanged();
+        }
+    }
+
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
 
     private async Task MentesAsync()
@@ -185,6 +225,7 @@
         if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
         if (_szerkesztesAlatt.UgyfelId == 0) { Snackbar.Add("Az ügyfél kiválasztása kötelező!", Severity.Warning); return; }
         if (_szerkesztesAlatt.TelephelyId == 0) { Snackbar.Add("A telephely kiválasztása kötelező!", Severity.Warning); return; }
+        if (_szerkesztesAlatt.MeresTipusId == 0) { Snackbar.Add("A típus kiválasztása kötelező!", Severity.Warning); return; }
         
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;

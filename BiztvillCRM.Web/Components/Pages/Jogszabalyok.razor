@@ -85,6 +85,20 @@
                     }
                 </CellTemplate>
             </TemplateColumn>
+            <!-- ÚJ: Megjegyzés oszlop -->
+            <TemplateColumn Title="Megj.">
+                <CellTemplate>
+                    @if (!string.IsNullOrWhiteSpace(context.Item.Megjegyzes))
+                    {
+                        <MudTooltip Text="Kattints a megjegyzés megtekintéséhez">
+                            <MudIconButton Icon="@Icons.Material.Filled.Comment" 
+                                           Color="Color.Info" 
+                                           Size="Size.Small" 
+                                           OnClick="() => MegjegyzesMegnyitasa(context.Item)" />
+                        </MudTooltip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Link">
                 <CellTemplate>
                     @if (!string.IsNullOrEmpty(context.Item.Url))
@@ -115,6 +129,25 @@
     </MudDataGrid>
 </MudPaper>
 
+<!-- ÚJ: Megjegyzés dialógus -->
+<MudDialog @bind-Visible="_megjegyzesDialogNyitva" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.Comment" Color="Color.Info" Class="mr-2" />
+            <MudText Typo="Typo.h6">@_megjegyzesJogszabaly?.Szam</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">@_megjegyzesJogszabaly?.Cim</MudText>
+        <MudDivider Class="mb-3" />
+        <MudText Typo="Typo.body1" Style="white-space: pre-wrap;">@_megjegyzesJogszabaly?.Megjegyzes</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _megjegyzesDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Szerkesztés dialógus (meglévő) -->
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Szerkesztés" : "Új jogszabály/szabvány")</MudText></TitleContent>
     <DialogContent>
@@ -130,8 +163,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Szám *" Required="true" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
-                
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
                 <MudItem xs="12">
                     <MudText Typo="Typo.body2" Class="mb-2">Terület (több is kiválasztható)</MudText>
                     <MudStack Row="true" Spacing="2">
@@ -285,5 +317,15 @@
             try { await JogszabalyService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         }
+    }
+
+    // ÚJ: Megjegyzés megjelenítése
+    private Jogszabaly? _megjegyzesJogszabaly;
+    private bool _megjegyzesDialogNyitva = false;
+
+    private void MegjegyzesMegnyitasa(Jogszabaly jogszabaly)
+    {
+        _megjegyzesJogszabaly = jogszabaly;
+        _megjegyzesDialogNyitva = true;
     }
 }
