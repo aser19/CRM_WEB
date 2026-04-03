@@ -179,7 +179,7 @@ public class JegyzokonyvPdfService : IJegyzokonyvPdfService
                     
                     table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.Sorszam.ToString());
                     table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.MerespontNev);
-                    table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.MertErtek ?? "-");
+                    table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.Ertek ?? "-");
                     table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.Egyseg ?? "");
                     table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4).Text(ertek.HatarErtek ?? "-");
                     table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(4)

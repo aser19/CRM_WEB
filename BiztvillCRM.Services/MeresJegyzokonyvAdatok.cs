@@ -36,7 +36,7 @@ public class MertErtek
 {
     public int Sorszam { get; set; }
     public string MerespontNev { get; set; } = string.Empty;
-    public string? MertErtek { get; set; }
+    public string? Ertek { get; set; }  // ← Javítsd "MertErtek"-ről "Ertek"-re
     public string? Egyseg { get; set; }
     public string? HatarErtek { get; set; }
     public bool Megfelelt { get; set; }
