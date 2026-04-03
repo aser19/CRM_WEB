@@ -77,11 +77,11 @@ builder.Services.AddScoped<IHatosagService, HatosagService>();
 builder.Services.AddScoped<IJogszabalyService, JogszabalyService>();
 builder.Services.AddScoped<IKalibracioService, KalibracioService>();
 builder.Services.AddScoped<ITerminalService, TerminalService>();
-builder.Services.AddScoped<IUgyszamService, UgyszamService>();
 builder.Services.AddScoped<ICegService, CegService>();
 builder.Services.AddAuthenticationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
+builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();

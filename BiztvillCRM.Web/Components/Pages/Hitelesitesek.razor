@@ -90,7 +90,8 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *" Required="true" 
-                               Disabled="@(_kivalasztottUgyfelId == null)">
+                               Disabled="@(_kivalasztottUgyfelId == null)"
+                               ToStringFunc="@(id => id.HasValue ? (_szurtTelephelyek.FirstOrDefault(t => t.Id == id.Value)?.Nev ?? "") : "")">
                         <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
                         @foreach (var t in _szurtTelephelyek)
                         {
@@ -283,7 +284,6 @@
             TelephelyId = item.TelephelyId,
             EszkozTipusId = item.EszkozTipusId, 
             HatosagId = item.HatosagId, 
-            Ugyiratszam = item.Ugyiratszam,
             Darabszam = item.Darabszam,
             HitelesitesStatusz = item.HitelesitesStatusz, 
             Megjegyzes = item.Megjegyzes 
@@ -300,7 +300,10 @@
         if (_szerkesztesAlatt != null)
         {
             _szerkesztesAlatt.UgyfelId = ujUgyfelId;
-            _szerkesztesAlatt.TelephelyId = null;
+            
+            // Automatikusan kiválasztja az első telephelyet
+            var elsoTelephely = _szurtTelephelyek.FirstOrDefault();
+            _szerkesztesAlatt.TelephelyId = elsoTelephely?.Id;
         }
     }
 
@@ -322,11 +325,10 @@
     /// <summary>Automatikusan kiszámolja a lejárati dátumot az eszköztípus alapján.</summary>
     private void SzamoljLejaratot()
     {
-        if (_szerkesztesAlatt == null || _datum == null || _szerkesztesAlatt.EszkozTipusId == 0) 
+        if (_szerkesztesAlatt == null || _datum == null || _szerkesztettEszkozTipusId == 0) 
             return;
 
-        // ⚠️ JAVÍTVA: _szerkesztettEszkozTipusId-t használjuk, NEM _szerkesztettEszkozTipusId-t!
-        var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.EszkozTipusId);
+        var tipus = _eszkozTipusok.FirstOrDefault(t => t.Id == _szerkesztettEszkozTipusId);
         if (tipus != null && tipus.HitelesitesiIdotartamHonap > 0)
         {
             _lejaratDatum = _datum.Value.AddMonths(tipus.HitelesitesiIdotartamHonap);

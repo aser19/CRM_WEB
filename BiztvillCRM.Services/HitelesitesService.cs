@@ -45,7 +45,6 @@ public class HitelesitesService : IHitelesitesService
         existing.TelephelyId = hitelesites.TelephelyId;
         existing.EszkozTipusId = hitelesites.EszkozTipusId;
         existing.HatosagId = hitelesites.HatosagId;
-        existing.Ugyiratszam = hitelesites.Ugyiratszam;
         existing.Darabszam = hitelesites.Darabszam;
         existing.Datum = hitelesites.Datum;
         existing.LejaratDatum = hitelesites.LejaratDatum;

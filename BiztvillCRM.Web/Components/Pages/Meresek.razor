@@ -52,7 +52,8 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *" 
-                               ValueChanged="@((int id) => UgyfelValtozottAsync(id))">
+                               ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
+                               ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")">
                         @foreach (var u in _ugyfelek)
                         {
                             <MudSelectItem Value="@u.Id">@u.Nev</MudSelectItem>
@@ -61,7 +62,8 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *"
-                               Disabled="@(_szurtTelephelyek.Count == 0)">
+                               Disabled="@(_szurtTelephelyek.Count == 0)"
+                               ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
                         @foreach (var t in _szurtTelephelyek)
                         {
                             <MudSelectItem Value="@t.Id">@t.Nev (@t.Cim)</MudSelectItem>
@@ -69,7 +71,8 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.MeresTipusId" Label="Típus *">
+                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.MeresTipusId" Label="Típus *"
+                               ToStringFunc="@(id => _tipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
                         @foreach (var t in _tipusok)
                         {
                             <MudSelectItem Value="@t.Id">@t.Nev</MudSelectItem>

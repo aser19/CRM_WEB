@@ -25,7 +25,6 @@ public class Hitelesites
     public int? HatosagId { get; set; }
     public Hatosag? Hatosag { get; set; }
 
-    public string? Ugyiratszam { get; set; }
     public int Darabszam { get; set; } = 1;
     public DateTime Datum { get; set; }
     public DateTime? LejaratDatum { get; set; }

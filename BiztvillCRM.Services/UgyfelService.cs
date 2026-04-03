@@ -188,20 +188,19 @@ public class UgyfelService : IUgyfelService
         var tanusitvanyok = await _context.Tanusitvanyok.Where(t => t.UgyfelId == id).ToListAsync();
         _context.Tanusitvanyok.RemoveRange(tanusitvanyok);
 
-        // 3. Eszközök (karbantartások és kalibrációk kapcsolódhatnak)
+        // 3. Eszközök (kalibrációk kapcsolódhatnak)
         var eszkozok = await _context.Eszkozok.Where(e => e.UgyfelId == id).ToListAsync();
         foreach (var eszkoz in eszkozok)
         {
-            // Hitelesitesek már NEM kapcsolódnak közvetlenül az eszközhöz (EszkozTipusId-t használnak)
-            // Ezért itt nem kell hitelesítéseket törölni
-
-            var karbantartasok = await _context.Karbantartasok.Where(k => k.EszkozId == eszkoz.Id).ToListAsync();
-            _context.Karbantartasok.RemoveRange(karbantartasok);
-
             var kalibraciok = await _context.Kalibraciok.Where(k => k.EszkozId == eszkoz.Id).ToListAsync();
             _context.Kalibraciok.RemoveRange(kalibraciok);
         }
         _context.Eszkozok.RemoveRange(eszkozok);
+
+        // 3b. Karbantartások (telephelyhez tartoznak, nem eszközhöz)
+        var telephelyIds = await _context.Telephelyek.Where(t => t.UgyfelId == id).Select(t => t.Id).ToListAsync();
+        var karbantartasok = await _context.Karbantartasok.Where(k => telephelyIds.Contains(k.TelephelyId)).ToListAsync();
+        _context.Karbantartasok.RemoveRange(karbantartasok);
 
         // 4. Telephelyek
         var telephelyek = await _context.Telephelyek.Where(t => t.UgyfelId == id).ToListAsync();

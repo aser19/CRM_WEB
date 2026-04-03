@@ -15,7 +15,12 @@
 <MudPaper Class="pa-4">
     <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
         <MudTextField @bind-Value="_kereses" Label="Keresés (szám, cím, leírás)" Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:300px;" />
+        <MudSelect T="TevekenysegTipus?" @bind-Value="_szuroTerulet" Label="Terület szűrés" Clearable="true" Style="max-width:200px;">
+            <MudSelectItem T="TevekenysegTipus?" Value="@((TevekenysegTipus?)null)">Mind</MudSelectItem>
+            <MudSelectItem T="TevekenysegTipus?" Value="@TevekenysegTipus.VillanosMeres">Villamos biztonságtechnika</MudSelectItem>
+            <MudSelectItem T="TevekenysegTipus?" Value="@TevekenysegTipus.Benzinkuttechnika">Benzinkúttechnika</MudSelectItem>
+        </MudSelect>
         <MudSpacer />
         @if (_isAdmin)
         {
@@ -31,14 +36,42 @@
         <Columns>
             <TemplateColumn Title="Típus" Sortable="true">
                 <CellTemplate>
-                    <MudChip T="string" Size="Size.Small" Color="@(context.Item.Tipus == JogszabalyTipus.Szabvany ? Color.Info : Color.Primary)">
-                        @context.Item.Tipus
-                    </MudChip>
+                    @if (context.Item.Tipus == JogszabalyTipus.Szabvany)
+                    {
+                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.MenuBook"
+                                 Style="background-color: #00897B; color: white;">
+                            Szabvány
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Gavel"
+                                 Style="background-color: #E65100; color: white;">
+                            Jogszabály
+                        </MudChip>
+                    }
                 </CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="j => j.Szam" Title="Szám" />
             <PropertyColumn Property="j => j.Cim" Title="Cím" />
-            <PropertyColumn Property="j => j.Leiras" Title="Leírás" />
+            <TemplateColumn Title="Terület">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        @if (context.Item.Terulet.HasFlag(TevekenysegTipus.VillanosMeres))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.ElectricBolt">Villamos</MudChip>
+                        }
+                        @if (context.Item.Terulet.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Icon="@Icons.Material.Filled.LocalGasStation">Benzinkút</MudChip>
+                        }
+                        @if (context.Item.Terulet == TevekenysegTipus.Nincs)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Általános</MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="j => j.HatalyosKezdet" Title="Hatályos (kezdet)" Format="yyyy.MM.dd" />
             <TemplateColumn Title="Hatályos (vége)">
                 <CellTemplate>
@@ -98,6 +131,17 @@
                 </MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Szám *" Required="true" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
+                
+                <MudItem xs="12">
+                    <MudText Typo="Typo.body2" Class="mb-2">Terület (több is kiválasztható)</MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudCheckBox T="bool" Value="@_villamosMeres" ValueChanged="@((bool v) => TeruletValtozas(TevekenysegTipus.VillanosMeres, v))"
+                                     Label="Villamos biztonságtechnika" Color="Color.Warning" />
+                        <MudCheckBox T="bool" Value="@_benzinkuttechnika" ValueChanged="@((bool v) => TeruletValtozas(TevekenysegTipus.Benzinkuttechnika, v))"
+                                     Label="Benzinkúttechnika" Color="Color.Secondary" />
+                    </MudStack>
+                </MudItem>
+                
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosKezdet" Label="Hatályos kezdete" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosVege" Label="Hatályos vége (üres = jelenleg hatályos)" Clearable="true" /></MudItem>
@@ -116,16 +160,37 @@
 @code {
     private List<Jogszabaly> _lista = new();
     private string _kereses = string.Empty;
+    private TevekenysegTipus? _szuroTerulet;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
     private Jogszabaly? _szerkesztesAlatt;
     private DateTime? _hatalyosKezdet, _hatalyosVege;
+    private bool _villamosMeres, _benzinkuttechnika;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
-    private IEnumerable<Jogszabaly> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
-        : _lista.Where(j => (j.Szam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (j.Cim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (j.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IEnumerable<Jogszabaly> _szurtLista
+    {
+        get
+        {
+            var lista = _lista.AsEnumerable();
+            
+            // Szöveges keresés
+            if (!string.IsNullOrWhiteSpace(_kereses))
+            {
+                lista = lista.Where(j => (j.Szam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                         (j.Cim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                         (j.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            
+            // Terület szűrés
+            if (_szuroTerulet.HasValue)
+            {
+                lista = lista.Where(j => j.Terulet.HasFlag(_szuroTerulet.Value));
+            }
+            
+            return lista;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,6 +212,8 @@
         _szerkesztesAlatt = new Jogszabaly { Aktiv = true };
         _hatalyosKezdet = DateTime.Today;
         _hatalyosVege = null;
+        _villamosMeres = false;
+        _benzinkuttechnika = false;
         _dialogNyitva = true;
     }
 
@@ -160,13 +227,29 @@
             Cim = item.Cim,
             Leiras = item.Leiras,
             Tipus = item.Tipus,
+            Terulet = item.Terulet,
             Url = item.Url,
             Megjegyzes = item.Megjegyzes,
             Aktiv = item.Aktiv
         };
         _hatalyosKezdet = item.HatalyosKezdet;
         _hatalyosVege = item.HatalyosVege;
+        _villamosMeres = item.Terulet.HasFlag(TevekenysegTipus.VillanosMeres);
+        _benzinkuttechnika = item.Terulet.HasFlag(TevekenysegTipus.Benzinkuttechnika);
         _dialogNyitva = true;
+    }
+
+    private void TeruletValtozas(TevekenysegTipus tipus, bool ertek)
+    {
+        if (_szerkesztesAlatt is null) return;
+        
+        if (tipus == TevekenysegTipus.VillanosMeres) _villamosMeres = ertek;
+        if (tipus == TevekenysegTipus.Benzinkuttechnika) _benzinkuttechnika = ertek;
+        
+        // Flags enum frissítése
+        _szerkesztesAlatt.Terulet = TevekenysegTipus.Nincs;
+        if (_villamosMeres) _szerkesztesAlatt.Terulet |= TevekenysegTipus.VillanosMeres;
+        if (_benzinkuttechnika) _szerkesztesAlatt.Terulet |= TevekenysegTipus.Benzinkuttechnika;
     }
 
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
