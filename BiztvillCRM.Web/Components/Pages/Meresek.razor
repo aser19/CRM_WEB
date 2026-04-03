@@ -9,6 +9,8 @@
 @inject IMeresTipusService MeresTipusService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IJegyzokonyvPdfService JegyzokonyvPdfService
+@inject IJSRuntime JS
 
 <PageTitle>Mérések</PageTitle>
 
@@ -36,6 +38,11 @@
                     <MudStack Row="true">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" 
+                                       Color="Color.Secondary" 
+                                       Size="Size.Small" 
+                                       OnClick="() => JegyzokonyvLetoltesAsync(context.Item)" 
+                                       Title="Jegyzőkönyv letöltése" />
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
@@ -246,6 +253,25 @@
         {
             try { await MeresService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
+
+    private async Task JegyzokonyvLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var pdfBytes = await JegyzokonyvPdfService.GeneralasAsync(meres.Id);
+            var fileName = $"jegyzokonyv_{meres.Id}_{DateTime.Now:yyyyMMdd}.pdf";
+            
+            // Letöltés böngészőben
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            
+            Snackbar.Add("Jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
         }
     }
 }

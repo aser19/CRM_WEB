@@ -82,6 +82,7 @@ builder.Services.AddAuthenticationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
+builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();
