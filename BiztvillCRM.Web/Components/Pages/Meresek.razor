@@ -10,6 +10,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJegyzokonyvPdfService JegyzokonyvPdfService
+@inject IJegyzokonyvWordService JegyzokonyvWordService
 @inject IJSRuntime JS
 
 <PageTitle>Mérések</PageTitle>
@@ -35,14 +36,21 @@
             <PropertyColumn Property="m => m.MeresStatusz" Title="Státusz" />
             <TemplateColumn Title="Műveletek" Sortable="false">
                 <CellTemplate>
-                    <MudStack Row="true">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" 
-                                       Color="Color.Secondary" 
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="Word jegyzőkönyv">
+                            <MudIconButton Icon="@Icons.Material.Filled.Description" 
+                                           Color="Color.Info" 
+                                           Size="Size.Small" 
+                                           OnClick="() => WordLetoltesAsync(context.Item)" />
+                        </MudTooltip>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                       Color="Color.Primary" 
                                        Size="Size.Small" 
-                                       OnClick="() => JegyzokonyvLetoltesAsync(context.Item)" 
-                                       Title="Jegyzőkönyv letöltése" />
+                                       OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Color="Color.Error" 
+                                       Size="Size.Small" 
+                                       OnClick="() => TorlesMegerosites(context.Item)" />
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
@@ -268,6 +276,24 @@
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
             
             Snackbar.Add("Jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task WordLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meres.Id);
+            var fileName = $"jegyzokonyv_{meres.Id:D6}_{DateTime.Now:yyyyMMdd}.docx";
+            
+            using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            
+            Snackbar.Add("Word jegyzőkönyv letöltve!", Severity.Success);
         }
         catch (Exception ex)
         {

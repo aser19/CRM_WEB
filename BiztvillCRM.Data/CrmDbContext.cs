@@ -19,6 +19,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Terminal> Terminalok { get; set; }
     public DbSet<EszkozTipus> EszkozTipusok { get; set; }
     public DbSet<KarbantartasTipus> KarbantartasTipusok { get; set; } // <-- Új DbSet a KarbantartasTipus-hoz
+    public DbSet<KepzesTipus> KepzesTipusok { get; set; } // <-- Új DbSet a KepzesTipus-hoz
 
     // --- Mérések ---
     public DbSet<MeresTipus> MeresTipusok { get; set; }
@@ -192,8 +193,12 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Resztvevo).HasMaxLength(500);
+            entity.Property(e => e.BizonyitvanySzam).HasMaxLength(100);
+            entity.Property(e => e.TovabbkepzesSzam).HasMaxLength(100);
+            entity.Property(e => e.FelujtoKepzesSzam).HasMaxLength(100);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+            entity.HasOne(e => e.KepzesTipus).WithMany(t => t.Kepzesek).HasForeignKey(e => e.KepzesTipusId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Ceg).WithMany().HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // --- KarbantartasTipus ---
@@ -242,6 +247,14 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             new KarbantartasTipus { Id = 2, Nev = "Negyedéves karbantartás", IsmetlodesHonap = 3, Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
             new KarbantartasTipus { Id = 3, Nev = "Féléves karbantartás", IsmetlodesHonap = 6, Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
             new KarbantartasTipus { Id = 4, Nev = "Éves karbantartás", IsmetlodesHonap = 12, Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) }
+        );
+
+        // Seed adatok a KepzesTipus-hoz:
+        modelBuilder.Entity<KepzesTipus>().HasData(
+            new KepzesTipus { Id = 1, Nev = "Alapító okirat szerinti képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new KepzesTipus { Id = 2, Nev = "ISO 9001:2015 átállási képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new KepzesTipus { Id = 3, Nev = "Minőségügyi auditor képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
+            new KepzesTipus { Id = 4, Nev = "Vezetői képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) }
         );
     }
 }

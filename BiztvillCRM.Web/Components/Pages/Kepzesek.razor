@@ -3,123 +3,303 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject IKepzesService KepzesService
+@inject IKepzesTipusService KepzesTipusService
 @inject ICegService CegService
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Képzések</PageTitle>
+<PageTitle>Felülvizsgálók</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Képzések</MudText>
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
+    Felülvizsgálók
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    <strong>Jogosultsági szintek:</strong><br/>
+    🔹 <strong>Segítő</strong> - Csak segítő felülvizsgálóként dolgozhat<br/>
+    🔸 <strong>Felelős</strong> - Felelős felülvizsgáló és segítő is lehet<br/>
+    🔶 <strong>Ellenőr</strong> - Ellenőr, felelős felülvizsgáló és segítő is lehet
+    @if (!_isAdmin)
+    {
+        <br/><br/>
+        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+        <em>Felülvizsgálók hozzáadásához és módosításához admin jogosultság szükséges.</em>
+    }
+</MudAlert>
 
 <MudPaper Class="pa-4">
     <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-        <MudTextField @bind-Value="_kereses" Label="Keresés (név, résztvevő)" Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:300px;" />
+        @if (_isAdmin)
+        {
+            <MudSelect T="int" @bind-Value="_szuroCegId" Label="Cég szűrő" Style="min-width: 200px;">
+                <MudSelectItem Value="0">-- Összes cég --</MudSelectItem>
+                @foreach (var ceg in _cegek)
+                {
+                    <MudSelectItem Value="@ceg.Id">@ceg.Nev</MudSelectItem>
+                }
+            </MudSelect>
+        }
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új képzés</MudButton>
+        @if (_isAdmin)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+                Új felülvizsgáló
+            </MudButton>
+        }
     </MudStack>
 
-    <MudDataGrid T="Kepzes" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+    <MudDataGrid T="Kepzes" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes" Dense="true">
         <Columns>
             <PropertyColumn Property="k => k.Nev" Title="Név" />
-            <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
-            <PropertyColumn Property="k => k.LejaratDatum" Title="Lejárat" Format="yyyy.MM.dd" />
-            <PropertyColumn Property="k => k.Resztvevo" Title="Résztvevő" />
             @if (_isAdmin)
             {
                 <TemplateColumn Title="Cég">
-                    <CellTemplate>@context.Item.Ceg?.Nev</CellTemplate>
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Ceg?.Nev</MudChip>
+                    </CellTemplate>
                 </TemplateColumn>
             }
-            <TemplateColumn Title="Műveletek" Sortable="false">
+            <TemplateColumn Title="Képzés típus">
                 <CellTemplate>
-                    <MudStack Row="true">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
-                    </MudStack>
+                    @if (context.Item.KepzesTipus is not null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">@context.Item.KepzesTipus.Nev</MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Default">-</MudText>
+                    }
                 </CellTemplate>
             </TemplateColumn>
+            <PropertyColumn Property="k => k.BizonyitvanySzam" Title="Bizonyítvány sz." />
+            <TemplateColumn Title="Biz. lejárat">
+                <CellTemplate>
+                    @if (context.Item.BizonyitvanyLejarat.HasValue)
+                    {
+                        <MudText Color="@(context.Item.BizonyitvanyLejarat < DateTime.Today ? Color.Error : Color.Default)">
+                            @context.Item.BizonyitvanyLejarat?.ToString("yyyy.MM.dd")
+                        </MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Jogosultság">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" 
+                             Color="@(context.Item.Jogosultsag == FelulvizsgaloJogosultsag.Ellenor ? Color.Primary : 
+                                      context.Item.Jogosultsag == FelulvizsgaloJogosultsag.Felelos ? Color.Secondary : Color.Default)">
+                        @JogosultsagNev(context.Item.Jogosultsag)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    @if (_isAdmin)
+                    {
+                        <MudSwitch T="bool" Value="@context.Item.Aktiv" ValueChanged="@(v => AktivValtas(context.Item, v))" Color="Color.Success" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" 
+                                 Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Műveletek" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            }
         </Columns>
-        <NoRecordsContent><MudText>Nincs megjeleníthető képzés.</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText>Nincs megjeleníthető felülvizsgáló.</MudText></NoRecordsContent>
     </MudDataGrid>
 </MudPaper>
 
-<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
-    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Képzés szerkesztése" : "Új képzés")</MudText></TitleContent>
-    <DialogContent>
-        @if (_szerkesztesAlatt is not null)
-        {
-            <MudGrid>
-                @if (_isAdmin)
-                {
-                    <MudItem xs="12">
-                        <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég *" Required="true">
+@if (_isAdmin)
+{
+    <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
+                @(_szerkesztesAlatt?.Id > 0 ? "Felülvizsgáló szerkesztése" : "Új felülvizsgáló")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_szerkesztesAlatt is not null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég *" Required="true" Variant="Variant.Outlined">
                             @foreach (var ceg in _cegek)
                             {
                                 <MudSelectItem Value="@ceg.Id">@ceg.Nev</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
-                }
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Név *" Required="true" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Resztvevo" Label="Résztvevő" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_datum" Label="Dátum" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_lejaratDatum" Label="Lejárat" Editable="true" DateFormat="yyyy.MM.dd" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
-            </MudGrid>
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
-        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
-    </DialogActions>
-</MudDialog>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" @bind-Value="_kivalasztottKepzesTipusId" Label="Képzés típus *" Required="true" Variant="Variant.Outlined">
+                            <MudSelectItem T="int?" Value="null">-- Válasszon típust --</MudSelectItem>
+                            @foreach (var tipus in _kepzesTipusok)
+                            {
+                                <MudSelectItem T="int?" Value="@tipus.Id">@tipus.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    
+                    @if (_kivalasztottTipus is not null)
+                    {
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-0">
+                                <strong>@_kivalasztottTipus.Nev szabályai:</strong>
+                                @if (_kivalasztottTipus.Lejar && _kivalasztottTipus.LejaratEvek.HasValue)
+                                {
+                                    <span> | 📅 Lejár: @_kivalasztottTipus.LejaratEvek év</span>
+                                }
+                                else
+                                {
+                                    <span> | ✅ Nem jár le</span>
+                                }
+                                @if (_kivalasztottTipus.TovabbkepzesKotelezo && _kivalasztottTipus.TovabbkepzesEvek.HasValue)
+                                {
+                                    <span> | 📚 Továbbképzés: @_kivalasztottTipus.TovabbkepzesEvek évente</span>
+                                    @if (_kivalasztottTipus.TovabbkepzesCsakFelulvizsgalonak)
+                                    {
+                                        <span> (csak felelős/ellenőr)</span>
+                                    }
+                                }
+                            </MudAlert>
+                        </MudItem>
+                    }
+                    
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_szerkesztesAlatt.Nev" Label="Felülvizsgáló neve *" Required="true" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_szerkesztesAlatt.BizonyitvanySzam" Label="Vizsgabizonyítvány száma" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="_bizonyitvanyLejarat" Label="Bizonyítvány lejárata" Variant="Variant.Outlined" DateFormat="yyyy.MM.dd" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSelect T="FelulvizsgaloJogosultsag" @bind-Value="_szerkesztesAlatt.Jogosultsag" Label="Jogosultsági szint *" Variant="Variant.Outlined">
+                            <MudSelectItem Value="FelulvizsgaloJogosultsag.Segito">🔹 Segítő - Csak segítő felülvizsgálóként dolgozhat</MudSelectItem>
+                            <MudSelectItem Value="FelulvizsgaloJogosultsag.Felelos">🔸 Felelős - Felelős felülvizsgáló és segítő is lehet</MudSelectItem>
+                            <MudSelectItem Value="FelulvizsgaloJogosultsag.Ellenor">🔶 Ellenőr - Ellenőr, felelős és segítő is lehet</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Success" />
+                    </MudItem>
+                </MudGrid>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+            <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
 
 @code {
-    private List<Kepzes> _lista = new();
-    private List<Ceg> _cegek = new();
-    private string _kereses = string.Empty;
+    private List<Kepzes> _lista = [];
+    private List<Ceg> _cegek = [];
+    private List<KepzesTipus> _kepzesTipusok = [];
+    private string _kereses = "";
+    private int _szuroCegId = 0;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
     private Kepzes? _szerkesztesAlatt;
-    private DateTime? _datum, _lejaratDatum;
+    private DateTime? _bizonyitvanyLejarat;
     private int _kivalasztottCegId;
+    private int? _kivalasztottKepzesTipusId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
-    private IEnumerable<Kepzes> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
-        : _lista.Where(k => (k.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (k.Resztvevo?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+    private KepzesTipus? _kivalasztottTipus => _kepzesTipusok.FirstOrDefault(t => t.Id == _kivalasztottKepzesTipusId);
+
+    private IEnumerable<Kepzes> _szurtLista
+    {
+        get
+        {
+            var eredmeny = _lista.AsEnumerable();
+            if (_isAdmin && _szuroCegId > 0)
+                eredmeny = eredmeny.Where(k => k.CegId == _szuroCegId);
+            if (!string.IsNullOrWhiteSpace(_kereses))
+                eredmeny = eredmeny.Where(k => k.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+                                               (k.BizonyitvanySzam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                               (k.KepzesTipus?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+            return eredmeny;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _kepzesTipusok = await KepzesTipusService.GetAllActiveAsync();
+        
         if (_isAdmin)
         {
             _cegek = await CegService.GetAllAsync();
+            _lista = await KepzesService.GetAllAdminAsync();
         }
-        await BetoltesAsync();
+        else
+        {
+            _lista = await KepzesService.GetAllAsync();
+        }
+        
+        _betoltes = false;
     }
 
-    private async Task BetoltesAsync() { _betoltes = true; _lista = await KepzesService.GetAllAsync(); _betoltes = false; }
+    private string JogosultsagNev(FelulvizsgaloJogosultsag j) => j switch
+    {
+        FelulvizsgaloJogosultsag.Segito => "Segítő",
+        FelulvizsgaloJogosultsag.Felelos => "Felelős",
+        FelulvizsgaloJogosultsag.Ellenor => "Ellenőr",
+        _ => "?"
+    };
 
     private void UjMegnyitasa()
     {
-        var cegId = _isAdmin ? (_cegek.FirstOrDefault()?.Id ?? 0) : TenantService.GetCurrentCegId();
-        _szerkesztesAlatt = new Kepzes { CegId = cegId };
+        if (!_isAdmin) return;
+        var cegId = _cegek.FirstOrDefault()?.Id ?? 0;
+        _szerkesztesAlatt = new Kepzes { CegId = cegId, Aktiv = true, Jogosultsag = FelulvizsgaloJogosultsag.Segito };
         _kivalasztottCegId = cegId;
-        _datum = null;
-        _lejaratDatum = null;
+        _kivalasztottKepzesTipusId = null;
+        _bizonyitvanyLejarat = null;
         _dialogNyitva = true;
     }
 
     private void SzerkesztesMegnyitasa(Kepzes item)
     {
-        _szerkesztesAlatt = new Kepzes { Id = item.Id, Nev = item.Nev, Resztvevo = item.Resztvevo, Megjegyzes = item.Megjegyzes, CegId = item.CegId };
+        if (!_isAdmin) return;
+        _szerkesztesAlatt = new Kepzes
+        {
+            Id = item.Id,
+            Nev = item.Nev,
+            KepzesTipusId = item.KepzesTipusId,
+            BizonyitvanySzam = item.BizonyitvanySzam,
+            Jogosultsag = item.Jogosultsag,
+            Megjegyzes = item.Megjegyzes,
+            Aktiv = item.Aktiv,
+            CegId = item.CegId
+        };
         _kivalasztottCegId = item.CegId;
-        _datum = item.Datum;
-        _lejaratDatum = item.LejaratDatum;
+        _kivalasztottKepzesTipusId = item.KepzesTipusId;
+        _bizonyitvanyLejarat = item.BizonyitvanyLejarat;
         _dialogNyitva = true;
     }
 
@@ -127,32 +307,47 @@
 
     private async Task MentesAsync()
     {
-        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev)) { Snackbar.Add("A név megadása kötelező!", Severity.Warning); return; }
-        _szerkesztesAlatt.Datum = _datum;
-        _szerkesztesAlatt.LejaratDatum = _lejaratDatum;
-        
-        if (_isAdmin)
+        if (!_isAdmin || _szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
         {
-            _szerkesztesAlatt.CegId = _kivalasztottCegId;
+            Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            return;
         }
+        
+        _szerkesztesAlatt.BizonyitvanyLejarat = _bizonyitvanyLejarat;
+        _szerkesztesAlatt.CegId = _kivalasztottCegId;
+        _szerkesztesAlatt.KepzesTipusId = _kivalasztottKepzesTipusId;
         
         _mentes = true;
         try
         {
-            if (_szerkesztesAlatt.Id == 0) await KepzesService.CreateAsync(_szerkesztesAlatt);
-            else await KepzesService.UpdateAsync(_szerkesztesAlatt);
-            Snackbar.Add("Sikeres mentés!", Severity.Success); DialogBezarasa(); await BetoltesAsync();
+            if (_szerkesztesAlatt.Id == 0)
+                await KepzesService.CreateAsync(_szerkesztesAlatt);
+            else
+                await KepzesService.UpdateAsync(_szerkesztesAlatt);
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            DialogBezarasa();
+            _lista = await KepzesService.GetAllAdminAsync();
         }
         catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         finally { _mentes = false; }
     }
 
+    private async Task AktivValtas(Kepzes item, bool aktiv)
+    {
+        if (!_isAdmin) return;
+        item.Aktiv = aktiv;
+        await KepzesService.UpdateAsync(item);
+        Snackbar.Add(aktiv ? "Aktiválva!" : "Inaktiválva!", Severity.Info);
+    }
+
     private async Task TorlesMegerosites(Kepzes item)
     {
-        if (await DialogService.ShowMessageBox("Törlés megerősítése", $"Biztosan törli: \"{item.Nev}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
+        if (!_isAdmin) return;
+        if (await DialogService.ShowMessageBox("Törlés", $"Biztosan törli: \"{item.Nev}\"?", yesText: "Törlés", cancelText: "Mégse") == true)
         {
-            try { await KepzesService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
-            catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+            await KepzesService.DeleteAsync(item.Id);
+            Snackbar.Add("Törölve.", Severity.Success);
+            _lista = await KepzesService.GetAllAdminAsync();
         }
     }
 }

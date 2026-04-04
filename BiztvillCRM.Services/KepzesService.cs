@@ -21,25 +21,28 @@ public class KepzesService : IKepzesService
     {
         var cegId = _tenantService.GetCurrentCegId();
         
-        // Admin látja az összeset
-        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
-        {
-            return await _context.Kepzesek
-                .Include(k => k.Ceg)
-                .OrderByDescending(k => k.Datum)
-                .ToListAsync();
-        }
-
         return await _context.Kepzesek
-            .Where(k => k.CegId == cegId)
-            .OrderByDescending(k => k.Datum)
+            .Include(k => k.KepzesTipus)
+            .Where(k => k.CegId == cegId && k.Aktiv)
+            .OrderBy(k => k.Nev)
+            .ToListAsync();
+    }
+
+    public async Task<List<Kepzes>> GetAllAdminAsync()
+    {
+        return await _context.Kepzesek
+            .Include(k => k.Ceg)
+            .Include(k => k.KepzesTipus)
+            .OrderBy(k => k.Nev)
             .ToListAsync();
     }
 
     public async Task<Kepzes?> GetByIdAsync(int id)
     {
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Kepzesek.AsQueryable();
+        var query = _context.Kepzesek
+            .Include(k => k.KepzesTipus)
+            .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
@@ -51,9 +54,8 @@ public class KepzesService : IKepzesService
 
     public async Task<Kepzes> CreateAsync(Kepzes kepzes)
     {
-        kepzes.Letrehozva = DateTime.UtcNow;
+        kepzes.Letrehozva = DateTime.Now;
         
-        // CegId beállítása
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) || kepzes.CegId == 0)
         {
             kepzes.CegId = _tenantService.GetCurrentCegId();
@@ -70,24 +72,22 @@ public class KepzesService : IKepzesService
         var existing = await _context.Kepzesek.FindAsync(kepzes.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        // Jogosultság ellenőrzés
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.CegId != cegId)
-        {
-            throw new UnauthorizedAccessException("Nincs jogosultsága a módosításhoz.");
-        }
+            throw new UnauthorizedAccessException("Nincs jogosultsága.");
 
         existing.Nev = kepzes.Nev;
-        existing.Datum = kepzes.Datum;
-        existing.LejaratDatum = kepzes.LejaratDatum;
-        existing.Resztvevo = kepzes.Resztvevo;
+        existing.KepzesTipusId = kepzes.KepzesTipusId;
+        existing.BizonyitvanySzam = kepzes.BizonyitvanySzam;
+        existing.BizonyitvanyKelte = kepzes.BizonyitvanyKelte;
+        existing.TovabbkepzesSzam = kepzes.TovabbkepzesSzam;
+        existing.UtolsoTovabbkepzes = kepzes.UtolsoTovabbkepzes;
+        existing.Jogosultsag = kepzes.Jogosultsag;
         existing.Megjegyzes = kepzes.Megjegyzes;
-        existing.Modositva = DateTime.UtcNow;
+        existing.Aktiv = kepzes.Aktiv;
+        existing.Modositva = DateTime.Now;
         
-        // Admin módosíthatja a CegId-t
         if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
-        {
             existing.CegId = kepzes.CegId;
-        }
 
         await _context.SaveChangesAsync();
         return existing;
