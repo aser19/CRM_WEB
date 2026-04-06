@@ -84,6 +84,26 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             
             // === KELTEZÉS ===
             ["AKT_DATUM"] = DateTime.Today.ToString("yyyy.MM.dd"),
+
+            // === 2. OLDAL - MINŐSÍTŐ IRAT ===
+            ["EREDMENY"] = formAdatok?.Eredmeny ?? "",
+            ["HIBAK_B"] = formAdatok?.HibakB ?? "",
+            ["HIBAK_C"] = formAdatok?.HibakC ?? "",
+            ["HIBAK_D"] = formAdatok?.HibakD ?? "",
+            ["HIBAK_E"] = formAdatok?.HibakE ?? "",
+            ["VEGSO_MINOSITES"] = formAdatok?.VegsoMinosites ?? "",
+            ["Melleklet_db"] = formAdatok?.MellekletekSzama ?? "",
+            ["HIBAVED_JKV"] = formAdatok?.HibavedelmiJkv ?? "",
+            ["AVK_JEGYZOKONYV"] = formAdatok?.AvkJegyzokonyv ?? "",
+            ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
+
+            // Eredmény checkbox-ok (szöveges helyettesítés)
+            ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☒" : "☐",
+            ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☒" : "☐",
+
+            // Végső minősítés checkbox-ok
+            ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☒" : "☐",
+            ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☒" : "☐",
         };
 
         using var ms = new MemoryStream();

@@ -51,15 +51,18 @@ public class JegyzokonyvJogosultsagService : IJegyzokonyvJogosultsagService
         
         // 2. Lekérjük a cég felülvizsgálóit képzéseikkel
         var felulvizsgalok = await _db.Felulvizsgalok
-            .Include(f => f.Kepzesek)
-                .ThenInclude(k => k.KepzesTipus)
-            .Where(f => f.CegId == cegId && f.Aktiv && f.LehetFelelosFelulvizsgalo)
+            .Where(f => f.CegId == cegId && f.Aktiv)
             .ToListAsync();
+
+        // Memóriában szűrjük a számított property-re
+        var jogosultFelulvizsgalok = felulvizsgalok
+            .Where(f => f.LehetFelelosFelulvizsgalo)
+            .ToList();
         
         // 3. Ellenőrizzük, hogy van-e olyan felülvizsgáló, aki teljesíti a követelményeket
         var hianyzoKepzesek = new List<string>();
         
-        foreach (var felulvizsgalo in felulvizsgalok)
+        foreach (var felulvizsgalo in jogosultFelulvizsgalok)
         {
             var meglevőKepzesIds = felulvizsgalo.Kepzesek
                 .Where(k => k.Aktiv)
