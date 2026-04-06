@@ -40,6 +40,16 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     // --- Jogszabályok ---
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
 
+    // --- ÚJ DB SETEK ---
+    public DbSet<KepzesSzabaly> KepzesSzabalyok { get; set; }
+    public DbSet<FelhasznaloErtesitesBeallitas> FelhasznaloErtesitesBeallitasok { get; set; }
+
+    // DbSet-ek
+    public DbSet<Felulvizsgalo> Felulvizsgalok { get; set; }
+    public DbSet<FelulvizsgaloKepzes> FelulvizsgaloKepzesek { get; set; }
+    public DbSet<KepzesTovabbkepzes> KepzesTovabbkepzesek { get; set; }
+    public DbSet<MeresTipusKepzesKovetelemeny> MeresTipusKepzesKovetelemenyei { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -127,6 +137,8 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Leiras).HasMaxLength(1000);
+            entity.Property(e => e.SablonId).HasMaxLength(100);
+            entity.Property(e => e.JegyzokonyvPrefix).HasMaxLength(20).HasDefaultValue("JKV");
         });
 
         // --- Meres ---
@@ -231,6 +243,103 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Url).HasMaxLength(500);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
             // A Terulet automatikusan int-ként tárolódik (Flags enum)
+        });
+
+        // KepzesSzabaly konfigurálása
+        modelBuilder.Entity<KepzesSzabaly>(entity =>
+        {
+            entity.ToTable("KepzesSzabalyok");
+
+            entity.HasOne(s => s.ForrasKepzesTipus)
+                  .WithMany(k => k.ForrasSzabalyok)
+                  .HasForeignKey(s => s.ForrasKepzesTipusId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(s => s.CelKepzesTipus)
+                  .WithMany(k => k.CelSzabalyok)
+                  .HasForeignKey(s => s.CelKepzesTipusId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Ugyanaz a szabály ne lehessen kétszer
+            entity.HasIndex(s => new { s.Tipus, s.ForrasKepzesTipusId, s.CelKepzesTipusId })
+                  .IsUnique();
+        });
+
+        modelBuilder.Entity<FelhasznaloErtesitesBeallitas>(entity =>
+        {
+            entity.ToTable("FelhasznaloErtesitesBeallitasok");
+            entity.HasIndex(e => e.FelhasznaloId).IsUnique();
+        });
+
+        // --- Felulvizsgalo ---
+        modelBuilder.Entity<Felulvizsgalo>(entity =>
+        {
+            entity.ToTable("Felulvizsgalok");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Email).HasMaxLength(200);
+            entity.Property(e => e.Telefon).HasMaxLength(50);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+            entity.HasOne(e => e.Ceg).WithMany().HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- FelulvizsgaloKepzes ---
+        modelBuilder.Entity<FelulvizsgaloKepzes>(entity =>
+        {
+            entity.ToTable("FelulvizsgaloKepzesek");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BizonyitvanySzam).HasMaxLength(100);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+            
+            entity.HasOne(e => e.Felulvizsgalo)
+                  .WithMany(f => f.Kepzesek)
+                  .HasForeignKey(e => e.FelulvizsgaloId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.KepzesTipus)
+                  .WithMany()
+                  .HasForeignKey(e => e.KepzesTipusId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            
+            // Egy felülvizsgálónak egy képzéstípusból csak egy lehet
+            entity.HasIndex(e => new { e.FelulvizsgaloId, e.KepzesTipusId }).IsUnique();
+        });
+
+        // --- KepzesTovabbkepzes ---
+        modelBuilder.Entity<KepzesTovabbkepzes>(entity =>
+        {
+            entity.ToTable("KepzesTovabbkepzesek");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BizonyitvanySzam).HasMaxLength(100);
+            entity.Property(e => e.Hely).HasMaxLength(200);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+            
+            entity.HasOne(e => e.FelulvizsgaloKepzes)
+                  .WithMany(k => k.Tovabbkepzesek)
+                  .HasForeignKey(e => e.FelulvizsgaloKepzesId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- MeresTipusKepzesKovetelemeny ---
+        modelBuilder.Entity<MeresTipusKepzesKovetelemeny>(entity =>
+        {
+            entity.ToTable("MeresTipusKepzesKovetelemenyei");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.MeresTipus)
+                  .WithMany(m => m.KepzesKovetelemenyei)
+                  .HasForeignKey(e => e.MeresTipusId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.KepzesTipus)
+                  .WithMany()
+                  .HasForeignKey(e => e.KepzesTipusId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.Property(e => e.SablonLabel).HasMaxLength(50);
+            
+            // Ugyanaz a képzés ne legyen kétszer ugyanazon mérés típusnál
+            entity.HasIndex(e => new { e.MeresTipusId, e.KepzesTipusId }).IsUnique();
         });
 
         // Seed adatok az EszkozTipus-hoz:

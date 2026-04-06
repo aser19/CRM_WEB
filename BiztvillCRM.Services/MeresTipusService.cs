@@ -17,6 +17,14 @@ public class MeresTipusService : IMeresTipusService
             .OrderBy(m => m.Nev)
             .ToListAsync();
 
+    public async Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync() =>
+        await _context.MeresTipusok
+            .Include(m => m.KepzesKovetelemenyei)
+                .ThenInclude(k => k.KepzesTipus)
+            .AsNoTracking()
+            .OrderBy(m => m.Nev)
+            .ToListAsync();
+
     public async Task<MeresTipus?> GetByIdAsync(int id) =>
         await _context.MeresTipusok
             .AsNoTracking()
@@ -38,10 +46,47 @@ public class MeresTipusService : IMeresTipusService
         existing.Nev = meresTipus.Nev;
         existing.Leiras = meresTipus.Leiras;
         existing.ErvenyessegHonap = meresTipus.ErvenyessegHonap;
+        existing.SablonId = meresTipus.SablonId;
+        existing.JegyzokonyvPrefix = meresTipus.JegyzokonyvPrefix;
+        existing.Aktiv = meresTipus.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return existing;
+    }
+
+    public async Task UpdateWithKovetelemenyekAsync(MeresTipus tipus)
+    {
+        var existing = await _context.MeresTipusok
+            .Include(m => m.KepzesKovetelemenyei)
+            .FirstOrDefaultAsync(m => m.Id == tipus.Id)
+            ?? throw new InvalidOperationException("Nem található.");
+
+        // Alap adatok frissítése
+        existing.Nev = tipus.Nev;
+        existing.Leiras = tipus.Leiras;
+        existing.SablonId = tipus.SablonId;
+        existing.JegyzokonyvPrefix = tipus.JegyzokonyvPrefix;
+        existing.Modositva = DateTime.UtcNow;
+        
+        // Régi követelmények törlése
+        _context.MeresTipusKepzesKovetelemenyei.RemoveRange(existing.KepzesKovetelemenyei);
+        
+        // Új követelmények hozzáadása
+        foreach (var kov in tipus.KepzesKovetelemenyei)
+        {
+            _context.MeresTipusKepzesKovetelemenyei.Add(new MeresTipusKepzesKovetelemeny
+            {
+                MeresTipusId = tipus.Id,
+                KepzesTipusId = kov.KepzesTipusId,
+                SablonLabel = kov.SablonLabel,
+                AlternativaCsoport = kov.AlternativaCsoport,
+                Prioritas = kov.Prioritas,
+                Kotelezo = true
+            });
+        }
+        
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)

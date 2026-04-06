@@ -90,15 +90,19 @@ builder.Services.AddScoped<ISablonService>(sp =>
     var sablonMappa = Path.Combine(env.WebRootPath, "sablonok");
     return new SablonService(sablonMappa);
 });
-// builder.Services.AddScoped<IJedzokonyvWordService>(sp =>
-// {
-//     var meresService = sp.GetRequiredService<IMeresService>();
-//     var tenantService = sp.GetRequiredService<ITenantService>();
-//     var cegService = sp.GetRequiredService<ICegService>();
-//     var sablonService = sp.GetRequiredService<ISablonService>();
-//     return new JedzokonyvWordService(meresService, tenantService, cegService, sablonService);
-// }); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
+{
+    var meresService = sp.GetRequiredService<IMeresService>();
+    var tenantService = sp.GetRequiredService<ITenantService>();
+    var cegService = sp.GetRequiredService<ICegService>();
+    var sablonService = sp.GetRequiredService<ISablonService>();
+    return new JegyzokonyvWordService(meresService, tenantService, cegService, sablonService);
+}); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
+builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
+builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();

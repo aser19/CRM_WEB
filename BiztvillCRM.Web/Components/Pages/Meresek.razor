@@ -92,7 +92,7 @@
                                ToStringFunc="@(id => _tipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
                         @foreach (var t in _tipusok)
                         {
-                            <MudSelectItem Value="@t.Id">@t.Nev @(t.ErvenyessegHonap > 0 ? $"({t.ErvenyessegHonap} hónap)" : "")</MudSelectItem>
+                            <MudSelectItem Value="@t.Id">@t.Nev @(t.ErvenyessegHonap.HasValue && t.ErvenyessegHonap > 0 ? $"({t.ErvenyessegHonap} hónap)" : "")</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -226,9 +226,9 @@
             return;
 
         var tipus = _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId);
-        if (tipus != null && tipus.ErvenyessegHonap > 0)
+        if (tipus != null && tipus.ErvenyessegHonap.HasValue && tipus.ErvenyessegHonap > 0)
         {
-            _kovetkezoDatum = _datum.Value.AddMonths(tipus.ErvenyessegHonap);
+            _kovetkezoDatum = _datum.Value.AddMonths(tipus.ErvenyessegHonap.Value);
             StateHasChanged();
         }
     }

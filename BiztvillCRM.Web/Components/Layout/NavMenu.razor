@@ -22,6 +22,7 @@
         <MudNavLink Href="/meresek" Icon="@Icons.Material.Filled.Science">Mérések</MudNavLink>
         <MudNavLink Href="/merestipusok" Icon="@Icons.Material.Filled.Category">Mérés típusok</MudNavLink>
         <MudNavLink Href="/kalibraciok" Icon="@Icons.Material.Filled.Tune">Kalibrációk</MudNavLink>
+        <MudNavLink Href="/jegyzokonyv/uj" Icon="@Icons.Material.Filled.NoteAdd">Jegyzőkönyv készítés</MudNavLink>
     </MudNavGroup>
 
     <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser" Expanded="false">
@@ -31,7 +32,7 @@
 
     <MudNavGroup Title="Tanúsítványok" Icon="@Icons.Material.Filled.CardMembership" Expanded="false">
         <MudNavLink Href="/tanusitvanyok" Icon="@Icons.Material.Filled.Badge">Tanúsítványok</MudNavLink>
-        <MudNavLink Href="/kepzesek" Icon="@Icons.Material.Filled.School">Képzések</MudNavLink>
+        <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Engineering">Felülvizsgálók</MudNavLink>
     </MudNavGroup>
 
     <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering" Expanded="false">
@@ -62,13 +63,10 @@
                 <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.CorporateFare">Cégek</MudNavLink>
             }
             <MudNavLink Href="/admin/kepzes-tipusok" Icon="@Icons.Material.Filled.School">Képzés típusok</MudNavLink>
+            <MudNavLink Href="/admin/kepzes-szabalyok" Icon="@Icons.Material.Filled.AccountTree">Képzési szabályok</MudNavLink>
+            <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Assignment">Mérés típusok</MudNavLink>  @* ÚJ! *@
         </MudNavGroup>
     }
-
-    @* A menübe add hozzá: *@
-    <MudNavLink Href="/jegyzokonyv/uj" Icon="@Icons.Material.Filled.NoteAdd">
-        Jegyzőkönyv készítés
-    </MudNavLink>
 </MudNavMenu>
 
 @code {

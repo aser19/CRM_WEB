@@ -1,0 +1,160 @@
+@page "/admin/meres-tipusok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IMeresTipusService MeresTipusService
+@inject IKepzesTipusService KepzesTipusService
+@inject ISnackbar Snackbar
+
+<PageTitle>Jegyzőkönyv típusok és követelmények</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+    Jegyzőkönyv típusok és képzési követelmények
+</MudText>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+        @foreach (var tipus in _tipusok)
+        {
+            <MudTabPanel Text="@tipus.Nev" Icon="@Icons.Material.Filled.Description">
+                <MudPaper Class="pa-4">
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="tipus.JegyzokonyvPrefix" Label="Jegyzőkönyv prefix" 
+                                          Variant="Variant.Outlined" Placeholder="pl. VBF, ÉV" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="tipus.SablonId" Label="Sablon azonosító" 
+                                          Variant="Variant.Outlined" Placeholder="pl. VBF_KIF_MINTA" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudDivider Class="my-4" />
+                    
+                    <MudText Typo="Typo.h6" Class="mb-3">Kötelező képzések</MudText>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                        <strong>Alternatíva csoport:</strong> Azonos számú = VAGY kapcsolat (legalább egy kell).<br/>
+                        <strong>0 = mindegyik kötelező</strong>
+                    </MudAlert>
+
+                    @if (tipus.KepzesKovetelemenyei.Any())
+                    {
+                        <MudTable Items="@tipus.KepzesKovetelemenyei" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Képzés típus</MudTh>
+                                <MudTh>Label</MudTh>
+                                <MudTh>Alt. csoport</MudTh>
+                                <MudTh>Prioritás</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.KepzesTipus?.Nev</MudTd>
+                                <MudTd>
+                                    <MudTextField @bind-Value="context.SablonLabel" Variant="Variant.Text" 
+                                                  Style="max-width:100px" Placeholder="pl. ÉBF" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudNumericField @bind-Value="context.AlternativaCsoport" 
+                                                     Min="0" Max="10" Style="max-width:80px" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudNumericField @bind-Value="context.Prioritas" 
+                                                     Min="0" Max="99" Style="max-width:80px" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                   Size="Size.Small" OnClick="() => TorolKovetelmeny(tipus, context)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">Nincs kötelező képzés beállítva - bárki készíthet ilyen jegyzőkönyvet.</MudAlert>
+                    }
+
+                    <MudStack Row="true" Class="mt-3" Spacing="2">
+                        <MudSelect T="int" @bind-Value="_ujKepzesTipusId" Label="Új képzés hozzáadása" 
+                                   Variant="Variant.Outlined" Style="max-width:300px">
+                            <MudSelectItem Value="0">-- Válassz --</MudSelectItem>
+                            @foreach (var kt in _kepzesTipusok.Where(k => !tipus.KepzesKovetelemenyei.Any(kk => kk.KepzesTipusId == k.Id)))
+                            {
+                                <MudSelectItem Value="@kt.Id">@kt.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                   OnClick="() => HozzaadKovetelmeny(tipus)" Disabled="@(_ujKepzesTipusId == 0)">
+                            Hozzáad
+                        </MudButton>
+                    </MudStack>
+
+                    <MudStack Row="true" Class="mt-4" Justify="Justify.FlexEnd">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" 
+                                   OnClick="() => MentesAsync(tipus)">
+                            Mentés
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudTabPanel>
+        }
+    </MudTabs>
+}
+
+@code {
+    private List<MeresTipus> _tipusok = [];
+    private List<KepzesTipus> _kepzesTipusok = [];
+    private int _ujKepzesTipusId;
+    private bool _betoltes = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tipusok = await MeresTipusService.GetAllWithKovetelemenyekAsync();
+        _kepzesTipusok = await KepzesTipusService.GetAllActiveAsync();
+        _betoltes = false;
+    }
+
+    private void HozzaadKovetelmeny(MeresTipus tipus)
+    {
+        if (_ujKepzesTipusId == 0) return;
+        
+        var kepzesTipus = _kepzesTipusok.First(k => k.Id == _ujKepzesTipusId);
+        var nev = kepzesTipus.Nev ?? "";
+        
+        tipus.KepzesKovetelemenyei.Add(new MeresTipusKepzesKovetelemeny
+        {
+            MeresTipusId = tipus.Id,
+            KepzesTipusId = _ujKepzesTipusId,
+            KepzesTipus = kepzesTipus,
+            SablonLabel = nev.Length > 3 ? nev.Substring(0, 3).ToUpper() : nev.ToUpper(),
+            AlternativaCsoport = 0,
+            Prioritas = tipus.KepzesKovetelemenyei.Count
+        });
+        _ujKepzesTipusId = 0;
+    }
+
+    private void TorolKovetelmeny(MeresTipus tipus, MeresTipusKepzesKovetelemeny kovetelmeny)
+    {
+        tipus.KepzesKovetelemenyei.Remove(kovetelmeny);
+    }
+
+    private async Task MentesAsync(MeresTipus tipus)
+    {
+        try
+        {
+            await MeresTipusService.UpdateWithKovetelemenyekAsync(tipus);
+            Snackbar.Add("Mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+}

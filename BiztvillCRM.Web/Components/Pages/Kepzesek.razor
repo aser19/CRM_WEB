@@ -79,13 +79,11 @@
                 </CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="k => k.BizonyitvanySzam" Title="Bizonyítvány sz." />
-            <TemplateColumn Title="Biz. lejárat">
+            <TemplateColumn Title="Biz. kelte">
                 <CellTemplate>
-                    @if (context.Item.BizonyitvanyLejarat.HasValue)
+                    @if (context.Item.BizonyitvanyKelte.HasValue)
                     {
-                        <MudText Color="@(context.Item.BizonyitvanyLejarat < DateTime.Today ? Color.Error : Color.Default)">
-                            @context.Item.BizonyitvanyLejarat?.ToString("yyyy.MM.dd")
-                        </MudText>
+                        <MudText>@context.Item.BizonyitvanyKelte?.ToString("yyyy.MM.dd")</MudText>
                     }
                 </CellTemplate>
             </TemplateColumn>
@@ -190,7 +188,7 @@
                         <MudTextField @bind-Value="_szerkesztesAlatt.BizonyitvanySzam" Label="Vizsgabizonyítvány száma" Variant="Variant.Outlined" />
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudDatePicker @bind-Date="_bizonyitvanyLejarat" Label="Bizonyítvány lejárata" Variant="Variant.Outlined" DateFormat="yyyy.MM.dd" />
+                        <MudDatePicker @bind-Date="_bizonyitvanyKelte" Label="Bizonyítvány kelte" Variant="Variant.Outlined" DateFormat="yyyy.MM.dd" />
                     </MudItem>
                     <MudItem xs="12">
                         <MudSelect T="FelulvizsgaloJogosultsag" @bind-Value="_szerkesztesAlatt.Jogosultsag" Label="Jogosultsági szint *" Variant="Variant.Outlined">
@@ -224,7 +222,7 @@
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
     private Kepzes? _szerkesztesAlatt;
-    private DateTime? _bizonyitvanyLejarat;
+    private DateTime? _bizonyitvanyKelte;
     private int _kivalasztottCegId;
     private int? _kivalasztottKepzesTipusId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
@@ -279,7 +277,7 @@
         _szerkesztesAlatt = new Kepzes { CegId = cegId, Aktiv = true, Jogosultsag = FelulvizsgaloJogosultsag.Segito };
         _kivalasztottCegId = cegId;
         _kivalasztottKepzesTipusId = null;
-        _bizonyitvanyLejarat = null;
+        _bizonyitvanyKelte = null;
         _dialogNyitva = true;
     }
 
@@ -299,7 +297,7 @@
         };
         _kivalasztottCegId = item.CegId;
         _kivalasztottKepzesTipusId = item.KepzesTipusId;
-        _bizonyitvanyLejarat = item.BizonyitvanyLejarat;
+        _bizonyitvanyKelte = item.BizonyitvanyKelte;
         _dialogNyitva = true;
     }
 
@@ -313,7 +311,7 @@
             return;
         }
         
-        _szerkesztesAlatt.BizonyitvanyLejarat = _bizonyitvanyLejarat;
+        _szerkesztesAlatt.BizonyitvanyKelte = _bizonyitvanyKelte;
         _szerkesztesAlatt.CegId = _kivalasztottCegId;
         _szerkesztesAlatt.KepzesTipusId = _kivalasztottKepzesTipusId;
         

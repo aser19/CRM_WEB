@@ -58,8 +58,8 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["VIZSG_BERENDEZES"] = formAdatok?.VizsgaltBerendezes ?? "",
             
             // === CÉG ADATOK ===
-            ["LICENSZ_TULAJDONOSA_(CEG_NEVE)"] = ceg?.Nev ?? "",
-            ["LICENSZ_TULAJDONOSA_(CEG_CIME)"] = ceg?.Cim ?? "",
+            ["CEG_NEVE"] = ceg?.Nev ?? "",
+            ["CEG_CIME"] = ceg?.Cim ?? "",
             
             // === MEGRENDELŐ ADATOK ===
             ["VIZSG_MEGRENDELO"] = formAdatok?.Megrendelo ?? meres.Ugyfel?.Nev ?? "",

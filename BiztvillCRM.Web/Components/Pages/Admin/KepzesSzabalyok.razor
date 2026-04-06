@@ -1,0 +1,335 @@
+@page "/admin/kepzes-szabalyok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IKepzesSzabalyService SzabalyService
+@inject IKepzesTipusService KepzesTipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Képzési szabályok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+    Képzési szabályok
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    <strong>Szabálytípusok:</strong><br/>
+    🔄 <strong>Megújít</strong> - A továbbképzés automatikusan megújítja a másik képzést is<br/>
+    🛡️ <strong>Felment</strong> - A képzés megléte felment egy másik képzés továbbképzése alól<br/>
+    📋 <strong>Előfeltétel</strong> - A képzés csak akkor rögzíthető, ha a másik már megvan
+</MudAlert>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudSelect T="KepzesSzabalyTipus?" @bind-Value="_szuroTipus" Label="Szabály típus" Style="min-width: 200px;" Clearable="true">
+            <MudSelectItem T="KepzesSzabalyTipus?" Value="null">-- Összes --</MudSelectItem>
+            <MudSelectItem T="KepzesSzabalyTipus?" Value="KepzesSzabalyTipus.Megujit">🔄 Megújít</MudSelectItem>
+            <MudSelectItem T="KepzesSzabalyTipus?" Value="KepzesSzabalyTipus.Felment">🛡️ Felment</MudSelectItem>
+            <MudSelectItem T="KepzesSzabalyTipus?" Value="KepzesSzabalyTipus.Elofeltetel">📋 Előfeltétel</MudSelectItem>
+        </MudSelect>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+            Új szabály
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="KepzesSzabaly" Items="_szurtLista" Filterable="false" SortMode="SortMode.Single" Hover="true" Striped="true" Loading="_betoltes" Dense="true">
+        <Columns>
+            <TemplateColumn Title="Típus" Sortable="true">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="@TipusSzin(context.Item.Tipus)">
+                        @TipusNev(context.Item.Tipus)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Forrás képzés">
+                <CellTemplate>
+                    <MudText><strong>@context.Item.ForrasKepzesTipus?.Nev</strong></MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="">
+                <CellTemplate>
+                    <MudIcon Icon="@TipusIkon(context.Item.Tipus)" Color="@TipusSzin(context.Item.Tipus)" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Cél képzés">
+                <CellTemplate>
+                    <MudText>@context.Item.CelKepzesTipus?.Nev</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Leírás">
+                <CellTemplate>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @SzabalyLeiras(context.Item)
+                    </MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    <MudSwitch T="bool" Value="@context.Item.Aktiv" ValueChanged="@(v => AktivValtas(context.Item, v))" Color="Color.Success" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető szabály.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+@* Példák szekció *@
+<MudPaper Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Class="mr-2" />
+        Példák a szabályok használatára
+    </MudText>
+    <MudSimpleTable Dense="true" Hover="true" Striped="true">
+        <thead>
+            <tr>
+                <th>Típus</th>
+                <th>Forrás</th>
+                <th></th>
+                <th>Cél</th>
+                <th>Jelentés</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><MudChip T="string" Size="Size.Small" Color="Color.Info">Megújít</MudChip></td>
+                <td><strong>VBF továbbképzés</strong></td>
+                <td>→</td>
+                <td>ÉBF alapképzés</td>
+                <td><em>VBF továbbképzés elvégzése megújítja az ÉBF-et is</em></td>
+            </tr>
+            <tr>
+                <td><MudChip T="string" Size="Size.Small" Color="Color.Success">Felment</MudChip></td>
+                <td><strong>RB vezető</strong></td>
+                <td>→</td>
+                <td>RB felülvizsgáló</td>
+                <td><em>Ha van RB vezető képzés, nem kell RB felülvizsgáló továbbképzés</em></td>
+            </tr>
+            <tr>
+                <td><MudChip T="string" Size="Size.Small" Color="Color.Warning">Előfeltétel</MudChip></td>
+                <td><strong>Villamos alapvizsga</strong></td>
+                <td>→</td>
+                <td>ÉBF alapképzés</td>
+                <td><em>ÉBF csak akkor rögzíthető, ha már van Villamos alapvizsga</em></td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+            @(_szerkesztesAlatt?.Id > 0 ? "Szabály szerkesztése" : "Új szabály")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="KepzesSzabalyTipus" @bind-Value="_szerkesztesAlatt.Tipus" Label="Szabály típusa *" Variant="Variant.Outlined">
+                        <MudSelectItem Value="KepzesSzabalyTipus.Megujit">🔄 Megújít - A forrás képzés megújítja a célt</MudSelectItem>
+                        <MudSelectItem Value="KepzesSzabalyTipus.Felment">🛡️ Felment - A forrás képzés felment a cél továbbképzése alól</MudSelectItem>
+                        <MudSelectItem Value="KepzesSzabalyTipus.Elofeltetel">📋 Előfeltétel - A forrás képzés előfeltétele a célnak</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        @switch (_szerkesztesAlatt.Tipus)
+                        {
+                            case KepzesSzabalyTipus.Megujit:
+                                <span>📝 A <strong>forrás</strong> képzés/továbbképzés elvégzése automatikusan megújítja a <strong>cél</strong> képzést is.</span>
+                                break;
+                            case KepzesSzabalyTipus.Felment:
+                                <span>📝 Ha a felülvizsgálónak megvan a <strong>forrás</strong> képzés, nem kell <strong>cél</strong> továbbképzést elvégeznie.</span>
+                                break;
+                            case KepzesSzabalyTipus.Elofeltetel:
+                                <span>📝 A <strong>cél</strong> képzés csak akkor rögzíthető, ha a <strong>forrás</strong> képzés már megvan.</span>
+                                break;
+                        }
+                    </MudAlert>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_forrasKepzesTipusId" Label="Forrás képzés *" Variant="Variant.Outlined">
+                        @foreach (var tipus in _kepzesTipusok)
+                        {
+                            <MudSelectItem Value="@tipus.Id">@tipus.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" @bind-Value="_celKepzesTipusId" Label="Cél képzés *" Variant="Variant.Outlined">
+                        @foreach (var tipus in _kepzesTipusok.Where(t => t.Id != _forrasKepzesTipusId))
+                        {
+                            <MudSelectItem Value="@tipus.Id">@tipus.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés (opcionális)" Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<KepzesSzabaly> _lista = [];
+    private List<KepzesTipus> _kepzesTipusok = [];
+    private KepzesSzabalyTipus? _szuroTipus;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private KepzesSzabaly? _szerkesztesAlatt;
+    private int _forrasKepzesTipusId, _celKepzesTipusId;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private IEnumerable<KepzesSzabaly> _szurtLista => _szuroTipus.HasValue 
+        ? _lista.Where(s => s.Tipus == _szuroTipus.Value) 
+        : _lista;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _kepzesTipusok = await KepzesTipusService.GetAllActiveAsync();
+        _lista = await SzabalyService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private string TipusNev(KepzesSzabalyTipus tipus) => tipus switch
+    {
+        KepzesSzabalyTipus.Megujit => "🔄 Megújít",
+        KepzesSzabalyTipus.Felment => "🛡️ Felment",
+        KepzesSzabalyTipus.Elofeltetel => "📋 Előfeltétel",
+        _ => "?"
+    };
+
+    private Color TipusSzin(KepzesSzabalyTipus tipus) => tipus switch
+    {
+        KepzesSzabalyTipus.Megujit => Color.Info,
+        KepzesSzabalyTipus.Felment => Color.Success,
+        KepzesSzabalyTipus.Elofeltetel => Color.Warning,
+        _ => Color.Default
+    };
+
+    private string TipusIkon(KepzesSzabalyTipus tipus) => tipus switch
+    {
+        KepzesSzabalyTipus.Megujit => Icons.Material.Filled.Autorenew,
+        KepzesSzabalyTipus.Felment => Icons.Material.Filled.Shield,
+        KepzesSzabalyTipus.Elofeltetel => Icons.Material.Filled.ArrowForward,
+        _ => Icons.Material.Filled.Help
+    };
+
+    private string SzabalyLeiras(KepzesSzabaly s) => s.Tipus switch
+    {
+        KepzesSzabalyTipus.Megujit => $"{s.ForrasKepzesTipus?.Nev} megújítja: {s.CelKepzesTipus?.Nev}",
+        KepzesSzabalyTipus.Felment => $"{s.ForrasKepzesTipus?.Nev} felment: {s.CelKepzesTipus?.Nev} tkp. alól",
+        KepzesSzabalyTipus.Elofeltetel => $"{s.CelKepzesTipus?.Nev} előfeltétele: {s.ForrasKepzesTipus?.Nev}",
+        _ => ""
+    };
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new KepzesSzabaly { Aktiv = true, Tipus = KepzesSzabalyTipus.Elofeltetel };
+        _forrasKepzesTipusId = _kepzesTipusok.FirstOrDefault()?.Id ?? 0;
+        _celKepzesTipusId = _kepzesTipusok.Skip(1).FirstOrDefault()?.Id ?? 0;
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(KepzesSzabaly item)
+    {
+        _szerkesztesAlatt = new KepzesSzabaly
+        {
+            Id = item.Id,
+            Tipus = item.Tipus,
+            ForrasKepzesTipusId = item.ForrasKepzesTipusId,
+            CelKepzesTipusId = item.CelKepzesTipusId,
+            Megjegyzes = item.Megjegyzes,
+            Aktiv = item.Aktiv
+        };
+        _forrasKepzesTipusId = item.ForrasKepzesTipusId;
+        _celKepzesTipusId = item.CelKepzesTipusId;
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || _forrasKepzesTipusId == 0 || _celKepzesTipusId == 0)
+        {
+            Snackbar.Add("Mindkét képzés kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+
+        if (_forrasKepzesTipusId == _celKepzesTipusId)
+        {
+            Snackbar.Add("A forrás és cél képzés nem lehet ugyanaz!", Severity.Warning);
+            return;
+        }
+
+        _szerkesztesAlatt.ForrasKepzesTipusId = _forrasKepzesTipusId;
+        _szerkesztesAlatt.CelKepzesTipusId = _celKepzesTipusId;
+
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0)
+                await SzabalyService.CreateAsync(_szerkesztesAlatt);
+            else
+                await SzabalyService.UpdateAsync(_szerkesztesAlatt);
+            
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            DialogBezarasa();
+            _lista = await SzabalyService.GetAllAsync();
+        }
+        catch (Exception ex) 
+        { 
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); 
+        }
+        finally { _mentes = false; }
+    }
+
+    private async Task AktivValtas(KepzesSzabaly item, bool aktiv)
+    {
+        item.Aktiv = aktiv;
+        await SzabalyService.UpdateAsync(item);
+        Snackbar.Add(aktiv ? "Szabály aktiválva!" : "Szabály inaktiválva!", Severity.Info);
+    }
+
+    private async Task TorlesMegerosites(KepzesSzabaly item)
+    {
+        var leiras = SzabalyLeiras(item);
+        if (await DialogService.ShowMessageBox("Törlés", $"Biztosan törli a szabályt?\n\n{leiras}", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            await SzabalyService.DeleteAsync(item.Id);
+            Snackbar.Add("Törölve.", Severity.Success);
+            _lista = await SzabalyService.GetAllAsync();
+        }
+    }
+}

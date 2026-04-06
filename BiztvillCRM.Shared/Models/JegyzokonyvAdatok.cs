@@ -3,6 +3,8 @@ namespace BiztvillCRM.Shared.Models;
 public class JegyzokonyvAdatok
 {
     public string JegyzokonyvSzam { get; set; } = "";
+    public string CegNev { get; set; } = "";           // <-- ÚJ
+    public string CegCim { get; set; } = "";           // <-- ÚJ
     public string VizsgalatHelye { get; set; } = "";
     public string VizsgalatTargya { get; set; } = "";
     public string VizsgaltBerendezes { get; set; } = "";
