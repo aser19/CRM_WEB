@@ -376,11 +376,121 @@
                                   Label="ÁVK jegyzőkönyv" 
                                   Variant="Variant.Outlined" />
                 </MudItem>
+
+                @* === VALIDÁCIÓS GOMB A 3. LÉPÉSHEZ === *@
+                <MudItem xs="12" Class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               OnClick="Lepes2ValidalasEsTovabbAsync"
+                               EndIcon="@Icons.Material.Filled.ArrowForward">
+                        Tovább a minősítő irat 2/2 kitöltéséhez
+                    </MudButton>
+                </MudItem>
             </MudGrid>
         </MudPaper>
     </MudStep>
-    
-    @* === 3. LÉPÉS: ELŐNÉZET ÉS LETÖLTÉS === *@
+
+    @* === 3. LÉPÉS: MINŐSÍTŐ IRAT 2/2 === *@
+    <MudStep Title="Minősítő irat 2/2" Icon="@Icons.Material.Filled.FactCheck"
+         Disabled="@(_kivalasztottFelulvizsgaloId == null)">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
+                Minősítő irat 2/2 (3. oldal)
+            </MudText>
+            
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Érvényességi feltételek:</MudText>
+                    <MudStack Spacing="1">
+                        <MudCheckBox @bind-Value="_adatok.ErvenyessegMegrendeles" Dense="true"
+                                     Label="A vizsgálat kizárólag a megrendelésben részletezett villamos-szerkezetekre terjed ki."
+                                     Color="Color.Primary" />
+                        <MudCheckBox @bind-Value="_adatok.ErvenyessegBelsoSzabalyzat" Dense="true"
+                                     Label="A felhasználói belső szabályzatban részletezett rendeltetésszerű használat."
+                                     Color="Color.Primary" />
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudText>Jelen minősítő irat érvényes</MudText>
+                        <MudDatePicker @bind-Date="_adatok.ErvenyessegDatum" Variant="Variant.Outlined"
+                                       DateFormat="yyyy.MM.dd" Style="max-width: 180px;" Margin="Margin.Dense" />
+                        <MudText>-ig, vagy a berendezésen történt első beavatkozásig!</MudText>
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos felülvizsgálatát:
+                    </MudText>
+                    <MudRadioGroup T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatTipus">
+                        <MudStack Spacing="1">
+                            <MudRadio T="string" Value="@("50kW")" Color="Color.Primary" Dense="true">
+                                az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("32A")" Color="Color.Primary" Dense="true">
+                                a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túláramvédelemmel korlátozott villamos berendezésén
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
+                                a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("RV300")" Color="Color.Primary" Dense="true">
+                                <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben
+                            </MudRadio>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudRadio T="string" Value="@("EGYEB1")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
+                                <MudTextField @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyeb"
+                                              Variant="Variant.Outlined"
+                                              Disabled="@(_adatok.KovetkezoFelulvizsgalatTipus != "EGYEB1")"
+                                              Style="max-width: 350px;" Margin="Margin.Dense" />
+                            </MudStack>
+                        </MudStack>
+                    </MudRadioGroup>
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">a kiadási dátumtól számított:</MudText>
+                    <MudRadioGroup T="string" Value="_adatok.HataridoTipus" ValueChanged="OnHataridoTipusValtozas">
+                        <MudStack Spacing="1">
+                            <MudRadio T="string" Value="@("3EV")" Color="Color.Primary" Dense="true">
+                                <strong>3 éven</strong> belül, legkésőbb: <strong>@GetSzamitottDatum(3)</strong>-ig kell elvégezni.
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("LAKAS")" Color="Color.Primary" Dense="true">
+                                lakóépületek villamos berendezésén - <strong>6 éven</strong> belül: <strong>@GetSzamitottDatum(6)</strong>-ig
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("RV")" Color="Color.Primary" Dense="true">
+                                egyéb (RV osztályú anyagot NEM tartalmazó) helyiségekben
+                            </MudRadio>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudRadio T="string" Value="@("EGYEB2")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
+                                <MudTextField @bind-Value="_adatok.HataridoEgyeb"
+                                              Variant="Variant.Outlined"
+                                              Disabled="@(_adatok.HataridoTipus != "EGYEB2")"
+                                              Style="max-width: 350px;" Margin="Margin.Dense" />
+                            </MudStack>
+                        </MudStack>
+                    </MudRadioGroup>
+                </MudItem>
+
+                <MudItem xs="12" md="4" Class="mt-3">
+                    <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
+                                   Label="Következő felülvizsgálat határideje"
+                                   Variant="Variant.Outlined" DateFormat="yyyy.MM.dd"
+                                   HelperText="Automatikusan számított, de módosítható" />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudTextField @bind-Value="_adatok.MinositoMegjegyzes"
+                                  Label="Megjegyzések, észrevételek, javaslatok"
+                                  Variant="Variant.Outlined" Lines="3"
+                                  Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudStep>
+
+    @* === 4. LÉPÉS: ELŐNÉZET ÉS LETÖLTÉS === *@
     <MudStep Title="Letöltés" Icon="@Icons.Material.Filled.Download">
         <MudPaper Class="pa-4">
             <MudSimpleTable Dense="true" Bordered="true" Class="mb-4">
@@ -609,7 +719,29 @@
                 VegsoMinosites = _adatok.VegsoMinosites,
                 MellekletekSzama = _adatok.MellekletekSzama,
                 HibavedelmiJkv = _adatok.HibavedelmiJkv,
-                AvkJegyzokonyv = _adatok.AvkJegyzokonyv
+                AvkJegyzokonyv = _adatok.AvkJegyzokonyv,
+
+                // 3. oldal - Checkbox értékek
+                ERV_MEGRENDELES_X = _adatok.ErvenyessegMegrendeles ? "☒" : "☐",
+                ERV_SZABALYZAT_X = _adatok.ErvenyessegBelsoSzabalyzat ? "☒" : "☐",
+                ERV_DATUM = _adatok.ErvenyessegDatum?.ToString("yyyy.MM.dd") ?? "",
+                
+                KOV_50KW_X = _adatok.KovetkezoFelulvizsgalatTipus == "50kW" ? "☒" : "☐",
+                KOV_32A_X = _adatok.KovetkezoFelulvizsgalatTipus == "32A" ? "☒" : "☐",
+                KOV_VMBSZ_X = _adatok.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☒" : "☐",
+                KOV_RV300_X = _adatok.KovetkezoFelulvizsgalatTipus == "RV300" ? "☒" : "☐",
+                KOV_EGYEB1_X = _adatok.KovetkezoFelulvizsgalatTipus == "EGYEB1" ? "☒" : "☐",
+                KOV_EGYEB1_SZOVEG = _adatok.KovetkezoFelulvizsgalatEgyeb,
+                
+                HAT_3EV_X = _adatok.HataridoTipus == "3EV" ? "☒" : "☐",
+                HAT_3EV_DATUM = GetSzamitottDatum(3),
+                HAT_LAKAS_X = _adatok.HataridoTipus == "LAKAS" ? "☒" : "☐",
+                HAT_RV_X = _adatok.HataridoTipus == "RV" ? "☒" : "☐",
+                HAT_EGYEB2_X = _adatok.HataridoTipus == "EGYEB2" ? "☒" : "☐",
+                HAT_EGYEB2_SZOVEG = _adatok.HataridoEgyeb,
+                HAT_6EV_DATUM = GetSzamitottDatum(6),
+                
+                MINOSITO_MEGJEGYZES = _adatok.MinositoMegjegyzes
             };
             
             var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, jegyzokonyvAdatok);
@@ -688,6 +820,20 @@
         public string MellekletekSzama { get; set; } = ""; // TODO: MeresTipus alapján
         public string HibavedelmiJkv { get; set; } = "";
         public string AvkJegyzokonyv { get; set; } = "";
+        
+        // === MINŐSÍTŐ IRAT - 3. OLDAL (2/2) ===
+        public bool ErvenyessegMegrendeles { get; set; } = true;
+        public bool ErvenyessegBelsoSzabalyzat { get; set; } = true;
+        public DateTime? ErvenyessegDatum { get; set; }
+        
+        public string KovetkezoFelulvizsgalatTipus { get; set; } = "";
+        public string KovetkezoFelulvizsgalatEgyeb { get; set; } = "";
+        
+        public string HataridoTipus { get; set; } = "3EV";
+        public string HataridoEgyeb { get; set; } = "";
+        public DateTime? KovetkezoFelulvizsgalatDatum { get; set; }
+        
+        public string MinositoMegjegyzes { get; set; } = "";
     }
 
     private async Task ValidalasEsTovabblepesAsync()
@@ -753,6 +899,43 @@
         }
     }
 
+    private async Task Lepes2ValidalasEsTovabbAsync()
+    {
+    // Kötelező mezők ellenőrzése
+    if (_kivalasztottFelulvizsgaloId == null)
+    {
+        Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning);
+        return;
+    }
+    
+    if (string.IsNullOrWhiteSpace(_adatok.Eredmeny))
+    {
+        Snackbar.Add("Add meg a vizsgálat eredményét!", Severity.Warning);
+        return;
+    }
+    
+    // Alapértelmezett érvényességi dátum beállítása (ha nincs megadva)
+    if (_adatok.ErvenyessegDatum == null)
+    {
+        // Alapértelmezetten a vizsgálat dátuma + 3 év
+        _adatok.ErvenyessegDatum = (_vizsgalatDatum ?? DateTime.Today).AddYears(3);
+    }
+    
+    // Következő felülvizsgálat dátum beállítása
+    if (_adatok.KovetkezoFelulvizsgalatDatum == null)
+    {
+        var evek = _adatok.HataridoTipus switch
+        {
+            "LAKAS" or "RV" => 6,
+            _ => 3
+        };
+        _adatok.KovetkezoFelulvizsgalatDatum = (_vizsgalatDatum ?? DateTime.Today).AddYears(evek);
+    }
+    
+    StateHasChanged();
+    await _stepper.NextStepAsync();
+}
+
     private void OnEredmenyValtozas(String ujErtek)
     {
         _adatok.Eredmeny = ujErtek;
@@ -790,4 +973,23 @@
         
         return Task.FromResult(szurt);
     }
+
+private string GetSzamitottDatum(int evek)
+{
+    var alapDatum = _vizsgalatDatum ?? DateTime.Today;
+    return alapDatum.AddYears(evek).ToString("yyyy.MM.dd");
+}
+
+private void OnHataridoTipusValtozas(string tipus)
+{
+    _adatok.HataridoTipus = tipus;
+    
+    var alapDatum = _vizsgalatDatum ?? DateTime.Today;
+    _adatok.KovetkezoFelulvizsgalatDatum = tipus switch
+    {
+        "3EV" => alapDatum.AddYears(3),
+        "LAKAS" or "RV" => alapDatum.AddYears(6),
+        _ => _adatok.KovetkezoFelulvizsgalatDatum
+    };
+}
 }

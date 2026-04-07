@@ -39,4 +39,30 @@ public class JegyzokonyvAdatok
     public string MellekletekSzama { get; set; } = ""; // Mellékletek száma
     public string HibavedelmiJkv { get; set; } = "";
     public string AvkJegyzokonyv { get; set; } = "";
+
+    // === MINŐSÍTŐ IRAT - 3. OLDAL (2/2) ===
+    // Érvényességi feltételek
+    public string ERV_MEGRENDELES_X { get; set; } = "☐";
+    public string ERV_SZABALYZAT_X { get; set; } = "☐";
+    public string ERV_DATUM { get; set; } = "";
+    
+    // Következő felülvizsgálat típusa
+    public string KOV_50KW_X { get; set; } = "☐";
+    public string KOV_32A_X { get; set; } = "☐";
+    public string KOV_VMBSZ_X { get; set; } = "☐";
+    public string KOV_RV300_X { get; set; } = "☐";
+    public string KOV_EGYEB1_X { get; set; } = "☐";
+    public string KOV_EGYEB1_SZOVEG { get; set; } = "";
+    
+    // Határidő típus
+    public string HAT_3EV_X { get; set; } = "☐";
+    public string HAT_3EV_DATUM { get; set; } = "";
+    public string HAT_LAKAS_X { get; set; } = "☐";
+    public string HAT_RV_X { get; set; } = "☐";
+    public string HAT_EGYEB2_X { get; set; } = "☐";
+    public string HAT_EGYEB2_SZOVEG { get; set; } = "";
+    public string HAT_6EV_DATUM { get; set; } = "";
+    
+    // Megjegyzések 3. oldal
+    public string MINOSITO_MEGJEGYZES { get; set; } = "";
 }

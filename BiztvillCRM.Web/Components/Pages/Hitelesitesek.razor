@@ -149,7 +149,7 @@
     <DialogContent>
         <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.End">
             <MudTextField @bind-Value="_ujEszkozTipusNev" Label="Új típus neve" Style="flex:1" />
-            <MudNumericField @bind-Value="_ujEszkozTipusHonap" Label="Hónap" Min="1" Max="120" Style="width:100px" />
+            <MudNumericField @bind-Value="_ujEszkozTipusHonap" Label="Hónap" Min="1" Max="180" Style="width:100px" />
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UjEszkozTipusHozzaadasaAsync" 
                        Disabled="@string.IsNullOrWhiteSpace(_ujEszkozTipusNev)">Hozzáadás</MudButton>
         </MudStack>
@@ -171,7 +171,7 @@
                                               Margin="Margin.Dense" />
                                 <MudNumericField @bind-Value="_szerkesztettEszkozTipusHonap" 
                                                  Label="Hónap" 
-                                                 Min="1" Max="120" 
+                                                 Min="1" Max="180" 
                                                  Style="width:80px" 
                                                  Margin="Margin.Dense" />
                             </MudStack>

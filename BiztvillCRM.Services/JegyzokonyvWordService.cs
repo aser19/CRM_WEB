@@ -104,6 +104,28 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             // Végső minősítés checkbox-ok
             ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☒" : "☐",
             ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☒" : "☐",
+
+            // === 3. OLDAL - MINŐSÍTŐ IRAT 2/2 ===
+            ["ERV_MEGRENDELES_X"] = formAdatok?.ERV_MEGRENDELES_X ?? "☐",
+            ["ERV_SZABALYZAT_X"] = formAdatok?.ERV_SZABALYZAT_X ?? "☐",
+            ["ERV_DATUM"] = formAdatok?.ERV_DATUM ?? "",
+            
+            ["KOV_50KW_X"] = formAdatok?.KOV_50KW_X ?? "☐",
+            ["KOV_32A_X"] = formAdatok?.KOV_32A_X ?? "☐",
+            ["KOV_VMBSZ_X"] = formAdatok?.KOV_VMBSZ_X ?? "☐",
+            ["KOV_RV300_X"] = formAdatok?.KOV_RV300_X ?? "☐",
+            ["KOV_EGYEB1_X"] = formAdatok?.KOV_EGYEB1_X ?? "☐",
+            ["KOV_EGYEB1_SZOVEG"] = formAdatok?.KOV_EGYEB1_SZOVEG ?? "",
+            
+            ["HAT_3EV_X"] = formAdatok?.HAT_3EV_X ?? "☐",
+            ["HAT_3EV_DATUM"] = formAdatok?.HAT_3EV_DATUM ?? "",
+            ["HAT_LAKAS_X"] = formAdatok?.HAT_LAKAS_X ?? "☐",
+            ["HAT_RV_X"] = formAdatok?.HAT_RV_X ?? "☐",
+            ["HAT_EGYEB2_X"] = formAdatok?.HAT_EGYEB2_X ?? "☐",
+            ["HAT_EGYEB2_SZOVEG"] = formAdatok?.HAT_EGYEB2_SZOVEG ?? "",
+            ["HAT_6EV_DATUM"] = formAdatok?.HAT_6EV_DATUM ?? "",
+            
+            ["MINOSITO_MEGJEGYZES"] = formAdatok?.MINOSITO_MEGJEGYZES ?? "",
         };
 
         using var ms = new MemoryStream();
