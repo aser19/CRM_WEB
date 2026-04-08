@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.IO;
+using BiztvillCRM.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,6 +104,14 @@ builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
 builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
+
+// === Email szolgáltatások ===
+builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
+builder.Services.AddScoped<IEmailSablonService, EmailSablonService>();
+builder.Services.AddScoped<IEmailBeallitasService, EmailBeallitasService>();
+builder.Services.AddScoped<IEmailKuldoService, EmailKuldoService>();
+builder.Services.AddScoped<ILejaratErtesitoService, LejaratErtesitoService>();
+builder.Services.AddHostedService<EmailErtesitesBackgroundService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();

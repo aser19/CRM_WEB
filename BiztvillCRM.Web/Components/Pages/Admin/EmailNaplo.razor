@@ -1,0 +1,306 @@
+@page "/admin/email-naplo"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject BiztvillCRM.Data.CrmDbContext DbContext
+@inject ISnackbar Snackbar
+@inject ILejaratErtesitoService ErtesitoService
+
+<PageTitle>Email küldési napló</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+    Email küldési napló
+</MudText>
+
+<!-- Statisztika kártyák -->
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Class="mt-2">@_osszesKuldes</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Összes küldés</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Class="mt-2">@_sikeresKuldes</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Sikeres</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Class="mt-2">@_sikertelenKuldes</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Sikertelen</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Today" Color="Color.Info" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Class="mt-2">@_maiKuldes</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Mai küldés</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudPaper Class="pa-4">
+    <!-- Szűrők és műveletek -->
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDateRangePicker @bind-DateRange="_datumSzuro" Label="Időszak" Style="max-width:250px" 
+                            Editable="true" DateFormat="yyyy.MM.dd" />
+        <MudSelect T="bool?" @bind-Value="_sikerSzuro" Label="Státusz" Style="max-width:150px" Clearable="true">
+            <MudSelectItem T="bool?" Value="@((bool?)true)">Sikeres</MudSelectItem>
+            <MudSelectItem T="bool?" Value="@((bool?)false)">Sikertelen</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="EmailErtesitesTipus?" @bind-Value="_tipusSzuro" Label="Típus" Style="max-width:200px" Clearable="true">
+            <MudSelectItem T="EmailErtesitesTipus?" Value="EmailErtesitesTipus.HitelesitesLejarat90Nap">Hitelesítés - 90 nap</MudSelectItem>
+            <MudSelectItem T="EmailErtesitesTipus?" Value="EmailErtesitesTipus.HitelesitesLejarat30Nap">Hitelesítés - 30 nap</MudSelectItem>
+            <MudSelectItem T="EmailErtesitesTipus?" Value="EmailErtesitesTipus.MeresLejarat90Nap">Mérés - 90 nap</MudSelectItem>
+            <MudSelectItem T="EmailErtesitesTipus?" Value="EmailErtesitesTipus.MeresLejarat30Nap">Mérés - 30 nap</MudSelectItem>
+        </MudSelect>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt"
+                   OnClick="SzuresAsync">Szűrés</MudButton>
+        <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Clear"
+                   OnClick="SzuroTorlesAsync">Törlés</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.PlayArrow"
+                   OnClick="ManualisFutatasAsync" Disabled="_feldolgozas">
+            @(_feldolgozas ? "Feldolgozás..." : "Manuális futtatás")
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="EmailKuldesNaplo" Items="_naplok" Filterable="false" SortMode="SortMode.Multiple" 
+                 Hover="true" Striped="true" Loading="_betoltes" Dense="true">
+        <Columns>
+            <PropertyColumn Property="n => n.Kuldve" Title="Időpont" Format="yyyy.MM.dd HH:mm" />
+            <TemplateColumn Title="Típus">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="@GetTipusColor(context.Item.Tipus)">
+                        @GetTipusNev(context.Item.Tipus)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="n => n.Cimzett" Title="Címzett" />
+            <PropertyColumn Property="n => n.Targy" Title="Tárgy" />
+            <TemplateColumn Title="Státusz">
+                <CellTemplate>
+                    @if (context.Item.Sikeres)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Check">
+                            Sikeres
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="@context.Item.Hiba">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Error">
+                                Sikertelen
+                            </MudChip>
+                        </MudTooltip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Hivatkozás">
+                <CellTemplate>
+                    @if (context.Item.HitelesitesId.HasValue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                            Hitelesítés #@context.Item.HitelesitesId
+                        </MudChip>
+                    }
+                    else if (context.Item.MeresId.HasValue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                            Mérés #@context.Item.MeresId
+                        </MudChip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="" Sortable="false">
+                <CellTemplate>
+                    @if (!string.IsNullOrEmpty(context.Item.Hiba))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Warning" Size="Size.Small"
+                                       OnClick="() => HibaReszletekMegnyitasa(context.Item)" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText>Nincs megjeleníthető napló bejegyzés.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudDataGridPager T="EmailKuldesNaplo" />
+        </PagerContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Hiba részletek dialógus -->
+<MudDialog @bind-Visible="_hibaDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Class="mr-2" />
+            Hiba részletei
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_kivalasztottNaplo is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2">Címzett:</MudText>
+                    <MudText>@_kivalasztottNaplo.Cimzett</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2">Tárgy:</MudText>
+                    <MudText>@_kivalasztottNaplo.Targy</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2">Küldés időpontja:</MudText>
+                    <MudText>@_kivalasztottNaplo.Kuldve.ToString("yyyy.MM.dd HH:mm:ss")</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        <MudText Typo="Typo.subtitle2">Hibaüzenet:</MudText>
+                        <MudText Style="word-break: break-all;">@_kivalasztottNaplo.Hiba</MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _hibaDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _betoltes = true;
+    private bool _feldolgozas = false;
+    private List<EmailKuldesNaplo> _naplok = new();
+
+    // Statisztikák
+    private int _osszesKuldes = 0;
+    private int _sikeresKuldes = 0;
+    private int _sikertelenKuldes = 0;
+    private int _maiKuldes = 0;
+
+    // Szűrők
+    private DateRange? _datumSzuro;
+    private bool? _sikerSzuro;
+    private EmailErtesitesTipus? _tipusSzuro;
+
+    // Dialógus
+    private bool _hibaDialogNyitva = false;
+    private EmailKuldesNaplo? _kivalasztottNaplo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+        await StatisztikaFrissitesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        
+        var query = DbContext.EmailKuldesNaplok.AsQueryable();
+
+        // Szűrők alkalmazása
+        if (_datumSzuro?.Start.HasValue == true)
+            query = query.Where(n => n.Kuldve >= _datumSzuro.Start.Value);
+        
+        if (_datumSzuro?.End.HasValue == true)
+            query = query.Where(n => n.Kuldve <= _datumSzuro.End.Value.AddDays(1));
+
+        if (_sikerSzuro.HasValue)
+            query = query.Where(n => n.Sikeres == _sikerSzuro.Value);
+
+        if (_tipusSzuro.HasValue)
+            query = query.Where(n => n.Tipus == _tipusSzuro.Value);
+
+        _naplok = await query
+            .OrderByDescending(n => n.Kuldve)
+            .Take(500) // Max 500 rekord
+            .ToListAsync();
+
+        _betoltes = false;
+    }
+
+    private async Task StatisztikaFrissitesAsync()
+    {
+        var ma = DateTime.Today;
+        
+        _osszesKuldes = await DbContext.EmailKuldesNaplok.CountAsync();
+        _sikeresKuldes = await DbContext.EmailKuldesNaplok.CountAsync(n => n.Sikeres);
+        _sikertelenKuldes = await DbContext.EmailKuldesNaplok.CountAsync(n => !n.Sikeres);
+        _maiKuldes = await DbContext.EmailKuldesNaplok.CountAsync(n => n.Kuldve >= ma);
+    }
+
+    private async Task SzuresAsync() => await BetoltesAsync();
+
+    private async Task SzuroTorlesAsync()
+    {
+        _datumSzuro = null;
+        _sikerSzuro = null;
+        _tipusSzuro = null;
+        await BetoltesAsync();
+    }
+
+    private async Task ManualisFutatasAsync()
+    {
+        _feldolgozas = true;
+        StateHasChanged();
+
+        try
+        {
+            var eredmeny = await ErtesitoService.FeldolgozasAsync();
+
+            Snackbar.Add(
+                $"Feldolgozás kész! Hitelesítések: {eredmeny.FeldolgozottHitelesitesek}, " +
+                $"Mérések: {eredmeny.FeldolgozottMeresek}, " +
+                $"Küldött: {eredmeny.KuldottEmailek}, Sikertelen: {eredmeny.SikertelenEmailek}",
+                eredmeny.SikertelenEmailek > 0 ? Severity.Warning : Severity.Success);
+
+            await BetoltesAsync();
+            await StatisztikaFrissitesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private void HibaReszletekMegnyitasa(EmailKuldesNaplo naplo)
+    {
+        _kivalasztottNaplo = naplo;
+        _hibaDialogNyitva = true;
+    }
+
+    private static string GetTipusNev(EmailErtesitesTipus tipus) => tipus switch
+    {
+        EmailErtesitesTipus.HitelesitesLejarat90Nap => "Hitelesítés 90",
+        EmailErtesitesTipus.HitelesitesLejarat30Nap => "Hitelesítés 30",
+        EmailErtesitesTipus.MeresLejarat90Nap => "Mérés 90",
+        EmailErtesitesTipus.MeresLejarat30Nap => "Mérés 30",
+        _ => tipus.ToString()
+    };
+
+    private static Color GetTipusColor(EmailErtesitesTipus tipus) => tipus switch
+    {
+        EmailErtesitesTipus.HitelesitesLejarat90Nap => Color.Info,
+        EmailErtesitesTipus.HitelesitesLejarat30Nap => Color.Warning,
+        EmailErtesitesTipus.MeresLejarat90Nap => Color.Info,
+        EmailErtesitesTipus.MeresLejarat30Nap => Color.Warning,
+        _ => Color.Default
+    };
+}

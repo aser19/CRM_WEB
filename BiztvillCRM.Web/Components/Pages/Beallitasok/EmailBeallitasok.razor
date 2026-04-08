@@ -1,0 +1,426 @@
+@page "/beallitasok/email"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@inject ISmtpBeallitasService SmtpService
+@inject IEmailBeallitasService EmailBeallitasService
+@inject IEmailSablonService SablonService
+@inject ITenantService TenantService
+@inject ISnackbar Snackbar
+
+<PageTitle>Email beállítások</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Email beállítások</MudText>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+    <!-- CÍMZETTEK TAB -->
+    <MudTabPanel Text="Értesítési beállítások" Icon="@Icons.Material.Filled.Notifications">
+        @if (_beallitas is not null)
+        {
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Milyen értesítéseket kérek?</MudText>
+                
+                <MudStack>
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat90Nap)"
+                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat90Nap, v))"
+                                 Label="Hitelesítés lejárat - 90 nappal előtte" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat30Nap)"
+                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat30Nap, v))"
+                                 Label="Hitelesítés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat90Nap)"
+                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat90Nap, v))"
+                                 Label="Mérés lejárat - 90 nappal előtte" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat30Nap)"
+                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat30Nap, v))"
+                                 Label="Mérés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                </MudStack>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.h6" Class="mb-3">Kinek küldjem az értesítést?</MudText>
+                
+                <MudStack>
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.CimzettTipusok, EmailCimzettTipus.Sajat)"
+                                 ValueChanged="@(v => ToggleCimzett(EmailCimzettTipus.Sajat, v))"
+                                 Label="Saját cég email címe" Color="Color.Secondary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.CimzettTipusok, EmailCimzettTipus.UgyfelEmail)"
+                                 ValueChanged="@(v => ToggleCimzett(EmailCimzettTipus.UgyfelEmail, v))"
+                                 Label="Ügyfél email címe" Color="Color.Secondary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.CimzettTipusok, EmailCimzettTipus.TelephelyEmail)"
+                                 ValueChanged="@(v => ToggleCimzett(EmailCimzettTipus.TelephelyEmail, v))"
+                                 Label="Telephely email címe" Color="Color.Secondary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.CimzettTipusok, EmailCimzettTipus.EgyediCimek)"
+                                 ValueChanged="@(v => ToggleCimzett(EmailCimzettTipus.EgyediCimek, v))"
+                                 Label="Egyedi email címek" Color="Color.Secondary" />
+                </MudStack>
+
+                @if (HasFlag(_beallitas.CimzettTipusok, EmailCimzettTipus.EgyediCimek))
+                {
+                    <MudPaper Class="pa-3 mt-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Egyedi email címek:</MudText>
+                        
+                        @for (int i = 0; i < _egyediCimek.Count; i++)
+                        {
+                            var index = i;
+                            <MudStack Row="true" Class="mb-2" AlignItems="AlignItems.Center">
+                                <MudTextField @bind-Value="_egyediCimek[index]" 
+                                              Label="@($"Email cím #{index + 1}")"
+                                              InputType="InputType.Email"
+                                              Style="flex:1" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Color="Color.Error" 
+                                               OnClick="() => EgyediCimTorles(index)"
+                                               Disabled="@(_egyediCimek.Count <= 1)" />
+                            </MudStack>
+                        }
+                        
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="EgyediCimHozzaadas">
+                            Új cím hozzáadása
+                        </MudButton>
+                    </MudPaper>
+                }
+
+                <MudDivider Class="my-4" />
+
+                <MudSwitch @bind-Value="_beallitas.Aktiv" Label="Értesítések engedélyezve" Color="Color.Success" />
+
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="BeallitasMentesAsync"
+                           Class="mt-4"
+                           Disabled="_mentes">
+                    @(_mentes ? "Mentés..." : "Mentés")
+                </MudButton>
+            </MudPaper>
+        }
+    </MudTabPanel>
+
+    <!-- SABLONOK TAB -->
+    <MudTabPanel Text="Email sablonok" Icon="@Icons.Material.Filled.Description">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">
+                A sablonokban használható placeholder-ek: {UgyfelNev}, {TelephelyNev}, {EszkozTipus}, {MeresTipus}, {LejaratDatum}, {CegNev}
+            </MudText>
+            
+            <MudDataGrid T="EmailSablon" Items="_sablonok" Hover="true" Striped="true" Loading="_betoltes">
+                <Columns>
+                    <PropertyColumn Property="s => s.Nev" Title="Sablon neve" />
+                    <TemplateColumn Title="Típus">
+                        <CellTemplate>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                @GetTipusNev(context.Item.Tipus)
+                            </MudChip>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="s => s.Targy" Title="Tárgy" />
+                    <TemplateColumn Title="Hatókör">
+                        <CellTemplate>
+                            @if (context.Item.CegId is null)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Globális</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default">@(context.Item.Ceg?.Nev ?? "Cég")</MudChip>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Aktív">
+                        <CellTemplate>
+                            <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                                     Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Műveletek" Sortable="false">
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                           OnClick="() => SablonSzerkesztes(context.Item)" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudTabPanel>
+
+    <!-- SMTP TAB (csak Admin) -->
+    @if (_isAdmin)
+    {
+        <MudTabPanel Text="SMTP szerver" Icon="@Icons.Material.Filled.SettingsEthernet">
+            <MudPaper Class="pa-4">
+                @if (_smtp is not null)
+                {
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_smtp.SzerverCim" Label="SMTP szerver címe *" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField @bind-Value="_smtp.Port" Label="Port *" Min="1" Max="65535" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSwitch @bind-Value="_smtp.SslHasznalata" Label="SSL/TLS használata" Color="Color.Primary" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_smtp.FelhasznaloNev" Label="Felhasználónév" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_smtp.Jelszo" Label="Jelszó" InputType="InputType.Password" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_smtp.KuldoNev" Label="Küldő neve *" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_smtp.KuldoEmail" Label="Küldő email címe *" Required="true" InputType="InputType.Email" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="_smtp.Aktiv" Label="SMTP engedélyezve" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudStack Row="true" Class="mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SmtpMentesAsync" Disabled="_mentes">
+                            @(_mentes ? "Mentés..." : "Mentés")
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Send"
+                                   OnClick="TesztKuldesAsync" Disabled="_tesztKuldes">
+                            @(_tesztKuldes ? "Küldés..." : "Teszt email küldése")
+                        </MudButton>
+                    </MudStack>
+                }
+            </MudPaper>
+        </MudTabPanel>
+    }
+</MudTabs>
+
+<!-- Sablon szerkesztés dialógus -->
+<MudDialog @bind-Visible="_sablonDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Sablon szerkesztése</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztettSablon is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztettSablon.Nev" Label="Sablon neve *" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztettSablon.Targy" Label="Tárgy *" Required="true" 
+                                  HelperText="Használható: {UgyfelNev}, {EszkozTipus}, {LejaratDatum}" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztettSablon.Szoveg" Label="Szövegtörzs *" Required="true" 
+                                  Lines="10" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_szerkesztettSablon.Aktiv" Label="Aktív" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _sablonDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="SablonMentesAsync" Color="Color.Primary" Variant="Variant.Filled">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _betoltes = true, _mentes = false, _tesztKuldes = false;
+    private bool _isAdmin = false;
+    private int _cegId;
+
+    private EmailBeallitas? _beallitas;
+    private SmtpBeallitas? _smtp;
+    private List<EmailSablon> _sablonok = new();
+    private List<string> _egyediCimek = new() { "" };
+
+    private bool _sablonDialogNyitva = false;
+    private EmailSablon? _szerkesztettSablon;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cegId = TenantService.GetCurrentCegId();
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+
+        // Email beállítások betöltése
+        _beallitas = await EmailBeallitasService.GetByCegIdAsync(_cegId);
+        if (_beallitas is null)
+        {
+            _beallitas = new EmailBeallitas { CegId = _cegId, Aktiv = true };
+        }
+
+        // Egyedi címek JSON-ból
+        if (!string.IsNullOrEmpty(_beallitas.EgyediEmailCimek))
+        {
+            try
+            {
+                _egyediCimek = JsonSerializer.Deserialize<List<string>>(_beallitas.EgyediEmailCimek) ?? new() { "" };
+            }
+            catch { _egyediCimek = new() { "" }; }
+        }
+
+        // Sablonok betöltése
+        _sablonok = await SablonService.GetAllAsync();
+
+        // SMTP betöltése (csak admin)
+        if (_isAdmin)
+        {
+            _smtp = await SmtpService.GetAsync() ?? new SmtpBeallitas
+            {
+                Port = 587,
+                SslHasznalata = true,
+                Aktiv = true
+            };
+        }
+
+        _betoltes = false;
+    }
+
+    // Flag kezelés
+    private static bool HasFlag(EmailErtesitesTipus flags, EmailErtesitesTipus flag) => (flags & flag) == flag;
+    private static bool HasFlag(EmailCimzettTipus flags, EmailCimzettTipus flag) => (flags & flag) == flag;
+
+    private void ToggleErtesites(EmailErtesitesTipus flag, bool value)
+    {
+        if (_beallitas is null) return;
+        _beallitas.ErtesitesTipusok = value
+            ? _beallitas.ErtesitesTipusok | flag
+            : _beallitas.ErtesitesTipusok & ~flag;
+    }
+
+    private void ToggleCimzett(EmailCimzettTipus flag, bool value)
+    {
+        if (_beallitas is null) return;
+        _beallitas.CimzettTipusok = value
+            ? _beallitas.CimzettTipusok | flag
+            : _beallitas.CimzettTipusok & ~flag;
+    }
+
+    // Egyedi címek kezelése
+    private void EgyediCimHozzaadas() => _egyediCimek.Add("");
+    private void EgyediCimTorles(int index)
+    {
+        if (_egyediCimek.Count > 1)
+            _egyediCimek.RemoveAt(index);
+    }
+
+    // Mentés
+    private async Task BeallitasMentesAsync()
+    {
+        if (_beallitas is null) return;
+        _mentes = true;
+
+        try
+        {
+            // Egyedi címek JSON-ba
+            var validCimek = _egyediCimek.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            _beallitas.EgyediEmailCimek = validCimek.Count > 0
+                ? JsonSerializer.Serialize(validCimek)
+                : null;
+
+            await EmailBeallitasService.SaveAsync(_beallitas);
+            Snackbar.Add("Beállítások mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally { _mentes = false; }
+    }
+
+    private async Task SmtpMentesAsync()
+    {
+        if (_smtp is null) return;
+        _mentes = true;
+
+        try
+        {
+            await SmtpService.SaveAsync(_smtp);
+            Snackbar.Add("SMTP beállítások mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally { _mentes = false; }
+    }
+
+    private async Task TesztKuldesAsync()
+    {
+        _tesztKuldes = true;
+        try
+        {
+            // Először mentsük el
+            if (_smtp is not null)
+                await SmtpService.SaveAsync(_smtp);
+
+            var siker = await SmtpService.TesztKuldesAsync(_smtp?.KuldoEmail ?? "");
+            if (siker)
+                Snackbar.Add("Teszt email sikeresen elküldve!", Severity.Success);
+            else
+                Snackbar.Add("Teszt email küldése sikertelen!", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally { _tesztKuldes = false; }
+    }
+
+    // Sablon kezelés
+    private void SablonSzerkesztes(EmailSablon sablon)
+    {
+        _szerkesztettSablon = new EmailSablon
+        {
+            Id = sablon.Id,
+            Nev = sablon.Nev,
+            Tipus = sablon.Tipus,
+            Targy = sablon.Targy,
+            Szoveg = sablon.Szoveg,
+            Aktiv = sablon.Aktiv,
+            CegId = sablon.CegId
+        };
+        _sablonDialogNyitva = true;
+    }
+
+    private async Task SablonMentesAsync()
+    {
+        if (_szerkesztettSablon is null) return;
+
+        try
+        {
+            await SablonService.UpdateAsync(_szerkesztettSablon);
+            Snackbar.Add("Sablon mentve!", Severity.Success);
+            _sablonDialogNyitva = false;
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string GetTipusNev(EmailErtesitesTipus tipus) => tipus switch
+    {
+        EmailErtesitesTipus.HitelesitesLejarat90Nap => "Hitelesítés - 90 nap",
+        EmailErtesitesTipus.HitelesitesLejarat30Nap => "Hitelesítés - 30 nap",
+        EmailErtesitesTipus.MeresLejarat90Nap => "Mérés - 90 nap",
+        EmailErtesitesTipus.MeresLejarat30Nap => "Mérés - 30 nap",
+        _ => tipus.ToString()
+    };
+}

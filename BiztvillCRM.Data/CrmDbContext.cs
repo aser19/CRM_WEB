@@ -50,6 +50,12 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<KepzesTovabbkepzes> KepzesTovabbkepzesek { get; set; }
     public DbSet<MeresTipusKepzesKovetelemeny> MeresTipusKepzesKovetelemenyei { get; set; }
 
+    // --- Email értesítések ---
+    public DbSet<SmtpBeallitas> SmtpBeallitasok { get; set; }
+    public DbSet<EmailSablon> EmailSablonok { get; set; }
+    public DbSet<EmailBeallitas> EmailBeallitasok { get; set; }
+    public DbSet<EmailKuldesNaplo> EmailKuldesNaplok { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -365,5 +371,45 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             new KepzesTipus { Id = 3, Nev = "Minőségügyi auditor képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) },
             new KepzesTipus { Id = 4, Nev = "Vezetői képzés", Aktiv = true, Letrehozva = new DateTime(2024, 1, 1) }
         );
+
+        // --- SmtpBeallitas ---
+        modelBuilder.Entity<SmtpBeallitas>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SzerverCim).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.FelhasznaloNev).HasMaxLength(200);
+            entity.Property(e => e.Jelszo).HasMaxLength(500);
+            entity.Property(e => e.KuldoNev).HasMaxLength(200);
+            entity.Property(e => e.KuldoEmail).HasMaxLength(200);
+        });
+
+        // --- EmailSablon ---
+        modelBuilder.Entity<EmailSablon>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Targy).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Szoveg).IsRequired();
+            entity.HasOne(e => e.Ceg).WithMany().HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- EmailBeallitas ---
+        modelBuilder.Entity<EmailBeallitas>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EgyediEmailCimek).HasMaxLength(2000);
+            entity.HasOne(e => e.Ceg).WithMany().HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.CegId).IsUnique(); // Egy cégnek egy beállítása lehet
+        });
+
+        // --- EmailKuldesNaplo ---
+        modelBuilder.Entity<EmailKuldesNaplo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Cimzett).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Targy).HasMaxLength(500);
+            entity.Property(e => e.Hiba).HasMaxLength(2000);
+            entity.HasIndex(e => e.Kuldve);
+        });
     }
 }

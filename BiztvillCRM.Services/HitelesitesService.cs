@@ -1,5 +1,6 @@
 using BiztvillCRM.Data;
 using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,25 +9,53 @@ namespace BiztvillCRM.Services;
 public class HitelesitesService : IHitelesitesService
 {
     private readonly CrmDbContext _context;
+    private readonly ITenantService _tenantService;
 
-    public HitelesitesService(CrmDbContext context) => _context = context;
+    public HitelesitesService(CrmDbContext context, ITenantService tenantService)
+    {
+        _context = context;
+        _tenantService = tenantService;
+    }
 
-    public async Task<List<Hitelesites>> GetAllAsync() =>
-        await _context.Hitelesitesek
+    public async Task<List<Hitelesites>> GetAllAsync()
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        
+        var query = _context.Hitelesitesek
             .Include(h => h.Ugyfel)
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
-            .OrderByDescending(h => h.Datum)
-            .ToListAsync();
+            .AsQueryable();
 
-    public async Task<Hitelesites?> GetByIdAsync(int id) =>
-        await _context.Hitelesitesek
+        // Ha nem admin, csak a saját cég ügyfeleinek hitelesítéseit látja
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            query = query.Where(h => h.Ugyfel != null && h.Ugyfel.CegId == cegId);
+        }
+
+        return await query.OrderByDescending(h => h.Datum).ToListAsync();
+    }
+
+    public async Task<Hitelesites?> GetByIdAsync(int id)
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        
+        var query = _context.Hitelesitesek
             .Include(h => h.Ugyfel)
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
-            .FirstOrDefaultAsync(h => h.Id == id);
+            .AsQueryable();
+
+        // Ha nem admin, csak a saját cég ügyfeleinek hitelesítéseit érheti el
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            query = query.Where(h => h.Ugyfel != null && h.Ugyfel.CegId == cegId);
+        }
+
+        return await query.FirstOrDefaultAsync(h => h.Id == id);
+    }
 
     public async Task<Hitelesites> CreateAsync(Hitelesites hitelesites)
     {
