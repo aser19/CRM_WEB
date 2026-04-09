@@ -1,0 +1,291 @@
+@page "/kockazatertekeles"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IKockazatertekelésService KockazatService
+@inject IUgyfelService UgyfelService
+@inject ITelephelyService TelephelyService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Kockázatértékelés</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Kockázatértékelés</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+            Új kockázatértékelés
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Kockazatertekeles" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="k => k.Megnevezes" Title="Megnevezés" />
+            <TemplateColumn Title="Ügyfél">
+                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Telephely">
+                <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="k => k.ErtekelesDatuma" Title="Értékelés dátuma" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.KovetkezoFelulvizsgalat" Title="Következő felülvizsgálat" Format="yyyy.MM.dd" />
+            <TemplateColumn Title="Kockázati szint">
+                <CellTemplate>
+                    @switch (context.Item.KockazatiSzint)
+                    {
+                        case KockazatiSzint.Alacsony:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Alacsony</MudChip>
+                            break;
+                        case KockazatiSzint.Kozepes:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Közepes</MudChip>
+                            break;
+                        case KockazatiSzint.Magas:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Magas</MudChip>
+                            break;
+                        case KockazatiSzint.Kritikus:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error">Kritikus</MudChip>
+                            break;
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Státusz">
+                <CellTemplate>
+                    @switch (context.Item.Statusz)
+                    {
+                        case KockazatStatusz.Folyamatban:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Icon="@Icons.Material.Filled.Pending">Folyamatban</MudChip>
+                            break;
+                        case KockazatStatusz.Lezart:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Lezárt</MudChip>
+                            break;
+                        case KockazatStatusz.FelulvizsgalatraVar:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Schedule">Felülvizsgálatra vár</MudChip>
+                            break;
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető kockázatértékelés.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Kockázatértékelés szerkesztése" : "Új kockázatértékelés")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megnevezes" Label="Megnevezés *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Value="_kivalasztottUgyfelId" ValueChanged="OnUgyfelValtozas" Label="Ügyfél *" Required="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
+                        @foreach (var u in _ugyfelek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)u.Id)">@u.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely" Disabled="@(_kivalasztottUgyfelId == null)">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Nincs megadva --</MudSelectItem>
+                        @foreach (var t in _szurtTelephelyek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_ertekelesDatum" Label="Értékelés dátuma *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_felulvizsgalatDatum" Label="Következő felülvizsgálat" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="KockazatiSzint" @bind-Value="_szerkesztesAlatt.KockazatiSzint" Label="Kockázati szint *">
+                        <MudSelectItem T="KockazatiSzint" Value="KockazatiSzint.Alacsony">Alacsony</MudSelectItem>
+                        <MudSelectItem T="KockazatiSzint" Value="KockazatiSzint.Kozepes">Közepes</MudSelectItem>
+                        <MudSelectItem T="KockazatiSzint" Value="KockazatiSzint.Magas">Magas</MudSelectItem>
+                        <MudSelectItem T="KockazatiSzint" Value="KockazatiSzint.Kritikus">Kritikus</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="KockazatStatusz" @bind-Value="_szerkesztesAlatt.Statusz" Label="Státusz">
+                        <MudSelectItem T="KockazatStatusz" Value="KockazatStatusz.Folyamatban">Folyamatban</MudSelectItem>
+                        <MudSelectItem T="KockazatStatusz" Value="KockazatStatusz.Lezart">Lezárt</MudSelectItem>
+                        <MudSelectItem T="KockazatStatusz" Value="KockazatStatusz.FelulvizsgalatraVar">Felülvizsgálatra vár</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.FelelosNeve" Label="Felelős neve" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Intezkedesek" Label="Intézkedések" Lines="3" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="MentesAsync">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _betoltes = true;
+    private string? _kereses;
+    private List<Kockazatertekeles> _lista = new();
+    private List<Ugyfel> _ugyfelek = new();
+    private List<Telephely> _telephelyek = new();
+    private Kockazatertekeles? _szerkesztesAlatt;
+    private DateTime? _ertekelesDatum;
+    private DateTime? _felulvizsgalatDatum;
+    private int? _kivalasztottUgyfelId;
+    private bool _dialogNyitva;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private IEnumerable<Telephely> _szurtTelephelyek =>
+        _kivalasztottUgyfelId.HasValue
+            ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value)
+            : Enumerable.Empty<Telephely>();
+
+    private IEnumerable<Kockazatertekeles> _szurtLista =>
+        string.IsNullOrWhiteSpace(_kereses)
+            ? _lista
+            : _lista.Where(k =>
+                k.Megnevezes.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+                (k.Ugyfel?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _telephelyek = await TelephelyService.GetAllAsync();
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _lista = await KockazatService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void OnUgyfelValtozas(int? ugyfelId)
+    {
+        _kivalasztottUgyfelId = ugyfelId;
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.UgyfelId = ugyfelId ?? 0;
+            _szerkesztesAlatt.TelephelyId = null;
+        }
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new Kockazatertekeles { Aktiv = true, KockazatiSzint = KockazatiSzint.Alacsony };
+        _ertekelesDatum = DateTime.Today;
+        _felulvizsgalatDatum = DateTime.Today.AddYears(1);
+        _kivalasztottUgyfelId = null;
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(Kockazatertekeles kockazat)
+    {
+        _szerkesztesAlatt = new Kockazatertekeles
+        {
+            Id = kockazat.Id,
+            Megnevezes = kockazat.Megnevezes,
+            UgyfelId = kockazat.UgyfelId,
+            TelephelyId = kockazat.TelephelyId,
+            ErtekelesDatuma = kockazat.ErtekelesDatuma,
+            KovetkezoFelulvizsgalat = kockazat.KovetkezoFelulvizsgalat,
+            KockazatiSzint = kockazat.KockazatiSzint,
+            Leiras = kockazat.Leiras,
+            Intezkedesek = kockazat.Intezkedesek,
+            FelelosNeve = kockazat.FelelosNeve,
+            Statusz = kockazat.Statusz,
+            Aktiv = kockazat.Aktiv
+        };
+        _ertekelesDatum = kockazat.ErtekelesDatuma;
+        _felulvizsgalatDatum = kockazat.KovetkezoFelulvizsgalat;
+        _kivalasztottUgyfelId = kockazat.UgyfelId;
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa()
+    {
+        _dialogNyitva = false;
+        _szerkesztesAlatt = null;
+        _kivalasztottUgyfelId = null;
+    }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Megnevezes) 
+            || !_ertekelesDatum.HasValue || _szerkesztesAlatt.UgyfelId == 0)
+        {
+            Snackbar.Add("A megnevezés, ügyfél és dátum megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _szerkesztesAlatt.ErtekelesDatuma = _ertekelesDatum.Value;
+        _szerkesztesAlatt.KovetkezoFelulvizsgalat = _felulvizsgalatDatum;
+
+        try
+        {
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await KockazatService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Kockázatértékelés módosítva.", Severity.Success);
+            }
+            else
+            {
+                await KockazatService.CreateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Kockázatértékelés létrehozva.", Severity.Success);
+            }
+
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerosites(Kockazatertekeles kockazat)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretné: {kockazat.Megnevezes}?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            await KockazatService.DeleteAsync(kockazat.Id);
+            Snackbar.Add("Kockázatértékelés törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+}

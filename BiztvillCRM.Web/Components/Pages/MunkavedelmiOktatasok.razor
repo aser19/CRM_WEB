@@ -1,0 +1,666 @@
+@page "/munkavedelmi-oktatasok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IMunkavedelmiOktatasService OktatasService
+@inject IUgyfelService UgyfelService
+@inject ITelephelyService TelephelyService
+@inject ITenantService TenantService
+@inject ICegService CegService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IEmailKuldoService EmailKuldoService
+
+<PageTitle>Munkavédelmi oktatások</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Munkavédelmi oktatások</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+            Új oktatás
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="MunkavedelmiOktatas" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Cég">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@(context.Item.Ceg?.Nev ?? "-")</MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+            }
+            <TemplateColumn Title="Ügyfél">
+                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Telephely">
+                <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="o => o.OktatasDatuma" Title="Oktatás dátuma" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="o => o.KovetkezoOktatas" Title="Következő oktatás" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="o => o.OktatoNeve" Title="Oktató" />
+            <TemplateColumn Title="Résztvevők">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Resztvevok.Count fő</MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Státusz">
+                <CellTemplate>
+                    @if (context.Item.KovetkezoOktatas.HasValue && context.Item.KovetkezoOktatas.Value < DateTime.Now)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Warning">Lejárt</MudChip>
+                    }
+                    else if (context.Item.KovetkezoOktatas.HasValue && context.Item.KovetkezoOktatas.Value < DateTime.Now.AddDays(30))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Schedule">Hamarosan esedékes</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Érvényes</MudChip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="Email küldése">
+                            <MudIconButton Icon="@Icons.Material.Filled.Email" Color="Color.Secondary" Size="Size.Small" 
+                                           OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
+                        </MudTooltip>
+                        <MudTooltip Text="Résztvevők">
+                            <MudIconButton Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Small" OnClick="() => ResztvevokMegnyitasa(context.Item)" />
+                        </MudTooltip>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető oktatás.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Email küldés dialógus -->
+<MudDialog @bind-Visible="_emailDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+            Email értesítés küldése
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_emailOktatas is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <b>@_emailOktatas.Ugyfel?.Nev</b> - @_emailOktatas.OktatasDatuma.ToString("yyyy.MM.dd")<br/>
+                Következő oktatás: @_emailOktatas.KovetkezoOktatas?.ToString("yyyy.MM.dd")
+            </MudAlert>
+
+            <MudSelect T="EmailErtesitesTipus" @bind-Value="_kivalasztottEmailTipus" Label="Értesítés típusa *" Required="true" Class="mb-3">
+                <MudSelectItem Value="EmailErtesitesTipus.MunkavedelmiOktatas90Nap">Munkavédelmi oktatás - 90 nap</MudSelectItem>
+                <MudSelectItem Value="EmailErtesitesTipus.MunkavedelmiOktatas30Nap">Munkavédelmi oktatás - 30 nap (sürgős)</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="_emailCimzett" Label="Címzett email cím *" Required="true" 
+                          InputType="InputType.Email" HelperText="Az ügyfél vagy telephely email címe" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _emailDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="EmailKuldesAsync" Color="Color.Primary" Variant="Variant.Filled" 
+                   Disabled="_emailKuldes" StartIcon="@Icons.Material.Filled.Send">
+            @(_emailKuldes ? "Küldés..." : "Küldés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Oktatás dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Oktatás szerkesztése" : "Új oktatás")</MudText>
+    </TitleContent>
+    <!-- Oktatás dialógus - DialogContent rész -->
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                @if (_isAdmin)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="int" Value="_kivalasztottCegId" ValueChanged="OnCegValtozas" Label="Cég *" Required="true">
+                            @foreach (var ceg in _cegek)
+                            {
+                                <MudSelectItem Value="@ceg.Id">@ceg.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Value="_kivalasztottUgyfelId" ValueChanged="OnUgyfelValtozas" Label="Ügyfél *" Required="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
+                        @foreach (var u in _szurtUgyfelek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)u.Id)">@u.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely" 
+               Disabled="@(_kivalasztottUgyfelId == null)"
+               ToStringFunc="@(id => id.HasValue ? _telephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "-" : "-- Nincs megadva --")">
+        <MudSelectItem T="int?" Value="@((int?)null)">-- Nincs megadva --</MudSelectItem>
+        @foreach (var t in _szurtTelephelyek)
+        {
+            <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Nev</MudSelectItem>
+        }
+    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_oktatasDatum" Label="Oktatás dátuma *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_szerkesztesAlatt.IdoszakHonap" Label="Ismétlési időszak (hónap)" Min="1" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.OktatoNeve" Label="Oktató neve" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="2" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" />
+                </MudItem>
+                
+                <!-- Résztvevők szekció -->
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-1" Style="vertical-align:middle" />
+                        Résztvevők *
+                    </MudText>
+                    @if (_resztvevoValidacioHiba)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
+                            Legalább egy résztvevő megadása kötelező!
+                        </MudAlert>
+                    }
+                    
+                    <MudTable Items="_ujResztvevok" Hover="true" Dense="true" Elevation="0" Class="mb-2">
+                        <HeaderContent>
+                            <MudTh Style="width:50%">Név *</MudTh>
+                            <MudTh Style="width:35%">Beosztás</MudTh>
+                            <MudTh Style="width:15%"></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudTextField @bind-Value="context.Nev" 
+                                              Placeholder="Résztvevő neve" 
+                                              Variant="Variant.Text" 
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              OnBlur="() => ResztvevoSorEllenorzes()" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField @bind-Value="context.Beosztas" 
+                                              Placeholder="Beosztás" 
+                                              Variant="Variant.Text" 
+                                              Margin="Margin.Dense" />
+                            </MudTd>
+                            <MudTd>
+                                @if (_ujResztvevok.Count > 1)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Color="Color.Error" 
+                                                   Size="Size.Small" 
+                                                   OnClick="() => ResztvevoSorTorlese(context)" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        A név kitöltése után automatikusan megjelenik egy új sor.
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="MentesAsync" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Résztvevők dialógus (meglévő oktatáshoz) -->
+<MudDialog @bind-Visible="_resztvevokDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Oktatás résztvevői: @_kivalasztottOktatas?.Ugyfel?.Nev (@_kivalasztottOktatas?.OktatasDatuma.ToString("yyyy.MM.dd"))</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Row="true" Class="mb-3">
+            <MudTextField @bind-Value="_ujResztvevoNev" Label="Név *" Style="flex:2" />
+            <MudTextField @bind-Value="_ujResztvetoBeosztas" Label="Beosztás" Style="flex:1" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
+                       OnClick="ResztvevoHozzaadasaAsync" Disabled="@string.IsNullOrWhiteSpace(_ujResztvevoNev)">
+                Hozzáadás
+            </MudButton>
+        </MudStack>
+        
+        <MudTable Items="_resztvevok" Hover="true" Striped="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Név</MudTh>
+                <MudTh>Beosztás</MudTh>
+                <MudTh Style="width:60px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Nev</MudTd>
+                <MudTd>@context.Beosztas</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                   OnClick="() => ResztvevoTorleseAsync(context)" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Nincs résztvevő.</MudText></NoRecordsContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="ResztvevokDialogBezarasa">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _betoltes = true;
+    private bool _mentes = false;
+    private string? _kereses;
+    private int _cegId;
+    private List<MunkavedelmiOktatas> _lista = new();
+    private List<Ugyfel> _ugyfelek = new();
+    private List<Telephely> _telephelyek = new();
+    private MunkavedelmiOktatas? _szerkesztesAlatt;
+    private DateTime? _oktatasDatum;
+    private int? _kivalasztottUgyfelId;
+    private bool _dialogNyitva;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    // Új oktatás résztvevői (dialógusban)
+    private List<ResztvevoSor> _ujResztvevok = new();
+    private bool _resztvevoValidacioHiba = false;
+
+    // Résztvevők (meglévő oktatáshoz)
+    private bool _resztvevokDialogNyitva;
+    private MunkavedelmiOktatas? _kivalasztottOktatas;
+    private List<MunkavedelmiOktatasResztvevo> _resztvevok = new();
+    private string? _ujResztvevoNev;
+    private string? _ujResztvetoBeosztas;
+
+    // Email küldés
+    private bool _emailDialogNyitva = false;
+    private bool _emailKuldes = false;
+    private MunkavedelmiOktatas? _emailOktatas;
+    private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.MunkavedelmiOktatas90Nap;
+    private string _emailCimzett = "";
+
+    private IEnumerable<Telephely> _szurtTelephelyek =>
+        _kivalasztottUgyfelId.HasValue
+            ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value)
+            : Enumerable.Empty<Telephely>();
+
+    private IEnumerable<MunkavedelmiOktatas> _szurtLista =>
+        string.IsNullOrWhiteSpace(_kereses)
+            ? _lista
+            : _lista.Where(o =>
+            (o.Ugyfel?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (o.Telephely?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (o.OktatoNeve?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (_isAdmin && (o.Ceg?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    // Meglévő változók mellé:
+    private bool _isAdmin;
+    private List<Ceg> _cegek = new();
+    private int _kivalasztottCegId;
+
+    // Szűrt ügyfelek a kiválasztott cég alapján
+    private IEnumerable<Ugyfel> _szurtUgyfelek =>
+        _isAdmin
+            ? _ugyfelek.Where(u => u.CegId == _kivalasztottCegId)
+            : _ugyfelek;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _cegId = TenantService.GetCurrentCegId();
+        _kivalasztottCegId = _cegId;
+        
+        if (_isAdmin)
+        {
+            _cegek = await CegService.GetAllAsync(csakAktiv: true);
+        }
+        
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _telephelyek = await TelephelyService.GetAllAsync();
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        // Admin minden oktatást lát, egyéb felhasználók csak a saját cégükét
+        _lista = await OktatasService.GetAllAsync(mindenCegre: _isAdmin);
+        _betoltes = false;
+    }
+
+    private void OnCegValtozas(int ujCegId)
+    {
+        _kivalasztottCegId = ujCegId;
+        _kivalasztottUgyfelId = null;
+        
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.UgyfelId = 0;
+            _szerkesztesAlatt.TelephelyId = null;
+        }
+    }
+
+    private void OnUgyfelValtozas(int? ugyfelId)
+    {
+        _kivalasztottUgyfelId = ugyfelId;
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.UgyfelId = ugyfelId ?? 0;
+            
+            // Automatikusan kiválasztja az első telephelyet
+            var elsoTelephely = _telephelyek.FirstOrDefault(t => t.UgyfelId == ugyfelId);
+            _szerkesztesAlatt.TelephelyId = elsoTelephely?.Id;
+        }
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new MunkavedelmiOktatas { Aktiv = true, IdoszakHonap = 12 };
+        _oktatasDatum = DateTime.Today;
+        _kivalasztottUgyfelId = null;
+        _kivalasztottCegId = _cegId; // Alapértelmezett cég
+        _resztvevoValidacioHiba = false;
+        
+        // Kezdéskor egy üres sor
+        _ujResztvevok = new List<ResztvevoSor> { new ResztvevoSor() };
+        
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(MunkavedelmiOktatas oktatas)
+    {
+        _szerkesztesAlatt = new MunkavedelmiOktatas
+        {
+            Id = oktatas.Id,
+            Megnevezes = oktatas.Megnevezes,
+            Leiras = oktatas.Leiras,
+            OktatasDatuma = oktatas.OktatasDatuma,
+            IdoszakHonap = oktatas.IdoszakHonap,
+            OktatoNeve = oktatas.OktatoNeve,
+            Megjegyzes = oktatas.Megjegyzes,
+            UgyfelId = oktatas.UgyfelId,
+            TelephelyId = oktatas.TelephelyId,
+            CegId = oktatas.CegId,
+            Aktiv = oktatas.Aktiv
+        };
+        _oktatasDatum = oktatas.OktatasDatuma;
+        _kivalasztottUgyfelId = oktatas.UgyfelId;
+        _kivalasztottCegId = oktatas.CegId; // Betöltjük a cég ID-t szerkesztéskor
+        _resztvevoValidacioHiba = false;
+        
+        // Meglévő résztvevők betöltése
+        _ujResztvevok = oktatas.Resztvevok
+            .Select(r => new ResztvevoSor { Id = r.Id, Nev = r.Nev, Beosztas = r.Beosztas })
+            .ToList();
+        
+        // Mindig legyen egy üres sor a végén
+        _ujResztvevok.Add(new ResztvevoSor());
+        
+        _dialogNyitva = true;
+    }
+
+    private void ResztvevoSorEllenorzes()
+    {
+        // Ha az utolsó sor ki van töltve, adjunk hozzá egy újat
+        var utolsoSor = _ujResztvevok.LastOrDefault();
+        if (utolsoSor != null && !string.IsNullOrWhiteSpace(utolsoSor.Nev))
+        {
+            _ujResztvevok.Add(new ResztvevoSor());
+        }
+        
+        _resztvevoValidacioHiba = false;
+        StateHasChanged();
+    }
+
+    private void ResztvevoSorTorlese(ResztvevoSor sor)
+    {
+        _ujResztvevok.Remove(sor);
+        
+        // Mindig legyen legalább egy sor
+        if (_ujResztvevok.Count == 0)
+        {
+            _ujResztvevok.Add(new ResztvevoSor());
+        }
+    }
+
+    private void DialogBezarasa()
+    {
+        _dialogNyitva = false;
+        _szerkesztesAlatt = null;
+        _kivalasztottUgyfelId = null;
+        _ujResztvevok.Clear();
+        _resztvevoValidacioHiba = false;
+    }
+
+    private async Task MentesAsync()
+    {
+        // Megnevezés validáció TÖRÖLVE
+        if (_szerkesztesAlatt is null || !_oktatasDatum.HasValue || _szerkesztesAlatt.UgyfelId == 0)
+        {
+            Snackbar.Add("Az ügyfél és dátum megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        // Résztvevők validáció - csak a kitöltött sorokat nézzük
+        var kitoltottResztvevok = _ujResztvevok
+            .Where(r => !string.IsNullOrWhiteSpace(r.Nev))
+            .ToList();
+
+        if (kitoltottResztvevok.Count == 0)
+        {
+            _resztvevoValidacioHiba = true;
+            Snackbar.Add("Legalább egy résztvevő megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        _szerkesztesAlatt.OktatasDatuma = _oktatasDatum.Value;
+
+        // Automatikus megnevezés generálása
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId);
+        _szerkesztesAlatt.Megnevezes = $"{ugyfel?.Nev} - {_oktatasDatum.Value:yyyy.MM.dd}";
+
+        try
+        {
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await OktatasService.UpdateAsync(_szerkesztesAlatt);
+                
+                // Résztvevők frissítése - töröljük a régieket és hozzáadjuk az újakat
+                await OktatasService.UpdateResztvevokAsync(_szerkesztesAlatt.Id, 
+                    kitoltottResztvevok.Select(r => new MunkavedelmiOktatasResztvevo
+                    {
+                        Id = r.Id,
+                        Nev = r.Nev,
+                        Beosztas = r.Beosztas
+                    }).ToList());
+                
+                Snackbar.Add("Oktatás módosítva.", Severity.Success);
+            }
+            else
+            {
+                var ujOktatas = await OktatasService.CreateAsync(_szerkesztesAlatt);
+                
+                // Résztvevők hozzáadása
+                foreach (var resztvevo in kitoltottResztvevok)
+                {
+                    await OktatasService.AddResztvevoAsync(ujOktatas.Id, new MunkavedelmiOktatasResztvevo
+                    {
+                        Nev = resztvevo.Nev,
+                        Beosztas = resztvevo.Beosztas
+                    });
+                }
+                
+                Snackbar.Add("Oktatás létrehozva.", Severity.Success);
+            }
+
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task TorlesMegerosites(MunkavedelmiOktatas oktatas)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretné: {oktatas.Ugyfel?.Nev} - {oktatas.OktatasDatuma:yyyy.MM.dd}?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            await OktatasService.DeleteAsync(oktatas.Id);
+            Snackbar.Add("Oktatás törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+
+    // Résztvevők kezelése (meglévő oktatáshoz)
+    private async Task ResztvevokMegnyitasa(MunkavedelmiOktatas oktatas)
+    {
+        _kivalasztottOktatas = oktatas;
+        _resztvevok = await OktatasService.GetResztvevokAsync(oktatas.Id);
+        _ujResztvevoNev = null;
+        _ujResztvetoBeosztas = null;
+        _resztvevokDialogNyitva = true;
+    }
+
+    private void ResztvevokDialogBezarasa()
+    {
+        _resztvevokDialogNyitva = false;
+        _kivalasztottOktatas = null;
+        _resztvevok.Clear();
+    }
+
+    private async Task ResztvevoHozzaadasaAsync()
+    {
+        if (_kivalasztottOktatas == null || string.IsNullOrWhiteSpace(_ujResztvevoNev)) return;
+
+        var resztvevo = new MunkavedelmiOktatasResztvevo
+        {
+            Nev = _ujResztvevoNev,
+            Beosztas = _ujResztvetoBeosztas
+        };
+
+        await OktatasService.AddResztvevoAsync(_kivalasztottOktatas.Id, resztvevo);
+        _resztvevok = await OktatasService.GetResztvevokAsync(_kivalasztottOktatas.Id);
+        _ujResztvevoNev = null;
+        _ujResztvetoBeosztas = null;
+        Snackbar.Add("Résztvevő hozzáadva.", Severity.Success);
+        
+        // Lista frissítése a főoldalon
+        await BetoltesAsync();
+    }
+
+    private async Task ResztvevoTorleseAsync(MunkavedelmiOktatasResztvevo resztvevo)
+    {
+        await OktatasService.RemoveResztvevoAsync(resztvevo.Id);
+        _resztvevok.Remove(resztvevo);
+        Snackbar.Add("Résztvevő törölve.", Severity.Success);
+        
+        // Lista frissítése a főoldalon
+        await BetoltesAsync();
+    }
+
+    // Email küldés funkciók
+    private void EmailKuldesDialogusMegnyitasa(MunkavedelmiOktatas oktatas)
+    {
+        _emailOktatas = oktatas;
+        _kivalasztottEmailTipus = EmailErtesitesTipus.MunkavedelmiOktatas90Nap;
+        _emailCimzett = oktatas.Telephely?.Email ?? oktatas.Ugyfel?.Email ?? "";
+        _emailDialogNyitva = true;
+    }
+
+    private async Task EmailKuldesAsync()
+    {
+        if (_emailOktatas is null || string.IsNullOrWhiteSpace(_emailCimzett))
+        {
+            Snackbar.Add("Kérjük adja meg a címzett email címét!", Severity.Warning);
+            return;
+        }
+
+        _emailKuldes = true;
+        try
+        {
+            var placeholderek = new Dictionary<string, string>
+            {
+                { "UgyfelNev", _emailOktatas.Ugyfel?.Nev ?? "" },
+                { "TelephelyNev", _emailOktatas.Telephely?.Nev ?? "" },
+                { "OktatasMegnevezes", _emailOktatas.Megnevezes },
+                { "OktatasDatum", _emailOktatas.OktatasDatuma.ToString("yyyy.MM.dd") },
+                { "KovetkezoOktatasDatum", _emailOktatas.KovetkezoOktatas?.ToString("yyyy.MM.dd") ?? "" },
+                { "OktatoNeve", _emailOktatas.OktatoNeve ?? "" },
+                { "CegNev", "" }
+            };
+
+            var siker = await EmailKuldoService.KuldSablonbolAsync(
+                _kivalasztottEmailTipus,
+                _emailCimzett,
+                placeholderek,
+                _cegId
+            );
+
+            if (siker)
+            {
+                Snackbar.Add($"Email sikeresen elküldve: {_emailCimzett}", Severity.Success);
+                _emailDialogNyitva = false;
+            }
+            else
+            {
+                Snackbar.Add("Email küldése sikertelen! Ellenőrizd az SMTP beállításokat.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _emailKuldes = false;
+        }
+    }
+
+    // Segéd osztály a résztvevő sorokhoz
+    private class ResztvevoSor
+    {
+        public int Id { get; set; }
+        public string Nev { get; set; } = string.Empty;
+        public string? Beosztas { get; set; }
+    }
+}

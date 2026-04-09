@@ -85,6 +85,12 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
 builder.Services.AddScoped<IKotelezoHitelesitesService, KotelezoHitelesitesService>();
+
+// --- Munkavédelem szolgáltatások ---
+builder.Services.AddScoped<IMunkavedelmiOktatasService, MunkavedelmiOktatasService>();
+builder.Services.AddScoped<IKockazatertekelésService, KockazatertekelésService>();
+builder.Services.AddScoped<IZonaterkepService, ZonaterkepService>();
+
 // builder.Services.AddScoped<IJedzokonyvPdfService, JedzokonyvPdfService>();
 builder.Services.AddScoped<ISablonService>(sp =>
 {

@@ -23,6 +23,9 @@ public class Ceg
     /// <summary>Tevékenységi kör(ök) - kötelező, legalább egy kiválasztása szükséges.</summary>
     public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
 
+    /// <summary>Munkavédelmi modul engedélyezve - ha true, a cég hozzáfér a munkavédelmi funkciókhoz.</summary>
+    public bool MunkavedelmiModul { get; set; } = false;
+
     // Navigációs property-k
     public List<Felhasznalo> Felhasznalok { get; set; } = new();
     public List<Ugyfel> Ugyfelek { get; set; } = new();

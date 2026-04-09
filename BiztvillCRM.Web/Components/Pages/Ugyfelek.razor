@@ -55,6 +55,10 @@
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
                         }
+                        @if (context.Item.Tevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Munkavédelem</MudChip>
+                        }
                         @if (context.Item.Tevekenyseg == TevekenysegTipus.Nincs)
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Default">-</MudChip>
@@ -156,6 +160,10 @@
                                     {
                                         <MudChip T="string" Color="Color.Secondary">Benzinkúttechnika</MudChip>
                                     }
+                                    else if (_aktualisCegTevekenyseg == TevekenysegTipus.Munkavédelem)
+                                    {
+                                        <MudChip T="string" Color="Color.Warning">Munkavédelem</MudChip>
+                                    }
                                 </MudStack>
                             </MudStack>
                         }
@@ -180,6 +188,14 @@
                                                      ValueChanged="@(v => OnTevekenysegValtozas(TevekenysegTipus.Benzinkuttechnika, v))"
                                                      Label="Benzinkúttechnika"
                                                      Color="Color.Secondary" />
+                                    }
+                                    @if (_aktualisCegTevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
+                                    {
+                                        <MudCheckBox T="bool"
+                                                     Value="@_szerkesztesAlatt.Tevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem)"
+                                                     ValueChanged="@(v => OnTevekenysegValtozas(TevekenysegTipus.Munkavédelem, v))"
+                                                     Label="Munkavédelem"
+                                                     Color="Color.Warning" />
                                     }
                                 </MudStack>
                                 @if (_szerkesztesAlatt.Tevekenyseg == TevekenysegTipus.Nincs && _validacioMutatasa)

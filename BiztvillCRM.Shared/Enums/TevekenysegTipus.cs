@@ -10,5 +10,6 @@ public enum TevekenysegTipus
 {
     Nincs = 0,
     VillanosMeres = 1,
-    Benzinkuttechnika = 2
+    Benzinkuttechnika = 2,
+    Munkavédelem = 4
 }

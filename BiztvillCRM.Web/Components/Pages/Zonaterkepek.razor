@@ -1,0 +1,401 @@
+@page "/zonaterkepek"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IZonaterkepService ZonaterkepService
+@inject IUgyfelService UgyfelService
+@inject ITelephelyService TelephelyService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IEmailKuldoService EmailKuldoService
+
+<PageTitle>Zónatérképek</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Zónatérképek</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4" Color="Color.Secondary">
+    ATEX robbanásveszélyes zónák besorolása
+</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+            Új zónatérkép
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="Zonaterkep" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="z => z.Megnevezes" Title="Megnevezés" />
+            <TemplateColumn Title="Ügyfél">
+                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Telephely">
+                <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Zóna típus">
+                <CellTemplate>
+                    @switch (context.Item.ZonaTipus)
+                    {
+                        case ZonaTipus.Zone0:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error">Zone 0 (Gáz)</MudChip>
+                            break;
+                        case ZonaTipus.Zone1:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Zone 1 (Gáz)</MudChip>
+                            break;
+                        case ZonaTipus.Zone2:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Zone 2 (Gáz)</MudChip>
+                            break;
+                        case ZonaTipus.Zone20:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error">Zone 20 (Por)</MudChip>
+                            break;
+                        case ZonaTipus.Zone21:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Zone 21 (Por)</MudChip>
+                            break;
+                        case ZonaTipus.Zone22:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Zone 22 (Por)</MudChip>
+                            break;
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="z => z.ErvenyessegVege" Title="Érvényesség vége" Format="yyyy.MM.dd" />
+            <TemplateColumn Title="Státusz">
+                <CellTemplate>
+                    @if (context.Item.ErvenyessegVege.HasValue && context.Item.ErvenyessegVege.Value < DateTime.Now)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Warning">Lejárt</MudChip>
+                    }
+                    else if (context.Item.ErvenyessegVege.HasValue && context.Item.ErvenyessegVege.Value < DateTime.Now.AddDays(60))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Schedule">Hamarosan lejár</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Érvényes</MudChip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="Email küldése">
+                            <MudIconButton Icon="@Icons.Material.Filled.Email" Color="Color.Secondary" Size="Size.Small" 
+                                           OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
+                        </MudTooltip>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető zónatérkép.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Email dialógus -->
+<MudDialog @bind-Visible="_emailDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+            Email értesítés küldése
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_emailZonaterkep is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <b>@_emailZonaterkep.Ugyfel?.Nev</b> - @_emailZonaterkep.Megnevezes<br/>
+                Érvényesség vége: @_emailZonaterkep.ErvenyessegVege?.ToString("yyyy.MM.dd")
+            </MudAlert>
+
+            <MudSelect T="EmailErtesitesTipus" @bind-Value="_kivalasztottEmailTipus" Label="Értesítés típusa *" Required="true" Class="mb-3">
+                <MudSelectItem Value="EmailErtesitesTipus.ZonaterkepLejarat90Nap">Zónatérkép lejárat - 90 nap</MudSelectItem>
+                <MudSelectItem Value="EmailErtesitesTipus.ZonaterkepLejarat30Nap">Zónatérkép lejárat - 30 nap (sürgős)</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="_emailCimzett" Label="Címzett email cím *" Required="true" 
+                          InputType="InputType.Email" HelperText="Az ügyfél vagy telephely email címe" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _emailDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="EmailKuldesAsync" Color="Color.Primary" Variant="Variant.Filled" 
+                   Disabled="_emailKuldes" StartIcon="@Icons.Material.Filled.Send">
+            @(_emailKuldes ? "Küldés..." : "Küldés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Szerkesztő dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Zónatérkép szerkesztése" : "Új zónatérkép")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megnevezes" Label="Megnevezés *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Value="_kivalasztottUgyfelId" ValueChanged="OnUgyfelValtozas" Label="Ügyfél *" Required="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Válasszon --</MudSelectItem>
+                        @foreach (var u in _ugyfelek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)u.Id)">@u.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely" Disabled="@(_kivalasztottUgyfelId == null)">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Nincs megadva --</MudSelectItem>
+                        @foreach (var t in _szurtTelephelyek)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="ZonaTipus" @bind-Value="_szerkesztesAlatt.ZonaTipus" Label="Zóna típus *">
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone0">Zone 0 - Gáz/gőz (folyamatosan)</MudSelectItem>
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone1">Zone 1 - Gáz/gőz (időszakosan)</MudSelectItem>
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone2">Zone 2 - Gáz/gőz (ritkán)</MudSelectItem>
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone20">Zone 20 - Por (folyamatosan)</MudSelectItem>
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone21">Zone 21 - Por (időszakosan)</MudSelectItem>
+                        <MudSelectItem T="ZonaTipus" Value="ZonaTipus.Zone22">Zone 22 - Por (ritkán)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_ervenyessegKezdete" Label="Érvényesség kezdete" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_ervenyessegVege" Label="Érvényesség vége" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="MentesAsync">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _betoltes = true;
+    private string? _kereses;
+    private int _cegId;
+    private List<Zonaterkep> _lista = new();
+    private List<Ugyfel> _ugyfelek = new();
+    private List<Telephely> _telephelyek = new();
+    private Zonaterkep? _szerkesztesAlatt;
+    private DateTime? _ervenyessegKezdete;
+    private DateTime? _ervenyessegVege;
+    private int? _kivalasztottUgyfelId;
+    private bool _dialogNyitva;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    // Email küldés
+    private bool _emailDialogNyitva = false;
+    private bool _emailKuldes = false;
+    private Zonaterkep? _emailZonaterkep;
+    private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.ZonaterkepLejarat90Nap;
+    private string _emailCimzett = "";
+
+    private IEnumerable<Telephely> _szurtTelephelyek =>
+        _kivalasztottUgyfelId.HasValue
+            ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value)
+            : Enumerable.Empty<Telephely>();
+
+    private IEnumerable<Zonaterkep> _szurtLista =>
+        string.IsNullOrWhiteSpace(_kereses)
+            ? _lista
+            : _lista.Where(z =>
+                z.Megnevezes.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+                (z.Ugyfel?.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cegId = TenantService.GetCurrentCegId();
+        _ugyfelek = await UgyfelService.GetAllAsync();
+        _telephelyek = await TelephelyService.GetAllAsync();
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _lista = await ZonaterkepService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void OnUgyfelValtozas(int? ugyfelId)
+    {
+        _kivalasztottUgyfelId = ugyfelId;
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.UgyfelId = ugyfelId ?? 0;
+            _szerkesztesAlatt.TelephelyId = null;
+        }
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new Zonaterkep { Aktiv = true, ZonaTipus = ZonaTipus.Zone1 };
+        _ervenyessegKezdete = DateTime.Today;
+        _ervenyessegVege = DateTime.Today.AddYears(5);
+        _kivalasztottUgyfelId = null;
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(Zonaterkep zonaterkep)
+    {
+        _szerkesztesAlatt = new Zonaterkep
+        {
+            Id = zonaterkep.Id,
+            Megnevezes = zonaterkep.Megnevezes,
+            UgyfelId = zonaterkep.UgyfelId,
+            TelephelyId = zonaterkep.TelephelyId,
+            ZonaTipus = zonaterkep.ZonaTipus,
+            Leiras = zonaterkep.Leiras,
+            ErvenyessegKezdete = zonaterkep.ErvenyessegKezdete,
+            ErvenyessegVege = zonaterkep.ErvenyessegVege,
+            Aktiv = zonaterkep.Aktiv
+        };
+        _ervenyessegKezdete = zonaterkep.ErvenyessegKezdete;
+        _ervenyessegVege = zonaterkep.ErvenyessegVege;
+        _kivalasztottUgyfelId = zonaterkep.UgyfelId;
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa()
+    {
+        _dialogNyitva = false;
+        _szerkesztesAlatt = null;
+        _kivalasztottUgyfelId = null;
+    }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Megnevezes) || _szerkesztesAlatt.UgyfelId == 0)
+        {
+            Snackbar.Add("A megnevezés és ügyfél megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _szerkesztesAlatt.ErvenyessegKezdete = _ervenyessegKezdete;
+        _szerkesztesAlatt.ErvenyessegVege = _ervenyessegVege;
+
+        try
+        {
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await ZonaterkepService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Zónatérkép módosítva.", Severity.Success);
+            }
+            else
+            {
+                await ZonaterkepService.CreateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Zónatérkép létrehozva.", Severity.Success);
+            }
+
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerosites(Zonaterkep zonaterkep)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretné: {zonaterkep.Megnevezes}?",
+
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            await ZonaterkepService.DeleteAsync(zonaterkep.Id);
+            Snackbar.Add("Zónatérkép törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+
+    // Email küldés
+    private void EmailKuldesDialogusMegnyitasa(Zonaterkep zonaterkep)
+    {
+        _emailZonaterkep = zonaterkep;
+        _kivalasztottEmailTipus = EmailErtesitesTipus.ZonaterkepLejarat90Nap;
+        _emailCimzett = zonaterkep.Telephely?.Email ?? zonaterkep.Ugyfel?.Email ?? "";
+        _emailDialogNyitva = true;
+    }
+
+    private string GetZonaTipusNev(ZonaTipus tipus) => tipus switch
+    {
+        ZonaTipus.Zone0 => "Zone 0 (Gáz/gőz - folyamatos)",
+        ZonaTipus.Zone1 => "Zone 1 (Gáz/gőz - időszakos)",
+        ZonaTipus.Zone2 => "Zone 2 (Gáz/gőz - ritka)",
+        ZonaTipus.Zone20 => "Zone 20 (Por - folyamatos)",
+        ZonaTipus.Zone21 => "Zone 21 (Por - időszakos)",
+        ZonaTipus.Zone22 => "Zone 22 - Por (ritkán)",
+        _ => tipus.ToString()
+    };
+
+    private async Task EmailKuldesAsync()
+    {
+        if (_emailZonaterkep is null || string.IsNullOrWhiteSpace(_emailCimzett))
+        {
+            Snackbar.Add("Kérjük adja meg a címzett email címét!", Severity.Warning);
+            return;
+        }
+
+        _emailKuldes = true;
+        try
+        {
+            var placeholderek = new Dictionary<string, string>
+            {
+                { "UgyfelNev", _emailZonaterkep.Ugyfel?.Nev ?? "" },
+                { "TelephelyNev", _emailZonaterkep.Telephely?.Nev ?? "" },
+                { "ZonaterkepMegnevezes", _emailZonaterkep.Megnevezes },
+                { "ZonaTipus", GetZonaTipusNev(_emailZonaterkep.ZonaTipus) },
+                { "ErvenyessegVege", _emailZonaterkep.ErvenyessegVege?.ToString("yyyy.MM.dd") ?? "" },
+                { "CegNev", "" }
+            };
+
+            var siker = await EmailKuldoService.KuldSablonbolAsync(
+                _kivalasztottEmailTipus,
+                _emailCimzett,
+                placeholderek,
+                _cegId
+            );
+
+            if (siker)
+            {
+                Snackbar.Add($"Email sikeresen elküldve: {_emailCimzett}", Severity.Success);
+                _emailDialogNyitva = false;
+            }
+            else
+            {
+                Snackbar.Add("Email küldése sikertelen! Ellenőrizd az SMTP beállításokat.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _emailKuldes = false;
+        }
+    }
+}

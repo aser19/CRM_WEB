@@ -60,6 +60,12 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<EmailKuldesNaplo> EmailKuldesNaplok { get; set; }
     public DbSet<AlapertelmezettEmailBeallitas> AlapertelmezettEmailBeallitasok { get; set; } = null!;
 
+    // --- Munkavédelem ---
+    public DbSet<MunkavedelmiOktatas> MunkavedelmiOktatasok { get; set; }
+    public DbSet<MunkavedelmiOktatasResztvevo> MunkavedelmiOktatasResztvevok { get; set; }
+    public DbSet<Kockazatertekeles> Kockazatertekelesek { get; set; }
+    public DbSet<Zonaterkep> Zonaterkepek { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -13,6 +13,11 @@
                      ValueChanged="@OnBenzinkutChanged"
                      Label="Benzinkúttechnika"
                      Color="Color.Secondary" />
+        <MudCheckBox T="bool" 
+                     Value="@MunkavedelemKivalasztva" 
+                     ValueChanged="@OnMunkavedelemChanged"
+                     Label="Munkavédelem"
+                     Color="Color.Warning" />
     </MudStack>
     @if (Value == TevekenysegTipus.Nincs && ShowValidation)
     {
@@ -29,6 +34,7 @@
 
     private bool VillanosMeresKivalasztva => Value.HasFlag(TevekenysegTipus.VillanosMeres);
     private bool BenzinkuttechnikaKivalasztva => Value.HasFlag(TevekenysegTipus.Benzinkuttechnika);
+    private bool MunkavedelemKivalasztva => Value.HasFlag(TevekenysegTipus.Munkavédelem);
 
     private async Task OnVillamosChanged(bool isChecked)
     {
@@ -43,6 +49,14 @@
         var newValue = isChecked 
             ? Value | TevekenysegTipus.Benzinkuttechnika 
             : Value & ~TevekenysegTipus.Benzinkuttechnika;
+        await ValueChanged.InvokeAsync(newValue);
+    }
+
+    private async Task OnMunkavedelemChanged(bool isChecked)
+    {
+        var newValue = isChecked 
+            ? Value | TevekenysegTipus.Munkavédelem 
+            : Value & ~TevekenysegTipus.Munkavédelem;
         await ValueChanged.InvokeAsync(newValue);
     }
 }

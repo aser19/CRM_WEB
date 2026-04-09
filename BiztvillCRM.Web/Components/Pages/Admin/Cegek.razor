@@ -40,6 +40,10 @@
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
                         }
+                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Munkavédelem</MudChip>
+                        }
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
@@ -59,6 +63,11 @@
                     <MudChip T="string" Size="Size.Small" Color="@(context.Item.Ceg.Aktiv ? Color.Success : Color.Error)">
                         @(context.Item.Ceg.Aktiv ? "Aktív" : "Inaktív")
                     </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Munkavédelmi modul">
+                <CellTemplate>
+                    <MudSwitch @bind-Value="context.Item.Ceg.MunkavedelmiModul" Label="Munkavédelmi modul" Color="@(context.Item.Ceg.MunkavedelmiModul ? Color.Success : Color.Error)" />
                 </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
@@ -95,6 +104,7 @@
             <div class="mb-3">
                 <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
             </div>
+            <MudSwitch @bind-Value="_szerkesztettCeg.MunkavedelmiModul" Label="Munkavédelmi modul" Color="Color.Primary" />
         }
     </DialogContent>
     <DialogActions>
@@ -183,7 +193,8 @@
             Telefon = ceg.Telefon,
             Weboldal = ceg.Weboldal,
             Aktiv = ceg.Aktiv,
-            Tevekenyseg = ceg.Tevekenyseg
+            Tevekenyseg = ceg.Tevekenyseg,
+            MunkavedelmiModul = ceg.MunkavedelmiModul
         };
         _ujCeg = false;
         _validacioMutatasa = false;
