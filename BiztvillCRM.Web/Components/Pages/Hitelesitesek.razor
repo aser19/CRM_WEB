@@ -11,6 +11,7 @@
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IEmailKuldoService EmailKuldoService
 
 <PageTitle>Hitelesítések</PageTitle>
 
@@ -61,7 +62,13 @@
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" Sortable="false">
                 <CellTemplate>
-                    <MudStack Row="true">
+                    <MudStack Row="true" Spacing="1">
+                        <MudTooltip Text="Email küldése">
+                            <MudIconButton Icon="@Icons.Material.Filled.Email" 
+                                           Color="Color.Info" 
+                                           Size="Size.Small" 
+                                           OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
+                        </MudTooltip>
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
                     </MudStack>
@@ -210,6 +217,40 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Email küldés dialógus -->
+<MudDialog @bind-Visible="_emailDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+            Email értesítés küldése
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_emailHitelesites is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <b>@_emailHitelesites.Ugyfel?.Nev</b> - @_emailHitelesites.EszkozTipus?.Nev<br/>
+                Lejárat: @_emailHitelesites.LejaratDatum?.ToString("yyyy.MM.dd")
+            </MudAlert>
+
+            <MudSelect T="EmailErtesitesTipus" @bind-Value="_kivalasztottEmailTipus" Label="Értesítés típusa *" Required="true" Class="mb-3">
+                <MudSelectItem Value="EmailErtesitesTipus.HitelesitesLejarat90Nap">Hitelesítés lejárat - 90 nap</MudSelectItem>
+                <MudSelectItem Value="EmailErtesitesTipus.HitelesitesLejarat30Nap">Hitelesítés lejárat - 30 nap</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="_emailCimzett" Label="Címzett email cím *" Required="true" 
+                          InputType="InputType.Email" HelperText="Az ügyfél vagy telephely email címe" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _emailDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="EmailKuldesAsync" Color="Color.Primary" Variant="Variant.Filled" 
+                   Disabled="_emailKuldes" StartIcon="@Icons.Material.Filled.Send">
+            @(_emailKuldes ? "Küldés..." : "Küldés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Hitelesites> _lista = new();
     private List<EszkozTipus> _eszkozTipusok = new();
@@ -219,6 +260,7 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
+    private int _cegId;
     private Hitelesites? _szerkesztesAlatt;
     private DateTime? _datum, _lejaratDatum;
     private int? _kivalasztottUgyfelId;
@@ -247,6 +289,7 @@
     protected override async Task OnInitializedAsync()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _cegId = TenantService.GetCurrentCegId();  // <-- ÚJ SOR
         await BetoltesAsync();
         _eszkozTipusok = await EszkozTipusService.GetAllAsync();
         _hatosagok = await HatosagService.GetAllAsync();
@@ -443,6 +486,76 @@
                 Snackbar.Add("Törölve.", Severity.Success);
             }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
+
+    // ========== EMAIL KÜLDÉS DIALÓGUS ==========
+    
+    private bool _emailDialogNyitva = false;
+    private bool _emailKuldes = false;
+    private Hitelesites? _emailHitelesites;
+    private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.HitelesitesLejarat90Nap;
+    private string _emailCimzett = "";
+
+    private void EmailKuldesDialogusMegnyitasa(Hitelesites hitelesites)
+    {
+        _emailHitelesites = hitelesites;
+        _kivalasztottEmailTipus = EmailErtesitesTipus.HitelesitesLejarat90Nap;
+        
+        // Alapértelmezett címzett: telephely email, ha nincs, akkor ügyfél email
+        _emailCimzett = hitelesites.Telephely?.Email 
+                        ?? hitelesites.Ugyfel?.Email 
+                        ?? "";
+        
+        _emailDialogNyitva = true;
+    }
+
+    private async Task EmailKuldesAsync()
+    {
+        if (_emailHitelesites is null || string.IsNullOrWhiteSpace(_emailCimzett))
+        {
+            Snackbar.Add("Kérjük adja meg a címzett email címét!", Severity.Warning);
+            return;
+        }
+
+        _emailKuldes = true;
+        try
+        {
+            var placeholderek = new Dictionary<string, string>
+            {
+                { "UgyfelNev", _emailHitelesites.Ugyfel?.Nev ?? "" },
+                { "TelephelyNev", _emailHitelesites.Telephely?.Nev ?? "" },
+                { "EszkozTipus", _emailHitelesites.EszkozTipus?.Nev ?? "" },
+                { "LejaratDatum", _emailHitelesites.LejaratDatum?.ToString("yyyy.MM.dd") ?? "" },
+                { "MeresTipus", "" },
+                { "CegNev", "" }
+            };
+
+            var siker = await EmailKuldoService.KuldSablonbolAsync(
+                _kivalasztottEmailTipus,
+                _emailCimzett,
+                placeholderek,
+                _cegId,
+                hitelesitesId: _emailHitelesites.Id
+            );
+
+            if (siker)
+            {
+                Snackbar.Add($"Email sikeresen elküldve: {_emailCimzett}", Severity.Success);
+                _emailDialogNyitva = false;
+            }
+            else
+            {
+                Snackbar.Add("Email küldése sikertelen! Ellenőrizd az SMTP beállításokat.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _emailKuldes = false;
         }
     }
 }

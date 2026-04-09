@@ -12,6 +12,8 @@
 @inject IJegyzokonyvPdfService JegyzokonyvPdfService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
 @inject IJSRuntime JS
+@inject IEmailKuldoService EmailKuldoService
+@inject ITenantService TenantService
 
 <PageTitle>Mérések</PageTitle>
 
@@ -43,6 +45,12 @@
                                            Size="Size.Small" 
                                            OnClick="() => WordLetoltesAsync(context.Item)" />
                         </MudTooltip>
+                        <MudTooltip Text="Email küldése">
+                            <MudIconButton Icon="@Icons.Material.Filled.Email" 
+                                           Color="Color.Secondary" 
+                                           Size="Size.Small" 
+                                           OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
+                        </MudTooltip>
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
@@ -58,6 +66,40 @@
         <NoRecordsContent><MudText>Nincs megjeleníthető mérés.</MudText></NoRecordsContent>
     </MudDataGrid>
 </MudPaper>
+
+<!-- Email küldés dialógus -->
+<MudDialog @bind-Visible="_emailDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+            Email értesítés küldése
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_emailMeres is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <b>@_emailMeres.Ugyfel?.Nev</b> - @_emailMeres.MeresTipus?.Nev<br/>
+                Következő: @_emailMeres.KovetkezoDatum?.ToString("yyyy.MM.dd")
+            </MudAlert>
+
+            <MudSelect T="EmailErtesitesTipus" @bind-Value="_kivalasztottEmailTipus" Label="Értesítés típusa *" Required="true" Class="mb-3">
+                <MudSelectItem Value="EmailErtesitesTipus.MeresLejarat90Nap">Mérés lejárat - 90 nap</MudSelectItem>
+                <MudSelectItem Value="EmailErtesitesTipus.MeresLejarat30Nap">Mérés lejárat - 30 nap</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="_emailCimzett" Label="Címzett email cím *" Required="true" 
+                          InputType="InputType.Email" HelperText="Az ügyfél vagy telephely email címe" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _emailDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="EmailKuldesAsync" Color="Color.Primary" Variant="Variant.Filled" 
+                   Disabled="_emailKuldes" StartIcon="@Icons.Material.Filled.Send">
+            @(_emailKuldes ? "Küldés..." : "Küldés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Mérés szerkesztése" : "Új mérés")</MudText></TitleContent>
@@ -135,9 +177,20 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private Meres? _szerkesztesAlatt;
+    
+    // HIÁNYZÓ DEKLARÁCIÓK:
+    private int _cegId;
     private int _kivalasztottUgyfelId;
-    private DateTime? _datum, _kovetkezoDatum;
+    private DateTime? _datum;
+    private DateTime? _kovetkezoDatum;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+    
+    // Email küldés
+    private bool _emailDialogNyitva = false;
+    private bool _emailKuldes = false;
+    private Meres? _emailMeres;
+    private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.MeresLejarat90Nap;
+    private string _emailCimzett = "";
 
     private IEnumerable<Meres> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
         : _lista.Where(m => (m.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -146,10 +199,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await BetoltesAsync();
+        _cegId = TenantService.GetCurrentCegId();
+        
+        // HIÁNYZÓ BETÖLTÉSEK:
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _tipusok = await MeresTipusService.GetAllAsync();
+        
+        await BetoltesAsync();
     }
 
     private async Task BetoltesAsync() { _betoltes = true; _lista = await MeresService.GetAllAsync(); _betoltes = false; }
@@ -298,6 +355,63 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task EmailKuldesDialogusMegnyitasa(Meres meres)
+    {
+        _emailMeres = meres;
+        _kivalasztottEmailTipus = EmailErtesitesTipus.MeresLejarat90Nap;
+        _emailCimzett = meres.Telephely?.Email ?? meres.Ugyfel?.Email ?? "";
+        _emailDialogNyitva = true;
+    }
+
+    private async Task EmailKuldesAsync()
+    {
+        if (_emailMeres is null || string.IsNullOrWhiteSpace(_emailCimzett))
+        {
+            Snackbar.Add("Kérjük adja meg a címzett email címét!", Severity.Warning);
+            return;
+        }
+
+        _emailKuldes = true;
+        try
+        {
+            var placeholderek = new Dictionary<string, string>
+            {
+                { "UgyfelNev", _emailMeres.Ugyfel?.Nev ?? "" },
+                { "TelephelyNev", _emailMeres.Telephely?.Nev ?? "" },
+                { "MeresTipus", _emailMeres.MeresTipus?.Nev ?? "" },
+                { "LejaratDatum", _emailMeres.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "" },
+                { "EszkozTipus", "" },
+                { "CegNev", "" }
+            };
+
+            var siker = await EmailKuldoService.KuldSablonbolAsync(
+                _kivalasztottEmailTipus,
+                _emailCimzett,
+                placeholderek,
+                _cegId,
+                meresId: _emailMeres.Id
+            );
+
+            if (siker)
+            {
+                Snackbar.Add($"Email sikeresen elküldve: {_emailCimzett}", Severity.Success);
+                _emailDialogNyitva = false;
+            }
+            else
+            {
+                Snackbar.Add("Email küldése sikertelen! Ellenőrizd az SMTP beállításokat.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _emailKuldes = false;
         }
     }
 }

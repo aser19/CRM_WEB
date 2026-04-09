@@ -1,3 +1,5 @@
+using BiztvillCRM.Shared.Enums;
+
 namespace BiztvillCRM.Shared.Models;
 
 /// <summary>Globális SMTP szerver beállítások (csak Admin szerkesztheti).</summary>
@@ -9,7 +11,13 @@ public class SmtpBeallitas
 
     public string SzerverCim { get; set; } = string.Empty;
     public int Port { get; set; } = 587;
+    
+    /// <summary>Titkosítás típusa (Auto, StartTls, SslOnConnect, Nincs)</summary>
+    public SmtpTitkositasTipus TitkositasTipus { get; set; } = SmtpTitkositasTipus.Auto;
+    
+    [Obsolete("Használd a TitkositasTipus-t helyette")]
     public bool SslHasznalata { get; set; } = true;
+    
     public string FelhasznaloNev { get; set; } = string.Empty;
     public string Jelszo { get; set; } = string.Empty;
     public string KuldoNev { get; set; } = string.Empty;

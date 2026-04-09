@@ -1,0 +1,189 @@
+@page "/kotelezo-hitelesitesek"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Services.Interfaces
+@inject IKotelezoHitelesitesService KotelezoHitelesitesService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Kötelező hitelesítések</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Kötelező hitelesítések</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4" Color="Color.Secondary">
+    Üzemanyagtöltő-állomásoknál kötelező hitelesítések listája
+</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        @if (_isAdmin)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
+                Új kötelező hitelesítés
+            </MudButton>
+        }
+    </MudStack>
+
+    <MudDataGrid T="KotelezoHitelesites" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="k => k.Megnevezes" Title="Megnevezés" />
+            <PropertyColumn Property="k => k.JogszabalyiHivatkozas" Title="Jogszabályi hivatkozás" />
+            <TemplateColumn Title="Hitelesítési időszak">
+                <CellTemplate>
+                    @(context.Item.HitelesitesiIdoszakHonap) hónap
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="k => k.Megjegyzes" Title="Megjegyzés" />
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Műveletek" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            }
+        </Columns>
+        <NoRecordsContent><MudText>Nincs megjeleníthető kötelező hitelesítés.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Kötelező hitelesítés szerkesztése" : "Új kötelező hitelesítés")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megnevezes" Label="Megnevezés *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.JogszabalyiHivatkozas" Label="Jogszabályi hivatkozás" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_szerkesztesAlatt.HitelesitesiIdoszakHonap" Label="Hitelesítési időszak (hónap) *" Min="1" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="DialogBezarasa">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="MentesAsync">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _isAdmin;
+    private bool _betoltes = true;
+    private string? _kereses;
+    private List<KotelezoHitelesites> _lista = new();
+    private KotelezoHitelesites? _szerkesztesAlatt;
+    private bool _dialogNyitva;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private IEnumerable<KotelezoHitelesites> _szurtLista =>
+        string.IsNullOrWhiteSpace(_kereses)
+            ? _lista
+            : _lista.Where(k =>
+                k.Megnevezes.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+                (k.JogszabalyiHivatkozas?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _lista = await KotelezoHitelesitesService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new KotelezoHitelesites { Aktiv = true, HitelesitesiIdoszakHonap = 12 };
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(KotelezoHitelesites kotelezoHitelesites)
+    {
+        _szerkesztesAlatt = new KotelezoHitelesites
+        {
+            Id = kotelezoHitelesites.Id,
+            Megnevezes = kotelezoHitelesites.Megnevezes,
+            JogszabalyiHivatkozas = kotelezoHitelesites.JogszabalyiHivatkozas,
+            HitelesitesiIdoszakHonap = kotelezoHitelesites.HitelesitesiIdoszakHonap,
+            Megjegyzes = kotelezoHitelesites.Megjegyzes,
+            Aktiv = kotelezoHitelesites.Aktiv
+        };
+        _dialogNyitva = true;
+    }
+
+    private void DialogBezarasa()
+    {
+        _dialogNyitva = false;
+        _szerkesztesAlatt = null;
+    }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.Megnevezes))
+        {
+            Snackbar.Add("A megnevezés megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await KotelezoHitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Kötelező hitelesítés módosítva.", Severity.Success);
+            }
+            else
+            {
+                await KotelezoHitelesitesService.CreateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Kötelező hitelesítés létrehozva.", Severity.Success);
+            }
+
+            DialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerosites(KotelezoHitelesites kotelezoHitelesites)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretné: {kotelezoHitelesites.Megnevezes}?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            await KotelezoHitelesitesService.DeleteAsync(kotelezoHitelesites.Id);
+            Snackbar.Add("Kötelező hitelesítés törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+}

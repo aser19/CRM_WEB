@@ -7,7 +7,9 @@
         Dashboard
     </MudNavLink>
 
-    <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" Expanded="false">
+    <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" 
+                 Expanded="@(_nyitottMenu == "Torzsadatok")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Torzsadatok", expanded))">
         <MudNavLink Href="/ugyfelek" Icon="@Icons.Material.Filled.People">Ügyfelek</MudNavLink>
         <MudNavLink Href="/telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
         <MudNavLink Href="/gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
@@ -18,36 +20,49 @@
         }
     </MudNavGroup>
 
-    <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed" Expanded="false">
+    <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed" 
+                 Expanded="@(_nyitottMenu == "Meresek")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Meresek", expanded))">
         <MudNavLink Href="/meresek" Icon="@Icons.Material.Filled.Science">Mérések</MudNavLink>
         <MudNavLink Href="/merestipusok" Icon="@Icons.Material.Filled.Category">Mérés típusok</MudNavLink>
         <MudNavLink Href="/kalibraciok" Icon="@Icons.Material.Filled.Tune">Kalibrációk</MudNavLink>
         <MudNavLink Href="/jegyzokonyv/uj" Icon="@Icons.Material.Filled.NoteAdd">Jegyzőkönyv készítés</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser" Expanded="false">
+    <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser" 
+                 Expanded="@(_nyitottMenu == "Hitelesitesek")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Hitelesitesek", expanded))">
         <MudNavLink Href="/hitelesitesek" Icon="@Icons.Material.Filled.Verified">Hitelesítések</MudNavLink>
+        <MudNavLink Href="/kotelezo-hitelesitesek" Icon="@Icons.Material.Filled.LocalGasStation">Kötelező hitelesítések</MudNavLink>
         <MudNavLink Href="/hatosagok" Icon="@Icons.Material.Filled.AccountBalance">Hatóságok</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Tanúsítványok" Icon="@Icons.Material.Filled.CardMembership" Expanded="false">
+    <MudNavGroup Title="Tanúsítványok" Icon="@Icons.Material.Filled.CardMembership" 
+                 Expanded="@(_nyitottMenu == "Tanusitvanyok")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Tanusitvanyok", expanded))">
         <MudNavLink Href="/tanusitvanyok" Icon="@Icons.Material.Filled.Badge">Tanúsítványok</MudNavLink>
         <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Engineering">Felülvizsgálók</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering" Expanded="false">
+    <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering" 
+                 Expanded="@(_nyitottMenu == "Karbantartas")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Karbantartas", expanded))">
         <MudNavLink Href="/karbantartasok" Icon="@Icons.Material.Filled.Handyman">Karbantartások</MudNavLink>
         <MudNavLink Href="/terminalok" Icon="@Icons.Material.Filled.PointOfSale">Terminálok</MudNavLink>
     </MudNavGroup>
 
     <MudNavLink Href="/jogszabalyok" Icon="@Icons.Material.Filled.Gavel">Jogszabályok</MudNavLink>
 
-    <MudNavGroup Title="Riportok" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
+    <MudNavGroup Title="Riportok" Icon="@Icons.Material.Filled.Assessment" 
+                 Expanded="@(_nyitottMenu == "Riportok")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Riportok", expanded))">
         <MudNavLink Href="/riportok" Icon="@Icons.Material.Filled.Description">Riportok</MudNavLink>
         <MudNavLink Href="/dokumentumok" Icon="@Icons.Material.Filled.FolderOpen">Dokumentumok</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Beállítások" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+    <MudNavGroup Title="Beállítások" Icon="@Icons.Material.Filled.Settings" 
+                 Expanded="@(_nyitottMenu == "Beallitasok")" 
+                 ExpandedChanged="@(expanded => MenuValtas("Beallitasok", expanded))">
         <MudNavLink Href="/beallitasok/ceg" Icon="@Icons.Material.Filled.Tune">Cég beállítások</MudNavLink>
         <MudNavLink Href="/beallitasok/email" Icon="@Icons.Material.Filled.Email">Email beállítások</MudNavLink>
         <MudNavLink Href="/beallitasok/licensz" Icon="@Icons.Material.Filled.Key">Licensz</MudNavLink>
@@ -55,16 +70,19 @@
 
     @if (_isAdmin || _isCegAdmin)
     {
-        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" 
+                     Expanded="@(_nyitottMenu == "Admin")" 
+                     ExpandedChanged="@(expanded => MenuValtas("Admin", expanded))">
             <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.ManageAccounts">Felhasználók</MudNavLink>
             <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modulok</MudNavLink>
             @if (_isAdmin)
             {
                 <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.CorporateFare">Cégek</MudNavLink>
+                <MudNavLink Href="/admin/email-naplo" Icon="@Icons.Material.Filled.MailOutline">Email napló</MudNavLink>
             }
             <MudNavLink Href="/admin/kepzes-tipusok" Icon="@Icons.Material.Filled.School">Képzés típusok</MudNavLink>
             <MudNavLink Href="/admin/kepzes-szabalyok" Icon="@Icons.Material.Filled.AccountTree">Képzési szabályok</MudNavLink>
-            <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Assignment">Mérés típusok</MudNavLink>  @* ÚJ! *@
+            <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Assignment">Mérés típusok</MudNavLink>
         </MudNavGroup>
     }
 </MudNavMenu>
@@ -72,10 +90,19 @@
 @code {
     private bool _isAdmin;
     private bool _isCegAdmin;
+    private string? _nyitottMenu;  // Csak egy lehet nyitva egyszerre
 
     protected override void OnInitialized()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
         _isCegAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.CegAdmin);
+    }
+
+    /// <summary>
+    /// Ha egy menüt megnyitunk, a többi automatikusan bezáródik.
+    /// </summary>
+    private void MenuValtas(string menuNev, bool expanded)
+    {
+        _nyitottMenu = expanded ? menuNev : null;
     }
 }

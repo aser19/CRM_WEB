@@ -21,7 +21,7 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents(options =>
     {
-        options.DetailedErrors = builder.Environment.IsDevelopment();
+        options.DetailedErrors = true;  // <-- Ez legyen true
     });
 
 // --- Azure SQL + EF Core ---
@@ -84,6 +84,7 @@ builder.Services.AddAuthenticationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
+builder.Services.AddScoped<IKotelezoHitelesitesService, KotelezoHitelesitesService>();
 // builder.Services.AddScoped<IJedzokonyvPdfService, JedzokonyvPdfService>();
 builder.Services.AddScoped<ISablonService>(sp =>
 {

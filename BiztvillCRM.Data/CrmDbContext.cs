@@ -30,6 +30,9 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Hatosag> Hatosagok { get; set; }
     public DbSet<Hitelesites> Hitelesitesek { get; set; }
 
+    // --- Kötelező hitelesítések ---
+    public DbSet<KotelezoHitelesites> KotelezoHitelesitesek { get; set; }
+
     // --- Tanúsítványok / Képzések ---
     public DbSet<Tanusitvany> Tanusitvanyok { get; set; }
     public DbSet<Kepzes> Kepzesek { get; set; }
@@ -55,6 +58,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<EmailSablon> EmailSablonok { get; set; }
     public DbSet<EmailBeallitas> EmailBeallitasok { get; set; }
     public DbSet<EmailKuldesNaplo> EmailKuldesNaplok { get; set; }
+    public DbSet<AlapertelmezettEmailBeallitas> AlapertelmezettEmailBeallitasok { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -3,6 +3,7 @@ using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MimeKit;
@@ -51,8 +52,16 @@ public class EmailKuldoService : IEmailKuldoService
             message.Body = new TextPart("html") { Text = szoveg };
 
             using var client = new SmtpClient();
-            await client.ConnectAsync(smtp.SzerverCim, smtp.Port, smtp.SslHasznalata);
-            await client.AuthenticateAsync(smtp.FelhasznaloNev, smtp.Jelszo);
+            
+            // ✅ JAVÍTÁS: SecureSocketOptions használata
+            var secureSocketOptions = GetSecureSocketOptions(smtp);
+            await client.ConnectAsync(smtp.SzerverCim, smtp.Port, secureSocketOptions);
+            
+            if (!string.IsNullOrEmpty(smtp.FelhasznaloNev))
+            {
+                await client.AuthenticateAsync(smtp.FelhasznaloNev, smtp.Jelszo);
+            }
+            
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
 
@@ -95,7 +104,11 @@ public class EmailKuldoService : IEmailKuldoService
         szoveg = szoveg.Replace("\n", "<br/>");
 
         var smtp = await _context.SmtpBeallitasok.FirstOrDefaultAsync();
-        if (smtp is null || !smtp.Aktiv) return false;
+        if (smtp is null || !smtp.Aktiv)
+        {
+            _logger.LogWarning("SMTP nincs konfigurálva vagy inaktív.");
+            return false;
+        }
 
         var naplo = new EmailKuldesNaplo
         {
@@ -117,12 +130,21 @@ public class EmailKuldoService : IEmailKuldoService
             message.Body = new TextPart("html") { Text = szoveg };
 
             using var client = new SmtpClient();
-            await client.ConnectAsync(smtp.SzerverCim, smtp.Port, smtp.SslHasznalata);
-            await client.AuthenticateAsync(smtp.FelhasznaloNev, smtp.Jelszo);
+            
+            // ✅ JAVÍTÁS: SecureSocketOptions használata
+            var secureSocketOptions = GetSecureSocketOptions(smtp);
+            await client.ConnectAsync(smtp.SzerverCim, smtp.Port, secureSocketOptions);
+            
+            if (!string.IsNullOrEmpty(smtp.FelhasznaloNev))
+            {
+                await client.AuthenticateAsync(smtp.FelhasznaloNev, smtp.Jelszo);
+            }
+            
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
 
             naplo.Sikeres = true;
+            _logger.LogInformation("Sablon email sikeresen elküldve: {Tipus} -> {Cimzett}", tipus, cimzett);
         }
         catch (Exception ex)
         {
@@ -135,6 +157,20 @@ public class EmailKuldoService : IEmailKuldoService
         await _context.SaveChangesAsync();
 
         return naplo.Sikeres;
+    }
+
+    /// <summary>Meghatározza a SecureSocketOptions-t az SMTP beállítások alapján.</summary>
+    private static SecureSocketOptions GetSecureSocketOptions(SmtpBeallitas smtp)
+    {
+        // Ha van TitkositasTipus beállítva, azt használjuk
+        return smtp.TitkositasTipus switch
+        {
+            SmtpTitkositasTipus.Nincs => SecureSocketOptions.None,
+            SmtpTitkositasTipus.Auto => SecureSocketOptions.Auto,
+            SmtpTitkositasTipus.StartTls => SecureSocketOptions.StartTls,
+            SmtpTitkositasTipus.SslOnConnect => SecureSocketOptions.SslOnConnect,
+            _ => SecureSocketOptions.Auto  // Alapértelmezett
+        };
     }
 
     private static string HelyettesitPlaceholderek(string szoveg, Dictionary<string, string> placeholderek)
