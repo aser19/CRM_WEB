@@ -65,11 +65,6 @@
                     </MudChip>
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Munkavédelmi modul">
-                <CellTemplate>
-                    <MudSwitch @bind-Value="context.Item.Ceg.MunkavedelmiModul" Label="Munkavédelmi modul" Color="@(context.Item.Ceg.MunkavedelmiModul ? Color.Success : Color.Error)" />
-                </CellTemplate>
-            </TemplateColumn>
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
                 <CellTemplate>
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => SzerkesztesMegnyitasa(context.Item.Ceg))" Title="Szerkesztés" />
@@ -104,7 +99,69 @@
             <div class="mb-3">
                 <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
             </div>
-            <MudSwitch @bind-Value="_szerkesztettCeg.MunkavedelmiModul" Label="Munkavédelmi modul" Color="Color.Primary" />
+
+            <!-- Modul jogosultságok szekció -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-1" />
+                    Aktív modulok
+                </MudText>
+                
+                <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                    <!-- Mérés modul -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Meresek)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Meresek, v))"
+                                 Label="Mérések" 
+                                 Color="Color.Primary" />
+                    
+                    <!-- Benzinkút modul -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Hitelesitesek)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Hitelesitesek, v))"
+                                 Label="Hitelesítések" 
+                                 Color="Color.Secondary" />
+                    
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Karbantartasok)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Karbantartasok, v))"
+                                 Label="Karbantartások" 
+                                 Color="Color.Secondary" />
+                    
+                    <!-- Munkavédelmi modul -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.MunkavedelmiOktatasok)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.MunkavedelmiOktatasok, v))"
+                                 Label="Munkavédelmi oktatások" 
+                                 Color="Color.Warning" />
+                    
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Kockazatertekelesek)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Kockazatertekelesek, v))"
+                                 Label="Kockázatértékelések" 
+                                 Color="Color.Warning" />
+                    
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Zonaterkepek)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Zonaterkepek, v))"
+                                 Label="Zónatérképek" 
+                                 Color="Color.Warning" />
+                    
+                    <!-- Beállítások -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.EmailSablonok)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.EmailSablonok, v))"
+                                 Label="Email sablonok" 
+                                 Color="Color.Info" />
+                    
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Jogszabalyok)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Jogszabalyok, v))"
+                                 Label="Jogszabályok" 
+                                 Color="Color.Info" />
+                </MudStack>
+            </MudItem>
         }
     </DialogContent>
     <DialogActions>
@@ -194,7 +251,7 @@
             Weboldal = ceg.Weboldal,
             Aktiv = ceg.Aktiv,
             Tevekenyseg = ceg.Tevekenyseg,
-            MunkavedelmiModul = ceg.MunkavedelmiModul
+            AktivModulok = ceg.AktivModulok  // <-- HIÁNYZOTT!
         };
         _ujCeg = false;
         _validacioMutatasa = false;
@@ -298,6 +355,16 @@
                 Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    private void ToggleModul(ModulJogosultsag modul, bool aktiv)
+    {
+        if (_szerkesztettCeg == null) return;
+        
+        if (aktiv)
+            _szerkesztettCeg.AktivModulok |= modul;
+        else
+            _szerkesztettCeg.AktivModulok &= ~modul;
     }
 
     private class CegListaElem

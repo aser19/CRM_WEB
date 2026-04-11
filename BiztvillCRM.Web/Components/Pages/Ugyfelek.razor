@@ -549,18 +549,42 @@
 
     private async Task TorlesMegerosites(Ugyfel ugyfel)
     {
+        // Kapcsolódó adatok lekérdezése
+        var kapcsolodo = await UgyfelService.GetKapcsolodoAdatokAsync(ugyfel.Id);
+        
+        string uzenet;
+        if (kapcsolodo.VanKapcsolodoAdat)
+        {
+            var reszletek = new List<string>();
+            if (kapcsolodo.Telephelyek > 0) reszletek.Add($"{kapcsolodo.Telephelyek} telephely");
+            if (kapcsolodo.Meresek > 0) reszletek.Add($"{kapcsolodo.Meresek} mérés");
+            if (kapcsolodo.Hitelesitesek > 0) reszletek.Add($"{kapcsolodo.Hitelesitesek} hitelesítés");
+            if (kapcsolodo.MunkavedelmiOktatasok > 0) reszletek.Add($"{kapcsolodo.MunkavedelmiOktatasok} munkavédelmi oktatás");
+            if (kapcsolodo.Eszkozok > 0) reszletek.Add($"{kapcsolodo.Eszkozok} eszköz");
+            if (kapcsolodo.Tanusitvanyok > 0) reszletek.Add($"{kapcsolodo.Tanusitvanyok} tanúsítvány");
+            if (kapcsolodo.Karbantartasok > 0) reszletek.Add($"{kapcsolodo.Karbantartasok} karbantartás");
+            
+            uzenet = $"A(z) \"{ugyfel.Nev}\" ügyfélhez az alábbi adatok tartoznak:\n\n" +
+                     $"• {string.Join("\n• ", reszletek)}\n\n" +
+                     "Biztosan törölni szeretné az ügyfelet és az összes kapcsolódó adatot?";
+        }
+        else
+        {
+            uzenet = $"Biztosan törölni szeretné a(z) \"{ugyfel.Nev}\" nevű ügyfelet?";
+        }
+
         var result = await DialogService.ShowMessageBox(
-            "Törlés megerősítése",
-            $"Biztosan törölni szeretné a(z) \"{ugyfel.Nev}\" nevű ügyfelet?",
-            yesText: "Törlés",
+            "Ügyfél törlése",
+            uzenet,
+            yesText: kapcsolodo.VanKapcsolodoAdat ? "Igen, töröljön mindent" : "Törlés",
             cancelText: "Mégse");
 
         if (result == true)
         {
             try
             {
-                await UgyfelService.DeleteAsync(ugyfel.Id);
-                Snackbar.Add("Ügyfél törölve.", Severity.Success);
+                await UgyfelService.DeleteWithRelatedDataAsync(ugyfel.Id);
+                Snackbar.Add("Az ügyfél és az összes kapcsolódó adat sikeresen törölve.", Severity.Success);
                 await BetoltesAsync();
             }
             catch (Exception ex)

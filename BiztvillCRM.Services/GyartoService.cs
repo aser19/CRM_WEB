@@ -7,28 +7,35 @@ namespace BiztvillCRM.Services;
 
 public class GyartoService : IGyartoService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
 
-    public GyartoService(CrmDbContext context) => _context = context;
+    public GyartoService(IDbContextFactory<CrmDbContext> contextFactory) => _contextFactory = contextFactory;
 
-    public async Task<List<Gyarto>> GetAllAsync() =>
-        await _context.Gyartok.OrderBy(g => g.Nev).ToListAsync();
+    public async Task<List<Gyarto>> GetAllAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Gyartok.OrderBy(g => g.Nev).ToListAsync();
+    }
 
-    public async Task<Gyarto?> GetByIdAsync(int id) =>
-        await _context.Gyartok.FindAsync(id);
+    public async Task<Gyarto?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Gyartok.FindAsync(id);
+    }
 
     public async Task<Gyarto> CreateAsync(Gyarto gyarto)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         gyarto.Letrehozva = DateTime.UtcNow;
-        _context.Gyartok.Add(gyarto);
-        await _context.SaveChangesAsync();
+        context.Gyartok.Add(gyarto);
+        await context.SaveChangesAsync();
         return gyarto;
     }
 
-    // GyartoService.UpdateAsync
     public async Task<Gyarto> UpdateAsync(Gyarto gyarto)
     {
-        var existing = await _context.Gyartok.FindAsync(gyarto.Id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.Gyartok.FindAsync(gyarto.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
         existing.Nev = gyarto.Nev;
@@ -37,17 +44,19 @@ public class GyartoService : IGyartoService
         existing.Aktiv = gyarto.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
-    {
-        var gyarto = await _context.Gyartok.FindAsync(id);
+ 
+  {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var gyarto = await context.Gyartok.FindAsync(id);
         if (gyarto is not null)
         {
-            _context.Gyartok.Remove(gyarto);
-            await _context.SaveChangesAsync();
+            context.Gyartok.Remove(gyarto);
+            await context.SaveChangesAsync();
         }
     }
 }

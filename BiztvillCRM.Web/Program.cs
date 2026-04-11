@@ -29,6 +29,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<CrmDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// DbContextFactory a párhuzamos hozzáféréshez
+builder.Services.AddDbContextFactory<CrmDbContext>(options =>
+    options.UseSqlServer(connectionString), ServiceLifetime.Scoped);
+
 // --- Identity ---
 builder.Services.AddIdentity<Felhasznalo, IdentityRole>(options =>
 {
@@ -111,6 +115,7 @@ builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
 builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IModulJogosultsagService, ModulJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
@@ -122,6 +127,54 @@ builder.Services.AddHostedService<EmailErtesitesBackgroundService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();
+
+// === Authorization policies ===
+builder.Services.AddAuthorizationCore(options =>
+{
+    // Modul alapú policies
+    options.AddPolicy("RequireMeresek", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Meresek)));
+    
+    options.AddPolicy("RequireHitelesitesek", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Hitelesitesek)));
+    
+    options.AddPolicy("RequireKarbantartasok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Karbantartasok)));
+    
+    options.AddPolicy("RequireMunkavedelem", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Munkavedelem)));
+    
+    options.AddPolicy("RequireMunkavedelmiOktatasok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.MunkavedelmiOktatasok)));
+    
+    options.AddPolicy("RequireKockazatertekelesek", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Kockazatertekelesek)));
+    
+    options.AddPolicy("RequireZonaterkepek", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Zonaterkepek)));
+    
+    options.AddPolicy("RequireJogszabalyok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Jogszabalyok)));
+    
+    options.AddPolicy("RequireEmailSablonok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.EmailSablonok)));
+    
+    options.AddPolicy("RequireKalibraciok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Kalibraciok)));
+    
+    options.AddPolicy("RequireJegyzokonyvek", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Jegyzokonyvek)));
+    
+    // Admin-only policies
+    options.AddPolicy("RequireAdmin", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.AdminFunkciok, adminOnly: true)));
+    
+    options.AddPolicy("RequireRiportok", policy =>
+        policy.Requirements.Add(new BiztvillCRM.Web.Authorization.ModulRequirement(ModulJogosultsag.Riportok, adminOnly: true)));
+});
+
+// Authorization handler regisztrálása
+builder.Services.AddScoped<IAuthorizationHandler, BiztvillCRM.Web.Authorization.ModulAuthorizationHandler>();
 
 var app = builder.Build();
 

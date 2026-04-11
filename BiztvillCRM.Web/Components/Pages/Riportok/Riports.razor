@@ -1,0 +1,40 @@
+@page "/riportok"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = "RequireAdmin")]
+
+<PageTitle>Riportok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Riportok</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6" lg="4">
+        <MudCard Href="/riportok/osszefoglalo" Class="cursor-pointer">
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.Summarize" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Class="mt-2">Összefoglaló</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Rendszer áttekintés</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" md="6" lg="4">
+        <MudCard Href="/riportok/lejaratok" Class="cursor-pointer">
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Warning" />
+                <MudText Typo="Typo.h6" Class="mt-2">Lejáratok</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Közelgő lejáratok</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" md="6" lg="4">
+        <MudCard Href="/riportok/cegek" Class="cursor-pointer">
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Color="Color.Info" />
+                <MudText Typo="Typo.h6" Class="mt-2">Cégek statisztikája</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Cégenkénti adatok</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+}

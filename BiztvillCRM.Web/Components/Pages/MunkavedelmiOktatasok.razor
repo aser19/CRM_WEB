@@ -545,9 +545,17 @@
 
         if (result == true)
         {
-            await OktatasService.DeleteAsync(oktatas.Id);
-            Snackbar.Add("Oktatás törölve.", Severity.Success);
-            await BetoltesAsync();
+            try
+            {
+                // Admin esetén mindenCegre = true, hogy más cég bejegyzéseit is törölhesse
+                await OktatasService.DeleteAsync(oktatas.Id, mindenCegre: _isAdmin);
+                Snackbar.Add("Oktatás törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
+            }
         }
     }
 

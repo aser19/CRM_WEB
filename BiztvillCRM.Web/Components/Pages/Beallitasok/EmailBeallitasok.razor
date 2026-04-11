@@ -10,6 +10,7 @@
 @inject IEmailBeallitasService EmailBeallitasService
 @inject IEmailSablonService SablonService
 @inject ITenantService TenantService
+@inject IModulJogosultsagService ModulService
 @inject ISnackbar Snackbar
 
 <PageTitle>Email beállítások</PageTitle>
@@ -39,19 +40,58 @@
                     Alapértelmezett értesítések új cégeknek
                 </MudText>
                 
-                <MudStack>
+                <!-- Hitelesítések -->
+                <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Class="mr-1" />
+                    Hitelesítések
+                </MudText>
+                <MudStack Class="ml-4">
                     <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat90Nap)"
                                  ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.HitelesitesLejarat90Nap, v))"
                                  Label="Hitelesítés lejárat - 90 nappal előtte" Color="Color.Primary" />
                     <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat30Nap)"
                                  ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.HitelesitesLejarat30Nap, v))"
                                  Label="Hitelesítés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                </MudStack>
+
+                <!-- Mérések -->
+                <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" Class="mr-1" />
+                    Mérések
+                </MudText>
+                <MudStack Class="ml-4">
                     <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat90Nap)"
                                  ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.MeresLejarat90Nap, v))"
                                  Label="Mérés lejárat - 90 nappal előtte" Color="Color.Primary" />
                     <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat30Nap)"
                                  ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.MeresLejarat30Nap, v))"
                                  Label="Mérés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                </MudStack>
+
+                <!-- Munkavédelem -->
+                <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                    <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Size="Size.Small" Class="mr-1" />
+                    Munkavédelem
+                </MudText>
+                <MudStack Class="ml-4">
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.MunkavedelmiOktatas90Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.MunkavedelmiOktatas90Nap, v))"
+                                 Label="Munkavédelmi oktatás - 90 nappal előtte" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.MunkavedelmiOktatas30Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.MunkavedelmiOktatas30Nap, v))"
+                                 Label="Munkavédelmi oktatás - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.KockazatFelulvizsgalat90Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.KockazatFelulvizsgalat90Nap, v))"
+                                 Label="Kockázatértékelés felülvizsgálat - 90 nappal előtte" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.KockazatFelulvizsgalat30Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.KockazatFelulvizsgalat30Nap, v))"
+                                 Label="Kockázatértékelés felülvizsgálat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.ZonaterkepLejarat90Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.ZonaterkepLejarat90Nap, v))"
+                                 Label="Zónatérkép lejárat - 90 nappal előtte" Color="Color.Primary" />
+                    <MudCheckBox T="bool" Value="@HasFlag(_alapertelmezettBeallitas.ErtesitesTipusok, EmailErtesitesTipus.ZonaterkepLejarat30Nap)"
+                                 ValueChanged="@(v => ToggleAlapertelmezettErtesites(EmailErtesitesTipus.ZonaterkepLejarat30Nap, v))"
+                                 Label="Zónatérkép lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
                 </MudStack>
 
                 <MudDivider Class="my-4" />
@@ -388,6 +428,9 @@
     {
         _betoltes = true;
 
+        // Modulok inicializálása
+        await ModulService.InitializeAsync();
+
         if (_isAdmin)
         {
             // Admin: alapértelmezett beállítások betöltése
@@ -399,6 +442,9 @@
                 TitkositasTipus = SmtpTitkositasTipus.Auto,
                 Aktiv = true
             };
+            
+            // Admin látja az összes sablont
+            _sablonok = await SablonService.GetAllAsync();
         }
         else
         {
@@ -406,7 +452,6 @@
             _beallitas = await EmailBeallitasService.GetByCegIdAsync(_cegId);
             if (_beallitas is null)
             {
-                // Ha nincs még beállítás, létrehozzuk az alapértelmezettből
                 _beallitas = await EmailBeallitasService.CreateForNewCegAsync(_cegId);
             }
 
@@ -418,9 +463,11 @@
                 }
                 catch { _egyediCimek = new() { "" }; }
             }
+            
+            // Nem-admin: sablonok szűrése modul jogosultságok alapján
+            var aktivModulok = ModulService.GetAktivModulok();
+            _sablonok = await SablonService.GetAllFilteredByModulokAsync(aktivModulok);
         }
-
-        _sablonok = await SablonService.GetAllAsync();
 
         _betoltes = false;
     }

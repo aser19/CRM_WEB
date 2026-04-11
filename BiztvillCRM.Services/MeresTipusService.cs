@@ -7,40 +7,51 @@ namespace BiztvillCRM.Services;
 
 public class MeresTipusService : IMeresTipusService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
 
-    public MeresTipusService(CrmDbContext context) => _context = context;
+    public MeresTipusService(IDbContextFactory<CrmDbContext> contextFactory) => _contextFactory = contextFactory;
 
-    public async Task<List<MeresTipus>> GetAllAsync() =>
-        await _context.MeresTipusok
+    public async Task<List<MeresTipus>> GetAllAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTipusok
             .AsNoTracking()
             .OrderBy(m => m.Nev)
             .ToListAsync();
+    }
 
-    public async Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync() =>
-        await _context.MeresTipusok
+    public async Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTipusok
             .Include(m => m.KepzesKovetelemenyei)
                 .ThenInclude(k => k.KepzesTipus)
             .AsNoTracking()
             .OrderBy(m => m.Nev)
             .ToListAsync();
+    }
 
-    public async Task<MeresTipus?> GetByIdAsync(int id) =>
-        await _context.MeresTipusok
+    public async Task<MeresTipus?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTipusok
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == id);
+    }
 
     public async Task<MeresTipus> CreateAsync(MeresTipus meresTipus)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         meresTipus.Letrehozva = DateTime.UtcNow;
-        _context.MeresTipusok.Add(meresTipus);
-        await _context.SaveChangesAsync();
+        context.MeresTipusok.Add(meresTipus);
+        await context.SaveChangesAsync();
         return meresTipus;
     }
 
     public async Task<MeresTipus> UpdateAsync(MeresTipus meresTipus)
     {
-        var existing = await _context.MeresTipusok.FindAsync(meresTipus.Id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.MeresTipusok.FindAsync(meresTipus.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
         existing.Nev = meresTipus.Nev;
@@ -51,31 +62,29 @@ public class MeresTipusService : IMeresTipusService
         existing.Aktiv = meresTipus.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task UpdateWithKovetelemenyekAsync(MeresTipus tipus)
     {
-        var existing = await _context.MeresTipusok
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.MeresTipusok
             .Include(m => m.KepzesKovetelemenyei)
             .FirstOrDefaultAsync(m => m.Id == tipus.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        // Alap adatok frissítése
         existing.Nev = tipus.Nev;
         existing.Leiras = tipus.Leiras;
         existing.SablonId = tipus.SablonId;
         existing.JegyzokonyvPrefix = tipus.JegyzokonyvPrefix;
         existing.Modositva = DateTime.UtcNow;
         
-        // Régi követelmények törlése
-        _context.MeresTipusKepzesKovetelemenyei.RemoveRange(existing.KepzesKovetelemenyei);
+        context.MeresTipusKepzesKovetelemenyei.RemoveRange(existing.KepzesKovetelemenyei);
         
-        // Új követelmények hozzáadása
         foreach (var kov in tipus.KepzesKovetelemenyei)
         {
-            _context.MeresTipusKepzesKovetelemenyei.Add(new MeresTipusKepzesKovetelemeny
+            context.MeresTipusKepzesKovetelemenyei.Add(new MeresTipusKepzesKovetelemeny
             {
                 MeresTipusId = tipus.Id,
                 KepzesTipusId = kov.KepzesTipusId,
@@ -86,16 +95,17 @@ public class MeresTipusService : IMeresTipusService
             });
         }
         
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
     {
-        var meresTipus = await _context.MeresTipusok.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var meresTipus = await context.MeresTipusok.FindAsync(id);
         if (meresTipus is not null)
         {
-            _context.MeresTipusok.Remove(meresTipus);
-            await _context.SaveChangesAsync();
+            context.MeresTipusok.Remove(meresTipus);
+            await context.SaveChangesAsync();
         }
     }
 }

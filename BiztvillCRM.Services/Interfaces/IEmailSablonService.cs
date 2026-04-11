@@ -7,6 +7,7 @@ namespace BiztvillCRM.Services.Interfaces;
 public interface IEmailSablonService
 {
     Task<List<EmailSablon>> GetAllAsync();
+    Task<List<EmailSablon>> GetAllFilteredByModulokAsync(ModulJogosultsag aktivModulok);
     Task<EmailSablon?> GetByIdAsync(int id);
     Task<EmailSablon?> GetByTipusAsync(EmailErtesitesTipus tipus, int? cegId = null);
     Task<EmailSablon> CreateAsync(EmailSablon sablon);

@@ -8,19 +8,21 @@ namespace BiztvillCRM.Services;
 
 public class EszkozService : IEszkozService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
     private readonly ITenantService _tenantService;
 
-    public EszkozService(CrmDbContext context, ITenantService tenantService)
+    public EszkozService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _tenantService = tenantService;
     }
 
     public async Task<List<Eszkoz>> GetAllAsync()
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Eszkozok
+        var query = context.Eszkozok
             .Include(e => e.Gyarto)
             .Include(e => e.Ugyfel)
             .Include(e => e.Telephely)
@@ -36,8 +38,10 @@ public class EszkozService : IEszkozService
 
     public async Task<Eszkoz?> GetByIdAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Eszkozok
+        var query = context.Eszkozok
             .Include(e => e.Gyarto)
             .Include(e => e.Ugyfel)
             .Include(e => e.Telephely)
@@ -53,24 +57,32 @@ public class EszkozService : IEszkozService
 
     public async Task<Eszkoz> CreateAsync(Eszkoz eszkoz)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var ugyfel = await _context.Ugyfelek.FindAsync(eszkoz.UgyfelId);
+        var ugyfel = await context.Ugyfelek.FindAsync(eszkoz.UgyfelId);
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága eszköz létrehozásához ennél az ügyfélnél.");
         }
 
+        eszkoz.Ugyfel = null!;
+        eszkoz.Telephely = null!;
+        eszkoz.Gyarto = null!;
         eszkoz.Letrehozva = DateTime.UtcNow;
-        _context.Eszkozok.Add(eszkoz);
-        await _context.SaveChangesAsync();
+        
+        context.Eszkozok.Add(eszkoz);
+        await context.SaveChangesAsync();
         return eszkoz;
     }
 
     public async Task<Eszkoz> UpdateAsync(Eszkoz eszkoz)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var existing = await _context.Eszkozok
+        var existing = await context.Eszkozok
             .Include(e => e.Ugyfel)
             .FirstOrDefaultAsync(e => e.Id == eszkoz.Id)
             ?? throw new InvalidOperationException("Nem található.");
@@ -89,14 +101,16 @@ public class EszkozService : IEszkozService
         existing.Aktiv = eszkoz.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var eszkoz = await _context.Eszkozok
+        var eszkoz = await context.Eszkozok
             .Include(e => e.Ugyfel)
             .FirstOrDefaultAsync(e => e.Id == id);
 
@@ -107,8 +121,8 @@ public class EszkozService : IEszkozService
                 throw new UnauthorizedAccessException("Nincs jogosultsága az eszköz törléséhez.");
             }
 
-            _context.Eszkozok.Remove(eszkoz);
-            await _context.SaveChangesAsync();
+            context.Eszkozok.Remove(eszkoz);
+            await context.SaveChangesAsync();
         }
     }
 }

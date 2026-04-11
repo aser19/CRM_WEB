@@ -5,11 +5,11 @@ namespace BiztvillCRM.Services.Interfaces;
 public interface IMunkavedelmiOktatasService
 {
     Task<List<MunkavedelmiOktatas>> GetAllAsync(bool mindenCegre = false);
-    Task<MunkavedelmiOktatas?> GetByIdAsync(int id);
+    Task<MunkavedelmiOktatas?> GetByIdAsync(int id, bool mindenCegre = false);
     Task<MunkavedelmiOktatas?> GetByIdWithResztvevokAsync(int id);
     Task<MunkavedelmiOktatas> CreateAsync(MunkavedelmiOktatas oktatas);
     Task<MunkavedelmiOktatas> UpdateAsync(MunkavedelmiOktatas oktatas);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(int id, bool mindenCegre = false);
     
     // Résztvevők
     Task<List<MunkavedelmiOktatasResztvevo>> GetResztvevokAsync(int oktatasId);

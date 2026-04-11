@@ -8,19 +8,21 @@ namespace BiztvillCRM.Services;
 
 public class TelephelyService : ITelephelyService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
     private readonly ITenantService _tenantService;
 
-    public TelephelyService(CrmDbContext context, ITenantService tenantService)
+    public TelephelyService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _tenantService = tenantService;
     }
 
     public async Task<List<Telephely>> GetAllAsync()
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Telephelyek
+        var query = context.Telephelyek
             .Include(t => t.Ugyfel)
             .AsQueryable();
 
@@ -34,8 +36,10 @@ public class TelephelyService : ITelephelyService
 
     public async Task<Telephely?> GetByIdAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Telephelyek
+        var query = context.Telephelyek
             .Include(t => t.Ugyfel)
             .AsQueryable();
 
@@ -49,25 +53,31 @@ public class TelephelyService : ITelephelyService
 
     public async Task<Telephely> CreateAsync(Telephely telephely)
     {
-        // Ellenőrzés: az ügyfél a saját céghez tartozik-e
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var ugyfel = await _context.Ugyfelek.FindAsync(telephely.UgyfelId);
+        var ugyfel = await context.Ugyfelek.FindAsync(telephely.UgyfelId);
         
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága telephely létrehozásához ennél az ügyfélnél.");
         }
 
+        // Fontos: ne állítsuk be az Ugyfel navigation property-t!
+        telephely.Ugyfel = null!;
         telephely.Letrehozva = DateTime.UtcNow;
-        _context.Telephelyek.Add(telephely);
-        await _context.SaveChangesAsync();
+        
+        context.Telephelyek.Add(telephely);
+        await context.SaveChangesAsync();
         return telephely;
     }
 
     public async Task<Telephely> UpdateAsync(Telephely telephely)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var existing = await _context.Telephelyek
+        var existing = await context.Telephelyek
             .Include(t => t.Ugyfel)
             .FirstOrDefaultAsync(t => t.Id == telephely.Id)
             ?? throw new InvalidOperationException("Nem található.");
@@ -79,33 +89,44 @@ public class TelephelyService : ITelephelyService
 
         existing.Nev = telephely.Nev;
         existing.Cim = telephely.Cim;
-        existing.UgyfelId = telephely.UgyfelId;
         existing.Kapcsolattarto = telephely.Kapcsolattarto;
         existing.Telefon = telephely.Telefon;
         existing.Email = telephely.Email;
         existing.Aktiv = telephely.Aktiv;
+        existing.UgyfelId = telephely.UgyfelId;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var telephely = await _context.Telephelyek
+        var telephely = await context.Telephelyek
             .Include(t => t.Ugyfel)
             .FirstOrDefaultAsync(t => t.Id == id);
 
-        if (telephely is not null)
-        {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely.Ugyfel.CegId != cegId)
-            {
-                throw new UnauthorizedAccessException("Nincs jogosultsága a telephely törléséhez.");
-            }
+        if (telephely is null) return;
 
-            _context.Telephelyek.Remove(telephely);
-            await _context.SaveChangesAsync();
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely.Ugyfel.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Nincs jogosultsága a telephely törléséhez.");
         }
+
+        context.Telephelyek.Remove(telephely);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<List<Telephely>> GetByUgyfelIdAsync(int ugyfelId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        return await context.Telephelyek
+            .Where(t => t.UgyfelId == ugyfelId)
+            .OrderBy(t => t.Nev)
+            .ToListAsync();
     }
 }

@@ -8,47 +8,89 @@ namespace BiztvillCRM.Services;
 
 public class EmailSablonService : IEmailSablonService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
     private readonly ITenantService _tenantService;
 
-    public EmailSablonService(CrmDbContext context, ITenantService tenantService)
+    // Mapping: EmailErtesitesTipus -> ModulJogosultsag
+    private static readonly Dictionary<EmailErtesitesTipus, ModulJogosultsag> TipusModulMapping = new()
     {
-        _context = context;
+        { EmailErtesitesTipus.HitelesitesLejarat90Nap, ModulJogosultsag.Hitelesitesek },
+        { EmailErtesitesTipus.HitelesitesLejarat30Nap, ModulJogosultsag.Hitelesitesek },
+        { EmailErtesitesTipus.MeresLejarat90Nap, ModulJogosultsag.Meresek },
+        { EmailErtesitesTipus.MeresLejarat30Nap, ModulJogosultsag.Meresek },
+        { EmailErtesitesTipus.KockazatFelulvizsgalat90Nap, ModulJogosultsag.Kockazatertekelesek },
+        { EmailErtesitesTipus.KockazatFelulvizsgalat30Nap, ModulJogosultsag.Kockazatertekelesek },
+        { EmailErtesitesTipus.MunkavedelmiOktatas90Nap, ModulJogosultsag.MunkavedelmiOktatasok },
+        { EmailErtesitesTipus.MunkavedelmiOktatas30Nap, ModulJogosultsag.MunkavedelmiOktatasok },
+        { EmailErtesitesTipus.ZonaterkepLejarat90Nap, ModulJogosultsag.Zonaterkepek },
+        { EmailErtesitesTipus.ZonaterkepLejarat30Nap, ModulJogosultsag.Zonaterkepek },
+    };
+
+    public EmailSablonService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService)
+    {
+        _contextFactory = contextFactory;
         _tenantService = tenantService;
     }
 
     public async Task<List<EmailSablon>> GetAllAsync()
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
         
         // Admin látja az összeset, egyébként csak a globális + saját cég sablonjait
         if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            return await _context.EmailSablonok
+            return await context.EmailSablonok
                 .Include(s => s.Ceg)
                 .OrderBy(s => s.Tipus)
                 .ThenBy(s => s.CegId)
                 .ToListAsync();
         }
 
-        return await _context.EmailSablonok
+        return await context.EmailSablonok
             .Where(s => s.CegId == null || s.CegId == cegId)
             .OrderBy(s => s.Tipus)
             .ToListAsync();
     }
 
-    public async Task<EmailSablon?> GetByIdAsync(int id) =>
-        await _context.EmailSablonok.FindAsync(id);
+    public async Task<List<EmailSablon>> GetAllFilteredByModulokAsync(ModulJogosultsag aktivModulok)
+    {
+        var sablonok = await GetAllAsync();
+        
+        // Szűrés: csak azok a sablonok, amelyek modulja aktív vagy nincs modulhoz kötve (pl. SmtpTeszt)
+        return sablonok
+            .Where(s => IsModulAktiv(s.Tipus, aktivModulok))
+            .ToList();
+    }
+
+    private static bool IsModulAktiv(EmailErtesitesTipus tipus, ModulJogosultsag aktivModulok)
+    {
+        // Ha nincs mapping (pl. SmtpTeszt), akkor mindenki láthatja
+        if (!TipusModulMapping.TryGetValue(tipus, out var szuksegesModul))
+        {
+            return true;
+        }
+
+        return aktivModulok.HasFlag(szuksegesModul);
+    }
+
+    public async Task<EmailSablon?> GetByIdAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.EmailSablonok.FindAsync(id);
+    }
 
     public async Task<EmailSablon?> GetByTipusAsync(EmailErtesitesTipus tipus, int? cegId = null)
     {
-        // Először cég-specifikus sablon, ha nincs, akkor globális
-        var sablon = await _context.EmailSablonok
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var sablon = await context.EmailSablonok
             .FirstOrDefaultAsync(s => s.Tipus == tipus && s.CegId == cegId && s.Aktiv);
 
         if (sablon is null && cegId.HasValue)
         {
-            sablon = await _context.EmailSablonok
+            sablon = await context.EmailSablonok
                 .FirstOrDefaultAsync(s => s.Tipus == tipus && s.CegId == null && s.Aktiv);
         }
 
@@ -57,15 +99,21 @@ public class EmailSablonService : IEmailSablonService
 
     public async Task<EmailSablon> CreateAsync(EmailSablon sablon)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        sablon.Ceg = null;
         sablon.Letrehozva = DateTime.UtcNow;
-        _context.EmailSablonok.Add(sablon);
-        await _context.SaveChangesAsync();
+        
+        context.EmailSablonok.Add(sablon);
+        await context.SaveChangesAsync();
         return sablon;
     }
 
     public async Task<EmailSablon> UpdateAsync(EmailSablon sablon)
     {
-        var existing = await _context.EmailSablonok.FindAsync(sablon.Id)
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var existing = await context.EmailSablonok.FindAsync(sablon.Id)
             ?? throw new InvalidOperationException("Sablon nem található.");
 
         existing.Nev = sablon.Nev;
@@ -75,17 +123,19 @@ public class EmailSablonService : IEmailSablonService
         existing.Aktiv = sablon.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
-        var sablon = await _context.EmailSablonok.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var sablon = await context.EmailSablonok.FindAsync(id);
         if (sablon is not null)
         {
-            _context.EmailSablonok.Remove(sablon);
-            await _context.SaveChangesAsync();
+            context.EmailSablonok.Remove(sablon);
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -1,12 +1,14 @@
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject ITenantService TenantService
+@inject IModulJogosultsagService ModulService
 
 <MudNavMenu>
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
         Dashboard
     </MudNavLink>
 
+    <!-- Törzsadatok - mindig látszik -->
     <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" 
                  Expanded="@(_nyitottMenu == "Torzsadatok")" 
                  ExpandedChanged="@(expanded => MenuValtas("Torzsadatok", expanded))">
@@ -20,95 +22,133 @@
         }
     </MudNavGroup>
 
-    <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed" 
-                 Expanded="@(_nyitottMenu == "Meresek")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Meresek", expanded))">
-        <MudNavLink Href="/meresek" Icon="@Icons.Material.Filled.Science">Mérések</MudNavLink>
-        <MudNavLink Href="/merestipusok" Icon="@Icons.Material.Filled.Category">Mérés típusok</MudNavLink>
-        <MudNavLink Href="/kalibraciok" Icon="@Icons.Material.Filled.Tune">Kalibrációk</MudNavLink>
-        <MudNavLink Href="/jegyzokonyv/uj" Icon="@Icons.Material.Filled.NoteAdd">Jegyzőkönyv készítés</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser" 
-                 Expanded="@(_nyitottMenu == "Hitelesitesek")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Hitelesitesek", expanded))">
-        <MudNavLink Href="/hitelesitesek" Icon="@Icons.Material.Filled.Verified">Hitelesítések</MudNavLink>
-        <MudNavLink Href="/kotelezo-hitelesitesek" Icon="@Icons.Material.Filled.LocalGasStation">Kötelező hitelesítések</MudNavLink>
-        <MudNavLink Href="/hatosagok" Icon="@Icons.Material.Filled.AccountBalance">Hatóságok</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Munkavédelem" Icon="@Icons.Material.Filled.HealthAndSafety"
-                 Expanded="@(_nyitottMenu == "Munkavedelem")"
-                 ExpandedChanged="@(expanded => MenuValtas("Munkavedelem", expanded))">
-        <MudNavLink Href="/munkavedelmi-oktatasok" Icon="@Icons.Material.Filled.School">Munkavédelmi oktatások</MudNavLink>
-        <MudNavLink Href="/kockazatertekeles" Icon="@Icons.Material.Filled.Warning">Kockázatértékelés</MudNavLink>
-        <MudNavLink Href="/zonaterkepek" Icon="@Icons.Material.Filled.Map">Zónatérképek</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering"
-                 Expanded="@(_nyitottMenu == "Karbantartas")"
-                 ExpandedChanged="@(expanded => MenuValtas("Karbantartas", expanded))">
-        <MudNavLink Href="/karbantartasok" Icon="@Icons.Material.Filled.Handyman">Karbantartások</MudNavLink>
-        <MudNavLink Href="/terminalok" Icon="@Icons.Material.Filled.PointOfSale">Terminálok</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Tanúsítványok" Icon="@Icons.Material.Filled.CardMembership" 
-                 Expanded="@(_nyitottMenu == "Tanusitvanyok")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Tanusitvanyok", expanded))">
-        <MudNavLink Href="/tanusitvanyok" Icon="@Icons.Material.Filled.Badge">Tanúsítványok</MudNavLink>
-        <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Engineering">Felülvizsgálók</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavLink Href="/jogszabalyok" Icon="@Icons.Material.Filled.Gavel">Jogszabályok</MudNavLink>
-
-    <MudNavGroup Title="Riportok" Icon="@Icons.Material.Filled.Assessment" 
-                 Expanded="@(_nyitottMenu == "Riportok")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Riportok", expanded))">
-        <MudNavLink Href="/riportok" Icon="@Icons.Material.Filled.Description">Riportok</MudNavLink>
-        <MudNavLink Href="/dokumentumok" Icon="@Icons.Material.Filled.FolderOpen">Dokumentumok</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Title="Beállítások" Icon="@Icons.Material.Filled.Settings" 
-                 Expanded="@(_nyitottMenu == "Beallitasok")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Beallitasok", expanded))">
-        <MudNavLink Href="/beallitasok/ceg" Icon="@Icons.Material.Filled.Tune">Cég beállítások</MudNavLink>
-        <MudNavLink Href="/beallitasok/email" Icon="@Icons.Material.Filled.Email">Email beállítások</MudNavLink>
-        <MudNavLink Href="/beallitasok/licensz" Icon="@Icons.Material.Filled.Key">Licensz</MudNavLink>
-    </MudNavGroup>
-
-    @if (_isAdmin || _isCegAdmin)
+    <!-- Mérések - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Meresek))
     {
-        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" 
-                     Expanded="@(_nyitottMenu == "Admin")" 
-                     ExpandedChanged="@(expanded => MenuValtas("Admin", expanded))">
-            <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.ManageAccounts">Felhasználók</MudNavLink>
-            <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modulok</MudNavLink>
-            @if (_isAdmin)
+        <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed"
+                     Expanded="@(_nyitottMenu == "Meresek")"
+                     ExpandedChanged="@(expanded => MenuValtas("Meresek", expanded))">
+            <MudNavLink Href="/meresek" Icon="@Icons.Material.Filled.Assessment">Mérések</MudNavLink>
+            <MudNavLink Href="/kalibraciok" Icon="@Icons.Material.Filled.Tune">Kalibrációk</MudNavLink>
+            <MudNavLink Href="/jegyzokonyvek" Icon="@Icons.Material.Filled.Description">Jegyzőkönyv készítés</MudNavLink>
+            <MudNavLink Href="/meres-tipusok" Icon="@Icons.Material.Filled.Category">Méréstípusok</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Hitelesítések - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Hitelesitesek))
+    {
+        <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser"
+                     Expanded="@(_nyitottMenu == "Hitelesitesek")"
+                     ExpandedChanged="@(expanded => MenuValtas("Hitelesitesek", expanded))">
+            <MudNavLink Href="/hitelesitesek" Icon="@Icons.Material.Filled.Verified">Hitelesítések</MudNavLink>
+            <MudNavLink Href="/kotelezo-hitelesitesek" Icon="@Icons.Material.Filled.LocalGasStation">Kötelező hitelesítések</MudNavLink>
+            <MudNavLink Href="/hatosagok" Icon="@Icons.Material.Filled.AccountBalance">Hatóságok</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Munkavédelem - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Munkavedelem))
+    {
+        <MudNavGroup Title="Munkavédelem" Icon="@Icons.Material.Filled.HealthAndSafety"
+                     Expanded="@(_nyitottMenu == "Munkavedelem")"
+                     ExpandedChanged="@(expanded => MenuValtas("Munkavedelem", expanded))">
+            @if (HasModule(ModulJogosultsag.MunkavedelmiOktatasok))
             {
-                <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.CorporateFare">Cégek</MudNavLink>
-                <MudNavLink Href="/admin/email-naplo" Icon="@Icons.Material.Filled.MailOutline">Email napló</MudNavLink>
+                <MudNavLink Href="/munkavedelmi-oktatasok" Icon="@Icons.Material.Filled.School">Munkavédelmi oktatások</MudNavLink>
             }
+            @if (HasModule(ModulJogosultsag.Kockazatertekelesek))
+            {
+                <MudNavLink Href="/kockazatertekelesek" Icon="@Icons.Material.Filled.Warning">Kockázatértékelések</MudNavLink>
+            }
+            @if (HasModule(ModulJogosultsag.Zonaterkepek))
+            {
+                <MudNavLink Href="/zonaterkepek" Icon="@Icons.Material.Filled.Map">Zónatérképek</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
+    <!-- Karbantartás - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Karbantartasok))
+    {
+        <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering"
+                     Expanded="@(_nyitottMenu == "Karbantartas")"
+                     ExpandedChanged="@(expanded => MenuValtas("Karbantartas", expanded))">
+            <MudNavLink Href="/karbantartasok" Icon="@Icons.Material.Filled.Build">Karbantartások</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Jogszabályok - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Jogszabalyok))
+    {
+        <MudNavLink Href="/jogszabalyok" Icon="@Icons.Material.Filled.Gavel">Jogszabályok</MudNavLink>
+    }
+
+    <!-- Riportok - csak admin felhasználóknak -->
+    @if (_isAdmin)
+    {
+        <MudNavGroup Title="Riportok" Icon="@Icons.Material.Filled.Analytics"
+                     Expanded="@(_nyitottMenu == "Riportok")"
+                     ExpandedChanged="@(expanded => MenuValtas("Riportok", expanded))">
+            <MudNavLink Href="/riportok/osszefoglalo" Icon="@Icons.Material.Filled.Summarize">Összefoglaló</MudNavLink>
+            <MudNavLink Href="/riportok/lejaratok" Icon="@Icons.Material.Filled.EventBusy">Lejáratok</MudNavLink>
+            <MudNavLink Href="/riportok/cegek" Icon="@Icons.Material.Filled.BusinessCenter">Cégek statisztikája</MudNavLink>
+            <MudNavLink Href="/riportok/email-statisztika" Icon="@Icons.Material.Filled.MailOutline">Email statisztika</MudNavLink>
+            <MudNavLink Href="/riportok/aktivitas" Icon="@Icons.Material.Filled.TrendingUp">Aktivitás napló</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Beállítások -->
+    <MudNavGroup Title="Beállítások" Icon="@Icons.Material.Filled.Settings"
+                 Expanded="@(_nyitottMenu == "Beallitasok")"
+                 ExpandedChanged="@(expanded => MenuValtas("Beallitasok", expanded))">
+        @if (_isAdmin)
+        {
+            <MudNavLink Href="/beallitasok/ceg" Icon="@Icons.Material.Filled.Business">Cégbeállítások</MudNavLink>
+            <MudNavLink Href="/beallitasok/licensz" Icon="@Icons.Material.Filled.Key">Licensz kezelés</MudNavLink>
+        }
+        @if (HasModule(ModulJogosultsag.EmailSablonok))
+        {
+            <MudNavLink Href="/beallitasok/email" Icon="@Icons.Material.Filled.Email">Email beállítások</MudNavLink>
+        }
+    </MudNavGroup>
+
+    <!-- Admin - csak admin felhasználóknak -->
+    @if (_isAdmin)
+    {
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings"
+                     Expanded="@(_nyitottMenu == "Admin")"
+                     ExpandedChanged="@(expanded => MenuValtas("Admin", expanded))">
+            <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.Business">Cégek</MudNavLink>
+            <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.People">Felhasználók</MudNavLink>
+            <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modul kezelés</MudNavLink>
+            <MudNavLink Href="/admin/email-naplo" Icon="@Icons.Material.Filled.MarkEmailRead">Email napló</MudNavLink>
+            <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Speed">Mérés típusok</MudNavLink>
             <MudNavLink Href="/admin/kepzes-tipusok" Icon="@Icons.Material.Filled.School">Képzés típusok</MudNavLink>
-            <MudNavLink Href="/admin/kepzes-szabalyok" Icon="@Icons.Material.Filled.AccountTree">Képzési szabályok</MudNavLink>
-            <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Assignment">Mérés típusok</MudNavLink>
+            <MudNavLink Href="/admin/kepzes-szabalyok" Icon="@Icons.Material.Filled.Rule">Képzés szabályok</MudNavLink>
         </MudNavGroup>
     }
 </MudNavMenu>
 
 @code {
     private bool _isAdmin;
-    private bool _isCegAdmin;
-    private string? _nyitottMenu;  // Csak egy lehet nyitva egyszerre
+    private string? _nyitottMenu;
+    private ModulJogosultsag _aktivModulok;
 
     protected override void OnInitialized()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
-        _isCegAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.CegAdmin);
     }
 
-    /// <summary>
-    /// Ha egy menüt megnyitunk, a többi automatikusan bezáródik.
-    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await ModulService.InitializeAsync();
+        _aktivModulok = ModulService.GetAktivModulok();
+    }
+
+    private bool HasModule(ModulJogosultsag modul) => 
+        _isAdmin || _aktivModulok.HasFlag(modul);
+
     private void MenuValtas(string menuNev, bool expanded)
     {
         _nyitottMenu = expanded ? menuNev : null;

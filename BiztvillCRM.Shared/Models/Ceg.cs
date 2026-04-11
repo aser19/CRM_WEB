@@ -20,11 +20,11 @@ public class Ceg
     public string? Weboldal { get; set; }
     public bool Aktiv { get; set; } = true;
 
-    /// <summary>Tevékenységi kör(ök) - kötelező, legalább egy kiválasztása szükséges.</summary>
+    /// <summary>Tevékenységi körök (üzleti kategorizálás)</summary>
     public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
 
-    /// <summary>Munkavédelmi modul engedélyezve - ha true, a cég hozzáfér a munkavédelmi funkciókhoz.</summary>
-    public bool MunkavedelmiModul { get; set; } = false;
+    /// <summary>Aktív modul jogosultságok (funkcióhoz való hozzáférés)</summary>
+    public ModulJogosultsag AktivModulok { get; set; } = ModulJogosultsag.Ugyfelek;
 
     // Navigációs property-k
     public List<Felhasznalo> Felhasznalok { get; set; } = new();

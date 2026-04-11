@@ -8,19 +8,21 @@ namespace BiztvillCRM.Services;
 
 public class MeresService : IMeresService
 {
-    private readonly CrmDbContext _context;
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
     private readonly ITenantService _tenantService;
 
-    public MeresService(CrmDbContext context, ITenantService tenantService)
+    public MeresService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _tenantService = tenantService;
     }
 
     public async Task<List<Meres>> GetAllAsync()
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Meresek
+        var query = context.Meresek
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
@@ -36,8 +38,10 @@ public class MeresService : IMeresService
 
     public async Task<Meres?> GetByIdAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Meresek
+        var query = context.Meresek
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
@@ -53,45 +57,45 @@ public class MeresService : IMeresService
 
     public async Task<Meres> CreateAsync(Meres meres)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var ugyfel = await _context.Ugyfelek.FirstOrDefaultAsync(u => u.Id == meres.UgyfelId);
+        var ugyfel = await context.Ugyfelek.FirstOrDefaultAsync(u => u.Id == meres.UgyfelId);
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága mérés létrehozásához ennél az ügyfélnél.");
         }
 
-        // Ellenőrizzük, hogy a telephely az ügyfélhez tartozik-e
-        var telephely = await _context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
+        var telephely = await context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
         if (telephely?.UgyfelId != meres.UgyfelId)
         {
             throw new InvalidOperationException("A telephely nem tartozik a kiválasztott ügyfélhez.");
         }
 
+        meres.Ugyfel = null!;
+        meres.Telephely = null!;
+        meres.MeresTipus = null!;
         meres.Letrehozva = DateTime.UtcNow;
-        _context.Meresek.Add(meres);
-        await _context.SaveChangesAsync();
+        
+        context.Meresek.Add(meres);
+        await context.SaveChangesAsync();
         return meres;
     }
 
     public async Task<Meres> UpdateAsync(Meres meres)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var existing = await _context.Meresek
+        var existing = await context.Meresek
             .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == meres.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel?.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId)
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a mérés módosításához.");
-        }
-
-        // Ellenőrizzük, hogy a telephely az ügyfélhez tartozik-e
-        var telephely = await _context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
-        if (telephely?.UgyfelId != meres.UgyfelId)
-        {
-            throw new InvalidOperationException("A telephely nem tartozik a kiválasztott ügyfélhez.");
         }
 
         existing.UgyfelId = meres.UgyfelId;
@@ -99,31 +103,33 @@ public class MeresService : IMeresService
         existing.MeresTipusId = meres.MeresTipusId;
         existing.Datum = meres.Datum;
         existing.KovetkezoDatum = meres.KovetkezoDatum;
-        existing.Eredmeny = meres.Eredmeny;
-        existing.MeresStatusz = meres.MeresStatusz;
+        existing.Eredmeny = meres.Eredmeny;           // <-- JegyzokonyvSzam helyett
+        existing.MeresStatusz = meres.MeresStatusz;   // <-- Ez is hiányzott
         existing.Megjegyzes = meres.Megjegyzes;
         existing.Modositva = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
         var cegId = _tenantService.GetCurrentCegId();
-        var meres = await _context.Meresek
+        var meres = await context.Meresek
             .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (meres is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel?.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel!.CegId != cegId)
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
             }
 
-            _context.Meresek.Remove(meres);
-            await _context.SaveChangesAsync();
+            context.Meresek.Remove(meres);
+            await context.SaveChangesAsync();
         }
     }
 }
