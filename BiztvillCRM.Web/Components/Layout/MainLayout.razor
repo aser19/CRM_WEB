@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
+@inject BiztvillCRM.Services.Interfaces.ITenantService TenantService
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -14,8 +15,21 @@
                                OnClick="@ToggleDrawer" />
                 <MudText Typo="Typo.h6" Class="ml-3">Biztovill CRM</MudText>
                 <MudSpacer />
+                
+                <!-- Felhasználó információ -->
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mr-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                    <MudText Typo="Typo.body2" Class="d-none d-sm-block">@_felhasznaloNev</MudText>
+                    @if (_isAdmin)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="ml-1">Admin</MudChip>
+                    }
+                </MudStack>
+                
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" Style="height: 24px; align-self: center;" />
+                
                 <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
-                               Color="Color.Inherit" OnClick="@ToggleDarkMode" />
+                               Color="Color.Inherit" OnClick="@ToggleDarkMode" Title="Téma váltás" />
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" 
                                OnClick="Kijelentkezes" Title="Kijelentkezés" />
             </MudAppBar>
@@ -34,6 +48,8 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
+    private string _felhasznaloNev = "";
+    private bool _isAdmin = false;
 
     private MudTheme _theme = new MudTheme()
     {
@@ -62,6 +78,12 @@
             DrawerText = "#E0E0E0"
         }
     };
+
+    protected override void OnInitialized()
+    {
+        _felhasznaloNev = TenantService.GetCurrentUserName();
+        _isAdmin = TenantService.IsInRole(BiztvillCRM.Shared.Enums.FelhasznaloSzerepkor.Admin);
+    }
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
