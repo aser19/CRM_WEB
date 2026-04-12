@@ -64,6 +64,7 @@ public class SablonService : ISablonService
             "TUZV_MINTA" => "Tűzvédelmi jegyzőkönyv",
             "ERINT_MINTA" => "Érintésvédelmi mérés",
             "VILLAM_MINTA" => "Villámvédelmi felülvizsgálat",
+            "hordozhato" => "Hordozható munkaeszközök felülvizsgálata",  // ÚJ
             _ => nev.Replace("_", " ")
         };
 

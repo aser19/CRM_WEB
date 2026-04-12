@@ -65,6 +65,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<MunkavedelmiOktatasResztvevo> MunkavedelmiOktatasResztvevok { get; set; }
     public DbSet<Kockazatertekeles> Kockazatertekelesek { get; set; }
     public DbSet<Zonaterkep> Zonaterkepek { get; set; }
+    public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -420,6 +421,17 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Targy).HasMaxLength(500);
             entity.Property(e => e.Hiba).HasMaxLength(2000);
             entity.HasIndex(e => e.Kuldve);
+        });
+
+        // --- MunkaszamSzamlalo ---
+        modelBuilder.Entity<MunkaszamSzamlalo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.CegId, e.Ev }).IsUnique();
+            entity.HasOne(e => e.Ceg)
+                  .WithMany()
+                  .HasForeignKey(e => e.CegId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

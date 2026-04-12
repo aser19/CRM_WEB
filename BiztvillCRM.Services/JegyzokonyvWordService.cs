@@ -33,8 +33,14 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
 
     public async Task<byte[]> GeneralasAsync(int meresId, JegyzokonyvAdatok formAdatok, string sablonId = "VBF_KIF_MINTA")
     {
-        var meres = await _meresService.GetByIdAsync(meresId)
-            ?? throw new ArgumentException($"Mérés nem található: {meresId}");
+        // Új jegyzőkönyvnél (meresId == 0) a meres objektum opcionális
+        Meres? meres = null;
+        if (meresId > 0)
+        {
+            meres = await _meresService.GetByIdAsync(meresId);
+            if (meres == null)
+                throw new ArgumentException($"Mérés nem található: {meresId}");
+        }
 
         var sablon = await _sablonService.GetByIdAsync(sablonId)
             ?? throw new ArgumentException($"Sablon nem található: {sablonId}");
@@ -44,16 +50,26 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
         if (!File.Exists(sablonPath))
             throw new FileNotFoundException($"Sablon fájl nem található: {sablonPath}");
 
-        // Bejelentkezett felhasználó cége
         var cegId = _tenantService.GetCurrentCegId();
         var ceg = await _cegService.GetByIdAsync(cegId);
+
+        // Eszközök statisztikái
+        var eszkozok = formAdatok?.Eszkozok ?? new List<HordozhatoEszkozSor>();
+        var osszesDb = eszkozok.Count;
+        var mfDb = eszkozok.Count(e => e.Megtekint == "MF");
+        var nmfDb = eszkozok.Count(e => e.Megtekint == "NMF");
+
+        // *** MŰSZEREK - DICTIONARY ELŐTT KELL DEKLARÁLNI! ***
+        var kitoltottMuszerek = formAdatok?.Muszerek?
+            .Where(m => !string.IsNullOrEmpty(m.Tipus))
+            .ToList() ?? new List<MuszerSor>();
 
         var adatok = new Dictionary<string, object>
         {
             // === VIZSGÁLAT ALAPADATOK ===
-            ["UGYFEL_CIM"] = formAdatok?.VizsgalatHelye ?? meres.Telephely?.Cim ?? "",
-            ["MERES_IDEJE"] = meres.Datum.ToString("yyyy.MM.dd"),
-            ["GENERALT_SZAM_CEG_JGYK"] = formAdatok?.JegyzokonyvSzam ?? $"VBF-{meres.Id:D6}/{DateTime.Now:yyyy}",
+            ["UGYFEL_CIM"] = formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? "",
+            ["MERES_IDEJE"] = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
+            ["GENERALT_SZAM_CEG_JGYK"] = formAdatok?.JegyzokonyvSzam ?? $"VBF-{meresId:D6}/{DateTime.Now:yyyy}",
             ["VIZSG_TARGYA"] = formAdatok?.VizsgalatTargya ?? "",
             ["VIZSG_BERENDEZES"] = formAdatok?.VizsgaltBerendezes ?? "",
             
@@ -62,9 +78,9 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["CEG_CIME"] = ceg?.Cim ?? "",
             
             // === MEGRENDELŐ ADATOK ===
-            ["VIZSG_MEGRENDELO"] = formAdatok?.Megrendelo ?? meres.Ugyfel?.Nev ?? "",
+            ["VIZSG_MEGRENDELO"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
             ["VIZSG_UZEMI_KISERO"] = formAdatok?.UzemiKisero ?? "",
-            ["VIZSG_KAPCSOLAT_TARTO"] = formAdatok?.KapcsolatTarto ?? meres.Telephely?.Kapcsolattarto ?? "",
+            ["VIZSG_KAPCSOLAT_TARTO"] = formAdatok?.KapcsolatTarto ?? meres?.Telephely?.Kapcsolattarto ?? "",
             ["VIZSG_IDOTARTAM"] = formAdatok?.VizsgalatIdotartama ?? "",
             
             // === FELELŐS FELÜLVIZSGÁLÓ ===
@@ -83,7 +99,7 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["ELLENOR_FELUJITO_KEPZES"] = formAdatok?.EllenorKepzes ?? "",
             
             // === KELTEZÉS ===
-            ["AKT_DATUM"] = DateTime.Today.ToString("yyyy.MM.dd"),
+            ["aktualis_datum"] = DateTime.Today.ToString("yyyy.MM.dd"),
 
             // === 2. OLDAL - MINŐSÍTŐ IRAT ===
             ["EREDMENY"] = formAdatok?.Eredmeny ?? "",
@@ -97,7 +113,7 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["AVK_JEGYZOKONYV"] = formAdatok?.AvkJegyzokonyv ?? "",
             ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
 
-            // Eredmény checkbox-ok (szöveges helyettesítés)
+            // Eredmény checkbox-ok
             ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☒" : "☐",
             ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☒" : "☐",
 
@@ -105,7 +121,7 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☒" : "☐",
             ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☒" : "☐",
 
-            // === 3. OLDAL - MINŐSÍTŐ IRAT 2/2 ===
+            // === 3. OLDAL ===
             ["ERV_MEGRENDELES_X"] = formAdatok?.ERV_MEGRENDELES_X ?? "☐",
             ["ERV_SZABALYZAT_X"] = formAdatok?.ERV_SZABALYZAT_X ?? "☐",
             ["ERV_DATUM"] = formAdatok?.ERV_DATUM ?? "",
@@ -126,10 +142,117 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["HAT_6EV_DATUM"] = formAdatok?.HAT_6EV_DATUM ?? "",
             
             ["MINOSITO_MEGJEGYZES"] = formAdatok?.MINOSITO_MEGJEGYZES ?? "",
+
+            // === HORDOZHATÓ KÉSZÜLÉK SPECIFIKUS ===
+            ["ugyfel_nev"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
+            
+            ["dolgozo_neve"] = formAdatok?.DolgozoNeve ?? "",
+            ["van_dolgozo"] = !string.IsNullOrWhiteSpace(formAdatok?.DolgozoNeve) ? "true" : "",
+            ["dolgozo_szoveg"] = !string.IsNullOrWhiteSpace(formAdatok?.DolgozoNeve) 
+                ? $"Dolgozó neve: {formAdatok.DolgozoNeve}" 
+                : "",
+
+            // === KOMBINÁLT DOLGOZÓ + FORGALMI RENDSZÁM - HIÁNYZOTT! ===
+            ["dolgozo_frsz_kombinalt"] = GetDolgozoFrszKombinalt(formAdatok?.DolgozoNeve, formAdatok?.ForgalmiRendszam),
+
+            ["forgalmi_rendszam"] = formAdatok?.ForgalmiRendszam ?? "",
+            
+            ["kovetkezo_felulvizsgalat"] = formAdatok?.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") 
+                ?? meres?.KovetkezoDatum?.ToString("yyyy.MM.dd") 
+                ?? DateTime.Today.AddYears(1).ToString("yyyy.MM.dd"),
+            ["kov_felulviz_datum"] = formAdatok?.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") 
+                ?? DateTime.Today.AddYears(1).ToString("yyyy.MM.dd"),
+                
+            ["megrendelo"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
+            ["telephely"] = formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? "",
+            ["felulvizsgalat_ideje"] = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
+
+            // === MŰSZEREK (DINAMIKUS) ===
+            ["muszer1_tipus"] = kitoltottMuszerek.ElementAtOrDefault(0)?.Tipus ?? "",
+            ["muszer_gysz1"] = kitoltottMuszerek.ElementAtOrDefault(0)?.GyariSzam ?? "",
+            ["kalib1"] = kitoltottMuszerek.ElementAtOrDefault(0)?.Kalibralas ?? "",
+            ["muszer2_tipus"] = kitoltottMuszerek.ElementAtOrDefault(1)?.Tipus ?? "",
+            ["muszer_gysz2"] = kitoltottMuszerek.ElementAtOrDefault(1)?.GyariSzam ?? "",
+            ["kalib2"] = kitoltottMuszerek.ElementAtOrDefault(1)?.Kalibralas ?? "",
+            ["muszer3_tipus"] = kitoltottMuszerek.ElementAtOrDefault(2)?.Tipus ?? "",
+            ["muszer_gysz3"] = kitoltottMuszerek.ElementAtOrDefault(2)?.GyariSzam ?? "",
+            ["kalib3"] = kitoltottMuszerek.ElementAtOrDefault(2)?.Kalibralas ?? "",
+
+            // Dinamikus műszerlista
+            ["muszerek"] = kitoltottMuszerek.Select((m, i) => new 
+            {
+                muszer_sorszam = (i + 1).ToString(),
+                muszer_tipus = m.Tipus ?? "",
+                muszer_gysz = m.GyariSzam ?? "",
+                muszer_kalib = m.Kalibralas ?? "",
+            }).ToList(),
+
+            // Van-e műszer feltételek
+            ["van_muszer1"] = kitoltottMuszerek.Count >= 1 ? "true" : "",
+            ["van_muszer2"] = kitoltottMuszerek.Count >= 2 ? "true" : "",
+            ["van_muszer3"] = kitoltottMuszerek.Count >= 3 ? "true" : "",
+
+            // Munkaszám
+            ["munkaszam"] = formAdatok?.Munkaszam ?? $"HK-{meresId:D6}/{DateTime.Now:yyyy}",
+            
+            // === ESZKÖZÖK STATISZTIKA ===
+            ["osszes_db"] = osszesDb.ToString(),
+            ["mf_db"] = mfDb.ToString(),
+            ["nmf_db"] = nmfDb.ToString(),
+            
+            // === DINAMIKUS ESZKÖZLISTA - JAVÍTOTT ===
+            ["eszkozok"] = eszkozok.Select((e, i) => new 
+            {
+                sorsz = (i + 1).ToString(),
+                megnevezes = e.Megnevezes ?? "",
+                tipus = e.Tipus ?? "",
+                azonosito = e.Azonosito ?? "",
+                osztaly = e.VedelmiOsztaly ?? "",
+                telj = e.Telj ?? "",
+                megtekint = e.Megtekint ?? "",
+                folyt = e.KellFolyt ? (e.Folyt ?? "-") : "-",
+                szigell = e.Szigell ?? "",
+                szivargo = e.Szivargo ?? "",
+                megjegyzes = e.Megjegyzes ?? "",
+            }).ToList(),
+
+            // Cég lábléc
+            ["ceg_telephely"] = ceg?.Cim ?? "",
+            ["ceg_weboldal"] = ceg?.Weboldal ?? "",
+            ["ceg_telefonszam"] = ceg?.Telefon ?? "",
+
+            // === MATRICA SOROZATSZÁMOK ===
+            ["matrica_tol"] = formAdatok?.MatricaSorszamTol ?? "",
+            ["matrica_ig"] = formAdatok?.MatricaSorszamIg ?? "",
+            ["matrica_szoveg"] = (formAdatok?.VanMatricaSorszam == true) 
+                ? $"A felülvizsgálat során elhelyezett matricák sorozatszáma: {formAdatok.MatricaSorszamTol} -tól {formAdatok.MatricaSorszamIg} -ig tart."
+                : "",
+            ["van_matrica"] = formAdatok?.VanMatricaSorszam == true ? "true" : "",
         };
 
         using var ms = new MemoryStream();
         await MiniWord.SaveAsByTemplateAsync(ms, sablonPath, adatok);
         return ms.ToArray();
+    }
+
+    private static string GetDolgozoFrszKombinalt(string? dolgozoNeve, string? forgalmiRendszam)
+    {
+        var vanDolgozo = !string.IsNullOrWhiteSpace(dolgozoNeve);
+        var vanFrsz = !string.IsNullOrWhiteSpace(forgalmiRendszam);
+
+        if (vanDolgozo && vanFrsz)
+        {
+            return $" | Munkavállaló neve: {dolgozoNeve} | Forgalmi rendszám: {forgalmiRendszam}";
+        }
+        else if (vanDolgozo)
+        {
+            return $" | Munkavállaló neve: {dolgozoNeve}";
+        }
+        else if (vanFrsz)
+        {
+            return $" | Forgalmi rendszám: {forgalmiRendszam}";
+        }
+        
+        return "";
     }
 }

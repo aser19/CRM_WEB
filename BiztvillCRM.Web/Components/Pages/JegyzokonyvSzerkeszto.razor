@@ -9,13 +9,16 @@
 @inject ITelephelyService TelephelyService
 @inject IMeresTipusService MeresTipusService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
-@inject IJegyzokonyvJogosultsagService JogosultsagService
+@inject IJegyzokonyvJogosultsagService JuegosultsagService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject ITenantService TenantService
 @inject ICegService CegService
+@inject IEszkozService EszkozService
+@inject IKalibracioService KalibracioService
+@inject IMunkaszamService MunkaszamService
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -116,30 +119,38 @@
                                   Variant="Variant.Outlined" />
                 </MudItem>
                 
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_adatok.VizsgalatTargya" Label="Vizsgálat tárgya" 
-                                  Variant="Variant.Outlined" />
-                </MudItem>
-                
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_adatok.VizsgaltBerendezes" Label="Vizsgált berendezés" 
-                                  Variant="Variant.Outlined" />
-                </MudItem>
+                @* Vizsgálat tárgya és Vizsgált berendezés - NEM KELL hordozható típusnál *@
+                @if (!IsHordozhatoTipus())
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.VizsgalatTargya" Label="Vizsgálat tárgya" 
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.VizsgaltBerendezes" Label="Vizsgált berendezés" 
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                }
                 
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_adatok.Megrendelo" Label="Megrendelő neve" 
                                   Variant="Variant.Outlined" />
                 </MudItem>
                 
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_adatok.VizsgalatIdotartama" Label="Vizsgálat időtartama" 
-                                  Variant="Variant.Outlined" Placeholder="pl. 2 óra" />
-                </MudItem>
-                
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_adatok.Megjegyzes" Label="Megjegyzések" 
-                                  Variant="Variant.Outlined" Lines="3" />
-                </MudItem>
+                @* Vizsgálat időtartama és Megjegyzések - NEM KELL hordozható típusnál *@
+                @if (!IsHordozhatoTipus())
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.VizsgalatIdotartama" Label="Vizsgálat időtartama" 
+                                      Variant="Variant.Outlined" Placeholder="pl. 2 óra" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_adatok.Megjegyzes" Label="Megjegyzések" 
+                                      Variant="Variant.Outlined" Lines="3" />
+                    </MudItem>
+                }
                 
                 @* Eredmény - MÓDOSÍTOTT ValueChanged-del *@
                 <MudItem xs="12">
@@ -255,240 +266,390 @@
                         Minősítő irat (2. oldal)
                     </MudText>
                 </MudItem>
-
-                @* A) Vizsgálat berendezés általánosan - AUTOMATIKUS *@
-                <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">A) A vizsgált berendezés általánosan:</MudText>
-                    <MudStack Row="true" Spacing="2">
-                        <MudCheckBox T="bool" Value="@(_adatok.Eredmeny == "MEGFELELT")" 
-                                     ReadOnly="true" Color="Color.Success"
-                                     Label="MEGFELELT" />
-                        <MudCheckBox T="bool" Value="@(_adatok.Eredmeny == "NEM FELELT MEG")" 
-                                     ReadOnly="true" Color="Color.Error"
-                                     Label="NEM FELELT MEG" />
-                    </MudStack>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        (Automatikusan a fenti "Vizsgálat eredménye" alapján)
-                    </MudText>
-                </MudItem>
-
-                @* B-E) Hibák megadása - EXPANSION PANEL *@
-                <MudItem xs="12">
-                    <MudExpansionPanels Class="mt-2">
-                        <MudExpansionPanel>
-                            <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" />
-                                    <MudText>B) Közvetlen élet-, illetve tűzveszélyt okozó hibák</MudText>
-                                </MudStack>
-                            </TitleContent>
-                            <ChildContent>
-                                <MudTextField @bind-Value="_adatok.HibakB" 
-                                              Variant="Variant.Outlined" Lines="4"
-                                              Placeholder="Azonnal javítandó, életveszélyes hibák felsorolása..."
-                                              HelperText="Azonnali beavatkozást igénylő hibák" />
-                            </ChildContent>
-                        </MudExpansionPanel>
-
-                        <MudExpansionPanel>
-                            <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.ReportProblem" Color="Color.Warning" />
-                                    <MudText>C) Súlyos, soron kívül javítandó hibák</MudText>
-                                </MudStack>
-                            </TitleContent>
-                            <ChildContent>
-                                <MudTextField @bind-Value="_adatok.HibakC" 
-                                              Variant="Variant.Outlined" Lines="4"
-                                              Placeholder="Sürgősen javítandó hibák felsorolása..."
-                                              HelperText="Nem életveszélyes, de mielőbb javítandó" />
-                            </ChildContent>
-                        </MudExpansionPanel>
-
-                        <MudExpansionPanel>
-                            <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Build" Color="Color.Info" />
-                                    <MudText>D) Szokásos karbantartások során javítandó hibák (ISCAN)</MudText>
-                                </MudStack>
-                            </TitleContent>
-                            <ChildContent>
-                                <MudTextField @bind-Value="_adatok.HibakD" 
-                                              Variant="Variant.Outlined" Lines="4"
-                                              Placeholder="Karbantartáskor javítandó hibák..."
-                                              HelperText="Következő karbantartáskor célszerű kijavítani" />
-                            </ChildContent>
-                        </MudExpansionPanel>
-
-                        <MudExpansionPanel>
-                            <TitleContent>
-                                <MudStack Row="true" AlignItems="AlignItems.Center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Construction" Color="Color.Secondary" />
-                                    <MudText>E) Következő felújításkor javítandó hibák</MudText>
-                                </MudStack>
-                            </TitleContent>
-                            <ChildContent>
-                                <MudTextField @bind-Value="_adatok.HibakE" 
-                                              Variant="Variant.Outlined" Lines="4"
-                                              Placeholder="Felújításkor javítandó hibák..."
-                                              HelperText="Legkésőbb a következő felújításkor célszerű kijavítani" />
-                            </ChildContent>
-                        </MudExpansionPanel>
-                    </MudExpansionPanels>
-                </MudItem>
-
-                @* Végső minősítés - AUTOMATIKUS, de felülírható *@
-                <MudItem xs="12" Class="mt-4">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">A vizsgálat eredményeként a minősítés:</MudText>
-                    <MudRadioGroup T="string" @bind-Value="_adatok.VegsoMinosites">
-                        <MudRadio T="string" Value="@("MEGFELELT")" Color="Color.Success">MEGFELELT</MudRadio>
-                        <MudRadio T="string" Value="@("NEM FELELT MEG")" Color="Color.Error">NEM FELELT MEG</MudRadio>
-                    </MudRadioGroup>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        (Alapértelmezetten a "Vizsgálat eredménye" alapján, de felülírható)
-                    </MudText>
-                </MudItem>
-
-                @* Mellékletek *@
-                <MudItem xs="12"><MudDivider Class="my-3" /></MudItem>
                 
-                @* TODO: MellekletekSzama - A MeresTipus entitáshoz kell majd egy MellekletSzam property,
-                   és az OnTipusValtozas-ban automatikusan beállítani a típus alapján *@
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_adatok.MellekletekSzama" 
-                                  Label="Mellékletek száma" 
-                                  Variant="Variant.Outlined" 
-                                  ReadOnly="true"
-                                  Placeholder="(automatikus)"
-                                  Adornment="Adornment.End" 
-                                  AdornmentIcon="@Icons.Material.Filled.Lock"
-                                  HelperText="TODO: Mérés típus alapján töltődik" />
-                </MudItem>
+                @if (IsHordozhatoTipus())
+                {                   
+                    @* === JÁRMŰADATOK (opcionális) === *@
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Class="mr-2" />
+                            Járműadatok (opcionális)
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.DolgozoNeve" 
+                                      Label="Dolgozó neve" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. Kovács Péter"
+                                      HelperText="Ha kitöltöd, megjelenik a jegyzőkönyvben"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Person" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.ForgalmiRendszam" 
+                                      Label="Forgalmi rendszám" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. ABC-123"
+                                      HelperText="Ha kitöltöd, megjelenik a jegyzőkönyvben"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.DirectionsCar" />
+                    </MudItem>
+                    
+                    @* === MATRICA SOROZATSZÁMOK === *@
+                    <MudItem xs="12">
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.QrCode2" Class="mr-2" />
+                            Felülvizsgálati matricák (opcionális)
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.MatricaSorszamTol" 
+                                      Label="Matrica sorszám -tól" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. 001234"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Tag"
+                                      Error="@_matricaValidaciosHiba"
+                                      ErrorText="Mindkét mezőt ki kell tölteni!" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.MatricaSorszamIg" 
+                                      Label="Matrica sorszám -ig" 
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. 001250"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Tag"
+                                      Error="@_matricaValidaciosHiba"
+                                      ErrorText="Mindkét mezőt ki kell tölteni!" />
+                    </MudItem>
+                    <MudItem xs="12" md="4" Class="d-flex align-center">
+                        @if (!string.IsNullOrWhiteSpace(_adatok.MatricaSorszamTol) && 
+                             !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamIg))
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true">
+                                Matricák: @_adatok.MatricaSorszamTol - @_adatok.MatricaSorszamIg
+                            </MudAlert>
+                        }
+                    </MudItem>
 
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_adatok.HibavedelmiJkv" 
-                                  Label="Hibavédelmi jkv." 
-                                  Variant="Variant.Outlined" />
-                </MudItem>
+                    @* A matrica sorszámok után, de a HordozhatoEszkozLista előtt *@
 
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_adatok.AvkJegyzokonyv" 
-                                  Label="ÁVK jegyzőkönyv" 
-                                  Variant="Variant.Outlined" />
-                </MudItem>
+                    @* === MŰSZEREK KIVÁLASZTÁSA (DINAMIKUS) === *@
+                    <MudItem xs="12">
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Science" Class="mr-2" />
+                            Vizsgálat során használt műszerek (max 3)
+                        </MudText>
+                    </MudItem>
 
-                @* === VALIDÁCIÓS GOMB A 3. LÉPÉSHEZ === *@
+                    @for (int i = 0; i < _adatok.Muszerek.Count; i++)
+                    {
+                        var index = i;
+                        var sorszam = i + 1;
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="int?" Label="@($"{sorszam}. Műszer{(sorszam > 1 ? " (opcionális)" : "")}")"
+                                       Value="_adatok.Muszerek[index].EszkozId"
+                                       ValueChanged="@(async (int? id) => await OnMuszerValtozasAsync(index, id))"
+                                       Variant="Variant.Outlined"
+                                       Clearable="true">
+                                <MudSelectItem T="int?" Value="null">-- Válassz műszert --</MudSelectItem>
+                                @foreach (var muszer in _muszerek)
+                                {
+                                    <MudSelectItem T="int?" Value="@muszer.Id">
+                                        @muszer.Nev (@muszer.GyariSzam)
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField Value="@_adatok.Muszerek[index].GyariSzam" Label="Gyári szám" 
+                                          Variant="Variant.Outlined" ReadOnly="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField Value="@_adatok.Muszerek[index].Kalibralas" Label="Kalibrálás érvényes" 
+                                          Variant="Variant.Outlined" ReadOnly="true" />
+                        </MudItem>
+                        @if (sorszam > 1)
+                        {
+                            <MudItem xs="12" md="1" Class="d-flex align-center">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => MuszerTorles(index))"
+                                               Title="Műszer törlése" />
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem xs="12" md="1" />
+                        }
+                    }
+
+                    @if (_adatok.Muszerek.Count < 3 && _adatok.Muszerek.LastOrDefault()?.EszkozId != null)
+                    {
+                        <MudItem xs="12">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="UjMuszerHozzaadas">
+                                Új műszer hozzáadása
+                            </MudButton>
+                        </MudItem>
+                    }
+
+                    @* === HORDOZHATÓ ESZKÖZÖK LISTÁJA === *@
+                    <MudItem xs="12">
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-2" />
+                            Hordozható készülékek listája
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <HordozhatoEszkozLista @bind-Eszkozok="_adatok.Eszkozok" />
+                    </MudItem>
+                }
+                else
+                {
+                    @* A) Vizsgálat berendezés általánosan - AUTOMATIKUS *@
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">A) A vizsgált berendezés általánosan:</MudText>
+                        <MudStack Row="true" Spacing="2">
+                            <MudCheckBox T="bool" Value="@(_adatok.Eredmeny == "MEGFELELT")" 
+                                         ReadOnly="true" Color="Color.Success"
+                                         Label="MEGFELELT" />
+                            <MudCheckBox T="bool" Value="@(_adatok.Eredmeny == "NEM FELELT MEG")" 
+                                         ReadOnly="true" Color="Color.Error"
+                                         Label="NEM FELELT MEG" />
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            (Automatikusan a fenti "Vizsgálat eredmény" alapján)
+                        </MudText>
+                    </MudItem>
+
+                    @* B) Hibák megadása - EXPANSION PANEL *@
+                    <MudItem xs="12">
+                        <MudExpansionPanels Class="mt-2">
+                            <MudExpansionPanel>
+                                <TitleContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" />
+                                        <MudText>B) Közvetlen élet-, illetve tűzveszélyt okozó hibák</MudText>
+                                    </MudStack>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudTextField @bind-Value="_adatok.HibakB" 
+                                                  Variant="Variant.Outlined" Lines="4"
+                                                  Placeholder="Azonnal javítandó, életveszélyes hibák felsorolása..."
+                                                  HelperText="Azonnali beavatkozást igénylő hibák" />
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                            <MudExpansionPanel>
+                                <TitleContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.ReportProblem" Color="Color.Warning" />
+                                        <MudText>C) Súlyos, soron kívül javítandó hibák</MudText>
+                                    </MudStack>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudTextField @bind-Value="_adatok.HibakC" 
+                                                  Variant="Variant.Outlined" Lines="4"
+                                                  Placeholder="Sürgősen javítandó hibák felsorolása..."
+                                                  HelperText="Nem életveszélyes, de mielőbb javítandó" />
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                            <MudExpansionPanel>
+                                <TitleContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Build" Color="Color.Info" />
+                                        <MudText>D) Szokásos karbantartások során javítandó hibák (ISCAN)</MudText>
+                                    </MudStack>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudTextField @bind-Value="_adatok.HibakD" 
+                                                  Variant="Variant.Outlined" Lines="4"
+                                                  Placeholder="Karbantartáskor javítandó hibák..."
+                                                  HelperText="Következő karbantartáskor célszerű kijavítani" />
+                                </ChildContent>
+                            </MudExpansionPanel>
+
+                            <MudExpansionPanel>
+                                <TitleContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Construction" Color="Color.Secondary" />
+                                        <MudText>E) Következő felújításkor javítandó hibák</MudText>
+                                    </MudStack>
+                                </TitleContent>
+                                <ChildContent>
+                                    <MudTextField @bind-Value="_adatok.HibakE" 
+                                                  Variant="Variant.Outlined" Lines="4"
+                                                  Placeholder="Felújításkor javítandó hibák..."
+                                                  HelperText="Legkésőbb a következő felújításkor célszerű kijavítani" />
+                                </ChildContent>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+                    </MudItem>
+
+                    @* Végső minősítés - AUTOMATIKUS, de felülírható *@
+                    <MudItem xs="12" Class="mt-4">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">A vizsgálat eredményeként a minősítés:</MudText>
+                        <MudRadioGroup T="string" @bind-Value="_adatok.VegsoMinosites">
+                            <MudRadio T="string" Value="@("MEGFELELT")" Color="Color.Success">MEGFELELT</MudRadio>
+                            <MudRadio T="string" Value="@("NEM FELELT MEG")" Color="Color.Error">NEM FELELT MEG</MudRadio>
+                        </MudRadioGroup>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            (Alapértelmezetten a "Vizsgálat eredménye" alapján, de felülírható)
+                        </MudText>
+                    </MudItem>
+
+                    @* Mellékletek *@
+                    <MudItem xs="12"><MudDivider Class="my-3" /></MudItem>
+                    
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.MellekletekSzama" 
+                                      Label="Mellékletek száma" 
+                                      Variant="Variant.Outlined" 
+                                      ReadOnly="true"
+                                      Placeholder="(automatikus)"
+                                      Adornment="Adornment.End" 
+                                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                                      HelperText="TODO: Mérés típus alapján töltődik" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.HibavedelmiJkv" 
+                                      Label="Hibavédelmi jkv." 
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.AvkJegyzokonyv" 
+                                      Label="ÁVK jegyzőkönyv" 
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                }
+
+                @* === VALIDÁCIÓS GOMB A 3. LÉPÉSHEZ VAGY LETÖLTÉSHEZ === *@
                 <MudItem xs="12" Class="mt-4">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" 
                                OnClick="Lepes2ValidalasEsTovabbAsync"
                                EndIcon="@Icons.Material.Filled.ArrowForward">
-                        Tovább a minősítő irat 2/2 kitöltéséhez
+                        @(IsHordozhatoTipus() ? "Tovább a letöltéshez" : "Tovább a minősítő irat 2/2 kitöltéséhez")
                     </MudButton>
                 </MudItem>
             </MudGrid>
         </MudPaper>
     </MudStep>
 
-    @* === 3. LÉPÉS: MINŐSÍTŐ IRAT 2/2 === *@
-    <MudStep Title="Minősítő irat 2/2" Icon="@Icons.Material.Filled.FactCheck"
-         Disabled="@(_kivalasztottFelulvizsgaloId == null)">
-        <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h6" Class="mb-4">
-                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
-                Minősítő irat 2/2 (3. oldal)
-            </MudText>
-            
-            <MudGrid>
-                <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Érvényességi feltételek:</MudText>
-                    <MudStack Spacing="1">
-                        <MudCheckBox @bind-Value="_adatok.ErvenyessegMegrendeles" Dense="true"
-                                     Label="A vizsgálat kizárólag a megrendelésben részletezett villamos-szerkezetekre terjed ki."
-                                     Color="Color.Primary" />
-                        <MudCheckBox @bind-Value="_adatok.ErvenyessegBelsoSzabalyzat" Dense="true"
-                                     Label="A felhasználói belső szabályzatban részletezett rendeltetésszerű használat."
-                                     Color="Color.Primary" />
-                    </MudStack>
-                </MudItem>
-
-                <MudItem xs="12">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
-                        <MudText>Jelen minősítő irat érvényes</MudText>
-                        <MudDatePicker @bind-Date="_adatok.ErvenyessegDatum" Variant="Variant.Outlined"
-                                       DateFormat="yyyy.MM.dd" Style="max-width: 180px;" Margin="Margin.Dense" />
-                        <MudText>-ig, vagy a berendezésen történt első beavatkozásig!</MudText>
-                    </MudStack>
-                </MudItem>
-
-                <MudItem xs="12" Class="mt-4">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos felülvizsgálatát:
-                    </MudText>
-                    <MudRadioGroup T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatTipus">
+    @* === 3. LÉPÉS: MINŐSÍTŐ IRAT 2/2 - CSAK NEM HORDOZHATÓ TÍPUSNÁL === *@
+    @if (!IsHordozhatoTipus())
+    {
+        <MudStep Title="Minősítő irat 2/2" Icon="@Icons.Material.Filled.FactCheck"
+             Disabled="@(_kivalasztottFelulvizsgaloId == null)">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
+                    Minősítő irat 2/2 (3. oldal)
+                </MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Érvényességi feltételek:</MudText>
                         <MudStack Spacing="1">
-                            <MudRadio T="string" Value="@("50kW")" Color="Color.Primary" Dense="true">
-                                az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("32A")" Color="Color.Primary" Dense="true">
-                                a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túláramvédelemmel korlátozott villamos berendezésén
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
-                                a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("RV300")" Color="Color.Primary" Dense="true">
-                                <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben
-                            </MudRadio>
-                            <MudStack Row="true" AlignItems="AlignItems.Center">
-                                <MudRadio T="string" Value="@("EGYEB1")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
-                                <MudTextField @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyeb"
-                                              Variant="Variant.Outlined"
-                                              Disabled="@(_adatok.KovetkezoFelulvizsgalatTipus != "EGYEB1")"
-                                              Style="max-width: 350px;" Margin="Margin.Dense" />
-                            </MudStack>
+                            <MudCheckBox @bind-Value="_adatok.ErvenyessegMegrendeles" Dense="true"
+                                         Label="A vizsgálat kizárólag a megrendelésben részletezett villamos-szerkezetekre terjed ki."
+                                         Color="Color.Primary" />
+                            <MudCheckBox @bind-Value="_adatok.ErvenyessegBelsoSzabalyzat" Dense="true"
+                                         Label="A felhasználói belső szabályzatban részletezett rendeltetésszerű használat."
+                                         Color="Color.Primary" />
                         </MudStack>
-                    </MudRadioGroup>
-                </MudItem>
+                    </MudItem>
 
-                <MudItem xs="12" Class="mt-4">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">a kiadási dátumtól számított:</MudText>
-                    <MudRadioGroup T="string" Value="_adatok.HataridoTipus" ValueChanged="OnHataridoTipusValtozas">
-                        <MudStack Spacing="1">
-                            <MudRadio T="string" Value="@("3EV")" Color="Color.Primary" Dense="true">
-                                <strong>3 éven</strong> belül, legkésőbb: <strong>@GetSzamitottDatum(3)</strong>-ig kell elvégezni.
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("LAKAS")" Color="Color.Primary" Dense="true">
-                                lakóépületek villamos berendezésén - <strong>6 éven</strong> belül: <strong>@GetSzamitottDatum(6)</strong>-ig
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("RV")" Color="Color.Primary" Dense="true">
-                                egyéb (RV osztályú anyagot NEM tartalmazó) helyiségekben
-                            </MudRadio>
-                            <MudStack Row="true" AlignItems="AlignItems.Center">
-                                <MudRadio T="string" Value="@("EGYEB2")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
-                                <MudTextField @bind-Value="_adatok.HataridoEgyeb"
-                                              Variant="Variant.Outlined"
-                                              Disabled="@(_adatok.HataridoTipus != "EGYEB2")"
-                                              Style="max-width: 350px;" Margin="Margin.Dense" />
-                            </MudStack>
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                            <MudText>Jelen minősítő irat érvényes</MudText>
+                            <MudDatePicker @bind-Date="_adatok.ErvenyessegDatum" Variant="Variant.Outlined"
+                                           DateFormat="yyyy.MM.dd" Style="max-width: 180px;" Margin="Margin.Dense" />
+                            <MudText>-ig, vagy a berendezésen történt első beavatkozásig!</MudText>
                         </MudStack>
-                    </MudRadioGroup>
-                </MudItem>
+                    </MudItem>
 
-                <MudItem xs="12" md="4" Class="mt-3">
-                    <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
-                                   Label="Következő felülvizsgálat határideje"
-                                   Variant="Variant.Outlined" DateFormat="yyyy.MM.dd"
-                                   HelperText="Automatikusan számított, de módosítható" />
-                </MudItem>
+                    <MudItem xs="12" Class="mt-4">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos felülvizsgálatát:
+                        </MudText>
+                        <MudRadioGroup T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatTipus">
+                            <MudStack Spacing="1">
+                                <MudRadio T="string" Value="@("50kW")" Color="Color.Primary" Dense="true">
+                                    az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
+                                </MudRadio>
+                                <MudRadio T="string" Value="@("32A")" Color="Color.Primary" Dense="true">
+                                    a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túláramvédelemmel korlátozott villamos berendezésén
+                                </MudRadio>
+                                <MudRadio T="string" Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
+                                    a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
+                                </MudRadio>
+                                <MudRadio T="string" Value="@("RV300")" Color="Color.Primary" Dense="true">
+                                    <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben
+                                </MudRadio>
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudRadio T="string" Value="@("EGYEB1")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
+                                    <MudTextField @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyeb"
+                                                  Variant="Variant.Outlined"
+                                                  Disabled="@(_adatok.KovetkezoFelulvizsgalatTipus != "EGYEB1")"
+                                                  Style="max-width: 350px;" Margin="Margin.Dense" />
+                                </MudStack>
+                            </MudStack>
+                        </MudRadioGroup>
+                    </MudItem>
 
-                <MudItem xs="12" Class="mt-4">
-                    <MudTextField @bind-Value="_adatok.MinositoMegjegyzes"
-                                  Label="Megjegyzések, észrevételek, javaslatok"
-                                  Variant="Variant.Outlined" Lines="3"
-                                  Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
-                </MudItem>
-            </MudGrid>
-        </MudPaper>
-    </MudStep>
+                    <MudItem xs="12" Class="mt-4">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">a kiadási dátumtól számított:</MudText>
+                        <MudRadioGroup T="string" Value="_adatok.HataridoTipus" ValueChanged="OnHataridoTipusValtozas">
+                            <MudStack Spacing="1">
+                                <MudRadio T="string" Value="@("3EV")" Color="Color.Primary" Dense="true">
+                                    <strong>3 éven</strong> belül, legkésőbb: <strong>@GetSzamitottDatum(3)</strong>-ig kell elvégezni.
+                                </MudRadio>
+                                <MudRadio T="string" Value="@("LAKAS")" Color="Color.Primary" Dense="true">
+                                    lakóépületek villamos berendezésén - <strong>6 éven</strong> belül: <strong>@GetSzamitottDatum(6)</strong>-ig
+                                </MudRadio>
+                                <MudRadio T="string" Value="@("RV")" Color="Color.Primary" Dense="true">
+                                    egyéb (RV osztályú anyagot NEM tartalmazó) helyiségekben
+                                </MudRadio>
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudRadio T="string" Value="@("EGYEB2")" Color="Color.Primary" Dense="true">egyéb:</MudRadio>
+                                    <MudTextField @bind-Value="_adatok.HataridoEgyeb"
+                                                  Variant="Variant.Outlined"
+                                                  Disabled="@(_adatok.HataridoTipus != "EGYEB2")"
+                                                  Style="max-width: 350px;" Margin="Margin.Dense" />
+                                </MudStack>
+                            </MudStack>
+                        </MudRadioGroup>
+                    </MudItem>
+
+                    <MudItem xs="12" md="4" Class="mt-3">
+                        <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
+                                       Label="Következő felülvizsgálat határideje"
+                                       Variant="Variant.Outlined" DateFormat="yyyy.MM.dd"
+                                       HelperText="Automatikusan számított, de módosítható" />
+                    </MudItem>
+
+                    <MudItem xs="12" Class="mt-4">
+                        <MudTextField @bind-Value="_adatok.MinositoMegjegyzes"
+                                      Label="Megjegyzések, észrevételek, javaslatok"
+                                      Variant="Variant.Outlined" Lines="3"
+                                      Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudStep>
+    }
 
     @* === 4. LÉPÉS: ELŐNÉZET ÉS LETÖLTÉS === *@
     <MudStep Title="Letöltés" Icon="@Icons.Material.Filled.Download">
@@ -534,19 +695,22 @@
     private List<Telephely> _szurtTelephelyek = [];
     
     private int _kivalasztottTipusId;
+    private string? _kivalasztottTipusNev;
     private int _kivalasztottUgyfelId;
     private int _kivalasztottTelephelyId;
     private DateTime? _vizsgalatDatum = DateTime.Today;
     private bool _feldolgozas;
     
-    private JegyzokonyvFormAdatok _adatok = new();
+    private JegyzokonyvAdatok _adatok = new();
 
-    // === FELÜLVIZSGÁLÓK (ÚJ STRUKTÚRA) ===
     private List<Felulvizsgalo> _osszFelulvizsgalo = [];
     private List<Felulvizsgalo> _jogosultFelulvizsgalok = [];
     
     private int? _kivalasztottFelulvizsgaloId;
     private int? _kivalasztottSegitoId;
+
+    private bool _matricaValidaciosHiba;
+    private List<Eszkoz> _muszerek = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -554,82 +718,32 @@
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
+        _muszerek = await EszkozService.GetAllAsync();
         
         await BetoltCegAdatokAsync();
         
+        _adatok.Eredmeny = "MEGFELELT";
+        _adatok.VegsoMinosites = "MEGFELELT";
+        
+        var cegId = TenantService.GetCurrentCegId();
+        var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId);
+        _adatok.Munkaszam = munkaszam;
+        _adatok.JegyzokonyvSzam = munkaszam;
+        
         if (MeresId.HasValue)
             await BetoltMeresbolAsync(MeresId.Value);
-        else
-            GeneralJegyzokonyvSzam();
     }
 
     private async Task OnTipusValtozas(int tipusId)
     {
         _kivalasztottTipusId = tipusId;
-        
-        // Frissítjük a jogosult felülvizsgálók listáját
-        if (tipusId > 0)
-        {
-            _jogosultFelulvizsgalok = await JogosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
-        }
-        else
-        {
-            _jogosultFelulvizsgalok = _osszFelulvizsgalo;
-        }
-        
-        // Jegyzőkönyv szám prefix frissítése
         var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
-        if (tipus != null)
-        {
-            var prefix = tipus.JegyzokonyvPrefix ?? "JKV";
-            var sorszam = MeresId ?? new Random().Next(1, 9999);
-            _adatok.JegyzokonyvSzam = $"{prefix}-{sorszam:D6}/{DateTime.Now:yyyy}";
-        }
+        _kivalasztottTipusNev = tipus?.Nev;
         
-        // Reset felülvizsgáló kiválasztás
-        _kivalasztottFelulvizsgaloId = null;
-        _kivalasztottSegitoId = null;
-        _adatok.FelulvizsgaloNev = "";
-        _adatok.FelulvizsgaloBizonyitvany = "";
-        _adatok.FelulvizsgaloKepzes = "";
-    }
-
-    private async Task OnFelulvizsgaloValtozasAsync(int? id)
-    {
-        _kivalasztottFelulvizsgaloId = id;
-        if (id.HasValue && _kivalasztottTipusId > 0)
-        {
-            var felulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == id);
-            _adatok.FelulvizsgaloNev = felulvizsgalo?.Nev ?? "";
-            
-            // Dinamikus bizonyítvány és továbbképzés szöveg
-            _adatok.FelulvizsgaloBizonyitvany = await JogosultsagService.GeneralBizonyitvanySzovegetAsync(_kivalasztottTipusId, id.Value);
-            _adatok.FelulvizsgaloKepzes = await JogosultsagService.GeneralTovabbkepzesSzovegetAsync(_kivalasztottTipusId, id.Value);
-        }
+        if (tipusId > 0)
+            _jogosultFelulvizsgalok = await JuegosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
         else
-        {
-            _adatok.FelulvizsgaloNev = "";
-            _adatok.FelulvizsgaloBizonyitvany = "";
-            _adatok.FelulvizsgaloKepzes = "";
-        }
-    }
-
-    private async Task OnSegitoValtozasAsync(int? id)
-    {
-        _kivalasztottSegitoId = id;
-        if (id.HasValue && _kivalasztottTipusId > 0)
-        {
-            var felulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == id);
-            _adatok.SegitoFelulvizsgalo = felulvizsgalo?.Nev ?? "";
-            _adatok.SegitoBizonyitvany = await JogosultsagService.GeneralBizonyitvanySzovegetAsync(_kivalasztottTipusId, id.Value);
-            _adatok.SegitoKepzes = await JogosultsagService.GeneralTovabbkepzesSzovegetAsync(_kivalasztottTipusId, id.Value);
-        }
-        else
-        {
-            _adatok.SegitoFelulvizsgalo = "";
-            _adatok.SegitoBizonyitvany = "";
-            _adatok.SegitoKepzes = "";
-        }
+            _jogosultFelulvizsgalok = _osszFelulvizsgalo;
     }
 
     private void OnUgyfelValtozas(int ugyfelId)
@@ -639,21 +753,167 @@
         _kivalasztottTelephelyId = _szurtTelephelyek.FirstOrDefault()?.Id ?? 0;
         
         var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == ugyfelId);
-        var telephely = _szurtTelephelyek.FirstOrDefault();
+        if (ugyfel != null)
+            _adatok.Megrendelo = ugyfel.Nev;
+    }
+
+    private async Task ValidalasEsTovabblepesAsync()
+    {
+        if (_kivalasztottTipusId == 0) { Snackbar.Add("Válassz jegyzőkönyv típust!", Severity.Warning); return; }
+        if (_kivalasztottUgyfelId == 0) { Snackbar.Add("Válassz ügyfelet!", Severity.Warning); return; }
+        if (_kivalasztottTelephelyId == 0) { Snackbar.Add("Válassz telephelyet!", Severity.Warning); return; }
+        if (_vizsgalatDatum == null) { Snackbar.Add("Add meg a vizsgálat dátumát!", Severity.Warning); return; }
+
+        var telephely = _telephelyek.FirstOrDefault(t => t.Id == _kivalasztottTelephelyId);
+        if (telephely != null)
+            _adatok.VizsgalatHelye = $"{telephely.Nev} - {telephely.Cim}";
+
+        await _stepper.NextStepAsync();
+    }
+
+    private async Task Lepes2ValidalasEsTovabbAsync()
+    {
+        if (_kivalasztottFelulvizsgaloId == null) { Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning); return; }
+        if (string.IsNullOrEmpty(_adatok.Eredmeny)) { Snackbar.Add("Add meg a vizsgálat eredményét!", Severity.Warning); return; }
+
+        if (IsHordozhatoTipus())
+        {
+            bool tolKitoltve = !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamTol);
+            bool igKitoltve = !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamIg);
+            
+            if (tolKitoltve != igKitoltve)
+            {
+                _matricaValidaciosHiba = true;
+                Snackbar.Add("Mindkét matrica sorszámot ki kell tölteni, vagy egyiket sem!", Severity.Warning);
+                return;
+            }
+            _matricaValidaciosHiba = false;
+        }
+
+        await _stepper.NextStepAsync();
+    }
+
+    private bool IsHordozhatoTipus()
+    {
+        if (string.IsNullOrEmpty(_kivalasztottTipusNev)) return false;
+        return _kivalasztottTipusNev.Contains("Hordozható", StringComparison.OrdinalIgnoreCase) ||
+               _kivalasztottTipusNev.Contains("E+G", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OnEredmenyValtozas(string eredmeny)
+    {
+        _adatok.Eredmeny = eredmeny;
+        _adatok.VegsoMinosites = eredmeny;
+    }
+
+    private Task OnFelulvizsgaloValtozasAsync(int? felulvizsgaloId)
+    {
+        _kivalasztottFelulvizsgaloId = felulvizsgaloId;
         
-        _adatok.Megrendelo = ugyfel?.Nev ?? "";
-        _adatok.VizsgalatHelye = telephely?.Cim ?? "";
-        _adatok.KapcsolatTarto = telephely?.Kapcsolattarto ?? "";
+        if (felulvizsgaloId.HasValue)
+        {
+            var felulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == felulvizsgaloId.Value);
+            if (felulvizsgalo != null)
+            {
+                _adatok.FelulvizsgaloNev = felulvizsgalo.Nev;
+                _adatok.FelulvizsgaloBizonyitvany = string.Join(", ", 
+                    felulvizsgalo.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
+                _adatok.FelulvizsgaloKepzes = string.Join(", ", 
+                    felulvizsgalo.Kepzesek.Where(k => k.KepzesTipus != null).Select(k => k.KepzesTipus!.Nev));
+            }
+        }
+        else
+        {
+            _adatok.FelulvizsgaloNev = "";
+            _adatok.FelulvizsgaloBizonyitvany = "";
+            _adatok.FelulvizsgaloKepzes = "";
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnSegitoValtozasAsync(int? segitoId)
+    {
+        _kivalasztottSegitoId = segitoId;
+        
+        if (segitoId.HasValue)
+        {
+            var segito = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == segitoId.Value);
+            if (segito != null)
+            {
+                _adatok.SegitoFelulvizsgalo = segito.Nev;
+                _adatok.SegitoBizonyitvany = string.Join(", ", 
+                    segito.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
+                _adatok.SegitoKepzes = string.Join(", ", 
+                    segito.Kepzesek.Where(k => k.KepzesTipus != null).Select(k => k.KepzesTipus!.Nev));
+            }
+        }
+        else
+        {
+            _adatok.SegitoFelulvizsgalo = "";
+            _adatok.SegitoBizonyitvany = "";
+            _adatok.SegitoKepzes = "";
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task<IEnumerable<string>> EllenorKereses(string value, CancellationToken token)
+    {
+        var nevek = _osszFelulvizsgalo.Where(f => f.LehetEllenor).Select(f => f.Nev).ToList();
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<string>>(nevek);
+        return Task.FromResult<IEnumerable<string>>(nevek.Where(n => n.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private async Task LetoltesAsync()
+    {
+        try
+        {
+            _feldolgozas = true;
+            StateHasChanged();
+
+            var meresId = MeresId ?? 0;
+            var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
+            var sablonId = tipus?.SablonId ?? "VBF_KIF_MINTA";
+            
+            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
+            var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
+            
+            using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            
+            Snackbar.Add("Jegyzőkönyv sikeresen legenerálva!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
     }
 
     private async Task BetoltCegAdatokAsync()
     {
-        var cegId = TenantService.GetCurrentCegId();
-        var ceg = await CegService.GetByIdAsync(cegId);
-        if (ceg != null)
+        try
         {
-            _adatok.CegNev = ceg.Nev;
-            _adatok.CegCim = ceg.Cim ?? "";
+            var cegId = TenantService.GetCurrentCegId();
+            if (cegId > 0)
+            {
+                var ceg = await CegService.GetByIdAsync(cegId);
+                if (ceg != null)
+                {
+                    _adatok.CegNev = ceg.Nev ?? "";
+                    _adatok.CegCim = ceg.Cim ?? "";
+                    _adatok.CegWeb = ceg.Weboldal ?? "";
+                    _adatok.CegTelefon = ceg.Telefon ?? "";
+                }
+            }
+        }
+        catch
+        {
+            _adatok.CegNev = "";
+            _adatok.CegCim = "";
         }
     }
 
@@ -662,287 +922,28 @@
         var meres = await MeresService.GetByIdAsync(meresId);
         if (meres != null)
         {
-            await OnTipusValtozas(meres.MeresTipusId);
-            OnUgyfelValtozas(meres.UgyfelId);
+            _kivalasztottTipusId = meres.MeresTipusId;
+            _kivalasztottUgyfelId = meres.UgyfelId;
             _kivalasztottTelephelyId = meres.TelephelyId;
             _vizsgalatDatum = meres.Datum;
-            _adatok.VizsgalatHelye = meres.Telephely?.Cim ?? "";
-            _adatok.Megrendelo = meres.Ugyfel?.Nev ?? "";
-            _adatok.Eredmeny = meres.Eredmeny ?? "";
-            _adatok.Megjegyzes = meres.Megjegyzes ?? "";
+            
+            await OnTipusValtozas(_kivalasztottTipusId);
+            OnUgyfelValtozas(_kivalasztottUgyfelId);
         }
     }
 
-    private void GeneralJegyzokonyvSzam()
+    private void OnHataridoTipusValtozas(string tipus)
     {
-        var sorszam = MeresId ?? new Random().Next(1, 9999);
-        _adatok.JegyzokonyvSzam = $"JKV-{sorszam:D6}/{DateTime.Now:yyyy}";
-    }
-
-    private async Task LetoltesAsync()
-    {
-        if (!Validacio()) return;
-        
-        _feldolgozas = true;
-        try
+        _adatok.HataridoTipus = tipus;
+        _adatok.KovetkezoFelulvizsgalatDatum = tipus switch
         {
-            var meresId = await MentesVagyFrissitesAsync();
-            
-            var jegyzokonyvAdatok = new JegyzokonyvAdatok
-            {
-                JegyzokonyvSzam = _adatok.JegyzokonyvSzam,
-                CegNev = _adatok.CegNev,
-                CegCim = _adatok.CegCim,
-                VizsgalatHelye = _adatok.VizsgalatHelye,
-                VizsgalatTargya = _adatok.VizsgalatTargya,
-                VizsgaltBerendezes = _adatok.VizsgaltBerendezes,
-                Megrendelo = _adatok.Megrendelo,
-                VizsgalatIdotartama = _adatok.VizsgalatIdotartama,
-                Eredmeny = _adatok.Eredmeny,
-                Megjegyzes = _adatok.Megjegyzes,
-                UzemiKisero = _adatok.UzemiKisero,
-                KapcsolatTarto = _adatok.KapcsolatTarto,
-                FelulvizsgaloNev = _adatok.FelulvizsgaloNev,
-                FelulvizsgaloBizonyitvany = _adatok.FelulvizsgaloBizonyitvany,
-                FelulvizsgaloKepzes = _adatok.FelulvizsgaloKepzes,
-                SegitoFelulvizsgalo = _adatok.SegitoFelulvizsgalo,
-                SegitoBizonyitvany = _adatok.SegitoBizonyitvany,
-                SegitoKepzes = _adatok.SegitoKepzes,
-                Ellenor = _adatok.Ellenor,
-                EllenorBizonyitvany = _adatok.EllenorBizonyitvany,  // <-- EZ HIÁNYZIK!
-                
-                // 2. oldal mezők
-                HibakB = _adatok.HibakB,
-                HibakC = _adatok.HibakC,
-                HibakD = _adatok.HibakD,
-                HibakE = _adatok.HibakE,
-                VegsoMinosites = _adatok.VegsoMinosites,
-                MellekletekSzama = _adatok.MellekletekSzama,
-                HibavedelmiJkv = _adatok.HibavedelmiJkv,
-                AvkJegyzokonyv = _adatok.AvkJegyzokonyv,
-
-                // 3. oldal - Checkbox értékek
-                ERV_MEGRENDELES_X = _adatok.ErvenyessegMegrendeles ? "☒" : "☐",
-                ERV_SZABALYZAT_X = _adatok.ErvenyessegBelsoSzabalyzat ? "☒" : "☐",
-                ERV_DATUM = _adatok.ErvenyessegDatum?.ToString("yyyy.MM.dd") ?? "",
-                
-                KOV_50KW_X = _adatok.KovetkezoFelulvizsgalatTipus == "50kW" ? "☒" : "☐",
-                KOV_32A_X = _adatok.KovetkezoFelulvizsgalatTipus == "32A" ? "☒" : "☐",
-                KOV_VMBSZ_X = _adatok.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☒" : "☐",
-                KOV_RV300_X = _adatok.KovetkezoFelulvizsgalatTipus == "RV300" ? "☒" : "☐",
-                KOV_EGYEB1_X = _adatok.KovetkezoFelulvizsgalatTipus == "EGYEB1" ? "☒" : "☐",
-                KOV_EGYEB1_SZOVEG = _adatok.KovetkezoFelulvizsgalatEgyeb,
-                
-                HAT_3EV_X = _adatok.HataridoTipus == "3EV" ? "☒" : "☐",
-                HAT_3EV_DATUM = GetSzamitottDatum(3),
-                HAT_LAKAS_X = _adatok.HataridoTipus == "LAKAS" ? "☒" : "☐",
-                HAT_RV_X = _adatok.HataridoTipus == "RV" ? "☒" : "☐",
-                HAT_EGYEB2_X = _adatok.HataridoTipus == "EGYEB2" ? "☒" : "☐",
-                HAT_EGYEB2_SZOVEG = _adatok.HataridoEgyeb,
-                HAT_6EV_DATUM = GetSzamitottDatum(6),
-                
-                MINOSITO_MEGJEGYZES = _adatok.MinositoMegjegyzes
-            };
-            
-            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, jegyzokonyvAdatok);
-            var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "_")}.docx";
-            
-            using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
-            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
-            
-            Snackbar.Add("Jegyzőkönyv letöltve!", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _feldolgozas = false;
-        }
-    }
-
-    private async Task<int> MentesVagyFrissitesAsync()
-    {
-        if (MeresId.HasValue) return MeresId.Value;
-            
-        var ujMeres = new Meres
-        {
-            UgyfelId = _kivalasztottUgyfelId,
-            TelephelyId = _kivalasztottTelephelyId,
-            MeresTipusId = _kivalasztottTipusId,
-            Datum = _vizsgalatDatum ?? DateTime.Today,
-            Eredmeny = _adatok.Eredmeny,
-            Megjegyzes = _adatok.Megjegyzes
+            "3EV" => _vizsgalatDatum?.AddYears(3),
+            "LAKAS" => _vizsgalatDatum?.AddYears(6),
+            _ => _adatok.KovetkezoFelulvizsgalatDatum
         };
-        
-        var mentett = await MeresService.CreateAsync(ujMeres);
-        return mentett.Id;
     }
 
-    private bool Validacio()
-    {
-        if (_kivalasztottTipusId == 0) { Snackbar.Add("Válassz típust!", Severity.Warning); return false; }
-        if (_kivalasztottUgyfelId == 0) { Snackbar.Add("Válassz ügyfelet!", Severity.Warning); return false; }
-        if (_kivalasztottFelulvizsgaloId == null) { Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning); return false; }
-        return true;
-    }
-
-    private class JegyzokonyvFormAdatok
-    {
-        public string JegyzokonyvSzam { get; set; } = "";
-        public string CegNev { get; set; } = "";
-        public string CegCim { get; set; } = "";
-        public string VizsgalatHelye { get; set; } = "";
-        public string VizsgalatTargya { get; set; } = "";
-        public string VizsgaltBerendezes { get; set; } = "";
-        public string Megrendelo { get; set; } = "";
-        public string VizsgalatIdotartama { get; set; } = "";
-        public string Eredmeny { get; set; } = "MEGFELELT";
-        public string Megjegyzes { get; set; } = "";
-        public string UzemiKisero { get; set; } = "";
-        public string KapcsolatTarto { get; set; } = "";
-        public string FelulvizsgaloNev { get; set; } = "";
-        public string FelulvizsgaloBizonyitvany { get; set; } = "";
-        public string FelulvizsgaloKepzes { get; set; } = "";
-        public string SegitoFelulvizsgalo { get; set; } = "";
-        public string SegitoBizonyitvany { get; set; } = "";
-        public string SegitoKepzes { get; set; } = "";
-        public string Ellenor { get; set; } = "";
-        public string EllenorBizonyitvany { get; set; } = "";
-
-        // === MINŐSÍTŐ IRAT - 2. OLDAL (ÚJ) ===
-        public string HibakB { get; set; } = "";           // Életveszélyes hibák
-        public string HibakC { get; set; } = "";           // Súlyos hibák
-        public string HibakD { get; set; } = "";           // Karbantartáskor javítandó
-        public string HibakE { get; set; } = "";           // Felújításkor javítandó
-        public string VegsoMinosites { get; set; } = "MEGFELELT";
-        public string MellekletekSzama { get; set; } = ""; // TODO: MeresTipus alapján
-        public string HibavedelmiJkv { get; set; } = "";
-        public string AvkJegyzokonyv { get; set; } = "";
-        
-        // === MINŐSÍTŐ IRAT - 3. OLDAL (2/2) ===
-        public bool ErvenyessegMegrendeles { get; set; } = true;
-        public bool ErvenyessegBelsoSzabalyzat { get; set; } = true;
-        public DateTime? ErvenyessegDatum { get; set; }
-        
-        public string KovetkezoFelulvizsgalatTipus { get; set; } = "";
-        public string KovetkezoFelulvizsgalatEgyeb { get; set; } = "";
-        
-        public string HataridoTipus { get; set; } = "3EV";
-        public string HataridoEgyeb { get; set; } = "";
-        public DateTime? KovetkezoFelulvizsgalatDatum { get; set; }
-        
-        public string MinositoMegjegyzes { get; set; } = "";
-    }
-
-    private async Task ValidalasEsTovabblepesAsync()
-    {
-        try
-        {
-            if (_kivalasztottTipusId == 0)
-            {
-                Snackbar.Add("Válassz jegyzőkönyv típust!", Severity.Warning);
-                return;
-            }
-            
-            if (_kivalasztottUgyfelId == 0)
-            {
-                Snackbar.Add("Válassz ügyfelet!", Severity.Warning);
-                return;
-            }
-            
-            if (_kivalasztottTelephelyId == 0)
-            {
-                Snackbar.Add("Válassz telephelyet!", Severity.Warning);
-                return;
-            }
-            
-            // Ellenőrizzük a jogosultságot
-            var (vanJogosult, hianyzoKepzesek) = await JogosultsagService
-                .EllenorizJogosultsagotAsync(_kivalasztottTipusId);
-            
-            if (!vanJogosult)
-            {
-                var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
-                var tipusNev = tipus?.Nev ?? "a kiválasztott típus";
-                
-                var hibaUzenet = $"Nincs jogosult felelős felülvizsgáló a cégnél a(z) '{tipusNev}' jegyzőkönyvhöz!";
-                
-                if (hianyzoKepzesek.Count > 0)
-                {
-                    hibaUzenet += $" Hiányzó képzés(ek): {string.Join(", ", hianyzoKepzesek)}";
-                }
-                
-                Snackbar.Add(hibaUzenet, Severity.Error, config =>
-                {
-                    config.ShowCloseIcon = true;
-                    config.VisibleStateDuration = 10000;
-                });
-                return;
-            }
-            
-            // Frissítjük a jogosult felülvizsgálók listáját
-            _jogosultFelulvizsgalok = await JogosultsagService
-                .GetJogosultFelulvizsgalokAsync(_kivalasztottTipusId);
-            
-            StateHasChanged();
-            await _stepper.NextStepAsync();
-        }
-        catch (Exception ex)
-        {
-            // Felhasználóbarát hibaüzenet
-            Snackbar.Add("Hiba történt a jogosultság ellenőrzésekor. Kérjük, próbáld újra később.", Severity.Error);
-            
-            // Fejlesztői konzolra a részletes hiba
-            Console.WriteLine($"[ValidalasEsTovabblepesAsync] {ex}");
-        }
-    }
-
-    private async Task Lepes2ValidalasEsTovabbAsync()
-    {
-    // Kötelező mezők ellenőrzése
-    if (_kivalasztottFelulvizsgaloId == null)
-    {
-        Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning);
-        return;
-    }
-    
-    if (string.IsNullOrWhiteSpace(_adatok.Eredmeny))
-    {
-        Snackbar.Add("Add meg a vizsgálat eredményét!", Severity.Warning);
-        return;
-    }
-    
-    // Alapértelmezett érvényességi dátum beállítása (ha nincs megadva)
-    if (_adatok.ErvenyessegDatum == null)
-    {
-        // Alapértelmezetten a vizsgálat dátuma + 3 év
-        _adatok.ErvenyessegDatum = (_vizsgalatDatum ?? DateTime.Today).AddYears(3);
-    }
-    
-    // Következő felülvizsgálat dátum beállítása
-    if (_adatok.KovetkezoFelulvizsgalatDatum == null)
-    {
-        var evek = _adatok.HataridoTipus switch
-        {
-            "LAKAS" or "RV" => 6,
-            _ => 3
-        };
-        _adatok.KovetkezoFelulvizsgalatDatum = (_vizsgalatDatum ?? DateTime.Today).AddYears(evek);
-    }
-    
-    StateHasChanged();
-    await _stepper.NextStepAsync();
-}
-
-    private void OnEredmenyValtozas(String ujErtek)
-    {
-        _adatok.Eredmeny = ujErtek;
-        
-        // Automatikusan frissítjük a végső minősítést is
-        _adatok.VegsoMinosites = ujErtek;
-    }
+    private string GetSzamitottDatum(int evek) => _vizsgalatDatum?.AddYears(evek).ToString("yyyy.MM.dd") ?? "-";
 
     private bool VanKitoltottHiba() =>
         !string.IsNullOrWhiteSpace(_adatok.HibakB) ||
@@ -953,43 +954,64 @@
     private string GetHibakOsszegzes()
     {
         var hibak = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_adatok.HibakB)) hibak.Add("B");
-        if (!string.IsNullOrWhiteSpace(_adatok.HibakC)) hibak.Add("C");
-        if (!string.IsNullOrWhiteSpace(_adatok.HibakD)) hibak.Add("D");
-        if (!string.IsNullOrWhiteSpace(_adatok.HibakE)) hibak.Add("E");
-        return hibak.Count > 0 ? $"Kitöltött pontok: {string.Join(", ", hibak)}" : "Nincs";
+        if (!string.IsNullOrWhiteSpace(_adatok.HibakB)) hibak.Add("B: Életveszélyes");
+        if (!string.IsNullOrWhiteSpace(_adatok.HibakC)) hibak.Add("C: Súlyos");
+        if (!string.IsNullOrWhiteSpace(_adatok.HibakD)) hibak.Add("D: Karbantartás");
+        if (!string.IsNullOrWhiteSpace(_adatok.HibakE)) hibak.Add("E: Felújítás");
+        return string.Join(", ", hibak);
     }
 
-    // Ellenőr keresési függvény
-    private Task<IEnumerable<string>> EllenorKereses(string kereses, CancellationToken token)
+    private async Task OnMuszerValtozasAsync(int index, int? muszerId)
     {
-        var nevLista = _osszFelulvizsgalo.Select(f => f.Nev).ToList();
-        
-        if (string.IsNullOrWhiteSpace(kereses))
-            return Task.FromResult(nevLista.AsEnumerable());
-        
-        var szurt = nevLista
-            .Where(n => n.Contains(kereses, StringComparison.OrdinalIgnoreCase));
-        
-        return Task.FromResult(szurt);
+        if (index >= _adatok.Muszerek.Count) return;
+
+        _adatok.Muszerek[index].EszkozId = muszerId;
+
+        if (!muszerId.HasValue)
+        {
+            _adatok.Muszerek[index].Tipus = "";
+            _adatok.Muszerek[index].GyariSzam = "";
+            _adatok.Muszerek[index].Kalibralas = "";
+        }
+        else
+        {
+            var muszer = _muszerek.FirstOrDefault(m => m.Id == muszerId.Value);
+            if (muszer != null)
+            {
+                var kalibraciok = await KalibracioService.GetByEszkozIdAsync(muszer.Id);
+                var aktKalib = kalibraciok.OrderByDescending(k => k.KovetkezoDatum).FirstOrDefault();
+                var kalibErvenyesseg = aktKalib?.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "N/A";
+
+                _adatok.Muszerek[index].Tipus = muszer.Nev;
+                _adatok.Muszerek[index].GyariSzam = muszer.GyariSzam ?? "";
+                _adatok.Muszerek[index].Kalibralas = kalibErvenyesseg;
+            }
+        }
+
+        // Automatikus új sor hozzáadása, ha kell
+        if (_adatok.Muszerek.Count < 3 &&
+            _adatok.Muszerek.LastOrDefault()?.EszkozId != null &&
+            _adatok.Muszerek.All(m => m.EszkozId != null))
+        {
+            _adatok.Muszerek.Add(new MuszerSor());
+        }
     }
 
-private string GetSzamitottDatum(int evek)
-{
-    var alapDatum = _vizsgalatDatum ?? DateTime.Today;
-    return alapDatum.AddYears(evek).ToString("yyyy.MM.dd");
-}
-
-private void OnHataridoTipusValtozas(string tipus)
-{
-    _adatok.HataridoTipus = tipus;
-    
-    var alapDatum = _vizsgalatDatum ?? DateTime.Today;
-    _adatok.KovetkezoFelulvizsgalatDatum = tipus switch
+    private void UjMuszerHozzaadas()
     {
-        "3EV" => alapDatum.AddYears(3),
-        "LAKAS" or "RV" => alapDatum.AddYears(6),
-        _ => _adatok.KovetkezoFelulvizsgalatDatum
-    };
-}
+        if (_adatok.Muszerek.Count < 3)
+            _adatok.Muszerek.Add(new MuszerSor());
+    }
+
+    private void MuszerTorles(int index)
+    {
+        if (_adatok.Muszerek.Count > 1 && index > 0)
+            _adatok.Muszerek.RemoveAt(index);
+    }
+
+    private async Task InicializalEszkozok()
+    {
+        if (_adatok.Muszerek.Count == 0)
+            _adatok.Muszerek.Add(new MuszerSor());
+    }
 }

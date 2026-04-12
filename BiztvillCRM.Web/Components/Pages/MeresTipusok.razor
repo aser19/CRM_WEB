@@ -1,0 +1,49 @@
+@page "/meres-tipusok"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@inject IMeresTipusService MeresTipusService
+@inject ISnackbar Snackbar
+
+<PageTitle>Méréstípusok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" />
+    Méréstípusok
+</MudText>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudDataGrid T="MeresTipus" Items="_tipusok" Hover="true" Striped="true" Dense="true">
+        <Columns>
+            <PropertyColumn Property="t => t.Nev" Title="Megnevezés" />
+            <PropertyColumn Property="t => t.JegyzokonyvPrefix" Title="Jegyzőkönyv prefix" />
+            <TemplateColumn Title="Aktív">
+                <CellTemplate>
+                    <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" Size="Size.Small" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText>Nincs méréstípus.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    private List<MeresTipus> _tipusok = [];
+    private bool _betoltes = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tipusok = await MeresTipusService.GetAllAsync();
+        _betoltes = false;
+    }
+}

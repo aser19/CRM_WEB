@@ -42,23 +42,28 @@ public class JegyzokonyvJogosultsagService : IJegyzokonyvJogosultsagService
         
         if (kovetelemények.Count == 0)
         {
-            // Ha nincs követelmény, bárki lehet
-            var vanBarkiFelulvizsgalo = await _db.Felulvizsgalok
-                .AnyAsync(f => f.CegId == cegId && f.Aktiv && f.LehetFelelosFelulvizsgalo);
+            // Ha nincs követelmény, ellenőrizzük memóriában a számított property-t
+            var felulvizsgalok = await _db.Felulvizsgalok
+                .Where(f => f.CegId == cegId && f.Aktiv)
+                .ToListAsync();
+            
+            // Memóriában szűrjük a számított property-re
+            var vanBarkiFelulvizsgalo = felulvizsgalok.Any(f => f.LehetFelelosFelulvizsgalo);
             
             return (vanBarkiFelulvizsgalo, []);
         }
         
-        // 2. Lekérjük a cég felülvizsgálóit képzéseikkel
-        var felulvizsgalok = await _db.Felulvizsgalok
+        // 2. Lekérjük a cég felülvizsgálóit KÉPZÉSEIKKEL EGYÜTT
+        var felulvizsgalokKepzesekkel = await _db.Felulvizsgalok
+            .Include(f => f.Kepzesek)
             .Where(f => f.CegId == cegId && f.Aktiv)
             .ToListAsync();
 
         // Memóriában szűrjük a számított property-re
-        var jogosultFelulvizsgalok = felulvizsgalok
+        var jogosultFelulvizsgalok = felulvizsgalokKepzesekkel
             .Where(f => f.LehetFelelosFelulvizsgalo)
             .ToList();
-        
+    
         // 3. Ellenőrizzük, hogy van-e olyan felülvizsgáló, aki teljesíti a követelményeket
         var hianyzoKepzesek = new List<string>();
         

@@ -111,4 +111,22 @@ public class KalibracioService : IKalibracioService
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<List<Kalibracio>> GetByEszkozIdAsync(int eszkozId)
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        var query = _context.Kalibraciok
+            .Include(k => k.Eszkoz)
+                .ThenInclude(e => e!.Ugyfel)
+            .Where(k => k.EszkozId == eszkozId)
+            .AsQueryable();
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            query = query.Where(k => k.Eszkoz!.Ugyfel!.CegId == cegId);
+        }
+
+        // JAVÍTVA: KovetkezoKalibralas -> KovetkezoDatum
+        return await query.OrderByDescending(k => k.KovetkezoDatum).ToListAsync();
+    }
 }

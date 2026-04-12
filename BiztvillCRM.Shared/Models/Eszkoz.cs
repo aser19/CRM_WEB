@@ -10,6 +10,10 @@ public class Eszkoz
     public string Nev { get; set; } = string.Empty;
     public string? GyariSzam { get; set; }
     public string? Tipus { get; set; }
+    
+    /// <summary>Eszköz kategóriája: Műszer, Berendezés, stb.</summary>
+    public string? Kategoria { get; set; }
+    
     public int GyartoId { get; set; }
     public int UgyfelId { get; set; }
     public int? TelephelyId { get; set; }
