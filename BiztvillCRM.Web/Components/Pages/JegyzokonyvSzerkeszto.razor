@@ -19,6 +19,7 @@
 @inject IEszkozService EszkozService
 @inject IKalibracioService KalibracioService
 @inject IMunkaszamService MunkaszamService
+@inject IMatricaValidatorService MatricaValidator
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -269,6 +270,7 @@
                 
                 @if (IsHordozhatoTipus())
                 {                   
+
                     @* === JÁRMŰADATOK (opcionális) === *@
                     <MudItem xs="12">
                         <MudText Typo="Typo.subtitle1" Class="mb-2">
@@ -297,41 +299,62 @@
                                       AdornmentIcon="@Icons.Material.Filled.DirectionsCar" />
                     </MudItem>
                     
-                    @* === MATRICA SOROZATSZÁMOK === *@
+                    @* === MATRICA SOROZATSZÁMOK - CSAK SZÁM, ELŐTAG AUTOMATIKUS === *@
                     <MudItem xs="12">
                         <MudDivider Class="my-3" />
                         <MudText Typo="Typo.subtitle1" Class="mb-2">
                             <MudIcon Icon="@Icons.Material.Filled.QrCode2" Class="mr-2" />
                             Felülvizsgálati matricák (opcionális)
                         </MudText>
+                        @if (!string.IsNullOrWhiteSpace(_cegMatricaElotag))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                A cég matrica előtagja: <b>@_cegMatricaElotag</b> - automatikusan hozzáfűzésre kerül
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                                Nincs beállítva matrica előtag a cégnél! Kérlek állítsd be a Beállítások → Cégbeállítások menüpontban.
+                            </MudAlert>
+                        }
                     </MudItem>
-                    
+
                     <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_adatok.MatricaSorszamTol" 
-                                      Label="Matrica sorszám -tól" 
-                                      Variant="Variant.Outlined"
-                                      Placeholder="pl. 001234"
-                                      Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Tag"
-                                      Error="@_matricaValidaciosHiba"
-                                      ErrorText="Mindkét mezőt ki kell tölteni!" />
+                        <MudNumericField @bind-Value="_matricaSorszamTol" 
+                                          Label="Matrica sorszám -tól" 
+                                          Variant="Variant.Outlined"
+                                          Min="1"
+                                          Placeholder="pl. 1234"
+                                          Adornment="Adornment.Start"
+                                          AdornmentText="@_cegMatricaElotag"
+                                          Error="@_matricaValidaciosHiba"
+                                          ErrorText="@_matricaHibaSzoveg"
+                                          OnBlur="MatricaValidalas" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_adatok.MatricaSorszamIg" 
-                                      Label="Matrica sorszám -ig" 
-                                      Variant="Variant.Outlined"
-                                      Placeholder="pl. 001250"
-                                      Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Tag"
-                                      Error="@_matricaValidaciosHiba"
-                                      ErrorText="Mindkét mezőt ki kell tölteni!" />
+                        <MudNumericField @bind-Value="_matricaSorszamIg" 
+                                          Label="Matrica sorszám -ig" 
+                                          Variant="Variant.Outlined"
+                                          Min="1"
+                                          Placeholder="pl. 1250"
+                                          Adornment="Adornment.Start"
+                                          AdornmentText="@_cegMatricaElotag"
+                                          Error="@_matricaValidaciosHiba"
+                                          ErrorText="@_matricaHibaSzoveg"
+                                          OnBlur="MatricaValidalas" />
                     </MudItem>
                     <MudItem xs="12" md="4" Class="d-flex align-center">
-                        @if (!string.IsNullOrWhiteSpace(_adatok.MatricaSorszamTol) && 
-                             !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamIg))
+                        @if (_matricaValidaciosHiba)
                         {
-                            <MudAlert Severity="Severity.Success" Dense="true">
-                                Matricák: @_adatok.MatricaSorszamTol - @_adatok.MatricaSorszamIg
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="flex-grow-1">
+                                @_matricaHibaSzoveg
+                            </MudAlert>
+                        }
+                        else if (_matricakSzama.HasValue && _matricakSzama > 0)
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true" Class="flex-grow-1">
+                                <b>@_matricakSzama db</b> matrica (@GetTeljesMatricaSzam(_matricaSorszamTol) → @GetTeljesMatricaSzam(_matricaSorszamIg))
                             </MudAlert>
                         }
                     </MudItem>
@@ -504,7 +527,7 @@
                             <MudRadio T="string" Value="@("NEM FELELT MEG")" Color="Color.Error">NEM FELELT MEG</MudRadio>
                         </MudRadioGroup>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            (Alapértelmezetten a "Vizsgálat eredménye" alapján, de felülírható)
+                            (Alapértelmezetten a "Vizsgálat eredmény" alapján, de felülírható)
                         </MudText>
                     </MudItem>
 
@@ -551,13 +574,13 @@
     @if (!IsHordozhatoTipus())
     {
         <MudStep Title="Minősítő irat 2/2" Icon="@Icons.Material.Filled.FactCheck"
-             Disabled="@(_kivalasztottFelulvizsgaloId == null)">
+                 Disabled="@(_kivalasztottFelulvizsgaloId == null)">
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-4">
                     <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
                     Minősítő irat 2/2 (3. oldal)
                 </MudText>
-                
+
                 <MudGrid>
                     <MudItem xs="12">
                         <MudText Typo="Typo.subtitle2" Class="mb-2">Érvényességi feltételek:</MudText>
@@ -635,16 +658,24 @@
 
                     <MudItem xs="12" md="4" Class="mt-3">
                         <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
-                                       Label="Következő felülvizsgálat határideje"
-                                       Variant="Variant.Outlined" DateFormat="yyyy.MM.dd"
-                                       HelperText="Automatikusan számított, de módosítható" />
+                        Label="Következő felülvizsgálat határideje"
+                        Variant="Variant.Outlined" DateFormat="yyyy.MM.dd"
+                        HelperText="Automatikusan számított, de módosítható" />
                     </MudItem>
 
                     <MudItem xs="12" Class="mt-4">
                         <MudTextField @bind-Value="_adatok.MinositoMegjegyzes"
-                                      Label="Megjegyzések, észrevételek, javaslatok"
-                                      Variant="Variant.Outlined" Lines="3"
-                                      Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
+                        Label="Megjegyzések, észrevételek, javaslatok"
+                        Variant="Variant.Outlined" Lines="3"
+                        Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
+                    </MudItem>
+
+                    <MudItem xs="12" Class="mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="@(async () => await _stepper.NextStepAsync())"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a letöltéshez
+                        </MudButton>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -667,13 +698,17 @@
                     <tr><td><strong>Végső minősítés</strong></td>
                         <td><MudChip T="string" Color="@(_adatok.VegsoMinosites == "MEGFELELT" ? Color.Success : Color.Error)" Size="Size.Small">@_adatok.VegsoMinosites</MudChip></td>
                     </tr>
+                    @if (IsHordozhatoTipus() && _matricakSzama.HasValue)
+                    {
+                        <tr><td><strong>Matricák</strong></td><td>@_matricakSzama db (@_adatok.MatricaSorszamTol - @_adatok.MatricaSorszamIg)</td></tr>
+                    }
                     @if (VanKitoltottHiba())
                     {
                         <tr><td><strong>Rögzített hibák</strong></td><td>@GetHibakOsszegzes()</td></tr>
                     }
                 </tbody>
             </MudSimpleTable>
-            
+
             <MudStack Row="true" Spacing="3">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                            StartIcon="@Icons.Material.Filled.Download" OnClick="LetoltesAsync"
@@ -687,30 +722,37 @@
 
 @code {
     [Parameter] public int? MeresId { get; set; }
-    
+
     private MudStepper _stepper = null!;
     private List<MeresTipus> _tipusok = [];
     private List<Ugyfel> _ugyfelek = [];
     private List<Telephely> _telephelyek = [];
     private List<Telephely> _szurtTelephelyek = [];
-    
+
     private int _kivalasztottTipusId;
     private string? _kivalasztottTipusNev;
     private int _kivalasztottUgyfelId;
     private int _kivalasztottTelephelyId;
     private DateTime? _vizsgalatDatum = DateTime.Today;
     private bool _feldolgozas;
-    
+
     private JegyzokonyvAdatok _adatok = new();
 
     private List<Felulvizsgalo> _osszFelulvizsgalo = [];
     private List<Felulvizsgalo> _jogosultFelulvizsgalok = [];
-    
+
     private int? _kivalasztottFelulvizsgaloId;
     private int? _kivalasztottSegitoId;
 
+    // MÓDOSÍTOTT - matrica sorszámok int típusúak
+    private int? _matricaSorszamTol;
+    private int? _matricaSorszamIg;
+
     private bool _matricaValidaciosHiba;
+    private string _matricaHibaSzoveg = "";
+    private int? _matricakSzama;
     private List<Eszkoz> _muszerek = [];
+    private string? _cegMatricaElotag;
 
     protected override async Task OnInitializedAsync()
     {
@@ -719,17 +761,20 @@
         _telephelyek = await TelephelyService.GetAllAsync();
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
         _muszerek = await EszkozService.GetAllAsync();
-        
+
         await BetoltCegAdatokAsync();
-        
+
         _adatok.Eredmeny = "MEGFELELT";
         _adatok.VegsoMinosites = "MEGFELELT";
-        
+
         var cegId = TenantService.GetCurrentCegId();
         var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId);
         _adatok.Munkaszam = munkaszam;
         _adatok.JegyzokonyvSzam = munkaszam;
-        
+
+        var ceg = await CegService.GetByIdAsync(cegId);
+        _cegMatricaElotag = ceg?.MatricaElotag;
+
         if (MeresId.HasValue)
             await BetoltMeresbolAsync(MeresId.Value);
     }
@@ -739,7 +784,7 @@
         _kivalasztottTipusId = tipusId;
         var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
         _kivalasztottTipusNev = tipus?.Nev;
-        
+
         if (tipusId > 0)
             _jogosultFelulvizsgalok = await JuegosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
         else
@@ -751,7 +796,7 @@
         _kivalasztottUgyfelId = ugyfelId;
         _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == ugyfelId).ToList();
         _kivalasztottTelephelyId = _szurtTelephelyek.FirstOrDefault()?.Id ?? 0;
-        
+
         var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == ugyfelId);
         if (ugyfel != null)
             _adatok.Megrendelo = ugyfel.Nev;
@@ -778,16 +823,29 @@
 
         if (IsHordozhatoTipus())
         {
-            bool tolKitoltve = !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamTol);
-            bool igKitoltve = !string.IsNullOrWhiteSpace(_adatok.MatricaSorszamIg);
-            
-            if (tolKitoltve != igKitoltve)
+            // Matrica validáció
+            MatricaValidalas();
+            if (_matricaValidaciosHiba)
             {
-                _matricaValidaciosHiba = true;
-                Snackbar.Add("Mindkét matrica sorszámot ki kell tölteni, vagy egyiket sem!", Severity.Warning);
+                Snackbar.Add(_matricaHibaSzoveg, Severity.Warning);
                 return;
             }
-            _matricaValidaciosHiba = false;
+        }
+
+        await _stepper.NextStepAsync();
+    }
+
+    private async Task Lepes3ValidalasEsTovabbAsync()
+    {
+        if (IsHordozhatoTipus())
+        {
+            // Matrica validáció
+            MatricaValidalas();
+            if (_matricaValidaciosHiba)
+            {
+                Snackbar.Add(_matricaHibaSzoveg, Severity.Warning);
+                return;
+            }
         }
 
         await _stepper.NextStepAsync();
@@ -809,7 +867,7 @@
     private Task OnFelulvizsgaloValtozasAsync(int? felulvizsgaloId)
     {
         _kivalasztottFelulvizsgaloId = felulvizsgaloId;
-        
+
         if (felulvizsgaloId.HasValue)
         {
             var felulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == felulvizsgaloId.Value);
@@ -834,7 +892,7 @@
     private Task OnSegitoValtozasAsync(int? segitoId)
     {
         _kivalasztottSegitoId = segitoId;
-        
+
         if (segitoId.HasValue)
         {
             var segito = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == segitoId.Value);
@@ -874,13 +932,13 @@
             var meresId = MeresId ?? 0;
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
             var sablonId = tipus?.SablonId ?? "VBF_KIF_MINTA";
-            
+
             var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
             var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
-            
+
             using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
-            
+
             Snackbar.Add("Jegyzőkönyv sikeresen legenerálva!", Severity.Success);
         }
         catch (Exception ex)
@@ -926,7 +984,7 @@
             _kivalasztottUgyfelId = meres.UgyfelId;
             _kivalasztottTelephelyId = meres.TelephelyId;
             _vizsgalatDatum = meres.Datum;
-            
+
             await OnTipusValtozas(_kivalasztottTipusId);
             OnUgyfelValtozas(_kivalasztottUgyfelId);
         }
@@ -1009,9 +1067,63 @@
             _adatok.Muszerek.RemoveAt(index);
     }
 
-    private async Task InicializalEszkozok()
+    // ÚJ METÓDUS - Teljes matrica szám generálása előtaggal
+    private string GetTeljesMatricaSzam(int? sorszam)
     {
-        if (_adatok.Muszerek.Count == 0)
-            _adatok.Muszerek.Add(new MuszerSor());
+        if (!sorszam.HasValue || string.IsNullOrWhiteSpace(_cegMatricaElotag))
+            return "";
+        return $"{_cegMatricaElotag}{sorszam.Value:D7}";
+    }
+
+    // MÓDOSÍTOTT - Matrica validálás egyszerűsítve
+    private void MatricaValidalas()
+    {
+        // Ha nincs kitöltve egyik sem, nincs hiba
+        if (!_matricaSorszamTol.HasValue && !_matricaSorszamIg.HasValue)
+        {
+            _matricaValidaciosHiba = false;
+            _matricaHibaSzoveg = "";
+            _matricakSzama = null;
+            return;
+        }
+
+        // Ha csak az egyik van kitöltve
+        if (!_matricaSorszamTol.HasValue || !_matricaSorszamIg.HasValue)
+        {
+            _matricaValidaciosHiba = true;
+            _matricaHibaSzoveg = "Mindkét matrica sorszámot meg kell adni!";
+            _matricakSzama = null;
+            return;
+        }
+
+        // Ellenőrzés: tól <= ig
+        if (_matricaSorszamTol.Value > _matricaSorszamIg.Value)
+        {
+            _matricaValidaciosHiba = true;
+            _matricaHibaSzoveg = $"A 'tól' érték ({_matricaSorszamTol}) nem lehet nagyobb mint az 'ig' érték ({_matricaSorszamIg})!";
+            _matricakSzama = null;
+            return;
+        }
+
+        // Matricák száma
+        var matricakSzama = _matricaSorszamIg.Value - _matricaSorszamTol.Value + 1;
+
+        // Ellenőrzés: ne legyen több matrica mint eszköz
+        if (_adatok.Eszkozok.Count > 0 && matricakSzama > _adatok.Eszkozok.Count)
+        {
+            _matricaValidaciosHiba = true;
+            _matricaHibaSzoveg = $"Több matrica ({matricakSzama} db) van megadva mint eszköz ({_adatok.Eszkozok.Count} db)!";
+            _matricakSzama = matricakSzama;
+            return;
+        }
+
+        // Minden OK
+        _matricaValidaciosHiba = false;
+        _matricaHibaSzoveg = "";
+        _matricakSzama = matricakSzama;
+
+        // Adatok frissítése a teljes matrica számmal
+        _adatok.MatricaSorszamTol = GetTeljesMatricaSzam(_matricaSorszamTol);
+        _adatok.MatricaSorszamIg = GetTeljesMatricaSzam(_matricaSorszamIg);
     }
 }

@@ -200,21 +200,9 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["mf_db"] = mfDb.ToString(),
             ["nmf_db"] = nmfDb.ToString(),
             
-            // === DINAMIKUS ESZKÖZLISTA - JAVÍTOTT ===
-            ["eszkozok"] = eszkozok.Select((e, i) => new 
-            {
-                sorsz = (i + 1).ToString(),
-                megnevezes = e.Megnevezes ?? "",
-                tipus = e.Tipus ?? "",
-                azonosito = e.Azonosito ?? "",
-                osztaly = e.VedelmiOsztaly ?? "",
-                telj = e.Telj ?? "",
-                megtekint = e.Megtekint ?? "",
-                folyt = e.KellFolyt ? (e.Folyt ?? "-") : "-",
-                szigell = e.Szigell ?? "",
-                szivargo = e.Szivargo ?? "",
-                megjegyzes = e.Megjegyzes ?? "",
-            }).ToList(),
+            // === DINAMIKUS ESZKÖZLISTA - HELYISÉG CSOPORTOSÍTÁSSAL ===
+            // A formAdatok.Eszkozok-nak már rendezettnek kell lennie!
+["eszkozok"] = GenerateEszkozListaHelyiseggel(eszkozok),
 
             // Cég lábléc
             ["ceg_telephely"] = ceg?.Cim ?? "",
@@ -254,5 +242,71 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
         }
         
         return "";
+    }
+
+    /// <summary>
+    /// Eszközlista generálása helyiség csoportosítással.
+    /// Minden helyiség előtt egy fejléc sor jelenik meg.
+    /// </summary>
+    private static List<object> GenerateEszkozListaHelyiseggel(List<HordozhatoEszkozSor> eszkozok)
+    {
+        var eredmeny = new List<object>();
+        var sorszam = 1;
+        
+        // Csoportosítás helyiség szerint - BEVITELI SORREND megtartása
+        var csoportok = eszkozok
+            .GroupBy(e => string.IsNullOrWhiteSpace(e.HelyisegNev) ? "" : e.HelyisegNev)
+            .Select((g, index) => new { 
+                Key = g.Key, 
+                Items = g.ToList(), 
+                FirstIndex = eszkozok.FindIndex(e => (e.HelyisegNev ?? "") == g.Key) // Első előfordulás indexe
+            })
+            .OrderBy(g => string.IsNullOrEmpty(g.Key) ? int.MaxValue : g.FirstIndex); // Üres helyiség a végére
+
+        foreach (var csoport in csoportok)
+        {
+            // Helyiség fejléc sor (ha van helyiség név)
+            if (!string.IsNullOrEmpty(csoport.Key))
+            {
+                eredmeny.Add(new
+                {
+                    sorsz = "",
+                    megnevezes = csoport.Key,  // Helyiség neve a megnevezés oszlopban
+                    tipus = "",
+                    azonosito = "",
+                    osztaly = "",
+                    telj = "",
+                    megtekint = "",
+                    folyt = "",
+                    szigell = "",
+                    szivargo = "",
+                    megjegyzes = "",
+                    is_header = "true"  // Jelző a sablonban való formázáshoz
+                });
+            }
+
+            // Eszközök a csoportban
+            foreach (var eszkoz in csoport.Items)
+            {
+                eredmeny.Add(new
+                {
+                    sorsz = sorszam.ToString() + ".",
+                    megnevezes = eszkoz.Megnevezes ?? "",
+                    tipus = eszkoz.Tipus ?? "",
+                    azonosito = eszkoz.Azonosito ?? "",
+                    osztaly = eszkoz.VedelmiOsztaly ?? "",
+                    telj = eszkoz.Telj ?? "",
+                    megtekint = eszkoz.Megtekint ?? "",
+                    folyt = eszkoz.KellFolyt ? (eszkoz.Folyt ?? "-") : "-",
+                    szigell = eszkoz.Szigell ?? "",
+                    szivargo = eszkoz.Szivargo ?? "",
+                    megjegyzes = eszkoz.Megjegyzes ?? "",
+                    is_header = ""
+                });
+                sorszam++;
+            }
+        }
+
+        return eredmeny;
     }
 }

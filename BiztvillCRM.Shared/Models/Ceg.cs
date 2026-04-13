@@ -20,6 +20,11 @@ public class Ceg
     public string? Weboldal { get; set; }
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>3 betűs matrica előtag (pl. "BTV", "ABC")</summary>
+    [StringLength(3, MinimumLength = 3, ErrorMessage = "A matrica előtag pontosan 3 betű legyen!")]
+    [RegularExpression(@"^[A-Z]{3}$", ErrorMessage = "A matrica előtag csak nagybetűket tartalmazhat!")]
+    public string? MatricaElotag { get; set; }
+
     /// <summary>Tevékenységi körök (üzleti kategorizálás)</summary>
     public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
 

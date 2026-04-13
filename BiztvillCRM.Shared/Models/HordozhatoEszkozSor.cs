@@ -25,4 +25,8 @@ public class HordozhatoEszkozSor
     
     /// <summary>I. osztálynál kell a Folyt mező</summary>
     public bool KellFolyt => VedelmiOsztaly == "I";
+
+    // ÚJ: room selection (UI-only for the portable list)
+    public int? HelyisegId { get; set; }
+    public string HelyisegNev { get; set; } = "";
 }

@@ -100,6 +100,17 @@
                 <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
             </div>
 
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_szerkesztettCeg.MatricaElotag" 
+                              Label="Matrica előtag" 
+                              Variant="Variant.Outlined"
+                              Placeholder="pl. BTV"
+                              MaxLength="3"
+                              Counter="3"
+                              HelperText="3 nagybetű (pl. BTV, ABC)"
+                              Validation="@(new Func<string, string?>(ValidateMatricaElotag))" />
+            </MudItem>
+
             <!-- Modul jogosultságok szekció -->
             <MudItem xs="12">
                 <MudDivider Class="my-2" />
@@ -365,6 +376,20 @@
             _szerkesztettCeg.AktivModulok |= modul;
         else
             _szerkesztettCeg.AktivModulok &= ~modul;
+    }
+
+    private string? ValidateMatricaElotag(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null; // Opcionális
+        
+        if (value.Length != 3)
+            return "Pontosan 3 karakter legyen!";
+        
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z]{3}$"))
+            return "Csak betűk lehetnek!";
+        
+        return null;
     }
 
     private class CegListaElem

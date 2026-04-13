@@ -16,6 +16,7 @@
         <MudNavLink Href="/telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
         <MudNavLink Href="/gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
         <MudNavLink Href="/eszkozok" Icon="@Icons.Material.Filled.Build">Eszközök</MudNavLink>
+        <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Badge">Felülvizsgálók</MudNavLink>
         @if (_isAdmin)
         {
             <MudNavLink Href="/eszkoztipusok" Icon="@Icons.Material.Filled.Category">Eszköztípusok</MudNavLink>
@@ -149,8 +150,8 @@
     private bool HasModule(ModulJogosultsag modul) => 
         _isAdmin || _aktivModulok.HasFlag(modul);
 
-    private void MenuValtas(string menuNev, bool expanded)
+    private void MenuValtas(string menu, bool expanded)
     {
-        _nyitottMenu = expanded ? menuNev : null;
+        _nyitottMenu = expanded ? menu : null;
     }
 }

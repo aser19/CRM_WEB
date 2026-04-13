@@ -12,7 +12,10 @@ public class Meres
     // Ügyfél és telephely kapcsolat (Eszköz helyett)
     public int UgyfelId { get; set; }
     public int TelephelyId { get; set; }
-    
+
+    // ÚJ: opcionális helyiség hivatkozás
+    public int? HelyisegId { get; set; }
+
     public int MeresTipusId { get; set; }
     public DateTime Datum { get; set; }
     public DateTime? KovetkezoDatum { get; set; }
@@ -24,4 +27,7 @@ public class Meres
     public Ugyfel? Ugyfel { get; set; }
     public Telephely? Telephely { get; set; }
     public MeresTipus? MeresTipus { get; set; }
+
+    // ÚJ navigáció
+    public Helyiseg? Helyiseg { get; set; }
 }

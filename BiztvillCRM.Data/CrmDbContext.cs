@@ -66,6 +66,7 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Kockazatertekeles> Kockazatertekelesek { get; set; }
     public DbSet<Zonaterkep> Zonaterkepek { get; set; }
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
+    public DbSet<Helyiseg> Helyisegek { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -432,6 +433,16 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
                   .WithMany()
                   .HasForeignKey(e => e.CegId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Helyiseg konfigurálása
+        modelBuilder.Entity<Helyiseg>(entity =>
+        {
+            entity.ToTable("Helyisegek");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Letrehozva).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

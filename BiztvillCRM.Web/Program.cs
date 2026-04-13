@@ -117,6 +117,7 @@ builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // 
 builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IModulJogosultsagService, ModulJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IMunkaszamService, MunkaszamService>(); // A többi service regisztráció mellé
+builder.Services.AddScoped<IMatricaValidatorService, MatricaValidatorService>(); // <-- ÚJ SZOLGÁLTATÁS
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();

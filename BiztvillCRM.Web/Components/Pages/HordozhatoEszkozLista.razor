@@ -1,11 +1,78 @@
 @namespace BiztvillCRM.Web.Components.Pages
 @using BiztvillCRM.Shared.Models
+@inject IJSRuntime JS
 
 <MudPaper Class="pa-4 mb-4">
     <MudText Typo="Typo.h6" Class="mb-3">
         <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
         Vizsgált eszközök (@Eszkozok.Count db)
     </MudText>
+
+    @* Helyiség választó - AUTOCOMPLETE a kézi bevitelhez *@
+    <MudGrid Class="mb-3">
+        <MudItem xs="12" md="4">
+            <MudAutocomplete T="string"
+                         @bind-Value="_aktualisHelyisegNev"
+                         Label="Aktív helyiség"
+                         Variant="Variant.Outlined"
+                         Size="Size.Small"
+                         SearchFunc="@HelyisegKereses"
+                         CoerceText="false"
+                         CoerceValue="false"
+                         Clearable="true"
+                         Placeholder="Válassz vagy írd be..."
+                         ResetValueOnEmptyText="false"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Room"
+                         DebounceInterval="300"
+                         ShowProgressIndicator="true" />
+        </MudItem>
+        <MudItem xs="12" md="8" Class="d-flex align-center">
+            @if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
+            {
+                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Room">
+                    Új eszközök ide kerülnek: <b>@_aktualisHelyisegNev</b>
+                </MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                    Nincs helyiség kiválasztva!
+                </MudChip>
+            }
+        </MudItem>
+    </MudGrid>
+
+    @* Gyors helyiség váltó gombok - ha már van eszköz *@
+    @if (Eszkozok.Count > 0)
+    {
+        var hasznaltHelyisegek = Eszkozok
+            .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
+            .Select(e => e.HelyisegNev)
+            .Distinct()
+            .ToList();
+        
+        @if (hasznaltHelyisegek.Any())
+        {
+            <MudStack Row="true" Spacing="1" Class="mb-3 flex-wrap">
+                <MudText Typo="Typo.caption" Class="mr-2 align-self-center">Gyors váltás:</MudText>
+                @foreach (var hely in hasznaltHelyisegek)
+                {
+                    <MudButton Size="Size.Small" 
+                               Variant="@(_aktualisHelyisegNev == hely ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Primary"
+                               OnClick="@(() => GyorsHelyisegValtas(hely))">
+                        @hely (@Eszkozok.Count(e => e.HelyisegNev == hely) db)
+                    </MudButton>
+                }
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => _aktualisHelyisegNev = "")">
+                    Új helyiség
+                </MudButton>
+            </MudStack>
+        }
+    }
 
     @* Eszköz hozzáadás gyorsform *@
     <MudGrid Class="mb-4">
@@ -22,37 +89,34 @@
                           Variant="Variant.Outlined" Size="Size.Small" />
         </MudItem>
         
-        @* Védelmi osztály - ÚJ *@
         <MudItem xs="12" md="1">
-            <MudSelect @bind-Value="_ujEszkoz.VedelmiOsztaly" Label="Osztály *" 
+            <MudSelect T="string" @bind-Value="_ujEszkoz.VedelmiOsztaly" Label="Osztály *" 
                        Variant="Variant.Outlined" Size="Size.Small">
-                <MudSelectItem Value="@("I")">I.</MudSelectItem>
-                <MudSelectItem Value="@("II")">II.</MudSelectItem>
-                <MudSelectItem Value="@("III")">III.</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-        
-        @* Teljesítmény/Feszültség - választható *@
-        <MudItem xs="12" md="1">
-            <MudSelect @bind-Value="_ujEszkoz.Telj" Label="Feszültség" 
-                       Variant="Variant.Outlined" Size="Size.Small">
-                <MudSelectItem Value="@("230V")">230V</MudSelectItem>
-                <MudSelectItem Value="@("400V")">400V</MudSelectItem>
-                <MudSelectItem Value="@("12V")">12V</MudSelectItem>
-                <MudSelectItem Value="@("24V")">24V</MudSelectItem>
-                <MudSelectItem Value="@("48V")">48V</MudSelectItem>
+                <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
+                <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
+                <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
             </MudSelect>
         </MudItem>
         
         <MudItem xs="12" md="1">
-            <MudSelect @bind-Value="_ujEszkoz.Megtekint" Label="Szemrevét." 
+            <MudSelect T="string" @bind-Value="_ujEszkoz.Telj" Label="Feszültség" 
                        Variant="Variant.Outlined" Size="Size.Small">
-                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
-                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
+                <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
+                <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
+                <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
+                <MudSelectItem T="string" Value="@("48V")">48V</MudSelectItem>
             </MudSelect>
         </MudItem>
         
-        @* Folyt. - csak I. osztálynál engedélyezett *@
+        <MudItem xs="12" md="1">
+            <MudSelect T="string" @bind-Value="_ujEszkoz.Megtekint" Label="Szemrevét." 
+                       Variant="Variant.Outlined" Size="Size.Small">
+                <MudSelectItem T="string" Value="@("MF")">MF</MudSelectItem>
+                <MudSelectItem T="string" Value="@("NMF")">NMF</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        
         <MudItem xs="12" md="1">
             <MudTextField @bind-Value="_ujEszkoz.Folyt" Label="Folyt." 
                           Variant="Variant.Outlined" Size="Size.Small" Placeholder="Ω"
@@ -76,13 +140,13 @@
         </MudItem>
     </MudGrid>
 
-    @* Táblázat az eszközökkel *@
     @if (Eszkozok.Count > 0)
     {
         <MudTable Items="@Eszkozok" Dense="true" Hover="true" Striped="true"
                   FixedHeader="true" Height="400px">
             <HeaderContent>
                 <MudTh Style="width:40px">#</MudTh>
+                <MudTh>Helyiség</MudTh>
                 <MudTh>Megnevezés</MudTh>
                 <MudTh>Típus</MudTh>
                 <MudTh>Gyártási szám</MudTh>
@@ -98,89 +162,64 @@
             <RowTemplate>
                 <MudTd>@context.Sorsz</MudTd>
                 <MudTd>
-                    <MudTextField @bind-Value="context.Megnevezes" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" />
+                    <MudText Typo="Typo.body2" Color="@(string.IsNullOrEmpty(context.HelyisegNev) ? Color.Secondary : Color.Default)">
+                        @(string.IsNullOrEmpty(context.HelyisegNev) ? "-" : context.HelyisegNev)
+                    </MudText>
                 </MudTd>
+                <MudTd><MudTextField @bind-Value="context.Megnevezes" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                <MudTd><MudTextField @bind-Value="context.Tipus" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                <MudTd><MudTextField @bind-Value="context.Azonosito" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
                 <MudTd>
-                    <MudTextField @bind-Value="context.Tipus" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" />
-                </MudTd>
-                <MudTd>
-                    <MudTextField @bind-Value="context.Azonosito" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" />
-                </MudTd>
-                <MudTd>
-                    <MudSelect @bind-Value="context.VedelmiOsztaly" Variant="Variant.Text" 
-                               Margin="Margin.Dense" Style="width:55px">
-                        <MudSelectItem Value="@("I")">I.</MudSelectItem>
-                        <MudSelectItem Value="@("II")">II.</MudSelectItem>
-                        <MudSelectItem Value="@("III")">III.</MudSelectItem>
+                    <MudSelect T="string" @bind-Value="context.VedelmiOsztaly" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px">
+                        <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
                     </MudSelect>
                 </MudTd>
                 <MudTd>
-                    <MudSelect @bind-Value="context.Telj" Variant="Variant.Text" 
-                               Margin="Margin.Dense" Style="width:65px">
-                        <MudSelectItem Value="@("230V")">230V</MudSelectItem>
-                        <MudSelectItem Value="@("400V")">400V</MudSelectItem>
-                        <MudSelectItem Value="@("12V")">12V</MudSelectItem>
-                        <MudSelectItem Value="@("24V")">24V</MudSelectItem>
-                        <MudSelectItem Value="@("48V")">48V</MudSelectItem>
+                    <MudSelect T="string" @bind-Value="context.Telj" Variant="Variant.Text" Margin="Margin.Dense" Style="width:65px">
+                        <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("48V")">48V</MudSelectItem>
                     </MudSelect>
                 </MudTd>
                 <MudTd>
-                    <MudSelect @bind-Value="context.Megtekint" Variant="Variant.Text" 
-                               Margin="Margin.Dense" Style="width:65px">
-                        <MudSelectItem Value="@("MF")">MF</MudSelectItem>
-                        <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                    <MudSelect T="string" @bind-Value="context.Megtekint" Variant="Variant.Text" Margin="Margin.Dense" Style="width:65px">
+                        <MudSelectItem T="string" Value="@("MF")">MF</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("NMF")">NMF</MudSelectItem>
                     </MudSelect>
                 </MudTd>
                 <MudTd>
                     @if (context.KellFolyt)
                     {
-                        <MudTextField @bind-Value="context.Folyt" Variant="Variant.Text" 
-                                      Margin="Margin.Dense" Style="width:55px" />
+                        <MudTextField @bind-Value="context.Folyt" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" />
                     }
                     else
                     {
                         <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
                     }
                 </MudTd>
-                <MudTd>
-                    <MudTextField @bind-Value="context.Szigell" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" Style="width:55px" />
-                </MudTd>
-                <MudTd>
-                    <MudTextField @bind-Value="context.Szivargo" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" Style="width:55px" />
-                </MudTd>
-                <MudTd>
-                    <MudTextField @bind-Value="context.Megjegyzes" Variant="Variant.Text" 
-                                  Margin="Margin.Dense" />
-                </MudTd>
+                <MudTd><MudTextField @bind-Value="context.Szigell" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" /></MudTd>
+                <MudTd><MudTextField @bind-Value="context.Szivargo" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" /></MudTd>
+                <MudTd><MudTextField @bind-Value="context.Megjegyzes" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
                 <MudTd>
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                   Size="Size.Small" OnClick="() => EszkozTorles(context)" />
+                                   Size="Size.Small" OnClick="@(() => EszkozTorles(context))" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
 
         <MudDivider Class="my-3" />
         
-        @* Összesítés *@
         <MudStack Row="true" Spacing="4" Class="flex-wrap">
             <MudChip T="string" Color="Color.Primary">Összes: @Eszkozok.Count db</MudChip>
-            <MudChip T="string" Color="Color.Success">
-                MF: @Eszkozok.Count(e => e.Megtekint == "MF") db
-            </MudChip>
-            <MudChip T="string" Color="Color.Error">
-                NMF: @Eszkozok.Count(e => e.Megtekint == "NMF") db
-            </MudChip>
-            <MudChip T="string" Color="Color.Info">
-                I. oszt.: @Eszkozok.Count(e => e.VedelmiOsztaly == "I") db
-            </MudChip>
-            <MudChip T="string" Color="Color.Warning">
-                II. oszt.: @Eszkozok.Count(e => e.VedelmiOsztaly == "II") db
-            </MudChip>
+            <MudChip T="string" Color="Color.Success">MF: @Eszkozok.Count(e => e.Megtekint == "MF") db</MudChip>
+            <MudChip T="string" Color="Color.Error">NMF: @Eszkozok.Count(e => e.Megtekint == "NMF") db</MudChip>
+            <MudChip T="string" Color="Color.Info">I. oszt.: @Eszkozok.Count(e => e.VedelmiOsztaly == "I") db</MudChip>
+            <MudChip T="string" Color="Color.Warning">II. oszt.: @Eszkozok.Count(e => e.VedelmiOsztaly == "II") db</MudChip>
+            <MudChip T="string" Color="Color.Secondary">III. oszt.: @Eszkozok.Count(e => e.VedelmiOsztaly == "III") db</MudChip>
         </MudStack>
     }
     else
@@ -189,27 +228,97 @@
             Még nincs eszköz hozzáadva. Adj hozzá eszközöket a fenti űrlapon!
         </MudAlert>
     }
+
+    @* Helyiségek sorrendje - a jegyzőkönyvben ez lesz *@
+    @if (Eszkozok.Count > 0)
+    {
+        var helyisegSorrend = GetHelyisegSorrend();
+        
+        @if (helyisegSorrend.Count > 1)
+        {
+            <MudPaper Class="pa-2 mb-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey)">
+                <MudText Typo="Typo.caption" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Sort" Size="Size.Small" Class="mr-1" />
+                    Helyiségek sorrendje (húzd át a rendezéshez):
+                </MudText>
+                <MudDropContainer T="HelyisegSorrendItem" Items="_helyisegSorrend" 
+                                  ItemsSelector="@((item, zone) => true)"
+                                  ItemDropped="OnHelyisegSorrendValtozas"
+                                  Class="d-flex flex-wrap gap-2">
+                    <ChildContent>
+                        <MudDropZone T="HelyisegSorrendItem" Identifier="zone" 
+                                     Class="d-flex flex-wrap gap-1" 
+                                     Style="min-height: 40px;">
+                        </MudDropZone>
+                    </ChildContent>
+                    <ItemRenderer>
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" 
+                                 Style="cursor: grab;"
+                                 Icon="@Icons.Material.Filled.DragIndicator">
+                            @context.Sorszam. @context.Nev (@context.EszkozokSzama db)
+                        </MudChip>
+                    </ItemRenderer>
+                </MudDropContainer>
+            </MudPaper>
+        }
+    }
 </MudPaper>
 
 @code {
     [Parameter] public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
     [Parameter] public EventCallback<List<HordozhatoEszkozSor>> EszkozokChanged { get; set; }
+    [Parameter] public List<Helyiseg> Helyisegek { get; set; } = new();
 
     private HordozhatoEszkozSor _ujEszkoz = new() { VedelmiOsztaly = "I", Telj = "230V", Megtekint = "MF" };
+    private string _aktualisHelyisegNev = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var saved = await JS.InvokeAsync<string>("localStorageInterop.get", "lastHelyisegNev");
+                if (!string.IsNullOrEmpty(saved))
+                {
+                    _aktualisHelyisegNev = saved;
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void GyorsHelyisegValtas(string helyiseg)
+    {
+        _aktualisHelyisegNev = helyiseg;
+    }
 
     private async Task EszkozHozzaadas()
     {
-        if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes))
-            return;
+        if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes)) return;
 
-        // II. és III. osztálynál töröljük a Folyt értéket
-        if (!_ujEszkoz.KellFolyt)
-            _ujEszkoz.Folyt = "";
+        if (!_ujEszkoz.KellFolyt) _ujEszkoz.Folyt = "";
 
+        // Mentjük a helyiséget LocalStorage-ba
+        if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
+        {
+            try { await JS.InvokeVoidAsync("localStorageInterop.set", "lastHelyisegNev", _aktualisHelyisegNev); }
+            catch { }
+        }
+
+        _ujEszkoz.HelyisegNev = _aktualisHelyisegNev;
         _ujEszkoz.Sorsz = Eszkozok.Count + 1;
+        
         Eszkozok.Add(_ujEszkoz);
         
-        _ujEszkoz = new HordozhatoEszkozSor { VedelmiOsztaly = "I", Telj = "230V", Megtekint = "MF" };
+        _ujEszkoz = new HordozhatoEszkozSor
+        {
+            VedelmiOsztaly = "I",
+            Telj = "230V",
+            Megtekint = "MF",
+            HelyisegNev = _aktualisHelyisegNev
+        };
         
         await EszkozokChanged.InvokeAsync(Eszkozok);
     }
@@ -217,13 +326,103 @@
     private async Task EszkozTorles(HordozhatoEszkozSor eszkoz)
     {
         Eszkozok.Remove(eszkoz);
-        
-        // Sorszámok újraszámozása
         for (int i = 0; i < Eszkozok.Count; i++)
-        {
             Eszkozok[i].Sorsz = i + 1;
-        }
-        
         await EszkozokChanged.InvokeAsync(Eszkozok);
+    }
+
+    private Task<IEnumerable<string>> HelyisegKereses(string keresettErtek, CancellationToken token)
+    {
+        // Összegyűjtjük az összes lehetséges helyiséget
+        var osszesNev = Helyisegek.Select(h => h.Nev).ToList();
+        
+        // Hozzáadjuk a már használt helyiségneveket is (kézi bevitelből)
+        var hasznaltNevek = Eszkozok
+            .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
+            .Select(e => e.HelyisegNev!)
+            .Distinct();
+        
+        osszesNev = osszesNev.Union(hasznaltNevek).Distinct().OrderBy(n => n).ToList();
+
+        // Ha üres a keresés, visszaadjuk az összeset
+        if (string.IsNullOrWhiteSpace(keresettErtek))
+            return Task.FromResult(osszesNev.AsEnumerable());
+
+        // Szűrés
+        var talalatok = osszesNev
+            .Where(n => n.Contains(keresettErtek, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // HA NINCS TALÁLAT, VISSZAADJUK A BEÍRT ÉRTÉKAT MINT ÚJ OPCIÓT!
+        if (!talalatok.Any() && !string.IsNullOrWhiteSpace(keresettErtek))
+        {
+            talalatok.Add(keresettErtek);
+        }
+
+        return Task.FromResult(talalatok.AsEnumerable());
+    }
+
+    // Helyiség sorrend kezelése
+    private List<HelyisegSorrendItem> _helyisegSorrend = new();
+
+    private class HelyisegSorrendItem
+    {
+        public int Sorszam { get; set; }
+        public string Nev { get; set; } = "";
+        public int EszkozokSzama { get; set; }
+    }
+
+    private List<HelyisegSorrendItem> GetHelyisegSorrend()
+    {
+        var helyisegek = Eszkozok
+            .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
+            .GroupBy(e => e.HelyisegNev)
+            .Select(g => g.Key!)
+            .ToList();
+
+        // Ha nincs még sorrend, vagy új helyiség jött, frissítjük
+        var meglevoNevek = _helyisegSorrend.Select(h => h.Nev).ToHashSet();
+        var ujNevek = helyisegek.Where(n => !meglevoNevek.Contains(n)).ToList();
+        
+        // Töröljük a már nem létezőket
+        _helyisegSorrend.RemoveAll(h => !helyisegek.Contains(h.Nev));
+        
+        // Hozzáadjuk az újakat a végére
+        foreach (var ujNev in ujNevek)
+        {
+            _helyisegSorrend.Add(new HelyisegSorrendItem { Nev = ujNev });
+        }
+
+        // Frissítjük a számokat
+        for (int i = 0; i < _helyisegSorrend.Count; i++)
+        {
+            _helyisegSorrend[i].Sorszam = i + 1;
+            _helyisegSorrend[i].EszkozokSzama = Eszkozok.Count(e => e.HelyisegNev == _helyisegSorrend[i].Nev);
+        }
+
+        return _helyisegSorrend;
+    }
+
+    private void OnHelyisegSorrendValtozas(MudItemDropInfo<HelyisegSorrendItem> info)
+    {
+        var item = info.Item;
+        _helyisegSorrend.Remove(item);
+        _helyisegSorrend.Insert(info.IndexInZone, item);
+        
+        // Sorszámok frissítése
+        for (int i = 0; i < _helyisegSorrend.Count; i++)
+            _helyisegSorrend[i].Sorszam = i + 1;
+    }
+
+    // Az eszközök rendezése a helyiség sorrend szerint
+    public List<HordozhatoEszkozSor> GetRendezettEszkozok()
+    {
+        var sorrend = _helyisegSorrend.Select((h, i) => new { h.Nev, Index = i }).ToDictionary(x => x.Nev, x => x.Index);
+        
+        return Eszkozok
+            .OrderBy(e => string.IsNullOrWhiteSpace(e.HelyisegNev) ? int.MaxValue : 
+                          sorrend.TryGetValue(e.HelyisegNev!, out var idx) ? idx : int.MaxValue - 1)
+            .ThenBy(e => e.Sorsz)
+            .ToList();
     }
 }
