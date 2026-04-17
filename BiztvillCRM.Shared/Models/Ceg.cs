@@ -20,9 +20,9 @@ public class Ceg
     public string? Weboldal { get; set; }
     public bool Aktiv { get; set; } = true;
 
-    /// <summary>3 betűs matrica előtag (pl. "BTV", "ABC")</summary>
-    [StringLength(3, MinimumLength = 3, ErrorMessage = "A matrica előtag pontosan 3 betű legyen!")]
-    [RegularExpression(@"^[A-Z]{3}$", ErrorMessage = "A matrica előtag csak nagybetűket tartalmazhat!")]
+    /// <summary>Maximum 3 betűs matrica előtag (pl. "BTV", "AB")</summary>
+    [StringLength(3, ErrorMessage = "A matrica előtag maximum 3 betű lehet!")]
+    [RegularExpression(@"^[A-Z]{1,3}$", ErrorMessage = "A matrica előtag 1-3 nagybetű lehet!")]
     public string? MatricaElotag { get; set; }
 
     /// <summary>Tevékenységi körök (üzleti kategorizálás)</summary>

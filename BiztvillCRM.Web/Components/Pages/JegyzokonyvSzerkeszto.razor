@@ -278,7 +278,9 @@
                     </MudItem>
                     
                     <MudItem xs="12">
-                        <HordozhatoEszkozLista @bind-Eszkozok="_adatok.Eszkozok" />
+                        <HordozhatoEszkozLista 
+        Eszkozok="_adatok.Eszkozok" 
+        EszkozokChanged="OnEszkozokValtozas" />
                     </MudItem>
                 }
                 <MudItem xs="12" Class="mt-4">
@@ -826,7 +828,16 @@
 
         var matricakSzama = _matricaSorszamIg.Value - _matricaSorszamTol.Value + 1;
 
-        if (_adatok.Eszkozok.Count > 0 && matricakSzama > _adatok.Eszkozok.Count)
+        // Javított validáció: ha van matrica de nincs eszköz, vagy több a matrica
+        if (_adatok.Eszkozok.Count == 0)
+        {
+            _matricaValidaciosHiba = true;
+            _matricaHibaSzoveg = "Nincs eszköz megadva a matricákhoz!";
+            _matricakSzama = matricakSzama;
+            return;
+        }
+
+        if (matricakSzama > _adatok.Eszkozok.Count)
         {
             _matricaValidaciosHiba = true;
             _matricaHibaSzoveg = $"Több matrica ({matricakSzama} db) van megadva mint eszköz ({_adatok.Eszkozok.Count} db)!";
@@ -840,5 +851,11 @@
 
         _adatok.MatricaSorszamTol = GetTeljesMatricaSzam(_matricaSorszamTol);
         _adatok.MatricaSorszamIg = GetTeljesMatricaSzam(_matricaSorszamIg);
+    }
+
+    private void OnEszkozokValtozas(List<HordozhatoEszkozSor> eszkozok)
+    {
+        _adatok.Eszkozok = eszkozok;
+        MatricaValidalas();
     }
 }

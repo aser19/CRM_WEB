@@ -106,8 +106,7 @@
                               Variant="Variant.Outlined"
                               Placeholder="pl. BTV"
                               MaxLength="3"
-                              Counter="3"
-                              HelperText="3 nagybetű (pl. BTV, ABC)"
+                              HelperText="1-3 nagybetű (pl. BT, BTV)"
                               Validation="@(new Func<string, string?>(ValidateMatricaElotag))" />
             </MudItem>
 
@@ -262,7 +261,8 @@
             Weboldal = ceg.Weboldal,
             Aktiv = ceg.Aktiv,
             Tevekenyseg = ceg.Tevekenyseg,
-            AktivModulok = ceg.AktivModulok  // <-- HIÁNYZOTT!
+            AktivModulok = ceg.AktivModulok,
+            MatricaElotag = ceg.MatricaElotag  // <-- HIÁNYZOTT!
         };
         _ujCeg = false;
         _validacioMutatasa = false;
@@ -321,6 +321,12 @@
 
         try
         {
+            // Üres string -> null konverzió
+            if (string.IsNullOrWhiteSpace(_szerkesztettCeg.MatricaElotag))
+                _szerkesztettCeg.MatricaElotag = null;
+            else
+                _szerkesztettCeg.MatricaElotag = _szerkesztettCeg.MatricaElotag.ToUpperInvariant();
+
             if (_ujCeg)
             {
                 await CegService.CreateAsync(_szerkesztettCeg);
@@ -337,7 +343,10 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            // RÉSZLETES HIBAÜZENET
+            var innerMessage = ex.InnerException?.Message ?? ex.Message;
+            Snackbar.Add($"Hiba: {innerMessage}", Severity.Error);
+            Console.WriteLine($"Full error: {ex}");  // Output window-ba is
         }
         finally
         {
@@ -383,10 +392,10 @@
         if (string.IsNullOrWhiteSpace(value))
             return null; // Opcionális
         
-        if (value.Length != 3)
-            return "Pontosan 3 karakter legyen!";
+        if (value.Length > 3)
+            return "Maximum 3 karakter lehet!";
         
-        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z]{3}$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z]+$"))
             return "Csak betűk lehetnek!";
         
         return null;

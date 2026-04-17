@@ -230,37 +230,33 @@
     }
 
     @* Helyiségek sorrendje - a jegyzőkönyvben ez lesz *@
-    @if (Eszkozok.Count > 0)
+    @if (Eszkozok.Count > 0 && _helyisegSorrend.Count > 1)
     {
-        var helyisegSorrend = GetHelyisegSorrend();
-        
-        @if (helyisegSorrend.Count > 1)
-        {
-            <MudPaper Class="pa-2 mb-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey)">
-                <MudText Typo="Typo.caption" Class="mb-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Sort" Size="Size.Small" Class="mr-1" />
-                    Helyiségek sorrendje (húzd át a rendezéshez):
-                </MudText>
-                <MudDropContainer T="HelyisegSorrendItem" Items="_helyisegSorrend" 
-                                  ItemsSelector="@((item, zone) => true)"
-                                  ItemDropped="OnHelyisegSorrendValtozas"
-                                  Class="d-flex flex-wrap gap-2">
-                    <ChildContent>
-                        <MudDropZone T="HelyisegSorrendItem" Identifier="zone" 
-                                     Class="d-flex flex-wrap gap-1" 
-                                     Style="min-height: 40px;">
-                        </MudDropZone>
-                    </ChildContent>
-                    <ItemRenderer>
-                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" 
-                                 Style="cursor: grab;"
-                                 Icon="@Icons.Material.Filled.DragIndicator">
-                            @context.Sorszam. @context.Nev (@context.EszkozokSzama db)
-                        </MudChip>
-                    </ItemRenderer>
-                </MudDropContainer>
-            </MudPaper>
-        }
+        <MudPaper Class="pa-2 mb-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey)">
+            <MudText Typo="Typo.caption" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Sort" Size="Size.Small" Class="mr-1" />
+                Helyiségek sorrendje (húzd át a rendezéshez / dobd rá ):
+            </MudText>
+            <MudDropContainer T="HelyisegSorrendItem" 
+                              Items="@_helyisegSorrend"
+                              ItemsSelector="@((item, zone) => true)"
+                              ItemDropped="OnHelyisegSorrendValtozas"
+                              Class="d-flex flex-wrap gap-2">
+                <ChildContent>
+                    <MudDropZone T="HelyisegSorrendItem" Identifier="zone" 
+                                 Class="d-flex flex-wrap gap-1" 
+                                 Style="min-height: 40px;">
+                    </MudDropZone>
+                </ChildContent>
+                <ItemRenderer>
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" 
+                             Style="cursor: grab;"
+                             Icon="@Icons.Material.Filled.DragIndicator">
+                        @context.Sorszam. @context.Nev (@context.EszkozokSzama db)
+                    </MudChip>
+                </ItemRenderer>
+            </MudDropContainer>
+        </MudPaper>
     }
 </MudPaper>
 
@@ -271,6 +267,15 @@
 
     private HordozhatoEszkozSor _ujEszkoz = new() { VedelmiOsztaly = "I", Telj = "230V", Megtekint = "MF" };
     private string _aktualisHelyisegNev = "";
+    private List<HelyisegSorrendItem> _helyisegSorrend = new();
+
+    private class HelyisegSorrendItem
+    {
+        public string Identifier { get; set; } = Guid.NewGuid().ToString();
+        public int Sorszam { get; set; }
+        public string Nev { get; set; } = "";
+        public int EszkozokSzama { get; set; }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -294,13 +299,59 @@
         _aktualisHelyisegNev = helyiseg;
     }
 
+    private void FrissitHelyisegSorrend()
+    {
+        var aktualisHelyisegek = Eszkozok
+            .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
+            .Select(e => e.HelyisegNev!)
+            .Distinct()
+            .ToList();
+
+        _helyisegSorrend.RemoveAll(h => !aktualisHelyisegek.Contains(h.Nev));
+
+        foreach (var helyisegNev in aktualisHelyisegek)
+        {
+            if (!_helyisegSorrend.Any(h => h.Nev == helyisegNev))
+            {
+                _helyisegSorrend.Add(new HelyisegSorrendItem 
+                { 
+                    Nev = helyisegNev,
+                    Identifier = Guid.NewGuid().ToString()
+                });
+            }
+        }
+
+        for (int i = 0; i < _helyisegSorrend.Count; i++)
+        {
+            _helyisegSorrend[i].Sorszam = i + 1;
+            _helyisegSorrend[i].EszkozokSzama = Eszkozok.Count(e => e.HelyisegNev == _helyisegSorrend[i].Nev);
+        }
+    }
+
+    private void OnHelyisegSorrendValtozas(MudItemDropInfo<HelyisegSorrendItem> info)
+    {
+        if (info.Item == null) return;
+
+        var item = info.Item;
+        var oldIndex = _helyisegSorrend.IndexOf(item);
+        if (oldIndex < 0) return;
+
+        _helyisegSorrend.RemoveAt(oldIndex);
+        var newIndex = Math.Min(Math.Max(0, info.IndexInZone), _helyisegSorrend.Count);
+        _helyisegSorrend.Insert(newIndex, item);
+
+        for (int i = 0; i < _helyisegSorrend.Count; i++)
+            _helyisegSorrend[i].Sorszam = i + 1;
+
+        StateHasChanged();
+    }
+
     private async Task EszkozHozzaadas()
     {
         if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes)) return;
 
         if (!_ujEszkoz.KellFolyt) _ujEszkoz.Folyt = "";
 
-        // Mentjük a helyiséget LocalStorage-ba
         if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
         {
             try { await JS.InvokeVoidAsync("localStorageInterop.set", "lastHelyisegNev", _aktualisHelyisegNev); }
@@ -319,7 +370,8 @@
             Megtekint = "MF",
             HelyisegNev = _aktualisHelyisegNev
         };
-        
+
+        FrissitHelyisegSorrend();
         await EszkozokChanged.InvokeAsync(Eszkozok);
     }
 
@@ -328,15 +380,15 @@
         Eszkozok.Remove(eszkoz);
         for (int i = 0; i < Eszkozok.Count; i++)
             Eszkozok[i].Sorsz = i + 1;
+
+        FrissitHelyisegSorrend();
         await EszkozokChanged.InvokeAsync(Eszkozok);
     }
 
     private Task<IEnumerable<string>> HelyisegKereses(string keresettErtek, CancellationToken token)
     {
-        // Összegyűjtjük az összes lehetséges helyiséget
         var osszesNev = Helyisegek.Select(h => h.Nev).ToList();
         
-        // Hozzáadjuk a már használt helyiségneveket is (kézi bevitelből)
         var hasznaltNevek = Eszkozok
             .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
             .Select(e => e.HelyisegNev!)
@@ -344,80 +396,24 @@
         
         osszesNev = osszesNev.Union(hasznaltNevek).Distinct().OrderBy(n => n).ToList();
 
-        // Ha üres a keresés, visszaadjuk az összeset
         if (string.IsNullOrWhiteSpace(keresettErtek))
             return Task.FromResult(osszesNev.AsEnumerable());
 
-        // Szűrés
         var talalatok = osszesNev
             .Where(n => n.Contains(keresettErtek, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // HA NINCS TALÁLAT, VISSZAADJUK A BEÍRT ÉRTÉKAT MINT ÚJ OPCIÓT!
         if (!talalatok.Any() && !string.IsNullOrWhiteSpace(keresettErtek))
-        {
             talalatok.Add(keresettErtek);
-        }
 
         return Task.FromResult(talalatok.AsEnumerable());
     }
 
-    // Helyiség sorrend kezelése
-    private List<HelyisegSorrendItem> _helyisegSorrend = new();
-
-    private class HelyisegSorrendItem
-    {
-        public int Sorszam { get; set; }
-        public string Nev { get; set; } = "";
-        public int EszkozokSzama { get; set; }
-    }
-
-    private List<HelyisegSorrendItem> GetHelyisegSorrend()
-    {
-        var helyisegek = Eszkozok
-            .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
-            .GroupBy(e => e.HelyisegNev)
-            .Select(g => g.Key!)
-            .ToList();
-
-        // Ha nincs még sorrend, vagy új helyiség jött, frissítjük
-        var meglevoNevek = _helyisegSorrend.Select(h => h.Nev).ToHashSet();
-        var ujNevek = helyisegek.Where(n => !meglevoNevek.Contains(n)).ToList();
-        
-        // Töröljük a már nem létezőket
-        _helyisegSorrend.RemoveAll(h => !helyisegek.Contains(h.Nev));
-        
-        // Hozzáadjuk az újakat a végére
-        foreach (var ujNev in ujNevek)
-        {
-            _helyisegSorrend.Add(new HelyisegSorrendItem { Nev = ujNev });
-        }
-
-        // Frissítjük a számokat
-        for (int i = 0; i < _helyisegSorrend.Count; i++)
-        {
-            _helyisegSorrend[i].Sorszam = i + 1;
-            _helyisegSorrend[i].EszkozokSzama = Eszkozok.Count(e => e.HelyisegNev == _helyisegSorrend[i].Nev);
-        }
-
-        return _helyisegSorrend;
-    }
-
-    private void OnHelyisegSorrendValtozas(MudItemDropInfo<HelyisegSorrendItem> info)
-    {
-        var item = info.Item;
-        _helyisegSorrend.Remove(item);
-        _helyisegSorrend.Insert(info.IndexInZone, item);
-        
-        // Sorszámok frissítése
-        for (int i = 0; i < _helyisegSorrend.Count; i++)
-            _helyisegSorrend[i].Sorszam = i + 1;
-    }
-
-    // Az eszközök rendezése a helyiség sorrend szerint
     public List<HordozhatoEszkozSor> GetRendezettEszkozok()
     {
-        var sorrend = _helyisegSorrend.Select((h, i) => new { h.Nev, Index = i }).ToDictionary(x => x.Nev, x => x.Index);
+        var sorrend = _helyisegSorrend
+            .Select((h, i) => new { h.Nev, Index = i })
+            .ToDictionary(x => x.Nev, x => x.Index);
         
         return Eszkozok
             .OrderBy(e => string.IsNullOrWhiteSpace(e.HelyisegNev) ? int.MaxValue : 

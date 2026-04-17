@@ -72,6 +72,7 @@ public class CegService : ICegService
         existing.Tevekenyseg = ceg.Tevekenyseg;
         existing.AktivModulok = ceg.AktivModulok;
         existing.Aktiv = ceg.Aktiv;
+        existing.MatricaElotag = ceg.MatricaElotag;  // <-- EZ HIÁNYZOTT!
         existing.Modositva = DateTime.Now;
 
         await context.SaveChangesAsync();
