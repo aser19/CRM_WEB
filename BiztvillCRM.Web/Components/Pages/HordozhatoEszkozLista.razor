@@ -1,6 +1,8 @@
 @namespace BiztvillCRM.Web.Components.Pages
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Web.Components.Dialog
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 
 <MudPaper Class="pa-4 mb-4">
     <MudText Typo="Typo.h6" Class="mb-3">
@@ -15,7 +17,7 @@
                          @bind-Value="_aktualisHelyisegNev"
                          Label="Aktív helyiség"
                          Variant="Variant.Outlined"
-                         Size="Size.Small"
+                         Margin="Margin.Dense"
                          SearchFunc="@HelyisegKereses"
                          CoerceText="false"
                          CoerceValue="false"
@@ -142,74 +144,99 @@
 
     @if (Eszkozok.Count > 0)
     {
-        <MudTable Items="@Eszkozok" Dense="true" Hover="true" Striped="true"
-                  FixedHeader="true" Height="400px">
-            <HeaderContent>
-                <MudTh Style="width:40px">#</MudTh>
-                <MudTh>Helyiség</MudTh>
-                <MudTh>Megnevezés</MudTh>
-                <MudTh>Típus</MudTh>
-                <MudTh>Gyártási szám</MudTh>
-                <MudTh Style="width:60px">Oszt.</MudTh>
-                <MudTh Style="width:70px">Fesz.</MudTh>
-                <MudTh Style="width:70px">Szemr.</MudTh>
-                <MudTh Style="width:60px">Folyt.</MudTh>
-                <MudTh Style="width:60px">Szig.</MudTh>
-                <MudTh Style="width:60px">Sziv.</MudTh>
-                <MudTh>Megj.</MudTh>
-                <MudTh Style="width:50px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Sorsz</MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Color="@(string.IsNullOrEmpty(context.HelyisegNev) ? Color.Secondary : Color.Default)">
-                        @(string.IsNullOrEmpty(context.HelyisegNev) ? "-" : context.HelyisegNev)
-                    </MudText>
-                </MudTd>
-                <MudTd><MudTextField @bind-Value="context.Megnevezes" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
-                <MudTd><MudTextField @bind-Value="context.Tipus" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
-                <MudTd><MudTextField @bind-Value="context.Azonosito" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
-                <MudTd>
-                    <MudSelect T="string" @bind-Value="context.VedelmiOsztaly" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px">
-                        <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
-                    </MudSelect>
-                </MudTd>
-                <MudTd>
-                    <MudSelect T="string" @bind-Value="context.Telj" Variant="Variant.Text" Margin="Margin.Dense" Style="width:65px">
-                        <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("48V")">48V</MudSelectItem>
-                    </MudSelect>
-                </MudTd>
-                <MudTd>
-                    <MudSelect T="string" @bind-Value="context.Megtekint" Variant="Variant.Text" Margin="Margin.Dense" Style="width:65px">
-                        <MudSelectItem T="string" Value="@("MF")">MF</MudSelectItem>
-                        <MudSelectItem T="string" Value="@("NMF")">NMF</MudSelectItem>
-                    </MudSelect>
-                </MudTd>
-                <MudTd>
-                    @if (context.KellFolyt)
-                    {
-                        <MudTextField @bind-Value="context.Folyt" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" />
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
-                    }
-                </MudTd>
-                <MudTd><MudTextField @bind-Value="context.Szigell" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" /></MudTd>
-                <MudTd><MudTextField @bind-Value="context.Szivargo" Variant="Variant.Text" Margin="Margin.Dense" Style="width:55px" /></MudTd>
-                <MudTd><MudTextField @bind-Value="context.Megjegyzes" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                   Size="Size.Small" OnClick="@(() => EszkozTorles(context))" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+        <MudDataGrid Items="@Eszkozok" Groupable="true" GroupExpanded="true">
+            <Columns>
+                <TemplateColumn Title="Ssz." CellStyle="width: 60px;">
+                    <CellTemplate>
+                        @if (context.Item.CsoportSorrend == 0)
+                        {
+                            <strong>@context.Item.Sorsz</strong>
+                        }
+                        else
+                        {
+                            <span style="padding-left: 20px;">—</span>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                <TemplateColumn Title="Megnevezés">
+                    <CellTemplate>
+                        @if (context.Item.CsoportSorrend > 0)
+                        {
+                            <div style="padding-left: 30px;">
+                                <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
+                                @context.Item.Megnevezes
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                        {
+                            <strong>
+                                <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
+                                @context.Item.Megnevezes
+                            </strong>
+                        }
+                        else
+                        {
+                            @context.Item.Megnevezes
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                <PropertyColumn Property="e => e.Tipus" Title="Típus" />
+                <PropertyColumn Property="e => e.Azonosito" Title="Gyári szám" />
+                <PropertyColumn Property="e => e.VedelmiOsztaly" Title="Oszt." />
+                <PropertyColumn Property="e => e.Telj" Title="Fesz." />
+                <PropertyColumn Property="e => e.Megtekint" Title="Szemre" />
+                <PropertyColumn Property="e => e.Folyt" Title="Folyt." />
+                <PropertyColumn Property="e => e.Szigell" Title="Szig." />
+                <PropertyColumn Property="e => e.Szivargo" Title="Sziv." />
+                <PropertyColumn Property="e => e.HelyisegNev" Title="Helyiség" />
+                
+                <TemplateColumn Title="Műveletek" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            @if (context.Item.CsoportSorrend > 0)
+                            {
+                                @* Alkatrész törlése *@
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               Title="Alkatrész törlése"
+                                               OnClick="@(() => AlkatreszTorlese(context.Item))" />
+                            }
+                            else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                            {
+                                @* Főeszköz alkatrészekkel - Szerkesztés *@
+                                <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                                               Size="Size.Small" 
+                                               Color="Color.Primary"
+                                               Title="Alkatrészek szerkesztése"
+                                               OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               Title="Eszköz + alkatrészek törlése"
+                                               OnClick="@(() => FoEszkozTorlese(context.Item))" />
+                            }
+                            else
+                            {
+                                @* ✅ Normál eszköz - Szerkesztés és törlés *@
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                               Size="Size.Small" 
+                                               Color="Color.Primary"
+                                               Title="Szerkesztés"
+                                               OnClick="@(() => EszkozSzerkesztese(context.Item))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               Title="Törlés"
+                                               OnClick="@(() => EszkozTorlese(context.Item))" />
+                            }
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
 
         <MudDivider Class="my-3" />
         
@@ -225,7 +252,7 @@
     else
     {
         <MudAlert Severity="Severity.Info">
-            Még nincs eszköz hozzáadva. Adj hozzá eszközöket a fenti űrlapon!
+            Még nincs eszköz hozzáadva. Adj hozzá eszközöket a fenti űrlapon vagy importálj korábbi jegyzőkönyvet!
         </MudAlert>
     }
 
@@ -235,7 +262,7 @@
         <MudPaper Class="pa-2 mb-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey)">
             <MudText Typo="Typo.caption" Class="mb-2">
                 <MudIcon Icon="@Icons.Material.Filled.Sort" Size="Size.Small" Class="mr-1" />
-                Helyiségek sorrendje (húzd át a rendezéshez / dobd rá ):
+                Helyiségek sorrendje (húzd át a rendezéshez):
             </MudText>
             <MudDropContainer T="HelyisegSorrendItem" 
                               Items="@_helyisegSorrend"
@@ -263,12 +290,14 @@
 @code {
     [Parameter] public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
     [Parameter] public EventCallback<List<HordozhatoEszkozSor>> EszkozokChanged { get; set; }
-    [Parameter] public List<Helyiseg> Helyisegek { get; set; } = new();
 
     private HordozhatoEszkozSor _ujEszkoz = new() { VedelmiOsztaly = "I", Telj = "230V", Megtekint = "MF" };
     private string _aktualisHelyisegNev = "";
+    
+    // ✅ HIÁNYZÓ DEKLARÁCIÓK
     private List<HelyisegSorrendItem> _helyisegSorrend = new();
 
+    // ✅ ÚJ: Nested class a helyiség sorrendhez
     private class HelyisegSorrendItem
     {
         public string Identifier { get; set; } = Guid.NewGuid().ToString();
@@ -277,6 +306,7 @@
         public int EszkozokSzama { get; set; }
     }
 
+    // ✅ ÚJ: OnAfterRenderAsync - helyiség név visszatöltése localStorage-ból
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -294,11 +324,132 @@
         }
     }
 
+    // ✅ ÚJ: Eszközök változásakor frissítjük a helyiség sorrendet
+    protected override void OnParametersSet()
+    {
+        FrissitHelyisegSorrend();
+    }
+
+    // ✅ Normál eszköz szerkesztése
+    private async Task EszkozSzerkesztese(HordozhatoEszkozSor eszkoz)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Eszkoz"] = new HordozhatoEszkozSor
+            {
+                Sorsz = eszkoz.Sorsz,
+                Megnevezes = eszkoz.Megnevezes,
+                Tipus = eszkoz.Tipus,
+                Azonosito = eszkoz.Azonosito,
+                VedelmiOsztaly = eszkoz.VedelmiOsztaly,
+                Telj = eszkoz.Telj,
+                Megtekint = eszkoz.Megtekint,
+                Folyt = eszkoz.Folyt,
+                Szigell = eszkoz.Szigell,
+                Szivargo = eszkoz.Szivargo,
+                HelyisegNev = eszkoz.HelyisegNev
+            }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<EszkozSzerkesztesDialog>("Eszköz szerkesztése", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is HordozhatoEszkozSor modositott)
+        {
+            eszkoz.Megnevezes = modositott.Megnevezes;
+            eszkoz.Tipus = modositott.Tipus;
+            eszkoz.Azonosito = modositott.Azonosito;
+            eszkoz.VedelmiOsztaly = modositott.VedelmiOsztaly;
+            eszkoz.Telj = modositott.Telj;
+            eszkoz.Megtekint = modositott.Megtekint;
+            eszkoz.Folyt = modositott.Folyt;
+            eszkoz.Szigell = modositott.Szigell;
+            eszkoz.Szivargo = modositott.Szivargo;
+            eszkoz.HelyisegNev = modositott.HelyisegNev;
+
+            await EszkozokChanged.InvokeAsync(Eszkozok);
+            StateHasChanged();
+        }
+    }
+
+    // ✅ Normál eszköz törlése
+    private async Task EszkozTorlese(HordozhatoEszkozSor eszkoz)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretnéd: {eszkoz.Megnevezes}?",
+            yesText: "Törlés",
+            cancelText: "Mégse");
+
+        if (confirm == true)
+        {
+            Eszkozok.Remove(eszkoz);
+            UjraSzamozas();
+            await EszkozokChanged.InvokeAsync(Eszkozok);
+            StateHasChanged();
+        }
+    }
+
+    // ✅ Főeszköz + alkatrészek törlése
+    private async Task FoEszkozTorlese(HordozhatoEszkozSor foEszkoz)
+    {
+        var alkatreszekSzama = Eszkozok.Count(e => e.CsoportNev == foEszkoz.CsoportNev && e.CsoportSorrend > 0);
+        
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretnéd: {foEszkoz.Megnevezes} + {alkatreszekSzama} alkatrész?",
+            yesText: "Törlés",
+            cancelText: "Mégse");
+
+        if (confirm == true)
+        {
+            Eszkozok.RemoveAll(e => e.CsoportNev == foEszkoz.CsoportNev);
+            UjraSzamozas();
+            await EszkozokChanged.InvokeAsync(Eszkozok);
+            StateHasChanged();
+        }
+    }
+
+    // Alkatrész törlése
+    private async Task AlkatreszTorlese(HordozhatoEszkozSor alkatresz)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretnéd: {alkatresz.Megnevezes}?",
+            yesText: "Törlés",
+            cancelText: "Mégse");
+
+        if (confirm == true)
+        {
+            Eszkozok.Remove(alkatresz);
+            await EszkozokChanged.InvokeAsync(Eszkozok);
+            StateHasChanged();
+        }
+    }
+
+    // Alkatrészek szerkesztése (placeholder)
+    private void AlkatreszekSzerkesztese(HordozhatoEszkozSor foEszkoz)
+    {
+        // TODO: Implementáld később
+    }
+
+    // ✅ Sorszámok újraszámozása
+    private void UjraSzamozas()
+    {
+        int sorszam = 1;
+        foreach (var eszkoz in Eszkozok.Where(e => string.IsNullOrEmpty(e.CsoportNev) || e.CsoportSorrend == 0))
+        {
+            eszkoz.Sorsz = sorszam++;
+        }
+    }
+
     private void GyorsHelyisegValtas(string helyiseg)
     {
         _aktualisHelyisegNev = helyiseg;
     }
 
+    // ✅ Helyiség sorrend frissítése
     private void FrissitHelyisegSorrend()
     {
         var aktualisHelyisegek = Eszkozok
@@ -307,8 +458,10 @@
             .Distinct()
             .ToList();
 
+        // Töröljük azokat, amik már nincsenek használva
         _helyisegSorrend.RemoveAll(h => !aktualisHelyisegek.Contains(h.Nev));
 
+        // Hozzáadjuk az újakat
         foreach (var helyisegNev in aktualisHelyisegek)
         {
             if (!_helyisegSorrend.Any(h => h.Nev == helyisegNev))
@@ -321,6 +474,7 @@
             }
         }
 
+        // Sorszámok és eszközök számának frissítése
         for (int i = 0; i < _helyisegSorrend.Count; i++)
         {
             _helyisegSorrend[i].Sorszam = i + 1;
@@ -328,6 +482,7 @@
         }
     }
 
+    // ✅ Helyiség sorrend változtatása drag&drop-pal
     private void OnHelyisegSorrendValtozas(MudItemDropInfo<HelyisegSorrendItem> info)
     {
         if (info.Item == null) return;
@@ -340,6 +495,7 @@
         var newIndex = Math.Min(Math.Max(0, info.IndexInZone), _helyisegSorrend.Count);
         _helyisegSorrend.Insert(newIndex, item);
 
+        // Sorszámok újraszámozása
         for (int i = 0; i < _helyisegSorrend.Count; i++)
             _helyisegSorrend[i].Sorszam = i + 1;
 
@@ -375,40 +531,31 @@
         await EszkozokChanged.InvokeAsync(Eszkozok);
     }
 
-    private async Task EszkozTorles(HordozhatoEszkozSor eszkoz)
-    {
-        Eszkozok.Remove(eszkoz);
-        for (int i = 0; i < Eszkozok.Count; i++)
-            Eszkozok[i].Sorsz = i + 1;
-
-        FrissitHelyisegSorrend();
-        await EszkozokChanged.InvokeAsync(Eszkozok);
-    }
-
     private Task<IEnumerable<string>> HelyisegKereses(string keresettErtek, CancellationToken token)
     {
-        var osszesNev = Helyisegek.Select(h => h.Nev).ToList();
-        
+        // Korábban használt helyiségek
         var hasznaltNevek = Eszkozok
             .Where(e => !string.IsNullOrWhiteSpace(e.HelyisegNev))
             .Select(e => e.HelyisegNev!)
-            .Distinct();
-        
-        osszesNev = osszesNev.Union(hasznaltNevek).Distinct().OrderBy(n => n).ToList();
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
 
         if (string.IsNullOrWhiteSpace(keresettErtek))
-            return Task.FromResult(osszesNev.AsEnumerable());
+            return Task.FromResult(hasznaltNevek.AsEnumerable());
 
-        var talalatok = osszesNev
+        var talalatok = hasznaltNevek
             .Where(n => n.Contains(keresettErtek, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // Ha nincs találat, add hozzá a beírt értéket
         if (!talalatok.Any() && !string.IsNullOrWhiteSpace(keresettErtek))
             talalatok.Add(keresettErtek);
 
         return Task.FromResult(talalatok.AsEnumerable());
     }
 
+    // ✅ Eszközök lekérése helyiség sorrend szerint (jegyzőkönyvhöz)
     public List<HordozhatoEszkozSor> GetRendezettEszkozok()
     {
         var sorrend = _helyisegSorrend

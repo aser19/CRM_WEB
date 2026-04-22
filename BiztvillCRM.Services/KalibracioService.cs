@@ -22,12 +22,12 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Kalibraciok
             .Include(k => k.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+                .ThenInclude(e => e!.Ugyfel) // ✅ Javítva
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(k => k.Eszkoz.Ugyfel.CegId == cegId);
+            query = query.Where(k => k.Eszkoz!.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.OrderByDescending(k => k.Datum).ToListAsync();
@@ -38,12 +38,12 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Kalibraciok
             .Include(k => k.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+                .ThenInclude(e => e!.Ugyfel) // ✅ Javítva
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(k => k.Eszkoz.Ugyfel.CegId == cegId);
+            query = query.Where(k => k.Eszkoz!.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.FirstOrDefaultAsync(k => k.Id == id);
@@ -54,7 +54,7 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var eszkoz = await _context.Eszkozok.Include(e => e.Ugyfel).FirstOrDefaultAsync(e => e.Id == kalibracio.EszkozId);
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz?.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz?.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága kalibráció létrehozásához ennél az eszköznél.");
         }
@@ -70,11 +70,11 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var existing = await _context.Kalibraciok
             .Include(k => k.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+                .ThenInclude(e => e!.Ugyfel) // ✅ Javítva
             .FirstOrDefaultAsync(k => k.Id == kalibracio.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Eszkoz.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Eszkoz!.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a kalibráció módosításához.");
         }
@@ -97,12 +97,12 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var kalibracio = await _context.Kalibraciok
             .Include(k => k.Eszkoz)
-                .ThenInclude(e => e.Ugyfel)
+                .ThenInclude(e => e!.Ugyfel) // ✅ Javítva
             .FirstOrDefaultAsync(k => k.Id == id);
 
         if (kalibracio is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && kalibracio.Eszkoz.Ugyfel.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && kalibracio.Eszkoz!.Ugyfel!.CegId != cegId) // ✅ Javítva
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága a kalibráció törléséhez.");
             }
@@ -117,16 +117,15 @@ public class KalibracioService : IKalibracioService
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Kalibraciok
             .Include(k => k.Eszkoz)
-                .ThenInclude(e => e!.Ugyfel)
+                .ThenInclude(e => e!.Ugyfel) // ✅ Javítva
             .Where(k => k.EszkozId == eszkozId)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(k => k.Eszkoz!.Ugyfel!.CegId == cegId);
+            query = query.Where(k => k.Eszkoz!.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
-        // JAVÍTVA: KovetkezoKalibralas -> KovetkezoDatum
-        return await query.OrderByDescending(k => k.KovetkezoDatum).ToListAsync();
+        return await query.OrderByDescending(k => k.Datum).ToListAsync();
     }
 }

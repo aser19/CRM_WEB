@@ -29,4 +29,24 @@ public class HordozhatoEszkozSor
     // ÚJ: room selection (UI-only for the portable list)
     public int? HelyisegId { get; set; }
     public string HelyisegNev { get; set; } = "";
+
+    // ÚJ MEZŐK:
+    
+    /// <summary>Főeszköz ID (ha van szülő)</summary>
+    public int? ParentEszkozId { get; set; }
+    
+    /// <summary>Csoportosítás neve (pl. "Hosszabbító HOS-2025-001")</summary>
+    public string? CsoportNev { get; set; }
+    
+    /// <summary>Csoporton belüli sorrend (0 = főeszköz, 1,2,3... = alkatrészek)</summary>
+    public int CsoportSorrend { get; set; }
+    
+    /// <summary>Ez egy alkatrész?</summary>
+    public bool IsAlkatresz => CsoportSorrend > 0;
+    
+    /// <summary>Ez egy főeszköz (van alkatrésze)?</summary>
+    public bool IsFoEszkoz => !string.IsNullOrEmpty(CsoportNev) && CsoportSorrend == 0;
+    
+    /// <summary>Alkatrészek darabszáma (csak UI-hoz, generálásnál használt)</summary>
+    public int AlkatreszDarabszam { get; set; } = 1;
 }

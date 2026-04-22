@@ -30,7 +30,7 @@ public class EszkozService : IEszkozService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(e => e.Ugyfel.CegId == cegId);
+            query = query.Where(e => e.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.OrderBy(e => e.Nev).ToListAsync();
@@ -49,7 +49,7 @@ public class EszkozService : IEszkozService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(e => e.Ugyfel.CegId == cegId);
+            query = query.Where(e => e.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.FirstOrDefaultAsync(e => e.Id == id);
@@ -87,7 +87,7 @@ public class EszkozService : IEszkozService
             .FirstOrDefaultAsync(e => e.Id == eszkoz.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága az eszköz módosításához.");
         }
@@ -116,7 +116,7 @@ public class EszkozService : IEszkozService
 
         if (eszkoz is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz.Ugyfel.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && eszkoz.Ugyfel!.CegId != cegId) // ✅ Javítva
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága az eszköz törléséhez.");
             }

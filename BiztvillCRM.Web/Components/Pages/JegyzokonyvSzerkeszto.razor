@@ -20,6 +20,7 @@
 @inject IKalibracioService KalibracioService
 @inject IMunkaszamService MunkaszamService
 @inject IMatricaValidatorService MatricaValidator
+@inject IJegyzokonyvOcrService OcrService
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -28,7 +29,7 @@
     Jegyzőkönyv szerkesztő
 </MudText>
 
-<MudStepper @ref="_stepper" Linear="false" Color="Color.Primary">
+<MudStepper @ref="_stepper" linear="false" color="Color.Primary">
     
     @* === 1. LÉPÉS: KIVÁLASZTÁS === *@
     <MudStep Title="Kiválasztás" Icon="@Icons.Material.Filled.ListAlt">
@@ -76,6 +77,51 @@
                 <MudItem xs="12" md="6">
                     <MudDatePicker @bind-Date="_vizsgalatDatum" Label="Vizsgálat dátuma *"
                                    Variant="Variant.Outlined" DateFormat="yyyy.MM.dd" />
+                </MudItem>
+                
+                @* === ÚJ RÉSZ: FÁJL FELTÖLTŐ === *@
+                <MudItem xs="12" Class="mt-4">
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Upload" Class="mr-2" />
+                        Korábbi jegyzőkönyv importálása (opcionális)
+                    </MudText>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                        PDF vagy kép formátumú jegyzőkönyvet tölthetsz fel az adatok automatikus kitöltéséhez
+                    </MudAlert>
+                    
+                    <MudFileUpload T="IBrowserFile" 
+                                   Accept=".pdf,.jpg,.jpeg,.png" 
+                                   FilesChanged="KorabbiJegyzokonyvFeltoltesAsync"
+                                   MaximumFileCount="1">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                                       Disabled="_ocrFeldolgozas">
+                                @(_ocrFeldolgozas ? "Feldolgozás..." : "Fájl kiválasztása")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    
+                    @if (_ocrFeldolgozas)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
+                        <MudText Typo="Typo.caption" Color="Color.Primary" Class="mt-1">
+                            OCR feldolgozás folyamatban...
+                        </MudText>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(_feltoltottFajlNev))
+                    {
+                        <MudChip T="string"
+                                 Color="Color.Success"
+                                 Icon="@Icons.Material.Filled.CheckCircle"
+                                 OnClose="FeltoltottFajlTorles"
+                                 Class="mt-2">
+                            @_feltoltottFajlNev (@_importaltEszkozokSzama eszköz)
+                        </MudChip>
+                    }
                 </MudItem>
                 
                 <MudItem xs="12" Class="mt-4">
@@ -554,6 +600,52 @@
     </MudStep>
 </MudStepper>
 
+<MudDataGrid Items="@importAdatok.Eszkozok" Groupable="true" GroupExpanded="true">
+    <Columns>
+        <TemplateColumn Title="Megnevezés">
+            <CellTemplate>
+                @if (context.Item.CsoportSorrend > 0)
+                {
+                    <div style="padding-left: 30px;">
+                        <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
+                        @context.Item.Eszkoznev
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                {
+                    <strong>
+                        <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
+                        @context.Item.Eszkoznev
+                    </strong>
+                }
+                else
+                {
+                    @context.Item.Eszkoznev
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        
+        <TemplateColumn Title="Műveletek">
+            <CellTemplate>
+                @if (context.Item.CsoportSorrend > 0)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Size="Size.Small" 
+                                   Color="Color.Error"
+                                   OnClick="@(() => AlkatreszTorlese(context.Item))" />
+                }
+                else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                                   Size="Size.Small" 
+                                   Color="Color.Primary"
+                                   OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
+                }
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
 @code {
     [Parameter] public int? MeresId { get; set; }
 
@@ -586,6 +678,13 @@
     private List<Eszkoz> _muszerek = [];
     private string? _cegMatricaElotag;
 
+    private string? _feltoltottFajlNev;
+    private bool _ocrFeldolgozas;
+    private int _importaltEszkozokSzama;
+    
+    // ✅ ÚJ: Hiányzó változó
+    private JegyzokonyvImportAdatok importAdatok = new();
+    
     protected override async Task OnInitializedAsync()
     {
         _tipusok = await MeresTipusService.GetAllAsync();
@@ -753,13 +852,19 @@
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
             var sablonId = tipus?.SablonId ?? "VBF_KIF_MINTA";
 
+            // ✅ MENTÉS ADATBÁZISBA
+            if (meresId > 0)
+            {
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+            }
+
             var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
             var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
 
             using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
-            Snackbar.Add("Jegyzőkönyv sikeresen legenerálva!", Severity.Success);
+            Snackbar.Add("Jegyzőkönyv sikeresen legenerálva és mentve!", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -807,6 +912,38 @@
 
             await OnTipusValtozas(_kivalasztottTipusId);
             OnUgyfelValtozas(_kivalasztottUgyfelId);
+
+            // ✅ JEGYZŐKÖNYV ADATOK BETÖLTÉSE
+            var mentettAdatok = await MeresService.BetoltJegyzokonyvAdatokAsync(meresId);
+            if (mentettAdatok != null)
+            {
+                _adatok = mentettAdatok;
+                
+                // Felülvizsgálók újra-beállítása (ID alapján)
+                var felelosNev = _adatok.FelulvizsgaloNev;
+                var segitoNev = _adatok.SegitoFelulvizsgalo;
+                
+                _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
+                    .FirstOrDefault(f => f.Nev == felelosNev)?.Id;
+                _kivalasztottSegitoId = _jogosultFelulvizsgalok
+                    .FirstOrDefault(f => f.Nev == segitoNev)?.Id;
+
+                // Matricák visszatöltése
+                if (!string.IsNullOrEmpty(_adatok.MatricaSorszamTol))
+                {
+                    var tolSzoveg = _adatok.MatricaSorszamTol.Replace(_cegMatricaElotag ?? "", "");
+                    if (int.TryParse(tolSzoveg, out int tol))
+                        _matricaSorszamTol = tol;
+                }
+                if (!string.IsNullOrEmpty(_adatok.MatricaSorszamIg))
+                {
+                    var igSzoveg = _adatok.MatricaSorszamIg.Replace(_cegMatricaElotag ?? "", "");
+                    if (int.TryParse(igSzoveg, out int ig))
+                        _matricaSorszamIg = ig;
+                }
+
+                Snackbar.Add("Korábban mentett adatok betöltve!", Severity.Info);
+            }
         }
     }
 
@@ -962,5 +1099,114 @@
         }
 
         StateHasChanged();
+    }
+
+    private async Task KorabbiJegyzokonyvFeltoltesAsync(IBrowserFile? file)
+    {
+        if (file == null) return;
+
+        _ocrFeldolgozas = true;
+        _feltoltottFajlNev = null;
+
+        try
+        {
+            var maxFileSize = 15 * 1024 * 1024;
+            
+            using var stream = file.OpenReadStream(maxFileSize);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            // ✅ Mérés típus OCR model ID-jának lekérése
+            var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
+            var ocrModelId = tipus?.OcrModelId; // null ha nincs megadva
+
+            // OCR feldolgozás a megfelelő modellel
+            var importAdatok = await OcrService.FeldolgozAsync(memoryStream, file.Name, ocrModelId);
+
+            // Adatok egyesítése
+            MergeImportaltAdatok(importAdatok);
+
+            _feltoltottFajlNev = file.Name;
+            _importaltEszkozokSzama = importAdatok.Eszkozok.Count;
+
+            Snackbar.Add($"Jegyzőkönyv sikeresen importálva! {_importaltEszkozokSzama} eszköz betöltve.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a feldolgozás során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ocrFeldolgozas = false;
+        }
+    }
+
+    private void MergeImportaltAdatok(JegyzokonyvImportAdatok import)
+    {
+        // Csak nem üres mezők felülírása
+        if (!string.IsNullOrWhiteSpace(import.DolgozoNeve))
+            _adatok.DolgozoNeve = import.DolgozoNeve;
+
+        if (!string.IsNullOrWhiteSpace(import.ForgalmiRendszam))
+            _adatok.ForgalmiRendszam = import.ForgalmiRendszam;
+
+        if (!string.IsNullOrWhiteSpace(import.Megrendelo))
+            _adatok.Megrendelo = import.Megrendelo;
+
+        if (!string.IsNullOrWhiteSpace(import.UzemiKisero))
+            _adatok.UzemiKisero = import.UzemiKisero;
+
+        if (!string.IsNullOrWhiteSpace(import.KapcsolatTarto))
+            _adatok.KapcsolatTarto = import.KapcsolatTarto;
+
+        if (!string.IsNullOrWhiteSpace(import.VizsgalatHelye))
+            _adatok.VizsgalatHelye = import.VizsgalatHelye;
+
+        // Eszközök hozzáadása
+        if (import.Eszkozok.Any())
+        {
+            foreach (var impEszkoz in import.Eszkozok)
+            {
+                var ujEszkoz = new HordozhatoEszkozSor
+                {
+                    Sorsz = _adatok.Eszkozok.Count + 1,
+                    Megnevezes = impEszkoz.Eszkoznev ?? "",
+                    Tipus = impEszkoz.Tipus ?? "",
+                    Azonosito = impEszkoz.GyariSzam ?? impEszkoz.Leltariszam ?? "",
+                    VedelmiOsztaly = "I", // Alapértelmezett
+                    Telj = impEszkoz.JellemzoTeljesitmeny ?? "230V",
+                    Megtekint = impEszkoz.Megtekintes ?? "MF",
+                    Folyt = impEszkoz.Folytonossag ?? "",
+                    Szigell = impEszkoz.Szigeteles ?? "",
+                    Szivargo = impEszkoz.SzivargoAram ?? "",
+                    
+                    // Hierarchikus mezők
+                    CsoportNev = impEszkoz.CsoportNev,
+                    CsoportSorrend = impEszkoz.CsoportSorrend
+                };
+                _adatok.Eszkozok.Add(ujEszkoz);
+            }
+    
+            StateHasChanged();
+        }
+    }
+
+    private void FeltoltottFajlTorles()
+    {
+        _feltoltottFajlNev = null;
+        _importaltEszkozokSzama = 0;
+    }
+    // ✅ Alkatrész kezelő metódusok (STUB - későbbi implementáció)
+    private void AlkatreszTorlese(HordozhatoEszkozImport alkatresz)
+    {
+        // TODO: Implementáld később
+        Snackbar.Add("Alkatrész törlése még nem implementált", Severity.Info);
+    }
+
+    private void AlkatreszekSzerkesztese(HordozhatoEszkozImport foEszkoz)
+    {
+        // TODO: Implementáld később
+        Snackbar.Add("Alkatrészek szerkesztése még nem implementált", Severity.Info);
     }
 }

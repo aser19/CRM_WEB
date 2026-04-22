@@ -118,6 +118,8 @@ builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsa
 builder.Services.AddScoped<IModulJogosultsagService, ModulJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IMunkaszamService, MunkaszamService>(); // A többi service regisztráció mellé
 builder.Services.AddScoped<IMatricaValidatorService, MatricaValidatorService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IJegyzokonyvOcrService, JegyzokonyvOcrService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IEszkozSablonService, EszkozSablonService>();
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();

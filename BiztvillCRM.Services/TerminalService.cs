@@ -22,12 +22,12 @@ public class TerminalService : ITerminalService
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Terminalok
             .Include(t => t.Telephely)
-                .ThenInclude(tp => tp.Ugyfel)
+                .ThenInclude(tp => tp!.Ugyfel) // ✅ Javítva
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Telephely.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Telephely!.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.OrderBy(t => t.Nev).ToListAsync();
@@ -38,12 +38,12 @@ public class TerminalService : ITerminalService
         var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Terminalok
             .Include(t => t.Telephely)
-                .ThenInclude(tp => tp.Ugyfel)
+                .ThenInclude(tp => tp!.Ugyfel) // ✅ Javítva
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Telephely.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Telephely!.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.FirstOrDefaultAsync(t => t.Id == id);
@@ -54,7 +54,7 @@ public class TerminalService : ITerminalService
         var cegId = _tenantService.GetCurrentCegId();
         var telephely = await _context.Telephelyek.Include(t => t.Ugyfel).FirstOrDefaultAsync(t => t.Id == terminal.TelephelyId);
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely?.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely?.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága terminál létrehozásához ennél a telephelynél.");
         }
@@ -70,11 +70,11 @@ public class TerminalService : ITerminalService
         var cegId = _tenantService.GetCurrentCegId();
         var existing = await _context.Terminalok
             .Include(t => t.Telephely)
-                .ThenInclude(tp => tp.Ugyfel)
+                .ThenInclude(tp => tp!.Ugyfel) // ✅ Javítva
             .FirstOrDefaultAsync(t => t.Id == terminal.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Telephely.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Telephely!.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a terminál módosításához.");
         }
@@ -96,12 +96,12 @@ public class TerminalService : ITerminalService
         var cegId = _tenantService.GetCurrentCegId();
         var terminal = await _context.Terminalok
             .Include(t => t.Telephely)
-                .ThenInclude(tp => tp.Ugyfel)
+                .ThenInclude(tp => tp!.Ugyfel) // ✅ Javítva
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (terminal is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && terminal.Telephely.Ugyfel.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && terminal.Telephely!.Ugyfel!.CegId != cegId) // ✅ Javítva
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága a terminál törléséhez.");
             }

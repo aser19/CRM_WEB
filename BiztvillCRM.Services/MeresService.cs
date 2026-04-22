@@ -3,6 +3,7 @@ using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace BiztvillCRM.Services;
 
@@ -129,6 +130,29 @@ public class MeresService : IMeresService
             }
 
             context.Meresek.Remove(meres);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<JegyzokonyvAdatok?> BetoltJegyzokonyvAdatokAsync(int meresId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres == null || string.IsNullOrEmpty(meres.JegyzokonyvAdatokJson))
+            return null;
+
+        return JsonSerializer.Deserialize<JegyzokonyvAdatok>(meres.JegyzokonyvAdatokJson);
+    }
+
+    public async Task MentesJegyzokonyvAdatokkalAsync(int meresId, JegyzokonyvAdatok adatok)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres != null)
+        {
+            meres.JegyzokonyvAdatokJson = JsonSerializer.Serialize(adatok);
             await context.SaveChangesAsync();
         }
     }

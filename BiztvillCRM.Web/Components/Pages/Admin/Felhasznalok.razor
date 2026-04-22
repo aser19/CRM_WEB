@@ -61,7 +61,8 @@
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
                 <CellTemplate>
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" Title="Szerkesztés" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" />
                     <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" Color="Color.Warning" OnClick="@(() => JelszoVisszaallitas(context.Item))" Title="Jelszó visszaállítás" />
                     <MudIconButton Icon="@(context.Item.Aktiv ? Icons.Material.Filled.Block : Icons.Material.Filled.Check)" 
                                    Size="Size.Small" 

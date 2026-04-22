@@ -1,0 +1,79 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            Eszköz szerkesztése
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Eszkoz.Megnevezes" Label="Megnevezés *" Required="true"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Eszkoz.Tipus" Label="Típus"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="Eszkoz.Azonosito" Label="Gyártási szám"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="Eszkoz.VedelmiOsztaly" Label="Védelmi osztály *"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="Eszkoz.Telj" Label="Feszültség"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="Eszkoz.Megtekint" Label="Szemrevétel"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("MF")">MEGFELELT</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("NMF")">NEM FELELT MEG</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="Eszkoz.Folyt" Label="Folytonosság (Ω)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="Eszkoz.Szigell" Label="Szigetelés (MΩ)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="Eszkoz.Szivargo" Label="Szivárgó áram (mA)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Eszkoz.HelyisegNev" Label="Helyiség"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public HordozhatoEszkozSor Eszkoz { get; set; } = new();
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(Eszkoz));
+    void Cancel() => MudDialog.Cancel();
+}

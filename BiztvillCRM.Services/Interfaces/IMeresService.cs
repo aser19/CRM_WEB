@@ -9,4 +9,7 @@ public interface IMeresService
     Task<Meres> CreateAsync(Meres meres);
     Task<Meres> UpdateAsync(Meres meres);
     Task DeleteAsync(int id);
+
+    Task<JegyzokonyvAdatok?> BetoltJegyzokonyvAdatokAsync(int meresId);
+    Task MentesJegyzokonyvAdatokkalAsync(int meresId, JegyzokonyvAdatok adatok);
 }

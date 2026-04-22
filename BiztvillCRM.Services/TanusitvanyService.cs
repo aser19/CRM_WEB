@@ -26,7 +26,7 @@ public class TanusitvanyService : ITanusitvanyService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.OrderBy(t => t.Nev).ToListAsync();
@@ -41,7 +41,7 @@ public class TanusitvanyService : ITanusitvanyService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.FirstOrDefaultAsync(t => t.Id == id);
@@ -71,7 +71,7 @@ public class TanusitvanyService : ITanusitvanyService
             .FirstOrDefaultAsync(t => t.Id == tanusitvany.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a tanúsítvány módosításához.");
         }
@@ -97,7 +97,7 @@ public class TanusitvanyService : ITanusitvanyService
 
         if (tanusitvany is not null)
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && tanusitvany.Ugyfel.CegId != cegId)
+            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && tanusitvany.Ugyfel!.CegId != cegId) // ✅ Javítva
             {
                 throw new UnauthorizedAccessException("Nincs jogosultsága a tanúsítvány törléséhez.");
             }

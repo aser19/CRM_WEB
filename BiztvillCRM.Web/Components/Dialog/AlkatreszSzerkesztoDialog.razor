@@ -1,0 +1,92 @@
+﻿@using BiztvillCRM.Shared.Models
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" />
+            @FoEszkoz.Megnevezes - Alkatrészek kezelése
+        </MudText>
+        
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            Itt tudod módosítani az alkatrészek darabszámát vagy törölni őket.
+        </MudAlert>
+        
+        @* ✅ FIX: MudList T="string" *@
+        <MudList T="string">
+            @foreach (var alkatresz in GetAlkatreszek())
+            {
+                @* ✅ FIX: MudListItem T="string" *@
+                <MudListItem T="string">
+                    <MudGrid>
+                        <MudItem xs="6" Class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" 
+                                     Size="Size.Small" Class="mr-2" />
+                            <MudText>@alkatresz.Megnevezes</MudText>
+                        </MudItem>
+                        <MudItem xs="2" Class="d-flex align-center">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                @alkatresz.VedelmiOsztaly. osztály
+                            </MudChip>
+                        </MudItem>
+                        <MudItem xs="3">
+                            <MudNumericField @bind-Value="alkatresz.AlkatreszDarabszam"
+                                             Min="1" Max="10"
+                                             Variant="Variant.Outlined"
+                                             Label="Darabszám"
+                                             Margin="Margin.Dense" /> <!-- ✅ JÓ -->
+                        </MudItem>
+                        <MudItem xs="1" Class="d-flex align-center justify-end">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => Torles(alkatresz))" />
+                        </MudItem>
+                    </MudGrid>
+                </MudListItem>
+            }
+        </MudList>
+        
+        @if (!GetAlkatreszek().Any())
+        {
+            <MudAlert Severity="Severity.Warning">
+                Nincs alkatrész ehhez az eszközhöz.
+            </MudAlert>
+        }
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Mégse</MudButton>
+        <MudButton OnClick="Mentes" Color="Color.Primary" Variant="Variant.Filled">
+            Mentés
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public HordozhatoEszkozSor FoEszkoz { get; set; } = null!;
+    [Parameter] public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
+
+    private List<HordozhatoEszkozSor> GetAlkatreszek()
+    {
+        return Eszkozok
+            .Where(e => e.CsoportNev == FoEszkoz.CsoportNev && e.CsoportSorrend > 0)
+            .ToList();
+    }
+
+    private void Torles(HordozhatoEszkozSor alkatresz)
+    {
+        Eszkozok.Remove(alkatresz);
+        StateHasChanged();
+    }
+
+    private void Mentes()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -28,7 +28,7 @@ public class TelephelyService : ITelephelyService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.OrderBy(t => t.Nev).ToListAsync();
@@ -45,7 +45,7 @@ public class TelephelyService : ITelephelyService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel.CegId == cegId);
+            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
         }
 
         return await query.FirstOrDefaultAsync(t => t.Id == id);
@@ -63,7 +63,6 @@ public class TelephelyService : ITelephelyService
             throw new UnauthorizedAccessException("Nincs jogosultsága telephely létrehozásához ennél az ügyfélnél.");
         }
 
-        // Fontos: ne állítsuk be az Ugyfel navigation property-t!
         telephely.Ugyfel = null!;
         telephely.Letrehozva = DateTime.UtcNow;
         
@@ -82,7 +81,7 @@ public class TelephelyService : ITelephelyService
             .FirstOrDefaultAsync(t => t.Id == telephely.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a telephely módosításához.");
         }
@@ -111,7 +110,7 @@ public class TelephelyService : ITelephelyService
 
         if (telephely is null) return;
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely.Ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && telephely.Ugyfel!.CegId != cegId) // ✅ Javítva
         {
             throw new UnauthorizedAccessException("Nincs jogosultsága a telephely törléséhez.");
         }

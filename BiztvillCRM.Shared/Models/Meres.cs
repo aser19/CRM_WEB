@@ -9,11 +9,9 @@ public class Meres
     public DateTime Letrehozva { get; set; }
     public DateTime? Modositva { get; set; }
 
-    // Ügyfél és telephely kapcsolat (Eszköz helyett)
+    // Ügyfél és telephely kapcsolat
     public int UgyfelId { get; set; }
     public int TelephelyId { get; set; }
-
-    // ÚJ: opcionális helyiség hivatkozás
     public int? HelyisegId { get; set; }
 
     public int MeresTipusId { get; set; }
@@ -23,11 +21,12 @@ public class Meres
     public MeresStatusz MeresStatusz { get; set; }
     public string? Megjegyzes { get; set; }
 
+    // ✅ ÚJ: Jegyzőkönyv adatok JSON-ben
+    public string? JegyzokonyvAdatokJson { get; set; }
+
     // Navigációs propertyk
     public Ugyfel? Ugyfel { get; set; }
     public Telephely? Telephely { get; set; }
     public MeresTipus? MeresTipus { get; set; }
-
-    // ÚJ navigáció
     public Helyiseg? Helyiseg { get; set; }
 }

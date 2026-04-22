@@ -5,10 +5,13 @@ namespace BiztvillCRM.Services.Interfaces;
 public interface IMeresTipusService
 {
     Task<List<MeresTipus>> GetAllAsync();
-    Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync();
     Task<MeresTipus?> GetByIdAsync(int id);
-    Task<MeresTipus> CreateAsync(MeresTipus tipus);
-    Task<MeresTipus> UpdateAsync(MeresTipus tipus);
+    
+    // ✅ ÚJ METÓDUS
+    Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync();
     Task UpdateWithKovetelemenyekAsync(MeresTipus tipus);
+    
+    Task<int> CreateAsync(MeresTipus tipus);
+    Task UpdateAsync(MeresTipus tipus);
     Task DeleteAsync(int id);
 }

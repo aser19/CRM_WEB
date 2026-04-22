@@ -67,6 +67,8 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Zonaterkep> Zonaterkepek { get; set; }
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
     public DbSet<Helyiseg> Helyisegek { get; set; }
+    public DbSet<EszkozSablon> EszkozSablonok { get; set; }
+    public DbSet<AlkatreszSablon> AlkatreszSablonok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -157,6 +159,9 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Leiras).HasMaxLength(1000);
             entity.Property(e => e.SablonId).HasMaxLength(100);
             entity.Property(e => e.JegyzokonyvPrefix).HasMaxLength(20).HasDefaultValue("JKV");
+            
+            // ✅ ÚJ: OCR Model ID konfiguráció
+            entity.Property(e => e.OcrModelId).HasMaxLength(100);
         });
 
         // --- Meres ---
@@ -444,5 +449,12 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.Property(e => e.Letrehozva).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
         });
+
+        // Kapcsolat: EszkozSablon → AlkatreszSablon
+        modelBuilder.Entity<AlkatreszSablon>()
+            .HasOne(a => a.EszkozSablon)
+            .WithMany(e => e.Alkatreszek)
+            .HasForeignKey(a => a.EszkozSablonId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

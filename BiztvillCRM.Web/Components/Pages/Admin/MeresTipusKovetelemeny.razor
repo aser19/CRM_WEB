@@ -29,11 +29,36 @@ else
                     <MudGrid>
                         <MudItem xs="12" md="6">
                             <MudTextField @bind-Value="tipus.JegyzokonyvPrefix" Label="Jegyzőkönyv prefix" 
-                                          Variant="Variant.Outlined" Placeholder="pl. VBF, ÉV" />
+                                          Variant="Variant.Outlined" Placeholder="pl. VBF, ÉV, HME" />
                         </MudItem>
                         <MudItem xs="12" md="6">
                             <MudTextField @bind-Value="tipus.SablonId" Label="Sablon azonosító" 
-                                          Variant="Variant.Outlined" Placeholder="pl. VBF_KIF_MINTA" />
+                                          Variant="Variant.Outlined" Placeholder="pl. hordozhato" />
+                        </MudItem>
+                        
+                        @* ✅ ÚJ: OCR Model ID mező *@
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="tipus.OcrModelId" 
+                                          Label="Azure OCR Model ID" 
+                                          Variant="Variant.Outlined" 
+                                          Placeholder="pl. JegyzokonyvFelismeres_HME"
+                                          HelperText="Opcionális - ha nincs megadva, a prebuilt-document modellt használja" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            @if (!string.IsNullOrEmpty(tipus.OcrModelId))
+                            {
+                                <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                                    Custom OCR model: <strong>@tipus.OcrModelId</strong>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+                                    Alapértelmezett OCR: <strong>prebuilt-document</strong>
+                                </MudAlert>
+                            }
                         </MudItem>
                     </MudGrid>
 
