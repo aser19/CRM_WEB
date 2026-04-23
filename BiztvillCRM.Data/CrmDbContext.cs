@@ -4,9 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BiztvillCRM.Data;
 
-public class CrmDbContext : IdentityDbContext<Felhasznalo>
+public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbContext<Felhasznalo>(options)
 {
-    public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options) { }
 
     // --- Cégek (tenants) ---
     public DbSet<Ceg> Cegek { get; set; }
@@ -67,8 +66,11 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
     public DbSet<Zonaterkep> Zonaterkepek { get; set; }
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
     public DbSet<Helyiseg> Helyisegek { get; set; }
+
+    // ✅ ESZKÖZ SABLONOK - JAVÍTOTT
     public DbSet<EszkozSablon> EszkozSablonok { get; set; }
-    public DbSet<AlkatreszSablon> AlkatreszSablonok { get; set; }
+    public DbSet<EszkozSablonAlkatresz> EszkozSablonAlkatreszek { get; set; }
+    // ❌ NEM KELL: public DbSet<AlkatreszSablon> AlkatreszSablonok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -450,11 +452,41 @@ public class CrmDbContext : IdentityDbContext<Felhasznalo>
             entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Kapcsolat: EszkozSablon → AlkatreszSablon
-        modelBuilder.Entity<AlkatreszSablon>()
-            .HasOne(a => a.EszkozSablon)
-            .WithMany(e => e.Alkatreszek)
-            .HasForeignKey(a => a.EszkozSablonId)
-            .OnDelete(DeleteBehavior.Cascade);
+        // EszkozSablon konfiguráció
+        modelBuilder.Entity<EszkozSablon>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Megnevezes).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Tipus).HasMaxLength(100);
+            entity.Property(e => e.Azonosito).HasMaxLength(100);
+            entity.Property(e => e.VedelmiOsztaly).HasMaxLength(10);
+            entity.Property(e => e.Telj).HasMaxLength(20);
+            entity.Property(e => e.Megtekint).HasMaxLength(10);
+            
+            // ✅ MÓDOSÍTOTT: CegId nullable, NULL = globális sablon
+            entity.HasOne(e => e.Ceg)
+                .WithMany()
+                .HasForeignKey(e => e.CegId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);  // ✅ NULLABLE
+
+            entity.HasIndex(e => new { e.CegId, e.Megnevezes });
+        });
+
+        // EszkozSablonAlkatresz konfiguráció
+        modelBuilder.Entity<EszkozSablonAlkatresz>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Megnevezes).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Tipus).HasMaxLength(100);
+            entity.Property(e => e.Azonosito).HasMaxLength(100);
+            
+            entity.HasOne(e => e.EszkozSablon)
+                .WithMany(s => s.Alkatreszek)
+                .HasForeignKey(e => e.EszkozSablonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.EszkozSablonId, e.Sorrend });
+        });
     }
 }

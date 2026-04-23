@@ -1,14 +1,29 @@
 @namespace BiztvillCRM.Web.Components.Pages
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Web.Components.Dialog
+@using BiztvillCRM.Services.Interfaces
 @inject IJSRuntime JS
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IEszkozSablonService EszkozSablonService
 
 <MudPaper Class="pa-4 mb-4">
-    <MudText Typo="Typo.h6" Class="mb-3">
-        <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
-        Vizsgált eszközök (@Eszkozok.Count db)
-    </MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Devices" Class="mr-2" />
+            Vizsgált eszközök (@Eszkozok.Count db)
+        </MudText>
+        
+        @* ✅ ÚJ: Szerkesztési mód kapcsoló *@
+        @if (Eszkozok.Count > 0)
+        {
+            <MudSwitch @bind-Value="_szerkesztesMod" 
+                       Color="Color.Primary" 
+                       UnCheckedColor="Color.Default"
+                       Label="@(_szerkesztesMod ? "Szerkesztési mód BE" : "Szerkesztési mód KI")"
+                       ThumbIcon="@(_szerkesztesMod ? Icons.Material.Filled.Edit : Icons.Material.Filled.Lock)" />
+        }
+    </MudStack>
 
     @* Helyiség választó - AUTOCOMPLETE a kézi bevitelhez *@
     <MudGrid Class="mb-3">
@@ -76,11 +91,34 @@
         }
     }
 
+    @* ✅ ÚJ: Figyelmeztetés a sablon használathoz *@
+    @if (_sablonokBetoltve && _sablonok.Any())
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Lightbulb" />
+                <MudText Typo="Typo.body2">
+                    <strong>@_sablonok.Count db eszköz sablon</strong> elérhető. Ha a megnevezés egyezik, automatikusan hozzáadódnak az alkatrészek!
+                </MudText>
+                <MudButton Size="Size.Small" 
+                           Variant="Variant.Text" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Visibility"
+                           OnClick="SablonokMegtekintese">
+                    Sablonok megtekintése
+                </MudButton>
+            </MudStack>
+        </MudAlert>
+    }
+
     @* Eszköz hozzáadás gyorsform *@
     <MudGrid Class="mb-4">
         <MudItem xs="12" md="2">
-            <MudTextField @bind-Value="_ujEszkoz.Megnevezes" Label="Megnevezés *" 
-                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudTextField @bind-Value="_ujEszkoz.Megnevezes" 
+                          Label="Megnevezés *" 
+                          Variant="Variant.Outlined" 
+                          Size="Size.Small"
+                          OnBlur="EllenorizSablont" />
         </MudItem>
         <MudItem xs="12" md="1">
             <MudTextField @bind-Value="_ujEszkoz.Tipus" Label="Típus" 
@@ -144,7 +182,8 @@
 
     @if (Eszkozok.Count > 0)
     {
-        <MudDataGrid Items="@Eszkozok" Groupable="true" GroupExpanded="true">
+        <!-- A táblázat része változatlan, csak a kód részben változik -->
+        <MudDataGrid Items="@Eszkozok" Groupable="false" Filterable="false" SortMode="SortMode.None">
             <Columns>
                 <TemplateColumn Title="Ssz." CellStyle="width: 60px;">
                     <CellTemplate>
@@ -159,82 +198,261 @@
                     </CellTemplate>
                 </TemplateColumn>
                 
+                @* ✅ SZERKESZTHETŐ: Megnevezés *@
                 <TemplateColumn Title="Megnevezés">
                     <CellTemplate>
-                        @if (context.Item.CsoportSorrend > 0)
+                        @if (_szerkesztesMod)
                         {
-                            <div style="padding-left: 30px;">
-                                <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
-                                @context.Item.Megnevezes
-                            </div>
-                        }
-                        else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
-                        {
-                            <strong>
-                                <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
-                                @context.Item.Megnevezes
-                            </strong>
+                            <MudTextField @bind-Value="context.Item.Megnevezes" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
                         }
                         else
                         {
-                            @context.Item.Megnevezes
+                            @if (context.Item.CsoportSorrend > 0)
+                            {
+                                <div style="padding-left: 30px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
+                                    @context.Item.Megnevezes
+                                </div>
+                            }
+                            else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                            {
+                                <strong>
+                                    <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
+                                    @context.Item.Megnevezes
+                                </strong>
+                            }
+                            else
+                            {
+                                @context.Item.Megnevezes
+                            }
                         }
                     </CellTemplate>
                 </TemplateColumn>
                 
-                <PropertyColumn Property="e => e.Tipus" Title="Típus" />
-                <PropertyColumn Property="e => e.Azonosito" Title="Gyári szám" />
-                <PropertyColumn Property="e => e.VedelmiOsztaly" Title="Oszt." />
-                <PropertyColumn Property="e => e.Telj" Title="Fesz." />
-                <PropertyColumn Property="e => e.Megtekint" Title="Szemre" />
-                <PropertyColumn Property="e => e.Folyt" Title="Folyt." />
-                <PropertyColumn Property="e => e.Szigell" Title="Szig." />
-                <PropertyColumn Property="e => e.Szivargo" Title="Sziv." />
-                <PropertyColumn Property="e => e.HelyisegNev" Title="Helyiség" />
-                
-                <TemplateColumn Title="Műveletek" Sortable="false">
+                @* ✅ SZERKESZTHETŐ: Típus *@
+                <TemplateColumn Title="Típus">
                     <CellTemplate>
-                        <MudStack Row="true" Spacing="1">
-                            @if (context.Item.CsoportSorrend > 0)
-                            {
-                                @* Alkatrész törlése *@
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small" 
-                                               Color="Color.Error"
-                                               Title="Alkatrész törlése"
-                                               OnClick="@(() => AlkatreszTorlese(context.Item))" />
-                            }
-                            else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
-                            {
-                                @* Főeszköz alkatrészekkel - Szerkesztés *@
-                                <MudIconButton Icon="@Icons.Material.Filled.Settings" 
-                                               Size="Size.Small" 
-                                               Color="Color.Primary"
-                                               Title="Alkatrészek szerkesztése"
-                                               OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small" 
-                                               Color="Color.Error"
-                                               Title="Eszköz + alkatrészek törlése"
-                                               OnClick="@(() => FoEszkozTorlese(context.Item))" />
-                            }
-                            else
-                            {
-                                @* ✅ Normál eszköz - Szerkesztés és törlés *@
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                               Size="Size.Small" 
-                                               Color="Color.Primary"
-                                               Title="Szerkesztés"
-                                               OnClick="@(() => EszkozSzerkesztese(context.Item))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                               Size="Size.Small" 
-                                               Color="Color.Error"
-                                               Title="Törlés"
-                                               OnClick="@(() => EszkozTorlese(context.Item))" />
-                            }
-                        </MudStack>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.Tipus" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.Tipus
+                        }
                     </CellTemplate>
                 </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Gyári szám *@
+                <TemplateColumn Title="Gyári szám">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.Azonosito" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.Azonosito
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Védelmi osztály *@
+                <TemplateColumn Title="Oszt.">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudSelect T="string" @bind-Value="context.Item.VedelmiOsztaly" 
+                                       Variant="Variant.Text" 
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       OnValueChanged="@(() => OnCellChanged())">
+                                <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @context.Item.VedelmiOsztaly
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Feszültség *@
+                <TemplateColumn Title="Fesz.">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudSelect T="string" @bind-Value="context.Item.Telj" 
+                                       Variant="Variant.Text" 
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       OnValueChanged="@(() => OnCellChanged())">
+                                <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("48V")">48V</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @context.Item.Telj
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Szemrevétel *@
+                <TemplateColumn Title="Szemre">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudSelect T="string" @bind-Value="context.Item.Megtekint" 
+                                       Variant="Variant.Text" 
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       OnValueChanged="@(() => OnCellChanged())">
+                                <MudSelectItem T="string" Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("NMF")">NMF</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @context.Item.Megtekint
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Folytonosság *@
+                <TemplateColumn Title="Folyt.">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.Folyt" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Disabled="@(!context.Item.KellFolyt)"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.Folyt
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Szigetelés *@
+                <TemplateColumn Title="Szig.">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.Szigell" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.Szigell
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Szivárgó áram *@
+                <TemplateColumn Title="Sziv.">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.Szivargo" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.Szivargo
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* ✅ SZERKESZTHETŐ: Helyiség *@
+                <TemplateColumn Title="Helyiség">
+                    <CellTemplate>
+                        @if (_szerkesztesMod)
+                        {
+                            <MudTextField @bind-Value="context.Item.HelyisegNev" 
+                                          Variant="Variant.Text" 
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          OnBlur="@(() => OnCellChanged())" />
+                        }
+                        else
+                        {
+                            @context.Item.HelyisegNev
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                @* Műveletek oszlop - CSAK nem szerkesztési módban *@
+                @if (!_szerkesztesMod)
+                {
+                    <TemplateColumn Title="Műveletek" Sortable="false">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="1">
+                                @if (context.Item.CsoportSorrend > 0)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error"
+                                                   Title="Alkatrész törlése"
+                                                   OnClick="@(() => AlkatreszTorlese(context.Item))" />
+                                }
+                                else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary"
+                                                   Title="Alkatrészek szerkesztése"
+                                                   OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error"
+                                                   Title="Eszköz + alkatrészek törlése"
+                                                   OnClick="@(() => FoEszkozTorlese(context.Item))" />
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary"
+                                                   Title="Szerkesztés"
+                                                   OnClick="@(() => EszkozSzerkesztese(context.Item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error"
+                                                   Title="Törlés"
+                                                   OnClick="@(() => EszkozTorlese(context.Item))" />
+                                }
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                }
             </Columns>
         </MudDataGrid>
 
@@ -287,17 +505,73 @@
     }
 </MudPaper>
 
+@* ✅ ÚJ: Sablonok megtekintése dialógus *@
+<MudDialog @bind-Visible="_sablonokDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Extension" Class="mr-2" />
+            Elérhető eszköz sablonok
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_sablonok.Any())
+        {
+            <MudList T="EszkozSablon" Dense="true">
+                @foreach (var sablon in _sablonok)
+                {
+                    var alkatreszekSzama = sablon.Alkatreszek.Count;
+                    <MudListItem T="EszkozSablon">
+                        <MudPaper Class="pa-2 mb-2" Elevation="1">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" Size="Size.Small" />
+                                    <MudText Typo="Typo.subtitle1"><strong>@sablon.Megnevezes</strong></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                                        @alkatreszekSzama alkatrész
+                                    </MudChip>
+                                </MudStack>
+                                @if (!string.IsNullOrEmpty(sablon.Tipus))
+                                {
+                                    <MudText Typo="Typo.body2">Típus: @sablon.Tipus</MudText>
+                                }
+                                @if (alkatreszekSzama > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mt-1">
+                                        Alkatrészek: @string.Join(", ", sablon.Alkatreszek.Select(a => a.Megnevezes))
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">
+                Még nincs eszköz sablon létrehozva. Hozz létre sablonokat az "Alkatrész kezelés" menüpontban!
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _sablonokDialogNyitva = false)">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     [Parameter] public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
     [Parameter] public EventCallback<List<HordozhatoEszkozSor>> EszkozokChanged { get; set; }
 
     private HordozhatoEszkozSor _ujEszkoz = new() { VedelmiOsztaly = "I", Telj = "230V", Megtekint = "MF" };
     private string _aktualisHelyisegNev = "";
-    
-    // ✅ HIÁNYZÓ DEKLARÁCIÓK
     private List<HelyisegSorrendItem> _helyisegSorrend = new();
+    private bool _szerkesztesMod = false;
+    
+    // ✅ MÓDOSÍTOTT: Sablon rendszer adatbázis alapú
+    private List<BiztvillCRM.Shared.Models.EszkozSablon> _sablonok = new();
+    private bool _sablonokBetoltve = false;
+    private bool _sablonokDialogNyitva = false; // ✅ HIÁNYZÓ VÁLTOZÓ
 
-    // ✅ ÚJ: Nested class a helyiség sorrendhez
     private class HelyisegSorrendItem
     {
         public string Identifier { get; set; } = Guid.NewGuid().ToString();
@@ -306,7 +580,6 @@
         public int EszkozokSzama { get; set; }
     }
 
-    // ✅ ÚJ: OnAfterRenderAsync - helyiség név visszatöltése localStorage-ból
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -317,20 +590,144 @@
                 if (!string.IsNullOrEmpty(saved))
                 {
                     _aktualisHelyisegNev = saved;
-                    StateHasChanged();
                 }
+
+                // ✅ MÓDOSÍTOTT: Sablonok betöltése adatbázisból
+                await SablonokBetoltese();
+                StateHasChanged();
             }
             catch { }
         }
     }
 
     // ✅ ÚJ: Eszközök változásakor frissítjük a helyiség sorrendet
+    // FIGYELEM: Csak EGY OnParametersSet metódus lehet!
     protected override void OnParametersSet()
     {
         FrissitHelyisegSorrend();
     }
 
-    // ✅ Normál eszköz szerkesztése
+    // ✅ MÓDOSÍTOTT: Sablonok betöltése adatbázisból
+    private async Task SablonokBetoltese()
+    {
+        try
+        {
+            _sablonok = await EszkozSablonService.GetAllAsync();
+            _sablonokBetoltve = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Sablonok betöltési hiba: {ex.Message}");
+            Snackbar?.Add("Sablonok betöltése sikertelen", Severity.Warning);
+        }
+    }
+
+    // ✅ MÓDOSÍTOTT: Sablon ellenőrzés megnevezés alapján - most adatbázisból
+    private async Task EllenorizSablont()
+    {
+        if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes)) return;
+
+        var talalat = await EszkozSablonService.GetByMegnevezesAsync(_ujEszkoz.Megnevezes);
+
+        if (talalat != null && talalat.Alkatreszek.Any())
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Eszköz sablon található!",
+                $"Találtam egy sablont '{talalat.Megnevezes}' néven {talalat.Alkatreszek.Count} alkatrésszel. Automatikusan hozzáadjam őket?",
+                yesText: "Igen, add hozzá",
+                cancelText: "Nem, csak az eszközt adom hozzá");
+
+            if (result == true)
+            {
+                // ✅ JAVÍTVA: Null-coalescing operatorok
+                _ujEszkoz.Tipus = talalat.Tipus ?? "";                     // 642. sor
+                _ujEszkoz.Azonosito = talalat.Azonosito ?? "";             // 643. sor
+                _ujEszkoz.VedelmiOsztaly = talalat.VedelmiOsztaly ?? "I";
+                _ujEszkoz.Telj = talalat.Telj ?? "230V";
+                _ujEszkoz.Megtekint = talalat.Megtekint ?? "MF";
+                Snackbar.Add($"Sablon adatok betöltve: {talalat.Alkatreszek.Count} alkatrész lesz hozzáadva!", Severity.Info);
+            }
+        }
+    }
+
+    // ✅ MÓDOSÍTOTT: Eszköz hozzáadás automatikus alkatrész hozzáadással - adatbázisból
+    private async Task EszkozHozzaadas()
+    {
+        if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes)) return;
+
+        if (!_ujEszkoz.KellFolyt) _ujEszkoz.Folyt = "";
+
+        if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
+        {
+            try { await JS.InvokeVoidAsync("localStorageInterop.set", "lastHelyisegNev", _aktualisHelyisegNev); }
+            catch { }
+        }
+
+        _ujEszkoz.HelyisegNev = _aktualisHelyisegNev;
+        _ujEszkoz.Sorsz = Eszkozok.Count + 1;
+
+        // ✅ MÓDOSÍTOTT: Ellenőrizzük, van-e sablon az adatbázisban
+        var sablon = await EszkozSablonService.GetByMegnevezesAsync(_ujEszkoz.Megnevezes);
+
+        if (sablon != null && sablon.Alkatreszek.Any())
+        {
+            var csoportNev = $"Csoport_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            _ujEszkoz.CsoportNev = csoportNev;
+            _ujEszkoz.CsoportSorrend = 0;
+            
+            Eszkozok.Add(_ujEszkoz);
+
+            // ✅ JAVÍTVA: Null-coalescing operatorokkal
+            foreach (var sablonAlkatresz in sablon.Alkatreszek.OrderBy(a => a.Sorrend))
+            {
+                var ujAlkatresz = new HordozhatoEszkozSor
+                {
+                    CsoportNev = csoportNev,
+                    CsoportSorrend = sablonAlkatresz.Sorrend,
+                    Megnevezes = sablonAlkatresz.Megnevezes,
+                    Tipus = sablonAlkatresz.Tipus ?? "",                    // ✅ JAVÍTVA
+                    Azonosito = sablonAlkatresz.Azonosito ?? "",            // ✅ JAVÍTVA
+                
+                    // ✅ JAVÍTVA: Alkatrész SAJÁT értékei a sablonból
+                    VedelmiOsztaly = sablonAlkatresz.VedelmiOsztaly ?? "I", // ✅ JAVÍTVA
+                    Telj = sablonAlkatresz.Telj ?? "230V",                  // ✅ JAVÍTVA
+                    Megtekint = sablonAlkatresz.Megtekint ?? "MF",          // ✅ JAVÍTVA
+                
+                    HelyisegNev = _ujEszkoz.HelyisegNev ?? "",              // ✅ JAVÍTVA
+                    Folyt = "",
+                    Szigell = "",
+                    Szivargo = ""
+                };
+                Eszkozok.Add(ujAlkatresz);
+            }
+
+            Snackbar.Add($"Eszköz és {sablon.Alkatreszek.Count} alkatrész hozzáadva sablonból!", Severity.Success);
+        }
+        else
+        {
+            // Normál eszköz hozzáadás (nincs sablon)
+            Eszkozok.Add(_ujEszkoz);
+        }
+        
+        _ujEszkoz = new HordozhatoEszkozSor
+        {
+            VedelmiOsztaly = "I",
+            Telj = "230V",
+            Megtekint = "MF",
+            HelyisegNev = _aktualisHelyisegNev ?? ""  // ✅ JAVÍTVA
+        };
+
+        FrissitHelyisegSorrend();
+        await EszkozokChanged.InvokeAsync(Eszkozok);
+    }
+
+    // ✅ ÚJ: Sablonok megtekintése dialógus
+    private void SablonokMegtekintese()
+    {
+        _sablonokDialogNyitva = true;
+    }
+
+    // Normál eszköz szerkesztése
     private async Task EszkozSzerkesztese(HordozhatoEszkozSor eszkoz)
     {
         var parameters = new DialogParameters
@@ -373,7 +770,7 @@
         }
     }
 
-    // ✅ Normál eszköz törlése
+    // Normál eszköz törlése
     private async Task EszkozTorlese(HordozhatoEszkozSor eszkoz)
     {
         bool? confirm = await DialogService.ShowMessageBox(
@@ -391,7 +788,7 @@
         }
     }
 
-    // ✅ Főeszköz + alkatrészek törlése
+    // Főeszköz + alkatrészek törlése
     private async Task FoEszkozTorlese(HordozhatoEszkozSor foEszkoz)
     {
         var alkatreszekSzama = Eszkozok.Count(e => e.CsoportNev == foEszkoz.CsoportNev && e.CsoportSorrend > 0);
@@ -428,13 +825,38 @@
         }
     }
 
-    // Alkatrészek szerkesztése (placeholder)
-    private void AlkatreszekSzerkesztese(HordozhatoEszkozSor foEszkoz)
+    // Alkatrészek szerkesztése
+    private async Task AlkatreszekSzerkesztese(HordozhatoEszkozSor foEszkoz)
     {
-        // TODO: Implementáld később
+        var parameters = new DialogParameters
+        {
+            ["FoEszkoz"] = foEszkoz,
+            ["OsszesEszkoz"] = Eszkozok
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<AlkatreszSzerkesztesDialog>(
+            "Alkatrészek kezelése",
+            parameters,
+            options);
+        
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            // Eszközlista frissült a dialog-ban, csak újrarajzoljuk
+            await EszkozokChanged.InvokeAsync(Eszkozok);
+            StateHasChanged();
+        }
     }
 
-    // ✅ Sorszámok újraszámozása
+    // Sorszámok újraszámozása
     private void UjraSzamozas()
     {
         int sorszam = 1;
@@ -449,7 +871,7 @@
         _aktualisHelyisegNev = helyiseg;
     }
 
-    // ✅ Helyiség sorrend frissítése
+    // Helyiség sorrend frissítése
     private void FrissitHelyisegSorrend()
     {
         var aktualisHelyisegek = Eszkozok
@@ -482,7 +904,7 @@
         }
     }
 
-    // ✅ Helyiség sorrend változtatása drag&drop-pal
+    // Helyiség sorrend változtatása drag&drop-pal
     private void OnHelyisegSorrendValtozas(MudItemDropInfo<HelyisegSorrendItem> info)
     {
         if (info.Item == null) return;
@@ -500,35 +922,6 @@
             _helyisegSorrend[i].Sorszam = i + 1;
 
         StateHasChanged();
-    }
-
-    private async Task EszkozHozzaadas()
-    {
-        if (string.IsNullOrWhiteSpace(_ujEszkoz.Megnevezes)) return;
-
-        if (!_ujEszkoz.KellFolyt) _ujEszkoz.Folyt = "";
-
-        if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
-        {
-            try { await JS.InvokeVoidAsync("localStorageInterop.set", "lastHelyisegNev", _aktualisHelyisegNev); }
-            catch { }
-        }
-
-        _ujEszkoz.HelyisegNev = _aktualisHelyisegNev;
-        _ujEszkoz.Sorsz = Eszkozok.Count + 1;
-        
-        Eszkozok.Add(_ujEszkoz);
-        
-        _ujEszkoz = new HordozhatoEszkozSor
-        {
-            VedelmiOsztaly = "I",
-            Telj = "230V",
-            Megtekint = "MF",
-            HelyisegNev = _aktualisHelyisegNev
-        };
-
-        FrissitHelyisegSorrend();
-        await EszkozokChanged.InvokeAsync(Eszkozok);
     }
 
     private Task<IEnumerable<string>> HelyisegKereses(string keresettErtek, CancellationToken token)
@@ -555,7 +948,7 @@
         return Task.FromResult(talalatok.AsEnumerable());
     }
 
-    // ✅ Eszközök lekérése helyiség sorrend szerint (jegyzőkönyvhöz)
+    // Eszközök lekérése helyiség sorrend szerint (jegyzőkönyvhöz)
     public List<HordozhatoEszkozSor> GetRendezettEszkozok()
     {
         var sorrend = _helyisegSorrend
@@ -567,5 +960,11 @@
                           sorrend.TryGetValue(e.HelyisegNev!, out var idx) ? idx : int.MaxValue - 1)
             .ThenBy(e => e.Sorsz)
             .ToList();
+    }
+
+    // Automatikus mentés cella változtatáskor
+    private async Task OnCellChanged()
+    {
+        await EszkozokChanged.InvokeAsync(Eszkozok);
     }
 }

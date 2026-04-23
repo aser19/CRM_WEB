@@ -89,6 +89,24 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             _logger.LogInformation("📄 Talált oldalak: {PageCount}", result.Pages.Count);
             _logger.LogInformation("📋 Talált táblázatok: {TableCount}", result.Tables.Count);
 
+            // ✅ ÚJ: Ha kevés táblázat, próbáljuk újra prebuilt-layout-tal
+            if (result.Tables.Count < 2 && result.Pages.Count > 2 && modelId == "HME")
+            {
+                _logger.LogWarning("⚠️ Kevés táblázat ({TableCount}) több oldalon ({PageCount}), újrapróbálás prebuilt-layout-tal", 
+                    result.Tables.Count, result.Pages.Count);
+    
+                fileStream.Position = 0;
+    
+                var retryOperation = await _client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    "prebuilt-layout",
+                    fileStream);
+    
+                result = retryOperation.Value;
+    
+                _logger.LogInformation("📋 Újrapróbálás után: {TableCount} táblázat", result.Tables.Count);
+            }
+
             // ✅ Teljes szöveg feldolgozása (eredeti)
             FeldolgozTeljesSzoveg(result.Content, importAdatok);
             
@@ -192,9 +210,9 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             _logger.LogInformation("📊 Táblázat #{Index}: {RowCount} sor, {ColumnCount} oszlop", 
                 tableIndex + 1, table.RowCount, table.ColumnCount);
 
-            if (table.RowCount < 2)
+            if (table.RowCount < 1) // ✅ JAVÍTVA: 2-ről 1-re (lehet 1 soros is)
             {
-                _logger.LogWarning("⚠️ Táblázat #{Index} túl kicsi, átugorva", tableIndex + 1);
+                _logger.LogWarning("⚠️ Táblázat #{Index} üres, átugorva", tableIndex + 1);
                 continue;
             }
 
@@ -217,15 +235,25 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
         _logger.LogInformation("  🔧 Merged táblázat feldolgozása... ({RowCount} sor, {ColCount} oszlop)", 
             table.RowCount, table.ColumnCount);
         
-        // ✅ Fejléc azonosítása (első sor elemzése)
-        var fejlecOszlopok = new Dictionary<int, string>();
-        int startRow = 0; // Melyik sortól indulnak az adatok
+        // ✅ DEBUG: Első 2 sor tartalmának kiírása
+        _logger.LogInformation("    🔍 DEBUG: Első 2 sor tartalma:");
+        for (int debugRow = 0; debugRow < Math.Min(2, table.RowCount); debugRow++)
+        {
+            var debugCells = table.Cells
+                .Where(c => c.RowIndex == debugRow)
+                .OrderBy(c => c.ColumnIndex)
+                .Select(c => $"[{c.ColumnIndex}]='{c.Content}'")
+                .ToList();
+            _logger.LogInformation("      Sor {Row}: {Cells}", debugRow, string.Join(" | ", debugCells));
+        }
         
-        // ✅ Ha van előre megadott fejléc (2. táblázattól), használjuk azt
+        var fejlecOszlopok = new Dictionary<int, string>();
+        int startRow = 0;
+        
         if (eloredefinedFejlec != null && eloredefinedFejlec.Any())
         {
-            fejlecOszlopok = eloredefinedFejlec;
-            startRow = 0; // MINDEN sor adat
+            fejlecOszlopok = new Dictionary<int, string>(eloredefinedFejlec); // ✅ JAVÍTVA: másolat
+            startRow = 0;
             _logger.LogInformation("    📋 Korábbi táblázat fejlécét használjuk");
         }
         else
@@ -236,58 +264,132 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 var fejlecCell = table.Cells.FirstOrDefault(c => c.RowIndex == 0 && c.ColumnIndex == col);
                 if (fejlecCell != null && !string.IsNullOrWhiteSpace(fejlecCell.Content))
                 {
-                    fejlecOszlopok[col] = fejlecCell.Content.Trim().ToLower();
-                    _logger.LogDebug("    📋 Oszlop {Col}: {Header}", col, fejlecCell.Content);
+                    var content = fejlecCell.Content.Trim().ToLower();
+                    fejlecOszlopok[col] = content;
+                    _logger.LogDebug("    📋 Oszlop {Col}: '{Header}'", col, fejlecCell.Content);
                 }
             }
             
-            // ✅ Ellenőrzés: Van-e valódi fejléc?
+            // ✅ JAVÍTÁS: Bővített fejléc felismerés
             bool vanFejlec = fejlecOszlopok.Values.Any(h => 
-                h.Contains("megnevezés") || 
+                h.Contains("megnevez") ||   // "megnevezés", "megneveze"
+                h.Contains("eszköz") ||
+                h.Contains("munkaeszköz") ||
                 h.Contains("típus") || 
+                h.Contains("tipus") ||
+                h.Contains("type") ||
                 h.Contains("gyári") ||
-                h.Contains("eszköz"));
+                h.Contains("gyártási") ||
+                h.Contains("serial"));
             
-            if (vanFejlec)
+            // ✅ JAVÍTÁS: Ha az első sor "Típus: XXX" mintát tartalmaz, az ADAT, nem fejléc!
+            bool elsoSorAdatMinta = fejlecOszlopok.Values.Any(h => 
+                h.Contains("típus:") || 
+                h.Contains("gyári szám:") ||
+                Regex.IsMatch(h, @"^\d+$")); // csak szám
+            
+            if (elsoSorAdatMinta)
             {
-                startRow = 1; // 1-től indulnak az adatok
+                vanFejlec = false;
+                _logger.LogWarning("    ⚠️ Fejléc helyett ADATOK az első sorban! (pl. 'Típus: XXX')");
+            }
+            
+            if (vanFejlec && !elsoSorAdatMinta)
+            {
+                startRow = 1;
                 _logger.LogInformation("    ✅ Fejléc felismerve, adatok: 1. sortól");
             }
             else
             {
-                startRow = 0; // MINDEN sor adat (nincs fejléc)
+                startRow = 0;
                 _logger.LogWarning("    ⚠️ Nincs fejléc! Minden sort adatként dolgozunk fel.");
+                _logger.LogWarning("    ⚠️ Használunk ALAPÉRTELMEZETT oszloppozíciókat...");
                 
-                // Ha nincs fejléc, ne próbáljuk meg feldolgozni
-                if (eloredefinedFejlec == null)
+                // ✅ JAVÍTÁS: Oszloppozíció alapú feltételezés
+                fejlecOszlopok.Clear();
+                
+                if (table.ColumnCount >= 10)
                 {
-                    _logger.LogWarning("    ⚠️ Első táblázat fejléc nélkül - oszloppozíció alapján dolgozunk");
-                    // Alapértelmezett oszlop pozíciók (feltételezés)
-                    fejlecOszlopok[1] = "megnevezés"; // 2. oszlop
-                    fejlecOszlopok[2] = "típus";       // 3. oszlop
-                    fejlecOszlopok[3] = "gyári szám";  // 4. oszlop
+                    // Teljes táblázat struktúra
+                    fejlecOszlopok[0] = "sorszám";
+                    fejlecOszlopok[1] = "megnevezés";
+                    fejlecOszlopok[2] = "típus";
+                    fejlecOszlopok[3] = "gyári szám";
+                    fejlecOszlopok[4] = "jellemző";
+                    fejlecOszlopok[5] = "egyéb";
+                    fejlecOszlopok[6] = "megtekintés";
+                    fejlecOszlopok[7] = "folytonosság";
+                    fejlecOszlopok[8] = "szigetelés";
+                    fejlecOszlopok[9] = "szivárgó áram";
+                    if (table.ColumnCount >= 11)
+                        fejlecOszlopok[10] = "megjegyzés";
+                    _logger.LogInformation("    📊 Teljes táblázat struktúra feltételezve (11 oszlop)");
+                }
+                else if (table.ColumnCount <= 4)
+                {
+                    // Egyszerű táblázat (csak Típus + Gyári)
+                    fejlecOszlopok[0] = "típus";
+                    fejlecOszlopok[1] = "gyári szám";
+                    if (table.ColumnCount >= 3)
+                        fejlecOszlopok[2] = "egyéb";
+                    _logger.LogInformation("    📊 Egyszerű táblázat struktúra (3-4 oszlop)");
+                }
+                else
+                {
+                    // Közepes táblázat (5-9 oszlop)
+                    fejlecOszlopok[0] = "megnevezés";
+                    fejlecOszlopok[1] = "típus";
+                    fejlecOszlopok[2] = "gyári szám";
+                    fejlecOszlopok[3] = "jellemző";
+                    if (table.ColumnCount >= 5)
+                        fejlecOszlopok[4] = "megtekintés";
+                    if (table.ColumnCount >= 6)
+                        fejlecOszlopok[5] = "folytonosság";
+                    _logger.LogInformation("    📊 Közepes táblázat struktúra ({ColCount} oszlop)", table.ColumnCount);
                 }
             }
         }
         
-        // ✅ Oszlopok automatikus felismerése - KIBŐVÍTVE!
-        int? megnevezesCol = TalalOszlop(fejlecOszlopok, "megnevezés", "eszköz", "név");
-        int? tipusCol = TalalOszlop(fejlecOszlopok, "típus", "type");
-        int? gyariCol = TalalOszlop(fejlecOszlopok, "gyári", "serial", "szám");
-        int? leltariCol = TalalOszlop(fejlecOszlopok, "leltári", "inventory");
+        // ✅ JAVÍTÁS: Bővített szinonimaok
+        int? megnevezesCol = TalalOszlop(fejlecOszlopok, 
+            "megnevezés", "megneveze", "megnevezé",
+            "eszköz", "munkaeszköz", "eszköz neve",
+            "név", "name");
         
-        // ✅ ÚJ OSZLOPOK
-        int? teljCol = TalalOszlop(fejlecOszlopok, "teljesítmény", "feszültség", "egyéb", "jellemző");
-        int? megtekintCol = TalalOszlop(fejlecOszlopok, "megtekintés", "szemre", "vizuális");
-        int? folytCol = TalalOszlop(fejlecOszlopok, "folytonosság", "folyt");
-        int? szigellCol = TalalOszlop(fejlecOszlopok, "szigetel", "szig");
-        int? szivargoCol = TalalOszlop(fejlecOszlopok, "szivárgó", "áram");
-        int? megjegyzesCol = TalalOszlop(fejlecOszlopok, "megjegyzés", "jegyzet");
+        int? tipusCol = TalalOszlop(fejlecOszlopok, 
+            "típus", "tipus", "type", "model");
+        
+        int? gyariCol = TalalOszlop(fejlecOszlopok, 
+            "gyári", "gyártási", "serial", "gyári szám", "gyártási szám",
+            "szám", "sn");
+        
+        int? leltariCol = TalalOszlop(fejlecOszlopok, 
+            "leltári", "leltári szám", "inventory");
+        
+        int? teljCol = TalalOszlop(fejlecOszlopok, 
+            "teljesítmény", "feszültség", "jellemző", "egyéb", 
+            "voltage", "power", "jellemző teljesítmény");
+        
+        int? megtekintCol = TalalOszlop(fejlecOszlopok, 
+            "megtekintés", "szemrevétel", "vizuális", "vizsgálat", 
+            "megfelelés", "megfelel", "visual");
+        
+        int? folytCol = TalalOszlop(fejlecOszlopok, 
+            "folytonosság", "folyt", "continuity");
+        
+        int? szigellCol = TalalOszlop(fejlecOszlopok, 
+            "szigetel", "szig", "szigetelés", "insulation");
+        
+        int? szivargoCol = TalalOszlop(fejlecOszlopok, 
+            "szivárgó", "áram", "leakage", "szivárgó áram");
+        
+        int? megjegyzesCol = TalalOszlop(fejlecOszlopok, 
+            "megjegyzés", "jegyzet", "comment", "notes");
 
         _logger.LogInformation("    🔍 Felismert oszlopok: Név={Nev}, Típus={Tipus}, Gyári={Gyari}, Telj={Telj}, Megtekint={Megtekint}, Folyt={Folyt}, Szigell={Szigell}, Szivargo={Szivargo}", 
             megnevezesCol, tipusCol, gyariCol, teljCol, megtekintCol, folytCol, szigellCol, szivargoCol);
         
-        // ✅ Adatsorok feldolgozása (startRow-tól)
+        // ✅ Adatsorok feldolgozása
         for (int row = startRow; row < table.RowCount; row++)
         {
             var cellak = table.Cells
@@ -295,17 +397,15 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 .OrderBy(c => c.ColumnIndex)
                 .ToList();
 
-            if (cellak.Count < 2) 
+            if (cellak.Count < 1) // ✅ JAVÍTVA: 2-ről 1-re
             {
-                _logger.LogDebug("      ⚠️ Sor {Row} túl kevés cellát tartalmaz ({Count}), átugorva", 
-                    row, cellak.Count);
+                _logger.LogDebug("      ⚠️ Sor {Row} üres", row);
                 continue;
             }
 
             var eszkoz = new HordozhatoEszkozImport();
             var sorAdatok = new Dictionary<int, string>();
             
-            // Cellák beolvasása
             foreach (var cell in cellak)
             {
                 var content = cell.Content?.Trim() ?? "";
@@ -315,9 +415,12 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 }
             }
             
-            _logger.LogDebug("      📝 Sor {Row}: {Cellak} cella", row, sorAdatok.Count);
+            // ✅ JAVÍTÁS: Részletes debug logging
+            _logger.LogDebug("      📝 Sor {Row}: {Cellak} cella -> {Data}", 
+                row, sorAdatok.Count, 
+                string.Join(" | ", sorAdatok.Select(kv => $"[{kv.Key}]='{kv.Value}'")));
             
-            // ✅ Adatok kinyerése felismert oszlopokból
+            // Adatok kinyerése felismert oszlopokból
             if (megnevezesCol.HasValue && sorAdatok.ContainsKey(megnevezesCol.Value))
             {
                 eszkoz.Eszkoznev = sorAdatok[megnevezesCol.Value];
@@ -325,24 +428,30 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
 
             if (tipusCol.HasValue && sorAdatok.ContainsKey(tipusCol.Value))
             {
-                eszkoz.Tipus = sorAdatok[tipusCol.Value];
+                var tipus = sorAdatok[tipusCol.Value];
+                // ✅ JAVÍTÁS: Távolítsuk el a "Típus:" prefix-et
+                if (tipus.StartsWith("Típus:", StringComparison.OrdinalIgnoreCase))
+                    tipus = tipus.Replace("Típus:", "", StringComparison.OrdinalIgnoreCase).Trim();
+                eszkoz.Tipus = tipus;
             }
-            
+
             if (gyariCol.HasValue && sorAdatok.ContainsKey(gyariCol.Value))
             {
-                eszkoz.GyariSzam = sorAdatok[gyariCol.Value];
+                var gyari = sorAdatok[gyariCol.Value];
+                // ✅ JAVÍTÁS: Távolítsuk el a "Gyári szám:" prefix-et
+                if (gyari.StartsWith("Gyári szám:", StringComparison.OrdinalIgnoreCase))
+                    gyari = gyari.Replace("Gyári szám:", "", StringComparison.OrdinalIgnoreCase).Trim();
+                eszkoz.GyariSzam = gyari;
             }
-            
+
             if (leltariCol.HasValue && sorAdatok.ContainsKey(leltariCol.Value))
             {
                 eszkoz.Leltariszam = sorAdatok[leltariCol.Value];
             }
 
-            // ✅ ÚJ MEZŐK KIOLVASÁSA
             if (teljCol.HasValue && sorAdatok.ContainsKey(teljCol.Value))
             {
                 var telj = sorAdatok[teljCol.Value];
-                // Normalizálás: "230 V" -> "230V", "230 V / 1010 W" -> "230V"
                 if (telj.Contains("230"))
                     eszkoz.JellemzoTeljesitmeny = "230V";
                 else if (telj.Contains("400"))
@@ -358,19 +467,17 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             if (megtekintCol.HasValue && sorAdatok.ContainsKey(megtekintCol.Value))
             {
                 var megtekint = sorAdatok[megtekintCol.Value].ToUpper();
-                // Normalizálás: "MEGFELELT" -> "MF", "NEM MEGFELELT" -> "NMF"
                 if (megtekint.Contains("MEGFELELT") || megtekint == "MF")
                     eszkoz.Megtekintes = "MF";
                 else if (megtekint.Contains("NEM") || megtekint == "NMF")
                     eszkoz.Megtekintes = "NMF";
                 else if (megtekint.Contains("KSZ"))
-                    eszkoz.Megtekintes = "KSZ"; // Külső szemrevétel
+                    eszkoz.Megtekintes = "KSZ";
             }
 
             if (folytCol.HasValue && sorAdatok.ContainsKey(folytCol.Value))
             {
                 var folyt = sorAdatok[folytCol.Value];
-                // Szűrjük ki a "KSZ" és üres értékeket
                 if (!string.IsNullOrWhiteSpace(folyt) && folyt != "KSZ" && folyt != "-")
                     eszkoz.Folytonossag = folyt;
             }
@@ -378,7 +485,6 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             if (szigellCol.HasValue && sorAdatok.ContainsKey(szigellCol.Value))
             {
                 var szigell = sorAdatok[szigellCol.Value];
-                // ">200" formátumot megtartjuk
                 if (!string.IsNullOrWhiteSpace(szigell) && szigell != "-")
                     eszkoz.Szigeteles = szigell;
             }
@@ -393,23 +499,22 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             if (megjegyzesCol.HasValue && sorAdatok.ContainsKey(megjegyzesCol.Value))
             {
                 var megjegyzes = sorAdatok[megjegyzesCol.Value];
-                // "MEGFELELT" megjegyzést ne vegyük át
                 if (!string.IsNullOrWhiteSpace(megjegyzes) && !megjegyzes.Contains("MEGFELELT"))
                     eszkoz.Megjegyzes = megjegyzes;
             }
             
-            // ✅ FALLBACK: Ha nem találtunk oszlopokat, próbáljuk meg a "Típus:" "Gyári szám:" mintát
+            // ✅ FALLBACK: "Típus:" "Gyári szám:" minta
             if (string.IsNullOrEmpty(eszkoz.Tipus) && string.IsNullOrEmpty(eszkoz.GyariSzam))
             {
                 foreach (var (colIndex, content) in sorAdatok)
                 {
                     if (content.StartsWith("Típus:", StringComparison.OrdinalIgnoreCase))
                     {
-                        eszkoz.Tipus = content.Replace("Típus:", "").Trim();
+                        eszkoz.Tipus = content.Replace("Típus:", "", StringComparison.OrdinalIgnoreCase).Trim();
                     }
                     else if (content.StartsWith("Gyári szám:", StringComparison.OrdinalIgnoreCase))
                     {
-                        eszkoz.GyariSzam = content.Replace("Gyári szám:", "").Trim();
+                        eszkoz.GyariSzam = content.Replace("Gyári szám:", "", StringComparison.OrdinalIgnoreCase).Trim();
                     }
                     else if (string.IsNullOrEmpty(eszkoz.Eszkoznev) && !content.Contains(":"))
                     {
@@ -418,24 +523,27 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 }
             }
             
-            // ✅ FALLBACK 2: Szűrjük ki a sorszámokat (pl. "24.", "25.")
+            // ✅ FALLBACK: Sorszámok kiszűrése
             if (!string.IsNullOrEmpty(eszkoz.Eszkoznev) && Regex.IsMatch(eszkoz.Eszkoznev, @"^\d+\.$"))
             {
                 _logger.LogDebug("      ⚠️ Csak sorszám ({Sorsz}), átugorva", eszkoz.Eszkoznev);
                 continue; // Ne importáljuk a puszta sorszámokat
             }
             
-            // ✅ FALLBACK 3: Ha még mindig nincs név, generáljunk egyet
+            // ✅ JAVÍTÁS: Ha nincs név, de van típus, használjuk a típust (NE adjunk prefix-et!)
             if (string.IsNullOrEmpty(eszkoz.Eszkoznev))
             {
                 if (!string.IsNullOrEmpty(eszkoz.Tipus))
                 {
-                    eszkoz.Eszkoznev = $"Eszköz ({eszkoz.Tipus})";
+                    eszkoz.Eszkoznev = eszkoz.Tipus; // ✅ JAVÍTVA: NE "Eszköz (típus)", csak típus
+                    _logger.LogDebug("      📝 Megnevezés hiányzik, típus használata: {Tipus}", eszkoz.Tipus);
                 }
                 else if (sorAdatok.Any())
                 {
-                    // Az első nem üres cella legyen a név (csak ha nem sorszám)
-                    var elsoErtek = sorAdatok.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) && !Regex.IsMatch(v, @"^\d+\.$"));
+                    var elsoErtek = sorAdatok.Values.FirstOrDefault(v => 
+                        !string.IsNullOrWhiteSpace(v) && 
+                        !Regex.IsMatch(v, @"^\d+\.$") &&
+                        !v.Contains(":"));
                     if (!string.IsNullOrEmpty(elsoErtek))
                     {
                         eszkoz.Eszkoznev = elsoErtek;
@@ -450,11 +558,26 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             
             if (vanErvenyes)
             {
-                // Duplikáció ellenőrzés
-                bool marLetezik = adatok.Eszkozok.Any(e => 
-                    (!string.IsNullOrEmpty(e.GyariSzam) && e.GyariSzam == eszkoz.GyariSzam) ||
-                    (!string.IsNullOrEmpty(e.Eszkoznev) && e.Eszkoznev == eszkoz.Eszkoznev));
-                
+                // ✅ JAVÍTÁS: Duplikáció ellenőrzés - ELSŐSORBAN gyári szám alapján
+                bool marLetezik = false;
+    
+                if (!string.IsNullOrEmpty(eszkoz.GyariSzam))
+                {
+                    // Elsősorban gyári szám alapján
+                    marLetezik = adatok.Eszkozok.Any(e => 
+                        !string.IsNullOrEmpty(e.GyariSzam) && 
+                        e.GyariSzam.Equals(eszkoz.GyariSzam, StringComparison.OrdinalIgnoreCase));
+                }
+                else if (!string.IsNullOrEmpty(eszkoz.Eszkoznev) && !string.IsNullOrEmpty(eszkoz.Tipus))
+                {
+                    // Ha nincs gyári szám, név + típus kombinációval
+                    marLetezik = adatok.Eszkozok.Any(e => 
+                        !string.IsNullOrEmpty(e.Eszkoznev) && 
+                        !string.IsNullOrEmpty(e.Tipus) &&
+                        e.Eszkoznev.Equals(eszkoz.Eszkoznev, StringComparison.OrdinalIgnoreCase) &&
+                        e.Tipus.Equals(eszkoz.Tipus, StringComparison.OrdinalIgnoreCase));
+                }
+    
                 if (!marLetezik)
                 {
                     adatok.Eszkozok.Add(eszkoz);
@@ -465,7 +588,8 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 }
                 else
                 {
-                    _logger.LogDebug("      ⚠️ Duplikáció, átugorva: {Nev}", eszkoz.Eszkoznev);
+                    _logger.LogDebug("      ⚠️ Duplikáció, átugorva: {Nev} (Gyári: {Gyari})", 
+                        eszkoz.Eszkoznev, eszkoz.GyariSzam);
                 }
             }
             else
@@ -551,6 +675,7 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
         }
     }
 
+    // ✅ JAVÍTÁS 1: Regex alapú feldolgozás - NE hardcode-oljuk a "Mérőműszer" nevet
     private void FeldolgozEszkozokRegexSzel(string content, JegyzokonyvImportAdatok adatok)
     {
         var pattern1 = @"Típus:\s*([A-Z0-9\-]+)\s+Gyári szám:\s*(\d+)";
@@ -558,11 +683,12 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
         
         foreach (Match match in matches1)
         {
+            var tipus = match.Groups[1].Value.Trim();
             var eszkoz = new HordozhatoEszkozImport
             {
-                Tipus = match.Groups[1].Value.Trim(),
+                Tipus = tipus,
                 GyariSzam = match.Groups[2].Value.Trim(),
-                Eszkoznev = $"Mérőműszer ({match.Groups[1].Value.Trim()})"
+                Eszkoznev = tipus // ✅ JAVÍTVA: Használjuk a típust, NE "Mérőműszer (típus)"
             };
             
             if (!adatok.Eszkozok.Any(e => e.GyariSzam == eszkoz.GyariSzam))

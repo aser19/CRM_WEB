@@ -1,94 +1,165 @@
 using BiztvillCRM.Data;
-using BiztvillCRM.Shared.Models;
 using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Enums;
+using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace BiztvillCRM.Services;
 
-public class EszkozSablonService : IEszkozSablonService
+public class EszkozSablonService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService) : IEszkozSablonService
 {
-    private readonly CrmDbContext _context;
-
-    public EszkozSablonService(CrmDbContext context)
-    {
-        _context = context;
-    }
-
     public async Task<List<EszkozSablon>> GetAllAsync()
     {
-        return await _context.EszkozSablonok
-            .Include(e => e.Alkatreszek.OrderBy(a => a.Sorrend))
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        
+        // ✅ MÓDOSÍTOTT: NULL = admin sablon, egyébként cég-specifikus
+        return await context.EszkozSablonok
+            .Include(s => s.Alkatreszek.OrderBy(a => a.Sorrend))
+            .Where(s => (s.CegId == null || s.CegId == cegId) && s.Aktiv)
+            .OrderBy(s => s.CegId == null ? 0 : 1) // Admin sablonok elől
+            .ThenBy(s => s.Megnevezes)
             .ToListAsync();
     }
 
     public async Task<EszkozSablon?> GetByIdAsync(int id)
     {
-        return await _context.EszkozSablonok
-            .Include(e => e.Alkatreszek.OrderBy(a => a.Sorrend))
-            .FirstOrDefaultAsync(e => e.Id == id);
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        
+        return await context.EszkozSablonok
+            .Include(s => s.Alkatreszek.OrderBy(a => a.Sorrend))
+            .FirstOrDefaultAsync(s => s.Id == id && (s.CegId == null || s.CegId == cegId));
     }
 
-    public async Task<EszkozSablon?> GetByEszkozTipusNevAsync(string eszkozTipusNev)
+    public async Task<EszkozSablon?> GetByMegnevezesAsync(string megnevezes)
     {
-        return await _context.EszkozSablonok
-            .Include(e => e.Alkatreszek.OrderBy(a => a.Sorrend))
-            .FirstOrDefaultAsync(e => e.EszkozTipusNev == eszkozTipusNev);
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        
+        return await context.EszkozSablonok
+            .Include(s => s.Alkatreszek.OrderBy(a => a.Sorrend))
+            .Where(s => (s.CegId == null || s.CegId == cegId) && 
+                        s.Aktiv && 
+                        s.Megnevezes.ToLower() == megnevezes.ToLower())
+            .OrderBy(s => s.CegId == null ? 0 : 1) // Admin sablon előnyben
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<int> CreateAsync(EszkozSablon sablon)
+    public async Task<EszkozSablon> CreateAsync(EszkozSablon sablon)
     {
-        _context.EszkozSablonok.Add(sablon);
-        await _context.SaveChangesAsync();
-        return sablon.Id;
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        var isAdmin = tenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+
+        // Ellenőrizzük, hogy nincs-e már ilyen nevű admin sablon
+        var adminSablonLetezik = await context.EszkozSablonok
+            .AnyAsync(s => s.CegId == null && 
+                          s.Aktiv && 
+                          s.Megnevezes.ToLower() == sablon.Megnevezes.ToLower());
+
+        if (adminSablonLetezik && !isAdmin)
+        {
+            throw new InvalidOperationException(
+                $"Már létezik '{sablon.Megnevezes}' nevű admin sablon! Kérlek válassz másik nevet.");
+        }
+
+        // ✅ MÓDOSÍTOTT: Admin → CegId = NULL, Felhasználó → CegId = saját cég
+        sablon.CegId = isAdmin ? null : cegId;
+        sablon.Letrehozva = DateTime.UtcNow;
+        sablon.Ceg = null;
+        
+        for (int i = 0; i < sablon.Alkatreszek.Count; i++)
+        {
+            sablon.Alkatreszek[i].Sorrend = i + 1;
+            sablon.Alkatreszek[i].EszkozSablon = null;
+        }
+        
+        context.EszkozSablonok.Add(sablon);
+        await context.SaveChangesAsync();
+        
+        return sablon;
     }
 
-    public async Task UpdateAsync(EszkozSablon sablon)
+    public async Task<EszkozSablon> UpdateAsync(EszkozSablon sablon)
     {
-        sablon.UtolsoModositas = DateTime.Now;
-        _context.EszkozSablonok.Update(sablon);
-        await _context.SaveChangesAsync();
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        var isAdmin = tenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+
+        var existing = await context.EszkozSablonok
+            .Include(s => s.Alkatreszek)
+            .FirstOrDefaultAsync(s => s.Id == sablon.Id)
+            ?? throw new InvalidOperationException("Sablon nem található.");
+
+        // ✅ MÓDOSÍTOTT: NULL = admin sablon
+        if (existing.CegId == null && !isAdmin)
+        {
+            throw new UnauthorizedAccessException("Admin sablonokat csak adminisztrátor módosíthatja!");
+        }
+
+        if (existing.CegId != null && existing.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Csak a saját céged sablonját módosíthatod!");
+        }
+
+        existing.Megnevezes = sablon.Megnevezes;
+        existing.Tipus = sablon.Tipus;
+        existing.Azonosito = sablon.Azonosito;
+        existing.VedelmiOsztaly = sablon.VedelmiOsztaly;
+        existing.Telj = sablon.Telj;
+        existing.Megtekint = sablon.Megtekint;
+        existing.Aktiv = sablon.Aktiv;
+        existing.Megjegyzes = sablon.Megjegyzes;
+        existing.Modositva = DateTime.UtcNow;
+
+        context.EszkozSablonAlkatreszek.RemoveRange(existing.Alkatreszek);
+        
+        existing.Alkatreszek = sablon.Alkatreszek.Select((a, i) => new EszkozSablonAlkatresz
+        {
+            EszkozSablonId = existing.Id,
+            Sorrend = i + 1,
+            Megnevezes = a.Megnevezes,
+            Tipus = a.Tipus,
+            Azonosito = a.Azonosito,
+            VedelmiOsztaly = a.VedelmiOsztaly ?? "I",
+            Telj = a.Telj ?? "230V",
+            Megtekint = a.Megtekint ?? "MF"
+        }).ToList();
+
+        await context.SaveChangesAsync();
+        return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
-        var sablon = await _context.EszkozSablonok.FindAsync(id);
-        if (sablon != null)
+        await using var context = await contextFactory.CreateDbContextAsync();
+        
+        var cegId = tenantService.GetCurrentCegId();
+        var isAdmin = tenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+
+        var sablon = await context.EszkozSablonok
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (sablon == null) return;
+
+        // ✅ MÓDOSÍTOTT: NULL = admin sablon
+        if (sablon.CegId == null && !isAdmin)
         {
-            _context.EszkozSablonok.Remove(sablon);
-            await _context.SaveChangesAsync();
-        }
-    }
-
-    public async Task<List<HordozhatoEszkozSor>> GeneralAlkatreszekAsync(
-        string eszkozTipusNev,
-        int parentSorsz,
-        string parentCsoportNev)
-    {
-        var sablon = await GetByEszkozTipusNevAsync(eszkozTipusNev);
-        if (sablon == null || !sablon.VanAlkatresz)
-            return new List<HordozhatoEszkozSor>();
-
-        var alkatreszek = new List<HordozhatoEszkozSor>();
-        int sorrend = 1;
-
-        foreach (var alkatreszSablon in sablon.Alkatreszek.OrderBy(a => a.Sorrend))
-        {
-            for (int i = 0; i < alkatreszSablon.DefaultDarabszam; i++)
-            {
-                alkatreszek.Add(new HordozhatoEszkozSor
-                {
-                    Sorsz = 0, // Később frissítjük
-                    ParentEszkozId = parentSorsz,
-                    CsoportNev = parentCsoportNev,
-                    CsoportSorrend = sorrend++,
-                    Megnevezes = alkatreszSablon.Nev,
-                    VedelmiOsztaly = alkatreszSablon.VedelmiOsztaly,
-                    Telj = sablon.AlapTeljesitmeny,
-                    Megtekint = "MF"
-                });
-            }
+            throw new UnauthorizedAccessException("Admin sablonokat csak adminisztrátor törölheti!");
         }
 
-        return alkatreszek;
+        if (sablon.CegId != null && sablon.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Csak a saját céged sablonját törölheted!");
+        }
+
+        context.EszkozSablonok.Remove(sablon);
+        await context.SaveChangesAsync();
     }
 }

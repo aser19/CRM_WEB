@@ -5,18 +5,16 @@ namespace BiztvillCRM.Shared.Enums;
 public enum EmailErtesitesTipus
 {
     Nincs = 0,
-    HitelesitesLejarat90Nap = 1,
-    HitelesitesLejarat30Nap = 2,
-    MeresLejarat90Nap = 4,
-    MeresLejarat30Nap = 8,
-    SmtpTeszt = 16,  // Új: teszt email küldéshez
-    // Kockázatértékelés
-    KockazatFelulvizsgalat90Nap = 50,
-    KockazatFelulvizsgalat30Nap = 51,
-    // Munkavédelmi oktatás
-    MunkavedelmiOktatas90Nap = 60,
-    MunkavedelmiOktatas30Nap = 61,
-    // Zónatérkép
-    ZonaterkepLejarat90Nap = 70,
-    ZonaterkepLejarat30Nap = 71,
+    HitelesitesLejarat90Nap = 1,      // 2^0
+    HitelesitesLejarat30Nap = 2,      // 2^1
+    MeresLejarat90Nap = 4,            // 2^2
+    MeresLejarat30Nap = 8,            // 2^3
+    SmtpTeszt = 16,                   // 2^4
+    // ✅ JAVÍTVA: 2 hatványok használata
+    KockazatFelulvizsgalat90Nap = 32,  // 2^5
+    KockazatFelulvizsgalat30Nap = 64,  // 2^6
+    MunkavedelmiOktatas90Nap = 128,    // 2^7
+    MunkavedelmiOktatas30Nap = 256,    // 2^8
+    ZonaterkepLejarat90Nap = 512,      // 2^9
+    ZonaterkepLejarat30Nap = 1024,     // 2^10
 }

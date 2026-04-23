@@ -1,0 +1,295 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Extension" Class="mr-2" />
+            Alkatrészek kezelése: @FoEszkoz.Megnevezes
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" Size="Size.Small" />
+                Főeszköz adatai
+            </MudText>
+            <MudText Typo="Typo.body2">
+                <strong>Típus:</strong> @FoEszkoz.Tipus<br />
+                <strong>Gyári szám:</strong> @FoEszkoz.Azonosito<br />
+                <strong>Védelmi osztály:</strong> @FoEszkoz.VedelmiOsztaly
+            </MudText>
+        </MudPaper>
+
+        <MudDivider Class="my-3" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" Size="Size.Small" />
+            Új alkatrész hozzáadása
+        </MudText>
+
+        <MudGrid Class="mb-3">
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_ujAlkatresz.Megnevezes" 
+                              Label="Megnevezés *" 
+                              Variant="Variant.Outlined" 
+                              Size="Size.Small"
+                              Placeholder="pl. Hosszabbító kábel" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_ujAlkatresz.Tipus" 
+                              Label="Típus" 
+                              Variant="Variant.Outlined" 
+                              Size="Size.Small" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_ujAlkatresz.Azonosito" 
+                              Label="Gyári szám" 
+                              Variant="Variant.Outlined" 
+                              Size="Size.Small" />
+            </MudItem>
+            
+            @* ✅ ÚJ: Védelmi osztály kiválasztása *@
+            <MudItem xs="12" md="1">
+                <MudSelect T="string" @bind-Value="_ujAlkatresz.VedelmiOsztaly" 
+                           Label="Osztály" 
+                           Variant="Variant.Outlined" 
+                           Size="Size.Small">
+                    <MudSelectItem T="string" Value="@("I")">I.</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("II")">II.</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("III")">III.</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            @* ✅ ÚJ: Feszültség *@
+            <MudItem xs="12" md="1">
+                <MudSelect T="string" @bind-Value="_ujAlkatresz.Telj" 
+                           Label="Fesz." 
+                           Variant="Variant.Outlined" 
+                           Size="Size.Small">
+                    <MudSelectItem T="string" Value="@("230V")">230V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("400V")">400V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("12V")">12V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("24V")">24V</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("48V")">48V</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            @* ✅ ÚJ: Szemrevétel *@
+            <MudItem xs="12" md="1">
+                <MudSelect T="string" @bind-Value="_ujAlkatresz.Megtekint" 
+                           Label="Szemre" 
+                           Variant="Variant.Outlined" 
+                           Size="Size.Small">
+                    <MudSelectItem T="string" Value="@("MF")">MF</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("NMF")">NMF</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            <MudItem xs="12" md="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AlkatreszHozzaadas"
+                           FullWidth="true">
+                    Hozzáad
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-3" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-1" Size="Size.Small" />
+            Alkatrészek listája (@_alkatreszek.Count db)
+        </MudText>
+
+        @if (_alkatreszek.Any())
+        {
+            <MudPaper Elevation="0" Class="pa-2">
+                @foreach (var alkatresz in _alkatreszek.OrderBy(a => a.CsoportSorrend))
+                {
+                    <MudPaper Class="pa-2 mb-2 d-flex align-center" Elevation="1">
+                        <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" 
+                                 Color="Color.Secondary" 
+                                 Size="Size.Small" 
+                                 Class="mr-2" />
+                        
+                        <div class="flex-grow-1">
+                            @if (_szerkesztettAlkatreszId == alkatresz.CsoportSorrend)
+                            {
+                                <MudGrid Spacing="1">
+                                    <MudItem xs="4">
+                                        <MudTextField @bind-Value="alkatresz.Megnevezes" 
+                                                      Label="Megnevezés" 
+                                                      Variant="Variant.Outlined" 
+                                                      Size="Size.Small" 
+                                                      Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="3">
+                                        <MudTextField @bind-Value="alkatresz.Tipus" 
+                                                      Label="Típus" 
+                                                      Variant="Variant.Outlined" 
+                                                      Size="Size.Small"
+                                                      Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="3">
+                                        <MudTextField @bind-Value="alkatresz.Azonosito" 
+                                                      Label="Gyári szám" 
+                                                      Variant="Variant.Outlined" 
+                                                      Size="Size.Small"
+                                                      Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="2" Class="d-flex align-center">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Check" 
+                                                       Color="Color.Success" 
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => _szerkesztettAlkatreszId = null)" 
+                                                       Title="Mentés" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                                       Color="Color.Default" 
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => _szerkesztettAlkatreszId = null)" 
+                                                       Title="Mégse" />
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                            else
+                            {
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.body2" Style="min-width: 40px;">
+                                        <strong>@alkatresz.CsoportSorrend.</strong>
+                                    </MudText>
+                                    <MudText Typo="Typo.body1" Class="flex-grow-1">
+                                        @alkatresz.Megnevezes
+                                    </MudText>
+                                    @if (!string.IsNullOrEmpty(alkatresz.Tipus))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@alkatresz.Tipus</MudChip>
+                                    }
+                                    @if (!string.IsNullOrEmpty(alkatresz.Azonosito))
+                                    {
+                                        <MudChip T="string" Size="Size.Small">Gyári: @alkatresz.Azonosito</MudChip>
+                                    }
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => _szerkesztettAlkatreszId = alkatresz.CsoportSorrend)" 
+                                                   Title="Szerkesztés" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => AlkatreszTorlese(alkatresz))" 
+                                                   Title="Törlés" />
+                                </MudStack>
+                            }
+                        </div>
+                    </MudPaper>
+                }
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Még nincs alkatrész hozzáadva. Add hozzá az első alkatrészt a fenti űrlapon!
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">
+            Mentés és bezárás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public HordozhatoEszkozSor FoEszkoz { get; set; } = new();
+    [Parameter] public List<HordozhatoEszkozSor> OsszesEszkoz { get; set; } = new();
+
+    private List<HordozhatoEszkozSor> _alkatreszek = new();
+    private HordozhatoEszkozSor _ujAlkatresz = new();
+    private int? _szerkesztettAlkatreszId = null;
+
+    protected override void OnInitialized()
+    {
+        // Alkatrészek szűrése
+        _alkatreszek = OsszesEszkoz
+            .Where(e => e.CsoportNev == FoEszkoz.CsoportNev && e.CsoportSorrend > 0)
+            .OrderBy(e => e.CsoportSorrend)
+            .ToList();
+
+        // ✅ MÓDOSÍTOTT: Új alkatrész alapértelmezett I. osztály (nem a főeszköz osztályát veszi át)
+        _ujAlkatresz = new HordozhatoEszkozSor
+        {
+            VedelmiOsztaly = "I",  // ✅ Alapértelmezetten I. osztály
+            Telj = "230V",
+            Megtekint = "MF",
+            HelyisegNev = FoEszkoz.HelyisegNev
+        };
+    }
+
+    private void AlkatreszHozzaadas()
+    {
+        if (string.IsNullOrWhiteSpace(_ujAlkatresz.Megnevezes))
+            return;
+
+        var maxSorrend = _alkatreszek.Any() 
+            ? _alkatreszek.Max(a => a.CsoportSorrend) 
+            : 0;
+
+        var ujAlkatresz = new HordozhatoEszkozSor
+        {
+            CsoportNev = FoEszkoz.CsoportNev,
+            CsoportSorrend = maxSorrend + 1,
+            Megnevezes = _ujAlkatresz.Megnevezes,
+            Tipus = _ujAlkatresz.Tipus,
+            Azonosito = _ujAlkatresz.Azonosito,
+            
+            // ✅ MÓDOSÍTOTT: Alkatrész saját értékei, nem a főeszközé
+            VedelmiOsztaly = _ujAlkatresz.VedelmiOsztaly,
+            Telj = _ujAlkatresz.Telj,
+            Megtekint = _ujAlkatresz.Megtekint,
+            
+            HelyisegNev = FoEszkoz.HelyisegNev,
+            // Mérési adatok - üresek
+            Folyt = "",
+            Szigell = "",
+            Szivargo = ""
+        };
+
+        _alkatreszek.Add(ujAlkatresz);
+        OsszesEszkoz.Add(ujAlkatresz);
+
+        // Űrlap törlése
+        _ujAlkatresz = new HordozhatoEszkozSor
+        {
+            VedelmiOsztaly = "I",  // ✅ Mindig I. osztály alapértelmezett
+            Telj = "230V",
+            Megtekint = "MF",
+            HelyisegNev = FoEszkoz.HelyisegNev
+        };
+
+        StateHasChanged();
+    }
+
+    private void AlkatreszTorlese(HordozhatoEszkozSor alkatresz)
+    {
+        _alkatreszek.Remove(alkatresz);
+        OsszesEszkoz.Remove(alkatresz);
+        
+        // Sorrend újraszámozása
+        int sorrend = 1;
+        foreach (var a in _alkatreszek.OrderBy(x => x.CsoportSorrend))
+        {
+            a.CsoportSorrend = sorrend++;
+        }
+        
+        StateHasChanged();
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(_alkatreszek));
+    void Cancel() => MudDialog.Cancel();
+}

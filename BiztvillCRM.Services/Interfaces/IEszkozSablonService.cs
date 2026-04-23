@@ -6,14 +6,8 @@ public interface IEszkozSablonService
 {
     Task<List<EszkozSablon>> GetAllAsync();
     Task<EszkozSablon?> GetByIdAsync(int id);
-    Task<EszkozSablon?> GetByEszkozTipusNevAsync(string eszkozTipusNev);
-    Task<int> CreateAsync(EszkozSablon sablon);
-    Task UpdateAsync(EszkozSablon sablon);
+    Task<EszkozSablon?> GetByMegnevezesAsync(string megnevezes);
+    Task<EszkozSablon> CreateAsync(EszkozSablon sablon);
+    Task<EszkozSablon> UpdateAsync(EszkozSablon sablon);
     Task DeleteAsync(int id);
-    
-    /// <summary>Alkatrészek generálása eszköztípus neve alapján</summary>
-    Task<List<HordozhatoEszkozSor>> GeneralAlkatreszekAsync(
-        string eszkozTipusNev,
-        int parentSorsz, 
-        string parentCsoportNev);
 }

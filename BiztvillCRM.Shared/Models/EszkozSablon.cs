@@ -1,60 +1,78 @@
 // BiztvillCRM.Shared\Models\EszkozSablon.cs
 namespace BiztvillCRM.Shared.Models;
 
-/// <summary>Eszköz sablon (pl. "Hosszabbító sablon")</summary>
+/// <summary>
+/// Eszköz sablon alkatrészekkel - admin felhasználók által létrehozott sablonok
+/// </summary>
 public class EszkozSablon
 {
     public int Id { get; set; }
+    public DateTime Letrehozva { get; set; }
+    public DateTime? Modositva { get; set; }
+
+    /// <summary>
+    /// Cég azonosító (NULL = globális admin sablon, egyébként cég-specifikus)
+    /// </summary>
+    public int? CegId { get; set; }  // ✅ NULLABLE
     
-    /// <summary>Eszköz típus neve (pl. "Hosszabbító", "Felvonulási szekrény")</summary>
-    public string EszkozTipusNev { get; set; } = "";
+    /// <summary>Főeszköz megnevezése</summary>
+    public string Megnevezes { get; set; } = string.Empty;
     
-    /// <summary>Sablon neve (pl. "Hosszabbító 4 dugalj")</summary>
-    public string Nev { get; set; } = "";
+    /// <summary>Főeszköz típusa</summary>
+    public string? Tipus { get; set; }
     
-    /// <summary>Védelmi osztály (I, II, III)</summary>
+    /// <summary>Főeszköz gyári száma (sablon)</summary>
+    public string? Azonosito { get; set; }
+    
+    /// <summary>Alapértelmezett védelmi osztály</summary>
     public string VedelmiOsztaly { get; set; } = "I";
     
-    /// <summary>Alapértelmezett teljesítmény/feszültség</summary>
-    public string AlapTeljesitmeny { get; set; } = "230V";
+    /// <summary>Alapértelmezett feszültség</summary>
+    public string Telj { get; set; } = "230V";
     
-    /// <summary>Van-e alkatrészei?</summary>
-    public bool VanAlkatresz { get; set; }
+    /// <summary>Alapértelmezett szemrevétel</summary>
+    public string Megtekint { get; set; } = "MF";
     
-    /// <summary>Alkatrészek listája</summary>
-    public List<AlkatreszSablon> Alkatreszek { get; set; } = new();
+    /// <summary>Aktív-e a sablon</summary>
+    public bool Aktiv { get; set; } = true;
     
-    /// <summary>Utolsó módosítás</summary>
-    public DateTime UtolsoModositas { get; set; } = DateTime.Now;
+    /// <summary>Megjegyzés a sablonhoz</summary>
+    public string? Megjegyzes { get; set; }
+
+    // Navigációs property
+    public Ceg? Ceg { get; set; }
+    public List<EszkozSablonAlkatresz> Alkatreszek { get; set; } = new();
 }
 
-/// <summary>Alkatrész sablon (pl. "Dugalj")</summary>
-public class AlkatreszSablon
+/// <summary>
+/// Sablonhoz tartozó alkatrész
+/// </summary>
+public class EszkozSablonAlkatresz
 {
     public int Id { get; set; }
-    
-    /// <summary>Melyik eszközhöz tartozik</summary>
     public int EszkozSablonId { get; set; }
-    public EszkozSablon? EszkozSablon { get; set; }
     
-    /// <summary>Alkatrész neve (pl. "Dugalj", "Földelési pont")</summary>
-    public string Nev { get; set; } = "";
+    /// <summary>Sorrend a sablonon belül</summary>
+    public int Sorrend { get; set; }
     
-    /// <summary>Védelmi osztály (I, II, III)</summary>
+    /// <summary>Alkatrész megnevezése</summary>
+    public string Megnevezes { get; set; } = string.Empty;
+    
+    /// <summary>Alkatrész típusa</summary>
+    public string? Tipus { get; set; }
+    
+    /// <summary>Alkatrész gyári száma (sablon)</summary>
+    public string? Azonosito { get; set; }
+    
+    /// <summary>Alkatrész védelmi osztálya (alapértelmezett: I)</summary>
     public string VedelmiOsztaly { get; set; } = "I";
     
-    /// <summary>Alapértelmezett darabszám</summary>
-    public int DefaultDarabszam { get; set; } = 1;
+    /// <summary>Alkatrész feszültsége (alapértelmezett: 230V)</summary>
+    public string Telj { get; set; } = "230V";
     
-    /// <summary>Minimális darabszám (validációhoz)</summary>
-    public int MinDarabszam { get; set; } = 1;
-    
-    /// <summary>Maximális darabszám (validációhoz)</summary>
-    public int MaxDarabszam { get; set; } = 10;
-    
-    /// <summary>Kötelező alkatrész?</summary>
-    public bool Kotelezo { get; set; } = true;
-    
-    /// <summary>Sorrend (megjelenítéshez)</summary>
-    public int Sorrend { get; set; }
+    /// <summary>Alkatrész szemrevétele (alapértelmezett: MF)</summary>
+    public string Megtekint { get; set; } = "MF";
+
+    // Navigációs property
+    public EszkozSablon? EszkozSablon { get; set; }
 }
