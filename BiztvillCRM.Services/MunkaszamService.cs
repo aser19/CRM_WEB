@@ -15,7 +15,7 @@ public class MunkaszamService : IMunkaszamService
         _context = context;
     }
 
-    public async Task<string> GeneralKovetkezoMunkaszamAsync(int cegId)
+    public async Task<string> GeneralKovetkezoMunkaszamAsync(int cegId, int meresTipusId = 0)
     {
         await _lock.WaitAsync();
         try
@@ -39,7 +39,22 @@ public class MunkaszamService : IMunkaszamService
             szamlalo.UtolsoSorszam++;
             await _context.SaveChangesAsync();
 
-            return $"HK-{szamlalo.UtolsoSorszam:D6}/{aktualisEv}";
+            // ✅ JAVÍTÁS: Prefix lekérése MeresTipus alapján
+            string prefix = "HK"; // Alapértelmezett fallback
+            
+            if (meresTipusId > 0)
+            {
+                var meresTipus = await _context.MeresTipusok
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.Id == meresTipusId);
+                
+                if (meresTipus != null && !string.IsNullOrWhiteSpace(meresTipus.JegyzokonyvPrefix))
+                {
+                    prefix = meresTipus.JegyzokonyvPrefix;
+                }
+            }
+
+            return $"{prefix}-{szamlalo.UtolsoSorszam:D6}/{aktualisEv}";
         }
         finally
         {

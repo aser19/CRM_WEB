@@ -143,8 +143,8 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_adatok.JegyzokonyvSzam" Label="Jegyzőkönyv száma"
-                                  Variant="Variant.Outlined" ReadOnly="true"
-                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Lock" />
+                                  Variant="Variant.Outlined"
+                                  Placeholder="Automatikusan generálódik a 'Tovább' gombra kattintva" />
                 </MudItem>
                 
                 <MudItem xs="12" md="6">
@@ -600,51 +600,62 @@
     </MudStep>
 </MudStepper>
 
-<MudDataGrid Items="@importAdatok.Eszkozok" Groupable="true" GroupExpanded="true">
-    <Columns>
-        <TemplateColumn Title="Megnevezés">
-            <CellTemplate>
-                @if (context.Item.CsoportSorrend > 0)
-                {
-                    <div style="padding-left: 30px;">
-                        <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
-                        @context.Item.Eszkoznev
-                    </div>
-                }
-                else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
-                {
-                    <strong>
-                        <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
-                        @context.Item.Eszkoznev
-                    </strong>
-                }
-                else
-                {
-                    @context.Item.Eszkoznev
-                }
-            </CellTemplate>
-        </TemplateColumn>
+@* ✅ JAVÍTÁS: Csak akkor jelenjen meg, ha van importált eszköz *@
+@if (importAdatok.Eszkozok.Any())
+{
+    <MudPaper Class="pa-4 mt-4">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-2" />
+            Importált eszközök előnézete
+        </MudText>
         
-        <TemplateColumn Title="Műveletek">
-            <CellTemplate>
-                @if (context.Item.CsoportSorrend > 0)
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                   Size="Size.Small" 
-                                   Color="Color.Error"
-                                   OnClick="@(() => AlkatreszTorlese(context.Item))" />
-                }
-                else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Settings" 
-                                   Size="Size.Small" 
-                                   Color="Color.Primary"
-                                   OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
-                }
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
-</MudDataGrid>
+        <MudDataGrid Items="@importAdatok.Eszkozok" Groupable="true" GroupExpanded="true">
+            <Columns>
+                <TemplateColumn Title="Megnevezés">
+                    <CellTemplate>
+                        @if (context.Item.CsoportSorrend > 0)
+                        {
+                            <div style="padding-left: 30px;">
+                                <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" Size="Size.Small" />
+                                @context.Item.Eszkoznev
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                        {
+                            <strong>
+                                <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Primary" />
+                                @context.Item.Eszkoznev
+                            </strong>
+                        }
+                        else
+                        {
+                            @context.Item.Eszkoznev
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                
+                <TemplateColumn Title="Műveletek">
+                    <CellTemplate>
+                        @if (context.Item.CsoportSorrend > 0)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Size="Size.Small" 
+                                           Color="Color.Error"
+                                           OnClick="@(() => AlkatreszTorlese(context.Item))" />
+                        }
+                        else if (!string.IsNullOrEmpty(context.Item.CsoportNev))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Settings" 
+                                           Size="Size.Small" 
+                                           Color="Color.Primary"
+                                           OnClick="@(() => AlkatreszekSzerkesztese(context.Item))" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+}
 
 @code {
     [Parameter] public int? MeresId { get; set; }
@@ -699,10 +710,10 @@
         _adatok.VegsoMinosites = "MEGFELELT";
 
         var cegId = TenantService.GetCurrentCegId();
-        var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId);
+@*        var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId, _kivalasztottTipusId);
         _adatok.Munkaszam = munkaszam;
         _adatok.JegyzokonyvSzam = munkaszam;
-
+*@
         var ceg = await CegService.GetByIdAsync(cegId);
         _cegMatricaElotag = ceg?.MatricaElotag;
 
@@ -715,6 +726,10 @@
         _kivalasztottTipusId = tipusId;
         var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
         _kivalasztottTipusNev = tipus?.Nev;
+
+        // ✅ JAVÍTÁS: Töröljük a munkaszámot, hogy újragenerálódjon az új prefix-szel
+        _adatok.JegyzokonyvSzam = "";
+        _adatok.Munkaszam = "";
 
         if (tipusId > 0)
             _jogosultFelulvizsgalok = await JuegosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
@@ -739,6 +754,15 @@
         if (_kivalasztottUgyfelId == 0) { Snackbar.Add("Válassz ügyfelet!", Severity.Warning); return; }
         if (_kivalasztottTelephelyId == 0) { Snackbar.Add("Válassz telephelyet!", Severity.Warning); return; }
         if (_vizsgalatDatum == null) { Snackbar.Add("Add meg a vizsgálat dátumát!", Severity.Warning); return; }
+
+        // ✅ JAVÍTÁS: Munkaszám generálás ITT, amikor már van kiválasztott típus
+        if (string.IsNullOrEmpty(_adatok.JegyzokonyvSzam))
+        {
+            var cegId = TenantService.GetCurrentCegId();
+            var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId, _kivalasztottTipusId);
+            _adatok.Munkaszam = munkaszam;
+            _adatok.JegyzokonyvSzam = munkaszam;
+        }
 
         var telephely = _telephelyek.FirstOrDefault(t => t.Id == _kivalasztottTelephelyId);
         if (telephely != null)

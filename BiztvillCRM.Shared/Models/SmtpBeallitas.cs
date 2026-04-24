@@ -23,4 +23,10 @@ public class SmtpBeallitas
     public string KuldoNev { get; set; } = string.Empty;
     public string KuldoEmail { get; set; } = string.Empty;
     public bool Aktiv { get; set; } = true;
+    
+    /// <summary>Automatikus email küldés futási ideje (óra)</summary>
+    public int EmailFutasiOra { get; set; } = 6;
+    
+    /// <summary>Automatikus email küldés futási ideje (perc)</summary>
+    public int EmailFutasiPerc { get; set; } = 0;
 }

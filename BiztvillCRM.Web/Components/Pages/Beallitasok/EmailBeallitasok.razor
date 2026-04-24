@@ -12,6 +12,7 @@
 @inject ITenantService TenantService
 @inject IModulJogosultsagService ModulService
 @inject ISnackbar Snackbar
+@inject IServiceProvider ServiceProvider
 
 <PageTitle>Email beállítások</PageTitle>
 
@@ -131,20 +132,77 @@
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-3">Milyen értesítéseket kérek?</MudText>
                 
-                <MudStack>
-                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat90Nap)"
-                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat90Nap, v))"
-                                 Label="Hitelesítés lejárat - 90 nappal előtte" Color="Color.Primary" />
-                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat30Nap)"
-                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat30Nap, v))"
-                                 Label="Hitelesítés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
-                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat90Nap)"
-                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat90Nap, v))"
-                                 Label="Mérés lejárat - 90 nappal előtte" Color="Color.Primary" />
-                    <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat30Nap)"
-                                 ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat30Nap, v))"
-                                 Label="Mérés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
-                </MudStack>
+                @if (HasHitelesitesekModul())
+                {
+                    <!-- Hitelesítések -->
+                    <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Class="mr-1" />
+                        Hitelesítések
+                    </MudText>
+                    <MudStack Class="ml-4">
+                        <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat90Nap)"
+                                     ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat90Nap, v))"
+                                     Label="Hitelesítés lejárat - 90 nappal előtte" Color="Color.Primary" />
+                        <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.HitelesitesLejarat30Nap)"
+                                     ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.HitelesitesLejarat30Nap, v))"
+                                     Label="Hitelesítés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                    </MudStack>
+                }
+
+                @if (HasMeresekModul())
+                {
+                    <!-- Mérések -->
+                    <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" Class="mr-1" />
+                        Mérések
+                    </MudText>
+                    <MudStack Class="ml-4">
+                        <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat90Nap)"
+                                     ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat90Nap, v))"
+                                     Label="Mérés lejárat - 90 nappal előtte" Color="Color.Primary" />
+                        <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MeresLejarat30Nap)"
+                                     ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MeresLejarat30Nap, v))"
+                                     Label="Mérés lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                    </MudStack>
+                }
+
+                @if (HasMunkavedelmiOktatasModul() || HasKockazatModul() || HasZonaterkepModul())
+                {
+                    <!-- Munkavédelem - csak ha legalább egy munkavédelmi modul aktív -->
+                    <MudText Typo="Typo.subtitle1" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Size="Size.Small" Class="mr-1" />
+                        Munkavédelem
+                    </MudText>
+                    <MudStack Class="ml-4">
+                        @if (HasMunkavedelmiOktatasModul())
+                        {
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MunkavedelmiOktatas90Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MunkavedelmiOktatas90Nap, v))"
+                                         Label="Munkavédelmi oktatás - 90 nappal előtte" Color="Color.Primary" />
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.MunkavedelmiOktatas30Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.MunkavedelmiOktatas30Nap, v))"
+                                         Label="Munkavédelmi oktatás - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                        }
+                        @if (HasKockazatModul())
+                        {
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.KockazatFelulvizsgalat90Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.KockazatFelulvizsgalat90Nap, v))"
+                                         Label="Kockázatértékelés felülvizsgálat - 90 nappal előtte" Color="Color.Primary" />
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.KockazatFelulvizsgalat30Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.KockazatFelulvizsgalat30Nap, v))"
+                                         Label="Kockázatértékelés felülvizsgálat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                        }
+                        @if (HasZonaterkepModul())
+                        {
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.ZonaterkepLejarat90Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.ZonaterkepLejarat90Nap, v))"
+                                         Label="Zónatérkép lejárat - 90 nappal előtte" Color="Color.Primary" />
+                            <MudCheckBox T="bool" Value="@HasFlag(_beallitas.ErtesitesTipusok, EmailErtesitesTipus.ZonaterkepLejarat30Nap)"
+                                         ValueChanged="@(v => ToggleErtesites(EmailErtesitesTipus.ZonaterkepLejarat30Nap, v))"
+                                         Label="Zónatérkép lejárat - 30 nappal előtte (emlékeztető)" Color="Color.Primary" />
+                        }
+                    </MudStack>
+                }
 
                 <MudDivider Class="my-4" />
 
@@ -326,11 +384,43 @@
                         <MudItem xs="12" md="6">
                             <MudTextField @bind-Value="_smtp.KuldoNev" Label="Küldő neve *" Required="true" />
                         </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudTextField @bind-Value="_smtp.KuldoEmail" Label="Küldő email címe *" Required="true" InputType="InputType.Email" />
-                        </MudItem>
                         <MudItem xs="12">
                             <MudSwitch @bind-Value="_smtp.Aktiv" Label="SMTP engedélyezve" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- ÚJ: Automatikus értesítések ütemezése -->
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mr-2" />
+                        Automatikus értesítések ütemezése
+                    </MudText>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                        <b>Fontos:</b> Az ingyenes Azure App Service alvó módba kerül inaktivitás után.
+                        Az automatikus emailek csak akkor mennek ki, ha az alkalmazás fut (pl. valaki használja az oldalt a beállított időpontban).
+                        <br /><b>Javaslat:</b> Állítsd be olyan időpontra (pl. 08:00), amikor valaki biztosan használja a rendszert,
+                        vagy használj külső "ping" szolgáltatást (pl. UptimeRobot) az alkalmazás ébrentartásához.
+                    </MudAlert>
+                
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_smtp.EmailFutasiOra"
+                                             Label="Futási idő (óra) *"
+                                             Min="0" Max="23"
+                                             HelperText="0-23 között (pl. 8 = reggel 8 óra)" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_smtp.EmailFutasiPerc"
+                                             Label="Futási idő (perc) *"
+                                             Min="0" Max="59"
+                                             HelperText="0-59 között (pl. 30 = fél óra)" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                                Jelenlegi beállítás: Minden nap <b>@(_smtp.EmailFutasiOra.ToString("D2")):@(_smtp.EmailFutasiPerc.ToString("D2"))</b>-kor
+                                fut le az automatikus email küldés (±10 perc toleranciával).
+                            </MudText>
                         </MudItem>
                     </MudGrid>
 
@@ -342,6 +432,10 @@
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Send"
                                    OnClick="TesztKuldesAsync" Disabled="_tesztKuldes">
                             @(_tesztKuldes ? "Küldés..." : "Teszt email küldése")
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="ManualisFuttatasAsync" Disabled="_mentes">
+                            Azonnali futtatás (teszt)
                         </MudButton>
                     </MudStack>
                 }
@@ -412,6 +506,9 @@
     private SmtpBeallitas? _smtp;
     private List<EmailSablon> _sablonok = new();
     private List<string> _egyediCimek = new() { "" };
+    
+    // ÚJ: Aktív modulok cache
+    private ModulJogosultsag _aktivModulok;
 
     private bool _sablonDialogNyitva = false;
     private EmailSablon? _szerkesztettSablon;
@@ -430,6 +527,7 @@
 
         // Modulok inicializálása
         await ModulService.InitializeAsync();
+        _aktivModulok = ModulService.GetAktivModulok(); // ÚJ: Cache-eljük
 
         if (_isAdmin)
         {
@@ -465,8 +563,7 @@
             }
             
             // Nem-admin: sablonok szűrése modul jogosultságok alapján
-            var aktivModulok = ModulService.GetAktivModulok();
-            _sablonok = await SablonService.GetAllFilteredByModulokAsync(aktivModulok);
+            _sablonok = await SablonService.GetAllFilteredByModulokAsync(_aktivModulok);
         }
 
         _betoltes = false;
@@ -475,6 +572,13 @@
     // === Flag helpers ===
     private static bool HasFlag(EmailErtesitesTipus flags, EmailErtesitesTipus flag) => (flags & flag) == flag;
     private static bool HasFlag(EmailCimzettTipus flags, EmailCimzettTipus flag) => (flags & flag) == flag;
+    
+    // ÚJ: Modul ellenőrző helper-ek
+    private bool HasHitelesitesekModul() => _isAdmin || _aktivModulok.HasFlag(ModulJogosultsag.Hitelesitesek);
+    private bool HasMeresekModul() => _isAdmin || _aktivModulok.HasFlag(ModulJogosultsag.Meresek);
+    private bool HasMunkavedelmiOktatasModul() => _isAdmin || _aktivModulok.HasFlag(ModulJogosultsag.MunkavedelmiOktatasok);
+    private bool HasKockazatModul() => _isAdmin || _aktivModulok.HasFlag(ModulJogosultsag.Kockazatertekelesek);
+    private bool HasZonaterkepModul() => _isAdmin || _aktivModulok.HasFlag(ModulJogosultsag.Zonaterkepek);
 
     // === Cég saját beállítások (nem-admin) ===
     private void ToggleErtesites(EmailErtesitesTipus flag, bool value)
@@ -595,6 +699,24 @@
         finally { _tesztKuldes = false; }
     }
 
+    private async Task ManualisFuttatasAsync()
+    {
+        _mentes = true;
+        try
+        {
+            var ertesitoService = ServiceProvider.GetRequiredService<ILejaratErtesitoService>();
+            var eredmeny = await ertesitoService.FeldolgozasAsync();
+            
+            Snackbar.Add($"Manuális futtatás befejezve! Küldött: {eredmeny.KuldottEmailek}, Sikertelen: {eredmeny.SikertelenEmailek}", 
+                Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a manuális futtatás során: {ex.Message}", Severity.Error);
+        }
+        finally { _mentes = false; }
+    }
+    
     // === SABLON KEZELÉS ===
     
     private void UjSablonLetrehozasa()
