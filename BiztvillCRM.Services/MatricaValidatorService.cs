@@ -18,8 +18,8 @@ public interface IMatricaValidatorService
 
 public class MatricaValidatorService : IMatricaValidatorService
 {
-    // Regex: 3 betűs előtag + max 7 számjegy
-    private static readonly Regex MatricaRegex = new(@"^([A-Z]{3})(\d{1,7})$", RegexOptions.Compiled);
+    // Regex: 3 karakteres előtag (betűk ÉS számok) + max 7 számjegy
+    private static readonly Regex MatricaRegex = new(@"^([A-Z0-9]{3})(\d{1,7})$", RegexOptions.Compiled);
 
     public MatricaValidationResult Validate(string? matricaTol, string? matricaIg, int eszkozokSzama, string? cegElotag)
     {
@@ -48,7 +48,7 @@ public class MatricaValidatorService : IMatricaValidatorService
             return new MatricaValidationResult
             {
                 IsValid = false,
-                ErrorMessage = $"Hibás matrica formátum (tól): '{matricaTol}'. Formátum: 3 betű + max 7 számjegy (pl. {cegElotag ?? "ABC"}0001234)"
+                ErrorMessage = $"Hibás matrica formátum (tól): '{matricaTol}'. Formátum: 3 karakter (betűk/számok) + max 7 számjegy (pl. {cegElotag ?? "ABC"}0001234)"
             };
         }
 
@@ -57,7 +57,7 @@ public class MatricaValidatorService : IMatricaValidatorService
             return new MatricaValidationResult
             {
                 IsValid = false,
-                ErrorMessage = $"Hibás matrica formátum (ig): '{matricaIg}'. Formátum: 3 betű + max 7 számjegy (pl. {cegElotag ?? "ABC"}0001234)"
+                ErrorMessage = $"Hibás matrica formátum (ig): '{matricaIg}'. Formátum: 3 karakter (betűk/számok) + max 7 számjegy (pl. {cegElotag ?? "ABC"}0001234)"
             };
         }
 

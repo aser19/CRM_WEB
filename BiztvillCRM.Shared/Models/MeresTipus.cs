@@ -17,8 +17,9 @@ public class MeresTipus
     /// <summary>Érvényesség hónapokban (pl. 12 = 1 év, 24 = 2 év)</summary>
     public int? ErvenyessegHonap { get; set; }
     
-    /// <summary>Jegyzőkönyv prefix (pl. "VBF", "HME", "ÉV")</summary>
+    /// <summary>Jegyzőkönyv prefix (pl. "VBF", "HME", "ÉV", "HK2")</summary>
     [MaxLength(10)]
+    [RegularExpression(@"^[A-ZÁÉÍÓÖŐÚÜŰ0-9]+$", ErrorMessage = "A prefix csak nagybetűket és számokat tartalmazhat (pl. VBF, HME2, ÉV)!")]
     public string? JegyzokonyvPrefix { get; set; }
     
     /// <summary>Word sablon azonosító (pl. "VBF_KIF_MINTA")</summary>

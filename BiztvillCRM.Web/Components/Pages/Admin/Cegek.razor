@@ -396,8 +396,8 @@
         if (value.Length > 3)
             return "Maximum 3 karakter lehet!";
         
-        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z]+$"))
-            return "Csak betűk lehetnek!";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z0-9]+$"))
+            return "Csak betűk és számok lehetnek!";
         
         return null;
     }

@@ -1,4 +1,6 @@
 using BiztvillCRM.Shared.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace BiztvillCRM.Shared.Models;
 
@@ -27,7 +29,30 @@ public class Hitelesites
 
     public int Darabszam { get; set; } = 1;
     public DateTime Datum { get; set; }
+    
+    /// <summary>Általános lejárati dátum (a teljes kútoszlopra/eszközre vonatkozik).</summary>
     public DateTime? LejaratDatum { get; set; }
+    
     public HitelesitesStatusz HitelesitesStatusz { get; set; }
     public string? Megjegyzes { get; set; }
+    
+    /// <summary>
+    /// JSON formátumban tárolt lista az egyedi eszközök (pisztolyok) eltérő lejárati dátumairól.
+    /// Csak akkor töltjük ki, ha van olyan pisztoly, amelynek lejárata eltér az általánostól.
+    /// </summary>
+    public string? EgyediLejaratok { get; set; }
+    
+    /// <summary>
+    /// Nem mapped property: az egyedi lejáratok strukturált formában.
+    /// </summary>
+    [NotMapped]
+    public List<HitelesitesReszlet> EgyediLejaratokLista
+    {
+        get => string.IsNullOrWhiteSpace(EgyediLejaratok) 
+            ? new List<HitelesitesReszlet>() 
+            : JsonSerializer.Deserialize<List<HitelesitesReszlet>>(EgyediLejaratok) ?? new List<HitelesitesReszlet>();
+        set => EgyediLejaratok = value.Any() 
+            ? JsonSerializer.Serialize(value) 
+            : null;
+    }
 }

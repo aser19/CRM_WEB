@@ -28,8 +28,11 @@ else
                 <MudPaper Class="pa-4">
                     <MudGrid>
                         <MudItem xs="12" md="6">
-                            <MudTextField @bind-Value="tipus.JegyzokonyvPrefix" Label="Jegyzőkönyv prefix" 
-                                          Variant="Variant.Outlined" Placeholder="pl. VBF, ÉV, HME" />
+                            <MudTextField @bind-Value="tipus.JegyzokonyvPrefix" 
+                                          Label="Jegyzőkönyv prefix" 
+                                          Variant="Variant.Outlined" 
+                                          Placeholder="pl. VBF, ÉV, HME, HK2"
+                                          HelperText="Nagybetűk és számok (max 10 karakter)" />
                         </MudItem>
                         <MudItem xs="12" md="6">
                             <MudTextField @bind-Value="tipus.SablonId" Label="Sablon azonosító" 

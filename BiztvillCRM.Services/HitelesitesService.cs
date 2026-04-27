@@ -83,6 +83,7 @@ public class HitelesitesService : IHitelesitesService
         existing.LejaratDatum = hitelesites.LejaratDatum;
         existing.HitelesitesStatusz = hitelesites.HitelesitesStatusz;
         existing.Megjegyzes = hitelesites.Megjegyzes;
+        existing.EgyediLejaratok = hitelesites.EgyediLejaratok; // ÚJ - Egyedi lejáratok JSON másolása
         existing.Modositva = DateTime.UtcNow;
         
         // Lejárat dátum automatikus számítása az eszköztípus alapján
@@ -108,8 +109,7 @@ public class HitelesitesService : IHitelesitesService
     private async Task SzamolLejaratDatumAsync(Hitelesites hitelesites)
     {
         var eszkozTipus = await _context.EszkozTipusok.FindAsync(hitelesites.EszkozTipusId);
-        
-        if (eszkozTipus is not null && eszkozTipus.HitelesitesiIdotartamHonap > 0)
+        if (eszkozTipus != null && eszkozTipus.HitelesitesiIdotartamHonap > 0)
         {
             hitelesites.LejaratDatum = hitelesites.Datum.AddMonths(eszkozTipus.HitelesitesiIdotartamHonap);
         }

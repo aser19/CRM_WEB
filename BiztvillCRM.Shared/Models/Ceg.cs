@@ -1,4 +1,4 @@
-using System;
+    using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using BiztvillCRM.Shared.Enums;
@@ -18,11 +18,9 @@ public class Ceg
     public string? Email { get; set; }
     public string? Telefon { get; set; }
     public string? Weboldal { get; set; }
-    public bool Aktiv { get; set; } = true;
-
-    /// <summary>Maximum 3 betűs matrica előtag (pl. "BTV", "AB")</summary>
-    [StringLength(3, ErrorMessage = "A matrica előtag maximum 3 betű lehet!")]
-    [RegularExpression(@"^[A-Z]{1,3}$", ErrorMessage = "A matrica előtag 1-3 nagybetű lehet!")]
+    public bool Aktiv { get; set; } = true;    /// <summary>Maximum 3 karakteres matrica előtag (pl. "BTV", "AB", "HK2")</summary>
+    [StringLength(3, ErrorMessage = "A matrica előtag maximum 3 karakter lehet!")]
+    [RegularExpression(@"^[A-Z0-9]{1,3}$", ErrorMessage = "A matrica előtag 1-3 nagybetű vagy szám lehet (pl. BTV, AB, HK2)!")]
     public string? MatricaElotag { get; set; }
 
     /// <summary>Tevékenységi körök (üzleti kategorizálás)</summary>
