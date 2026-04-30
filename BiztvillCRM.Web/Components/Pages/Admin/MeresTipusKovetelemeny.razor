@@ -3,17 +3,22 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Policy = "RequireAdmin")]
+@attribute [Authorize(Roles = "Admin")]
 @inject IMeresTipusService MeresTipusService
 @inject IKepzesTipusService KepzesTipusService
+@inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Jegyzőkönyv típusok és követelmények</PageTitle>
+<PageTitle>Méréstípusok kezelése</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
-    Jegyzőkönyv típusok és képzési követelmények
+    <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" />
+    Méréstípusok és képzési követelmények
 </MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Itt kezelheted a méréstípusokat: alapadatok, jegyzőkönyv beállítások és kötelező képzések.
+</MudAlert>
 
 @if (_betoltes)
 {
@@ -21,43 +26,84 @@
 }
 else
 {
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" OnClick="UjTipusMegnyitasa">
+            Új méréstípus
+        </MudButton>
+    </MudStack>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activTabIndex">
         @foreach (var tipus in _tipusok)
         {
             <MudTabPanel Text="@tipus.Nev" Icon="@Icons.Material.Filled.Description">
                 <MudPaper Class="pa-4">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-4">
+                        <MudText Typo="Typo.h5">@tipus.Nev</MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" 
+                                   StartIcon="@Icons.Material.Filled.Delete" 
+                                   OnClick="() => TorlesMegerosites(tipus)">
+                            Típus törlése
+                        </MudButton>
+                    </MudStack>
+
+                    <MudDivider Class="mb-4" />
+
+                    <MudText Typo="Typo.h6" Class="mb-3">📝 Alapadatok</MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="tipus.Nev" Label="Megnevezés *" 
+                                          Variant="Variant.Outlined" Required />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="tipus.ErvenyessegHonap" 
+                                             Label="Érvényesség (hónapokban)" 
+                                             Min="0" Max="120" Variant="Variant.Outlined" 
+                                             HelperText="0 = nem jár le" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="tipus.Leiras" Label="Leírás" 
+                                          Lines="2" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="tipus.Aktiv" Label="Aktív" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudDivider Class="my-4" />
+
+                    <MudText Typo="Typo.h6" Class="mb-3">📋 Jegyzőkönyv beállítások</MudText>
                     <MudGrid>
                         <MudItem xs="12" md="6">
                             <MudTextField @bind-Value="tipus.JegyzokonyvPrefix" 
-                                          Label="Jegyzőkönyv prefix" 
+                                          Label="Jegyzőkönyv prefix (pl. VBF, HME)" 
                                           Variant="Variant.Outlined" 
-                                          Placeholder="pl. VBF, ÉV, HME, HK2"
-                                          HelperText="Nagybetűk és számok (max 10 karakter)" />
+                                          HelperText="Csak nagybetűk és számok (max 10 karakter)" />
                         </MudItem>
                         <MudItem xs="12" md="6">
-                            <MudTextField @bind-Value="tipus.SablonId" Label="Sablon azonosító" 
-                                          Variant="Variant.Outlined" Placeholder="pl. hordozhato" />
+                            <MudTextField @bind-Value="tipus.SablonId" 
+                                          Label="Word sablon azonosító" 
+                                          Variant="Variant.Outlined" 
+                                          Placeholder="pl. VBF_KIF_MINTA" />
                         </MudItem>
-                        
-                        @* ✅ ÚJ: OCR Model ID mező *@
-                        <MudItem xs="12" md="6">
+                        <MudItem xs="12">
                             <MudTextField @bind-Value="tipus.OcrModelId" 
                                           Label="Azure OCR Model ID" 
                                           Variant="Variant.Outlined" 
                                           Placeholder="pl. JegyzokonyvFelismeres_HME"
                                           HelperText="Opcionális - ha nincs megadva, a prebuilt-document modellt használja" />
                         </MudItem>
-                        <MudItem xs="12" md="6">
+                        <MudItem xs="12">
                             @if (!string.IsNullOrEmpty(tipus.OcrModelId))
                             {
-                                <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
+                                <MudAlert Severity="Severity.Success" Dense="true">
                                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
                                     Custom OCR model: <strong>@tipus.OcrModelId</strong>
                                 </MudAlert>
                             }
                             else
                             {
-                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                <MudAlert Severity="Severity.Info" Dense="true">
                                     <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
                                     Alapértelmezett OCR: <strong>prebuilt-document</strong>
                                 </MudAlert>
@@ -67,7 +113,7 @@ else
 
                     <MudDivider Class="my-4" />
                     
-                    <MudText Typo="Typo.h6" Class="mb-3">Kötelező képzések</MudText>
+                    <MudText Typo="Typo.h6" Class="mb-3">🎓 Kötelező képzések</MudText>
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
                         <strong>Alternatíva csoport:</strong> Azonos számú = VAGY kapcsolat (legalább egy kell).<br/>
                         <strong>0 = mindegyik kötelező</strong>
@@ -75,10 +121,10 @@ else
 
                     @if (tipus.KepzesKovetelemenyei.Any())
                     {
-                        <MudTable Items="@tipus.KepzesKovetelemenyei" Dense="true" Hover="true">
+                        <MudTable Items="@tipus.KepzesKovetelemenyei" Dense="true" Hover="true" Striped="true">
                             <HeaderContent>
                                 <MudTh>Képzés típus</MudTh>
-                                <MudTh>Label</MudTh>
+                                <MudTh>Sablon label</MudTh>
                                 <MudTh>Alt. csoport</MudTh>
                                 <MudTh>Prioritás</MudTh>
                                 <MudTh></MudTh>
@@ -106,7 +152,9 @@ else
                     }
                     else
                     {
-                        <MudAlert Severity="Severity.Warning" Dense="true">Nincs kötelező képzés beállítva - bárki készíthet ilyen jegyzőkönyvet.</MudAlert>
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            Nincs kötelező képzés beállítva - bárki készíthet ilyen jegyzőkönyvet.
+                        </MudAlert>
                     }
 
                     <MudStack Row="true" Class="mt-3" Spacing="2">
@@ -124,10 +172,10 @@ else
                         </MudButton>
                     </MudStack>
 
-                    <MudStack Row="true" Class="mt-4" Justify="Justify.FlexEnd">
+                    <MudStack Row="true" Class="mt-4" Justify="Justify.FlexEnd" Spacing="2">
                         <MudButton Variant="Variant.Filled" Color="Color.Success" 
-                                   OnClick="() => MentesAsync(tipus)">
-                            Mentés
+                                   OnClick="() => MentesAsync(tipus)" Disabled="_mentes">
+                            @(_mentes ? "Mentés..." : "Mentés")
                         </MudButton>
                     </MudStack>
                 </MudPaper>
@@ -136,17 +184,119 @@ else
     </MudTabs>
 }
 
+<MudDialog @bind-Visible="_ujTipusDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új méréstípus létrehozása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTipus is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujTipus.Nev" Label="Megnevezés *" 
+                                  Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujTipus.Leiras" Label="Leírás" 
+                                  Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTipus.JegyzokonyvPrefix" 
+                                  Label="Jegyzőkönyv prefix (pl. VBF)" 
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujTipus.ErvenyessegHonap" 
+                                     Label="Érvényesség (hónap)" Min="0" Max="120" 
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjTipusDialogBezar">Mégse</MudButton>
+        <MudButton OnClick="UjTipusMentes" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<MeresTipus> _tipusok = [];
     private List<KepzesTipus> _kepzesTipusok = [];
+    private MeresTipus? _ujTipus;
     private int _ujKepzesTipusId;
+    private int _activTabIndex;
     private bool _betoltes = true;
+    private bool _mentes = false;
+    private bool _ujTipusDialogNyitva = false;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     protected override async Task OnInitializedAsync()
     {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
         _tipusok = await MeresTipusService.GetAllWithKovetelemenyekAsync();
         _kepzesTipusok = await KepzesTipusService.GetAllActiveAsync();
         _betoltes = false;
+    }
+
+    private void UjTipusMegnyitasa()
+    {
+        _ujTipus = new MeresTipus { Aktiv = true };
+        _ujTipusDialogNyitva = true;
+    }
+
+    private void UjTipusDialogBezar()
+    {
+        _ujTipusDialogNyitva = false;
+        _ujTipus = null;
+    }
+
+    private async Task UjTipusMentes()
+    {
+        if (_ujTipus is null || string.IsNullOrWhiteSpace(_ujTipus.Nev))
+        {
+            Snackbar.Add("A megnevezés kötelező!", Severity.Warning);
+            return;
+        }
+
+        // Prefix validáció
+        if (!string.IsNullOrWhiteSpace(_ujTipus.JegyzokonyvPrefix))
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(_ujTipus.JegyzokonyvPrefix, @"^[A-ZÁÉÍÓÖŐÚÜŰ0-9]+$"))
+            {
+                Snackbar.Add("A jegyzőkönyv prefix csak nagybetűket és számokat tartalmazhat!", Severity.Warning);
+                return;
+            }
+        }
+
+        _mentes = true;
+        try
+        {
+            var ujId = await MeresTipusService.CreateAsync(_ujTipus);
+            Snackbar.Add("Új méréstípus létrehozva!", Severity.Success);
+            UjTipusDialogBezar();
+            await BetoltesAsync();
+            
+            // Aktiváljuk az új tab-et
+            _activTabIndex = _tipusok.Count - 1;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
     }
 
     private void HozzaadKovetelmeny(MeresTipus tipus)
@@ -175,6 +325,23 @@ else
 
     private async Task MentesAsync(MeresTipus tipus)
     {
+        if (string.IsNullOrWhiteSpace(tipus.Nev))
+        {
+            Snackbar.Add("A megnevezés kötelező!", Severity.Warning);
+            return;
+        }
+
+        // Prefix validáció
+        if (!string.IsNullOrWhiteSpace(tipus.JegyzokonyvPrefix))
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(tipus.JegyzokonyvPrefix, @"^[A-ZÁÉÍÓÖŐÚÜŰ0-9]+$"))
+            {
+                Snackbar.Add("A jegyzőkönyv prefix csak nagybetűket és számokat tartalmazhat!", Severity.Warning);
+                return;
+            }
+        }
+
+        _mentes = true;
         try
         {
             await MeresTipusService.UpdateWithKovetelemenyekAsync(tipus);
@@ -183,6 +350,29 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task TorlesMegerosites(MeresTipus tipus)
+    {
+        if (await DialogService.ShowMessageBox("Törlés", 
+            $"Biztosan törölni szeretnéd: \"{tipus.Nev}\"?", 
+            yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await MeresTipusService.DeleteAsync(tipus.Id);
+                Snackbar.Add("Törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Nem törölhető - használatban van! ({ex.Message})", Severity.Error);
+            }
         }
     }
 }

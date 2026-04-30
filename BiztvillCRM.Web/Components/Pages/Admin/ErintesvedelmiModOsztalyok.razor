@@ -1,0 +1,206 @@
+@page "/admin/erintesvedelmi-mod-osztalyok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IErintesvedelmiModOsztalyService ModOsztalyService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Érintésvédelmi mód/osztály kezelése</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-2" />
+    Érintésvédelmi mód és osztály kezelése
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Itt kezelheted az érintésvédelmi módokat és osztályokat (pl. I/0Ω, II/Ω, III/Ω), amelyek a mérési pontok táblázatában jelennek meg.
+</MudAlert>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+               StartIcon="@Icons.Material.Filled.Add" OnClick="UjModOsztalyMegnyitas" Class="mb-3">
+        Új mód/osztály
+    </MudButton>
+
+    <MudTable Items="@_modOsztalyok" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Sorrend</MudTh>
+            <MudTh>Mód/osztály</MudTh>
+            <MudTh>Leírás</MudTh>
+            <MudTh>Aktív</MudTh>
+            <MudTh>Műveletek</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Sorrend">
+                <MudNumericField @bind-Value="context.Sorrend" Min="0" Max="999" 
+                                 Variant="Variant.Text" Margin="Margin.Dense" Style="max-width: 80px;" />
+            </MudTd>
+            <MudTd DataLabel="Mód/osztály">
+                <MudTextField @bind-Value="context.Nev" Variant="Variant.Text" 
+                              Margin="Margin.Dense" Required="true" 
+                              Placeholder="pl. I/0Ω" />
+            </MudTd>
+            <MudTd DataLabel="Leírás">
+                <MudTextField @bind-Value="context.Leiras" Variant="Variant.Text" 
+                              Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd DataLabel="Aktív">
+                <MudSwitch @bind-Value="context.Aktiv" Color="Color.Success" />
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudIconButton Icon="@Icons.Material.Filled.Save" 
+                                   Color="Color.Success" 
+                                   Size="Size.Small" 
+                                   OnClick="() => MentesAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small" 
+                                   OnClick="() => TorlesMegerositesAsync(context)" />
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_ujModOsztalyDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új érintésvédelmi mód/osztály
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujModOsztaly is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujModOsztaly.Nev" Label="Mód/osztály *" 
+                                  Required="true" Variant="Variant.Outlined" 
+                                  Placeholder="pl. I/0Ω, II/Ω, III/Ω" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujModOsztaly.Sorrend" Label="Sorrend" 
+                                     Min="0" Max="999" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujModOsztaly.Leiras" Label="Leírás" 
+                                  Lines="2" Variant="Variant.Outlined" 
+                                  Placeholder="pl. I. védelmi osztály, 0 ohm ellenállás" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_ujModOsztaly.Aktiv" Label="Aktív" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjModOsztalyDialogBezaras">Mégse</MudButton>
+        <MudButton OnClick="UjModOsztalyMentesAsync" Color="Color.Primary" Variant="Variant.Filled">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<ErintesvedelmiModOsztaly> _modOsztalyok = [];
+    private ErintesvedelmiModOsztaly? _ujModOsztaly;
+    private bool _betoltes = true;
+    private bool _ujModOsztalyDialogNyitva = false;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _modOsztalyok = await ModOsztalyService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjModOsztalyMegnyitas()
+    {
+        _ujModOsztaly = new ErintesvedelmiModOsztaly 
+        { 
+            Aktiv = true, 
+            Sorrend = _modOsztalyok.Count > 0 ? _modOsztalyok.Max(m => m.Sorrend) + 1 : 1 
+        };
+        _ujModOsztalyDialogNyitva = true;
+    }
+
+    private void UjModOsztalyDialogBezaras()
+    {
+        _ujModOsztalyDialogNyitva = false;
+        _ujModOsztaly = null;
+    }
+
+    private async Task UjModOsztalyMentesAsync()
+    {
+        if (_ujModOsztaly is null || string.IsNullOrWhiteSpace(_ujModOsztaly.Nev))
+        {
+            Snackbar.Add("A mód/osztály megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await ModOsztalyService.CreateAsync(_ujModOsztaly);
+            Snackbar.Add("Új mód/osztály létrehozva!", Severity.Success);
+            UjModOsztalyDialogBezaras();
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task MentesAsync(ErintesvedelmiModOsztaly modOsztaly)
+    {
+        if (string.IsNullOrWhiteSpace(modOsztaly.Nev))
+        {
+            Snackbar.Add("A mód/osztály megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await ModOsztalyService.UpdateAsync(modOsztaly);
+            Snackbar.Add("Mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerositesAsync(ErintesvedelmiModOsztaly modOsztaly)
+    {
+        if (await DialogService.ShowMessageBox("Törlés", 
+            $"Biztosan törölni szeretnéd: \"{modOsztaly.Nev}\"?", 
+            yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await ModOsztalyService.DeleteAsync(modOsztaly.Id);
+                Snackbar.Add("Törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

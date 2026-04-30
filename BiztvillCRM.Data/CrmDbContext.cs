@@ -17,13 +17,15 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<Eszkoz> Eszkozok { get; set; }
     public DbSet<Terminal> Terminalok { get; set; }
     public DbSet<EszkozTipus> EszkozTipusok { get; set; }
-    public DbSet<KarbantartasTipus> KarbantartasTipusok { get; set; } // <-- Új DbSet a KarbantartasTipus-hoz
-    public DbSet<KepzesTipus> KepzesTipusok { get; set; } // <-- Új DbSet a KepzesTipus-hoz
+    public DbSet<KarbantartasTipus> KarbantartasTipusok { get; set; }
+    public DbSet<KepzesTipus> KepzesTipusok { get; set; }
 
     // --- Mérések ---
     public DbSet<MeresTipus> MeresTipusok { get; set; }
     public DbSet<Meres> Meresek { get; set; }
     public DbSet<Kalibracio> Kalibraciok { get; set; }
+    public DbSet<ErintesvedelmiModOsztaly> ErintesvedelmiModOsztalyok { get; set; }  // ÚJ
+    public DbSet<TularamvedelemTipus> TularamvedelemTipusok { get; set; }  // ÚJ
 
     // --- Hitelesítések ---
     public DbSet<Hatosag> Hatosagok { get; set; }
@@ -37,16 +39,16 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<Kepzes> Kepzesek { get; set; }
 
     // --- Karbantartás ---
-    public DbSet<Karbantartas> Karbantartasok { get; set; }  // <-- JAVÍTVA: Karbantartasok volt Karbantartasok
+    public DbSet<Karbantartas> Karbantartasok { get; set; }
 
     // --- Jogszabályok ---
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
 
-    // --- ÚJ DB SETEK ---
+    // --- Képzés szabályok ---
     public DbSet<KepzesSzabaly> KepzesSzabalyok { get; set; }
     public DbSet<FelhasznaloErtesitesBeallitas> FelhasznaloErtesitesBeallitasok { get; set; }
 
-    // DbSet-ek
+    // --- Felülvizsgálók ---
     public DbSet<Felulvizsgalo> Felulvizsgalok { get; set; }
     public DbSet<FelulvizsgaloKepzes> FelulvizsgaloKepzesek { get; set; }
     public DbSet<KepzesTovabbkepzes> KepzesTovabbkepzesek { get; set; }
@@ -57,7 +59,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<EmailSablon> EmailSablonok { get; set; }
     public DbSet<EmailBeallitas> EmailBeallitasok { get; set; }
     public DbSet<EmailKuldesNaplo> EmailKuldesNaplok { get; set; }
-    public DbSet<AlapertelmezettEmailBeallitas> AlapertelmezettEmailBeallitasok { get; set; } = null!;
+    public DbSet<AlapertelmezettEmailBeallitas> AlapertelmezettEmailBeallitasok { get; set; }
 
     // --- Munkavédelem ---
     public DbSet<MunkavedelmiOktatas> MunkavedelmiOktatasok { get; set; }
@@ -67,10 +69,12 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
     public DbSet<Helyiseg> Helyisegek { get; set; }
 
-    // ✅ ESZKÖZ SABLONOK - JAVÍTOTT
+    // --- Eszköz sablonok ---
     public DbSet<EszkozSablon> EszkozSablonok { get; set; }
     public DbSet<EszkozSablonAlkatresz> EszkozSablonAlkatreszek { get; set; }
-    // ❌ NEM KELL: public DbSet<AlkatreszSablon> AlkatreszSablonok { get; set; }
+
+    // --- Automatika futásnaplók ---
+    public DbSet<AutomatikaFutasNaplo> AutomatikaFutasNaplok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -488,5 +492,111 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
 
             entity.HasIndex(e => new { e.EszkozSablonId, e.Sorrend });
         });
+
+        // --- AutomatikaFutasNaplo --- (ÚJ)
+        modelBuilder.Entity<AutomatikaFutasNaplo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Hiba).HasMaxLength(2000);
+            entity.HasIndex(e => e.FutasiIdo).IsDescending();
+            entity.HasIndex(e => new { e.Sikeres, e.FutasiIdo });
+        });
+
+        // --- ErintesvedelmiModOsztaly ---
+        modelBuilder.Entity<ErintesvedelmiModOsztaly>(entity =>
+        {
+            entity.ToTable("ErintesvedelmiModOsztalyok");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Leiras).HasMaxLength(500);
+        });
+
+        // Seed adatok az ErintesvedelmiModOsztaly-hoz:
+        modelBuilder.Entity<ErintesvedelmiModOsztaly>().HasData(
+            new ErintesvedelmiModOsztaly 
+            { 
+                Id = 1, 
+                Nev = "I/0Ω", 
+                Leiras = "I. védelmi osztály, 0 ohm ellenállás", 
+                Aktiv = true, 
+                Sorrend = 1, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            },
+            new ErintesvedelmiModOsztaly 
+            { 
+                Id = 2, 
+                Nev = "II/Ω", 
+                Leiras = "II. védelmi osztály (kettős vagy megerősített szigetelés)", 
+                Aktiv = true, 
+                Sorrend = 2, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            },
+            new ErintesvedelmiModOsztaly 
+            { 
+                Id = 3, 
+                Nev = "III/Ω", 
+                Leiras = "III. védelmi osztály (SELV/PELV - kisfeszültség)", 
+                Aktiv = true, 
+                Sorrend = 3, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            },
+            new ErintesvedelmiModOsztaly 
+            { 
+                Id = 4, 
+                Nev = "I/0Ω", 
+                Leiras = "I. védelmi osztály - alternatív", 
+                Aktiv = true, 
+                Sorrend = 4, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            }
+        );
+
+        // --- TularamvedelemTipus ---
+        modelBuilder.Entity<TularamvedelemTipus>(entity =>
+        {
+            entity.ToTable("TularamvedelemTipusok");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Nev).IsUnique(); // Egyedi típusnév
+            entity.Property(e => e.Leiras).HasMaxLength(500);
+            entity.Property(e => e.NevlegesAram).HasPrecision(10, 2);
+            entity.Property(e => e.NevlegesFeszultseg).HasPrecision(10, 2);
+            entity.Property(e => e.KorrekciosTenyezo).HasPrecision(5, 3);
+        });
+
+        // Seed adatok
+        modelBuilder.Entity<TularamvedelemTipus>().HasData(
+            new TularamvedelemTipus 
+            { 
+                Id = 1, 
+                Nev = "A9Z422316", 
+                NevlegesAram = 16, 
+                NevlegesFeszultseg = 230, 
+                KorrekciosTenyezo = 0.8m,
+                Leiras = "Schneider Electric 16A típusú védőkapcsoló",
+                Aktiv = true, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            },
+            new TularamvedelemTipus 
+            { 
+                Id = 2, 
+                Nev = "TDK-C16", 
+                NevlegesAram = 16, 
+                NevlegesFeszultseg = 230, 
+                KorrekciosTenyezo = 0.8m,
+                Aktiv = true, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            },
+            new TularamvedelemTipus 
+            { 
+                Id = 3, 
+                Nev = "TDK-C25", 
+                NevlegesAram = 25, 
+                NevlegesFeszultseg = 230, 
+                KorrekciosTenyezo = 0.8m,
+                Aktiv = true, 
+                Letrehozva = new DateTime(2024, 1, 1) 
+            }
+        );
     }
 }

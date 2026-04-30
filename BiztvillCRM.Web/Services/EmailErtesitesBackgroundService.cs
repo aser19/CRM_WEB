@@ -1,4 +1,5 @@
 using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace BiztvillCRM.Web.Services;
@@ -106,7 +107,7 @@ public class EmailErtesitesBackgroundService : BackgroundService
         return mostIdo >= kezdet && mostIdo <= veg;
     }
 
-    /// <summary>Lekéri az utolsó sikeres futás időpontját.</summary>
+    /// <summary>Lekéri az utolsó sikeres AUTOMATIKUS értesítés időpontját.</summary>
     private async Task<DateTime?> GetUtolsoSikeresFutasAsync()
     {
         try
@@ -114,14 +115,12 @@ public class EmailErtesitesBackgroundService : BackgroundService
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<BiztvillCRM.Data.CrmDbContext>();
             
-            // Lekérjük a legutóbbi sikeres email küldés időpontját
-            var utolsoEmail = await context.EmailKuldesNaplok
-                .Where(e => e.Sikeres)
-                .OrderByDescending(e => e.Kuldve)  // <-- Itt volt a hiba!
-                .Select(e => e.Kuldve)              // <-- Itt is!
+            // ✅ JAVÍTÁS: AutomatikaFutasNaplo-ból nézzük, nem az EmailKuldesNaplo-ból
+            return await context.AutomatikaFutasNaplok
+                .Where(a => a.Sikeres)
+                .OrderByDescending(a => a.FutasiIdo)
+                .Select(a => a.FutasiIdo)
                 .FirstOrDefaultAsync();
-            
-            return utolsoEmail == default ? null : utolsoEmail;
         }
         catch (Exception ex)
         {
@@ -133,12 +132,28 @@ public class EmailErtesitesBackgroundService : BackgroundService
     /// <summary>Végrehajtja a feldolgozást egy scoped service-en keresztül.</summary>
     private async Task VegrehajtFeldolgozastAsync(CancellationToken cancellationToken)
     {
+        var naplo = new AutomatikaFutasNaplo
+        {
+            FutasiIdo = DateTime.UtcNow,
+            Sikeres = false
+        };
+
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var ertesitoService = scope.ServiceProvider.GetRequiredService<ILejaratErtesitoService>();
+            var context = scope.ServiceProvider.GetRequiredService<BiztvillCRM.Data.CrmDbContext>();
             
             var eredmeny = await ertesitoService.FeldolgozasAsync();
+            
+            naplo.Sikeres = true;
+            naplo.FeldolgozottHitelesitesek = eredmeny.FeldolgozottHitelesitesek;
+            naplo.FeldolgozottMeresek = eredmeny.FeldolgozottMeresek;
+            naplo.KuldottEmailek = eredmeny.KuldottEmailek;
+            naplo.SikertelenEmailek = eredmeny.SikertelenEmailek;
+            
+            context.AutomatikaFutasNaplok.Add(naplo);
+            await context.SaveChangesAsync();
             
             _logger.LogInformation(
                 "Email értesítés feldolgozás befejezve. Küldött: {Kuldott}, Sikertelen: {Sikertelen}",
@@ -146,6 +161,14 @@ public class EmailErtesitesBackgroundService : BackgroundService
         }
         catch (Exception ex)
         {
+            naplo.Sikeres = false;
+            naplo.Hiba = ex.Message;
+            
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<BiztvillCRM.Data.CrmDbContext>();
+            context.AutomatikaFutasNaplok.Add(naplo);
+            await context.SaveChangesAsync();
+            
             _logger.LogError(ex, "Hiba az email értesítés feldolgozása közben.");
         }
     }

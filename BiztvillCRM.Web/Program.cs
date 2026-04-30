@@ -120,6 +120,8 @@ builder.Services.AddScoped<IMunkaszamService, MunkaszamService>(); // A többi s
 builder.Services.AddScoped<IMatricaValidatorService, MatricaValidatorService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IJegyzokonyvOcrService, JegyzokonyvOcrService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IEszkozSablonService, EszkozSablonService>();
+builder.Services.AddScoped<IErintesvedelmiModOsztalyService, ErintesvedelmiModOsztalyService>(); // ÚJ
+builder.Services.AddScoped<ITularamvedelemTipusService, TularamvedelemTipusService>(); // ÚJ
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();

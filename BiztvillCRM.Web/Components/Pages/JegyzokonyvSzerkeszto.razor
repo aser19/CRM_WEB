@@ -29,7 +29,7 @@
     Jegyzőkönyv szerkesztő
 </MudText>
 
-<MudStepper @ref="_stepper" linear="false" color="Color.Primary">
+<MudStepper @ref="_stepper" @bind-ActiveIndex="_activeStep" Linear="false" Color="Color.Primary">
     
     @* === 1. LÉPÉS: KIVÁLASZTÁS === *@
     <MudStep Title="Kiválasztás" Icon="@Icons.Material.Filled.ListAlt">
@@ -393,6 +393,7 @@
             <MudGrid>
                 @if (IsHordozhatoTipus())
                 {
+                    @* === HORDOZHATÓ TÍPUS: MATRICÁK === *@
                     <MudItem xs="12">
                         <MudText Typo="Typo.h6" Class="mb-2">
                             <MudIcon Icon="@Icons.Material.Filled.QrCode2" Class="mr-2" />
@@ -451,8 +452,52 @@
                         }
                     </MudItem>
                 }
+                else if (_kivalasztottTipusId == 5)
+                {
+                    @* === ID=5 SABLON: MÉRÉSI PONTOK TÁBLÁZAT + KÖVETKEZŐ FELÜLVIZSGÁLAT === *@
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mb-4">
+                            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
+                            Vizsgált berendezés mérési pontjai (3. oldal)
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MeresiPontLista MeresiPontok="_adatok.MeresiPontok" 
+                                       RendszerTipus="_adatok.MeresiRendszerTipus"
+                                       RendszerTipusChanged="(tipus) => _adatok.MeresiRendszerTipus = tipus"
+                                       OnChange="StateHasChanged" />
+                    </MudItem>
+                    
+                    @* === ÚJ: KÖVETKEZŐ FELÜLVIZSGÁLAT DÁTUMA === *@
+                    <MudItem xs="12" Class="mt-4">
+                        <MudDivider />
+                    </MudItem>
+                    
+                    <MudItem xs="12" Class="mt-3">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-2" />
+                            Következő felülvizsgálat időpontja
+                        </MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
+                                       Label="Következő felülvizsgálat határideje *"
+                                       Variant="Variant.Outlined" 
+                                       DateFormat="yyyy.MM.dd"
+                                       HelperText="Automatikusan számított időpont alapértelmezetten" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6" Class="d-flex align-center">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1">
+                            <strong>Javasolt időpont:</strong> @GetJavasoltKovetkezoFelulvizsgalat()
+                        </MudAlert>
+                    </MudItem>
+                }
                 else
                 {
+                    @* === EGYÉB TÍPUSOK: MINŐSÍTŐ IRAT MEZŐK === *@
                     <MudItem xs="12">
                         <MudText Typo="Typo.h6" Class="mb-4">
                             <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
@@ -542,19 +587,29 @@
                     </MudItem>
 
                     <MudItem xs="12" Class="mt-4">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            Megjegyzés, észrevétel:
+                        </MudText>
                         <MudTextField @bind-Value="_adatok.MinositoMegjegyzes"
-                                      Label="Megjegyzések, észrevételek, javaslatok"
-                                      Variant="Variant.Outlined" Lines="3"
-                                      Placeholder="pl. Jelen felülvizsgálat kizárólag az újonnan felszerelt kútoszlopra terjed ki." />
+                                      Lines="3"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="További megjegyzések..." />
                     </MudItem>
                 }
 
                 <MudItem xs="12" Class="mt-4">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               OnClick="Lepes3ValidalasEsTovabbAsync"
-                               EndIcon="@Icons.Material.Filled.ArrowForward">
-                        Tovább a letöltéshez
-                    </MudButton>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                                   OnClick="VisszaEggyetLepes"
+                                   StartIcon="@Icons.Material.Filled.ArrowBack">
+                            Vissza
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes3ValidalasEsTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az összegzéshez
+                        </MudButton>
+                    </MudStack>
                 </MudItem>
             </MudGrid>
         </MudPaper>
@@ -660,7 +715,9 @@
 @code {
     [Parameter] public int? MeresId { get; set; }
 
-    private MudStepper _stepper = null!;
+    private MudStepper? _stepper;
+    private int _activeStep = 0; // ÚJ: step index követése
+
     private List<MeresTipus> _tipusok = [];
     private List<Ugyfel> _ugyfelek = [];
     private List<Telephely> _telephelyek = [];
@@ -710,10 +767,6 @@
         _adatok.VegsoMinosites = "MEGFELELT";
 
         var cegId = TenantService.GetCurrentCegId();
-@*        var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(cegId, _kivalasztottTipusId);
-        _adatok.Munkaszam = munkaszam;
-        _adatok.JegyzokonyvSzam = munkaszam;
-*@
         var ceg = await CegService.GetByIdAsync(cegId);
         _cegMatricaElotag = ceg?.MatricaElotag;
 
@@ -730,6 +783,12 @@
         // ✅ JAVÍTÁS: Töröljük a munkaszámot, hogy újragenerálódjon az új prefix-szel
         _adatok.JegyzokonyvSzam = "";
         _adatok.Munkaszam = "";
+
+        // ✅ ÚJ: Ha az ID=5 (Mérési pontok táblázat), automatikusan állítsd "TN"-re
+        if (tipusId == 5)
+        {
+            _adatok.MeresiRendszerTipus = "TN";
+        }
 
         if (tipusId > 0)
             _jogosultFelulvizsgalok = await JuegosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
@@ -748,6 +807,14 @@
             _adatok.Megrendelo = ugyfel.Nev;
     }
 
+    private void VisszaEggyetLepes()
+    {
+        if (_activeStep > 0)
+        {
+            _activeStep--;
+        }
+    }
+    
     private async Task ValidalasEsTovabblepesAsync()
     {
         if (_kivalasztottTipusId == 0) { Snackbar.Add("Válassz jegyzőkönyv típust!", Severity.Warning); return; }
@@ -755,7 +822,6 @@
         if (_kivalasztottTelephelyId == 0) { Snackbar.Add("Válassz telephelyet!", Severity.Warning); return; }
         if (_vizsgalatDatum == null) { Snackbar.Add("Add meg a vizsgálat dátumát!", Severity.Warning); return; }
 
-        // ✅ JAVÍTÁS: Munkaszám generálás ITT, amikor már van kiválasztott típus
         if (string.IsNullOrEmpty(_adatok.JegyzokonyvSzam))
         {
             var cegId = TenantService.GetCurrentCegId();
@@ -768,15 +834,24 @@
         if (telephely != null)
             _adatok.VizsgalatHelye = $"{telephely.Nev} - {telephely.Cim}";
 
-        await _stepper.NextStepAsync();
+        _activeStep++; // Továbblépés
     }
 
     private async Task Lepes2ValidalasEsTovabbAsync()
     {
-        if (_kivalasztottFelulvizsgaloId == null) { Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning); return; }
-        if (string.IsNullOrEmpty(_adatok.Eredmeny)) { Snackbar.Add("Add meg a vizsgálat eredményét!", Severity.Warning); return; }
+        if (_kivalasztottFelulvizsgaloId == null) 
+        { 
+            Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning); 
+            return; 
+        }
+        
+        if (string.IsNullOrEmpty(_adatok.Eredmeny)) 
+        { 
+            Snackbar.Add("Add meg a vizsgálat eredményét!", Severity.Warning); 
+            return; 
+        }
 
-        await _stepper.NextStepAsync();
+        await (_stepper?.NextStepAsync() ?? Task.CompletedTask);
     }
 
     private async Task Lepes3ValidalasEsTovabbAsync()
@@ -791,7 +866,7 @@
             }
         }
 
-        await _stepper.NextStepAsync();
+        await (_stepper?.NextStepAsync() ?? Task.CompletedTask);
     }
 
     private bool IsHordozhatoTipus()
@@ -938,35 +1013,52 @@
             OnUgyfelValtozas(_kivalasztottUgyfelId);
 
             // ✅ JEGYZŐKÖNYV ADATOK BETÖLTÉSE
-            var mentettAdatok = await MeresService.BetoltJegyzokonyvAdatokAsync(meresId);
-            if (mentettAdatok != null)
+            if (!string.IsNullOrEmpty(meres.JegyzokonyvAdatokJson))
             {
-                _adatok = mentettAdatok;
-                
-                // Felülvizsgálók újra-beállítása (ID alapján)
-                var felelosNev = _adatok.FelulvizsgaloNev;
-                var segitoNev = _adatok.SegitoFelulvizsgalo;
-                
-                _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
-                    .FirstOrDefault(f => f.Nev == felelosNev)?.Id;
-                _kivalasztottSegitoId = _jogosultFelulvizsgalok
-                    .FirstOrDefault(f => f.Nev == segitoNev)?.Id;
-
-                // Matricák visszatöltése
-                if (!string.IsNullOrEmpty(_adatok.MatricaSorszamTol))
+                try
                 {
-                    var tolSzoveg = _adatok.MatricaSorszamTol.Replace(_cegMatricaElotag ?? "", "");
-                    if (int.TryParse(tolSzoveg, out int tol))
-                        _matricaSorszamTol = tol;
-                }
-                if (!string.IsNullOrEmpty(_adatok.MatricaSorszamIg))
-                {
-                    var igSzoveg = _adatok.MatricaSorszamIg.Replace(_cegMatricaElotag ?? "", "");
-                    if (int.TryParse(igSzoveg, out int ig))
-                        _matricaSorszamIg = ig;
-                }
+                    var mentettAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                        meres.JegyzokonyvAdatokJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                    );
+                    
+                    if (mentettAdatok != null)
+                    {
+                        _adatok = mentettAdatok;
+                        
+                        // Ha nincs MeresiPontok lista, inicializáljuk
+                        _adatok.MeresiPontok ??= new List<MeresiPontSor>();
+                        
+                        // Felülvizsgálók újra-beállítása (ID alapján)
+                        var felelosNev = _adatok.FelulvizsgaloNev;
+                        var segitoNev = _adatok.SegitoFelulvizsgalo;
+                        
+                        _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
+                            .FirstOrDefault(f => f.Nev == felelosNev)?.Id;
+                        _kivalasztottSegitoId = _jogosultFelulvizsgalok
+                            .FirstOrDefault(f => f.Nev == segitoNev)?.Id;
 
-                Snackbar.Add("Korábban mentett adatok betöltve!", Severity.Info);
+                        // Matricák visszatöltése
+                        if (!string.IsNullOrEmpty(_adatok.MatricaSorszamTol))
+                        {
+                            var tolSzoveg = _adatok.MatricaSorszamTol.Replace(_cegMatricaElotag ?? "", "");
+                            if (int.TryParse(tolSzoveg, out int tol))
+                                _matricaSorszamTol = tol;
+                        }
+                        if (!string.IsNullOrEmpty(_adatok.MatricaSorszamIg))
+                        {
+                            var igSzoveg = _adatok.MatricaSorszamIg.Replace(_cegMatricaElotag ?? "", "");
+                            if (int.TryParse(igSzoveg, out int ig))
+                                _matricaSorszamIg = ig;
+                        }
+
+                        Snackbar.Add("Korábban mentett adatok betöltve!", Severity.Info);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Hiba a jegyzőkönyv adatok betöltése során: {ex.Message}", Severity.Warning);
+                }
             }
         }
     }
@@ -1232,5 +1324,15 @@
     {
         // TODO: Implementáld később
         Snackbar.Add("Alkatrészek szerkesztése még nem implementált", Severity.Info);
+    }
+
+    private string GetJavasoltKovetkezoFelulvizsgalat()
+    {
+        if (_vizsgalatDatum == null)
+            return "Nem számítható";
+        
+        // ID=5 sablon esetén alapértelmezetten 1 év (12 hónap)
+        var kovetkezoDatum = _vizsgalatDatum.Value.AddYears(1);
+        return kovetkezoDatum.ToString("yyyy.MM.dd");
     }
 }

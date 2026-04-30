@@ -59,10 +59,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
         var mfDb = eszkozok.Count(e => e.Megtekint == "MF");
         var nmfDb = eszkozok.Count(e => e.Megtekint == "NMF");
 
-        // *** MŰSZEREK - DICTIONARY ELŐTT KELL DEKLARÁLNI! ***
         var kitoltottMuszerek = formAdatok?.Muszerek?
             .Where(m => !string.IsNullOrEmpty(m.Tipus))
             .ToList() ?? new List<MuszerSor>();
+
+        // *** ÚJ: MÉRÉSI PONTOK ***
+        var meresiPontok = formAdatok?.MeresiPontok ?? new List<MeresiPontSor>();
 
         var adatok = new Dictionary<string, object>
         {
@@ -216,7 +218,43 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 ? $"A felülvizsgálat során elhelyezett matricák sorozatszáma: {formAdatok.MatricaSorszamTol} -tól {formAdatok.MatricaSorszamIg} -ig tart."
                 : "",
             ["van_matrica"] = formAdatok?.VanMatricaSorszam == true ? "true" : "",
+
+            // ÚJ: MÉRÉSI PONTOK DINAMIKUS TÁBLÁZAT
+            ["meresi_rendszer_tipus"] = formAdatok?.MeresiRendszerTipus ?? "TN",
+            ["meresi_pontok"] = meresiPontok.Select(mp => (object)new
+            {
+                sorszam               = $"{mp.Sorszam}.",
+                meresi_pont_helye     = mp.MeresiPontHelye ?? "",
+                rendszer_tipus        = formAdatok?.MeresiRendszerTipus ?? "TN",
+                modszer               = mp.Modszer ?? "",
+                tularamvedelem_helye  = mp.TularamvedelemHelye ?? "",
+                tularamvedelem_tipusa = mp.TularamvedelemTipusa ?? "",
+                avk                   = mp.AVKCsatolva ? "✓" : "✗",
+                avk_szin              = mp.AVKCsatolva ? "zöld" : "piros",
+                pe_folyt              = mp.PEFolytOhm?.ToString() ?? "",
+                ertek_ohm             = mp.MertHurokimpedancia?.ToString("F2") ?? mp.ErtekOhm?.ToString() ?? "",
+                Minosites             = mp.Minosites ?? "",
+                mp_megjegyzes         = mp.Megjegyzes ?? ""
+            }).ToList(),
+            ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
         };
+
+        
+        // DEBUG: Ellenőrizd az adatokat
+        var meresiPontokList = adatok["meresi_pontok"] as List<object>;
+        System.Diagnostics.Debug.WriteLine($"[DEBUG] Mérési pontok száma: {meresiPontokList?.Count ?? 0}");
+        foreach (var pont in meresiPontokList ?? new List<object>())
+        {
+            var dict = pont as Dictionary<string, object>;
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Pont: {dict?["sorszam"]}, Helye: {dict?["meresi_pont_helye"]}");
+        }
+
+        // NULL ellenőrzés minden értékre
+foreach (var kv in adatok)
+{
+    if (kv.Value == null)
+        System.Diagnostics.Debug.WriteLine($"[NULL] Kulcs: {kv.Key}");
+}
 
         using var ms = new MemoryStream();
         await MiniWord.SaveAsByTemplateAsync(ms, sablonPath, adatok);

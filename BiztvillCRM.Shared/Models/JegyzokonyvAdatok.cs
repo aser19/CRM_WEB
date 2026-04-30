@@ -98,7 +98,13 @@ public class JegyzokonyvAdatok
 
     // Dinamikus eszközlista
     public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
-
-    // Dinamikus műszerlista (max 3)
-    public List<MuszerSor> Muszerek { get; set; } = new() { new MuszerSor() };
+    
+    // Dinamikus műszerlista
+    public List<MuszerSor> Muszerek { get; set; } = new();
+    
+    // ÚJ: Mérési rendszer típusa (TN/TT/IT) - egyszer választják ki az egész jegyzőkönyvre
+    public string MeresiRendszerTipus { get; set; } = "TN";
+    
+    // ÚJ: Dinamikus mérési pont táblázat (ID=5 sablon 3. oldalán)
+    public List<MeresiPontSor> MeresiPontok { get; set; } = new();
 }

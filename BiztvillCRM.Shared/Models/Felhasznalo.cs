@@ -11,7 +11,9 @@ public class Felhasznalo : IdentityUser
 
     public string Nev { get; set; } = string.Empty;
     public string? Beosztas { get; set; }
-    public new string? Telefon { get; set; }  // 'new' mert IdentityUser-ben is van PhoneNumber
+    
+    public string? Telefon { get; set; }  // 'new' eltávolítva
+    
     public bool Aktiv { get; set; } = true;
 
     // Céghez tartozás (tenant)

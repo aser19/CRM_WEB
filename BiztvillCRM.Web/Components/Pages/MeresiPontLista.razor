@@ -1,0 +1,278 @@
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using MudBlazor
+@inject IErintesvedelmiModOsztalyService ModOsztalyService
+@inject ITularamvedelemTipusService TularamvedelemService
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.TableChart" Class="mr-2" />
+        📊 Mérési pontok táblázat (3. oldal)
+    </MudText>
+    
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+        <strong>Villamos rendszer típusa:</strong> TN/TT/IT<br/>
+        <strong>Automatikus minősítés:</strong> In × Un × k &gt; Zs → NEM FELELT MEG
+    </MudAlert>
+
+    <MudSelect @bind-Value="RendszerTipus" 
+               Label="Mérési rendszer típusa" 
+               Variant="Variant.Outlined" 
+               Class="mb-4"
+               Style="max-width: 300px;">
+        <MudSelectItem Value="@("TN")">TN - Földelt csillapontú rendszer</MudSelectItem>
+        <MudSelectItem Value="@("TT")">TT - Földelt nullavezetős rendszer</MudSelectItem>
+        <MudSelectItem Value="@("IT")">IT - Szigetelt csillapontú rendszer</MudSelectItem>
+    </MudSelect>
+
+    @if (MeresiPontok.Any())
+    {
+        <MudTable Items="@MeresiPontok" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-3">
+            <HeaderContent>
+                <MudTh Style="width: 80px;">Sorszám</MudTh>
+                <MudTh Style="width: 250px;">Mérési pont helye</MudTh>
+                <MudTh Style="width: 130px;">MÓD / OSZTÁLY</MudTh>
+                <MudTh Style="width: 150px;">Túláramv. Helye</MudTh>
+                <MudTh Style="width: 180px;">Túláramv. Típusa</MudTh>
+                <MudTh Style="width: 80px;">ÁVK</MudTh>
+                <MudTh Style="width: 100px;">PEΩ foly.</MudTh>
+                <MudTh Style="width: 120px;">ÉRTÉK [Ω]</MudTh>
+                <MudTh Style="width: 140px;">Minősítés</MudTh>
+                <MudTh Style="width: 60px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Sorszám">
+                    <MudText><strong>@context.Sorszam.</strong></MudText>
+                </MudTd>
+                <MudTd DataLabel="Mérési pont">
+                    <MudTextField @bind-Value="context.MeresiPontHelye" 
+                                  Variant="Variant.Text" 
+                                  Margin="Margin.Dense" 
+                                  Lines="2"
+                                  Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24a" />
+                </MudTd>
+                <MudTd DataLabel="MÓD / OSZTÁLY">
+                    <MudSelect @bind-Value="context.Modszer" 
+                               Variant="Variant.Text" 
+                               Margin="Margin.Dense"
+                               Dense="true">
+                        <MudSelectItem Value="@("")">-- Válassz --</MudSelectItem>
+                        @foreach (var modOsztaly in _modOsztalyok)
+                        {
+                            <MudSelectItem Value="@modOsztaly.Nev">@modOsztaly.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd DataLabel="Túláramv. Helye">
+                    @* LOKÁLIS AUTOCOMPLETE *@
+                    <MudAutocomplete T="string"
+                                     @bind-Value="context.TularamvedelemHelye"
+                                     SearchFunc="@SearchTularamvedelemHelye"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense"
+                                     Placeholder="E3Ω"
+                                     Clearable="true"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="true"
+                                     CoerceValue="false" />
+                </MudTd>
+                <MudTd DataLabel="Túláramv. Típusa">
+                    <MudAutocomplete T="string"
+                                     Value="@context.TularamvedelemTipusa"
+                                     ValueChanged="@((string val) => OnTularamvedelemTipusaChanged(context, val))"
+                                     SearchFunc="@SearchTularamvedelemTipusa"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense"
+                                     Placeholder="TDK-C16"
+                                     Clearable="true"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="true"
+                                     CoerceValue="false" />
+                </MudTd>
+                <MudTd DataLabel="ÁVK">
+                    <MudCheckBox @bind-Value="context.AVKCsatolva" 
+                                 Color="Color.Success"
+                                 Dense="true" />
+                </MudTd>
+                <MudTd DataLabel="PEΩ foly.">
+                    <MudTextField @bind-Value="context.PEFolytOhm" 
+                                  Variant="Variant.Text" 
+                                  Margin="Margin.Dense"
+                                  Placeholder="0.35Ω" />
+                </MudTd>
+                <MudTd DataLabel="ÉRTÉK [Ω]">
+                    <MudNumericField Value="@context.MertHurokimpedancia"
+                                     ValueChanged="@((decimal? val) => OnHurokimpedanciaChanged(context, val))"
+                                     Variant="Variant.Text"
+                                     Margin="Margin.Dense"
+                                     Min="0"
+                                     Step="0.01m"
+                                     Placeholder="2.5" />
+                </MudTd>
+                <MudTd DataLabel="Minősítés">
+                    <MudChip T="string"
+                             Text="@context.Minosites"
+                             Size="Size.Small" 
+                             Color="@(context.Minosites == "MEGFELELT" ? Color.Success : Color.Error)" />
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small" 
+                                   OnClick="() => TorolMeresiPont(context)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            Még nincsenek mérési pontok hozzáadva.
+        </MudAlert>
+    }
+
+    <MudStack Row="true" Spacing="2" Class="mb-3">
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" 
+                   OnClick="UjMeresiPont">
+            Új mérési pont
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Secondary" 
+                   StartIcon="@Icons.Material.Filled.ContentCopy" 
+                   OnClick="TobbMeresiPont">
+            10 mérési pont hozzáadása
+        </MudButton>
+    </MudStack>
+
+    <MudDivider Class="my-3" />
+    
+    <MudText Typo="Typo.caption" Color="Color.Secondary">
+        Rendszer típus: <strong>@RendszerTipus</strong> | 
+        Összesen: <strong>@MeresiPontok.Count</strong> mérési pont
+    </MudText>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public List<MeresiPontSor> MeresiPontok { get; set; } = new();
+
+    [Parameter]
+    public string RendszerTipus { get; set; } = "TN";
+
+    [Parameter]
+    public EventCallback<string> RendszerTipusChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnChange { get; set; }
+
+    private List<ErintesvedelmiModOsztaly> _modOsztalyok = [];
+    private List<TularamvedelemTipus> _tularamvedelemTipusok = [];
+    private HashSet<string> _tularamvedelemHelyek = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _modOsztalyok = await ModOsztalyService.GetAllActiveAsync();
+        _tularamvedelemTipusok = await TularamvedelemService.GetAllActiveAsync();
+        await BetoltLokalisMemoriat();
+    }
+
+    private async Task BetoltLokalisMemoriat()
+    {
+        try
+        {
+            var lokalisAdatok = await JS.InvokeAsync<string[]>("localStorage.getItem", "tularamvedelemHelyek");
+            if (lokalisAdatok != null)
+            {
+                _tularamvedelemHelyek = lokalisAdatok.ToHashSet();
+            }
+        }
+        catch { }
+    }
+
+    private async Task<IEnumerable<string>> SearchTularamvedelemHelye(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return _tularamvedelemHelyek;
+        
+        return _tularamvedelemHelyek
+            .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(h => h);
+    }
+
+    private async Task<IEnumerable<string>> SearchTularamvedelemTipusa(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return _tularamvedelemTipusok.Select(t => t.Nev);
+        
+        return _tularamvedelemTipusok
+            .Where(t => t.Nev.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Select(t => t.Nev)
+            .OrderBy(n => n);
+    }
+
+    private void OnTularamvedelemTipusaChanged(MeresiPontSor pont, string ujTipus)
+    {
+        pont.TularamvedelemTipusa = ujTipus;
+        InvokeAsync(async () => await SzamolMinositest(pont));
+    }
+
+    private void OnHurokimpedanciaChanged(MeresiPontSor pont, decimal? ujErtek)
+    {
+        pont.MertHurokimpedancia = ujErtek;
+        InvokeAsync(async () => await SzamolMinositest(pont));
+    }
+
+    private async Task SzamolMinositest(MeresiPontSor pont)
+    {
+        if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
+        {
+            pont.Minosites = await TularamvedelemService.SzamolMinositestAsync(
+                pont.TularamvedelemTipusa, 
+                pont.MertHurokimpedancia.Value
+            );
+            pont.ErtekOhm = pont.MertHurokimpedancia.Value.ToString("F2");
+        }
+        
+        await OnChange.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private void UjMeresiPont()
+    {
+        var ujSorszam = MeresiPontok.Count + 1;
+        var alapModszer = _modOsztalyok.FirstOrDefault()?.Nev ?? "I/0Ω";
+        
+        MeresiPontok.Add(new MeresiPontSor
+        {
+            Sorszam = ujSorszam,
+            Modszer = alapModszer,
+            AVKCsatolva = false,
+            Minosites = "MEGFELELT"
+        });
+        
+        _ = OnChange.InvokeAsync();
+    }
+
+    private void TobbMeresiPont()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            UjMeresiPont();
+        }
+    }
+
+    private async Task TorolMeresiPont(MeresiPontSor pont)
+    {
+        MeresiPontok.Remove(pont);
+        
+        for (int i = 0; i < MeresiPontok.Count; i++)
+        {
+            MeresiPontok[i].Sorszam = i + 1;
+        }
+        
+        await OnChange.InvokeAsync();
+    }
+}

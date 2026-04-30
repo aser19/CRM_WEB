@@ -1,0 +1,234 @@
+@page "/admin/tularamvedelem-tipusok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ITularamvedelemTipusService TipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Túláramvédelem típusok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Power" Class="mr-2" />
+    Túláramvédelmi eszköz típusok kezelése
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Itt kezelheted a túláramvédelmi eszközök típusait és paramétereit (In, karakterisztika).
+    <br/><strong>Képlet:</strong> Zs max = (230V × 0,8) / (In × szorzó) &nbsp;|&nbsp; B=5×, C=10×, D=20×
+</MudAlert>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+               StartIcon="@Icons.Material.Filled.Add" OnClick="UjTipusMegnyitas" Class="mb-3">
+        Új típus
+    </MudButton>
+
+    <MudTable Items="@_tipusok" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Típus</MudTh>
+            <MudTh>In (A)</MudTh>
+            <MudTh>Karakterisztika</MudTh>
+            <MudTh>Zs max (Ω)</MudTh>
+            <MudTh>Leírás</MudTh>
+            <MudTh>Aktív</MudTh>
+            <MudTh>Műveletek</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Típus">
+                <MudTextField T="string" @bind-Value="context.Nev" Variant="Variant.Text" 
+                              Margin="Margin.Dense" Required="true" />
+            </MudTd>
+            <MudTd DataLabel="In">
+                <MudNumericField T="decimal" @bind-Value="context.NevlegesAram" Min="0m" Max="1000m" 
+                                 Variant="Variant.Text" Margin="Margin.Dense" Style="max-width: 80px;" />
+            </MudTd>
+            <MudTd DataLabel="Karakterisztika">
+                @if (context.Karakterisztika != null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">
+                        @context.Karakterisztika
+                    </MudChip>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Zs max">
+                <MudChip T="decimal" Size="Size.Small" Color="Color.Info">
+                    @($"{context.MaxHurokimpedancia:F3} Ω")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Leírás">
+                <MudTextField T="string" @bind-Value="context.Leiras" Variant="Variant.Text" 
+                              Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd DataLabel="Aktív">
+                <MudSwitch T="bool" @bind-Value="context.Aktiv" Color="Color.Success" />
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudIconButton Icon="@Icons.Material.Filled.Save" 
+                                   Color="Color.Success" 
+                                   Size="Size.Small" 
+                                   OnClick="@(async () => await MentesAsync(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small" 
+                                   OnClick="@(async () => await TorlesMegerositesAsync(context))" />
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_ujTipusDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új túláramvédelmi típus
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTipus is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Nev" Label="Típus megnevezése *" 
+                                  Required="true" Variant="Variant.Outlined" 
+                                  Placeholder="pl. A9Z422316, TDK-C16"
+                                  HelperText="A karakterisztika (B/C/D) automatikusan felismerhető a névből (pl. C16 → C)" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="decimal" @bind-Value="_ujTipus.NevlegesAram" Label="Névleges áram (In) *" 
+                                     Min="0m" Max="1000m" Variant="Variant.Outlined"
+                                     Adornment="Adornment.End" AdornmentText="A" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Leiras" Label="Leírás" 
+                                  Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="_ujTipus.Aktiv" Label="Aktív" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjTipusDialogBezaras">Mégse</MudButton>
+        <MudButton OnClick="UjTipusMentesAsync" Color="Color.Primary" Variant="Variant.Filled">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<TularamvedelemTipus> _tipusok = [];
+    private TularamvedelemTipus? _ujTipus;
+    private bool _betoltes = true;
+    private bool _ujTipusDialogNyitva = false;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _tipusok = await TipusService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjTipusMegnyitas()
+    {
+        _ujTipus = new TularamvedelemTipus 
+        { 
+            Aktiv = true,
+            NevlegesAram = 16
+        };
+        _ujTipusDialogNyitva = true;
+    }
+
+    private void UjTipusDialogBezaras()
+    {
+        _ujTipusDialogNyitva = false;
+        _ujTipus = null;
+    }
+
+    private async Task UjTipusMentesAsync()
+    {
+        if (_ujTipus is null || string.IsNullOrWhiteSpace(_ujTipus.Nev))
+        {
+            Snackbar.Add("A típus megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await TipusService.CreateAsync(_ujTipus);
+            Snackbar.Add("Új típus létrehozva!", Severity.Success);
+            UjTipusDialogBezaras();
+            await BetoltesAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task MentesAsync(TularamvedelemTipus tipus)
+    {
+        if (string.IsNullOrWhiteSpace(tipus.Nev))
+        {
+            Snackbar.Add("A típus megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await TipusService.UpdateAsync(tipus);
+            Snackbar.Add("Mentve!", Severity.Success);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerositesAsync(TularamvedelemTipus tipus)
+    {
+        if (await DialogService.ShowMessageBox("Törlés", 
+            $"Biztosan törölni szeretnéd: \"{tipus.Nev}\"?", 
+            yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await TipusService.DeleteAsync(tipus.Id);
+                Snackbar.Add("Törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}
