@@ -943,10 +943,11 @@
         var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipusId);
         _adatok.KijeloltJogszabalyok = hozzaRendeltek.Select(x => new KijeloltJogszabaly
         {
-            JogszabalyId = x.JogszabalyId,
-            Szam = x.Jogszabaly?.Szam ?? "",
-            Cim = x.Jogszabaly?.Cim ?? "",
-            Kivalasztva = true // alapból mind pipálva
+            JogszabalyId  = x.JogszabalyId,
+            Szam          = x.Jogszabaly?.Szam ?? "",
+            Cim           = x.Jogszabaly?.Cim ?? "",
+            Kivalasztva   = true,
+            IsSzabvany    = x.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany // ÚJ
         }).ToList();
     }
     }

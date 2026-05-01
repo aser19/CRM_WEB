@@ -191,9 +191,29 @@ else
                         Válaszd ki, mely jogszabályok jelenjenek meg alapértelmezetten a jegyzőkönyvben ehhez a típushoz.
                     </MudText>
 
-                    @foreach (var jsz in _osszeJogszabaly)
+                    @foreach (var jsz in _osszeJogszabaly.Where(j => j.Tipus != JogszabalyTipus.Szabvany))
                     {
-                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set) && set.Contains(jsz.Id);
+                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set1) && set1.Contains(jsz.Id);
+                        <MudCheckBox T="bool"
+                                     Value="hozzaRendelt"
+                                     ValueChanged="(v) => JogszabalyToggle(tipus.Id, jsz.Id, v)"
+                                     Color="Color.Primary" Dense="true">
+                            <strong>@jsz.Szam</strong> – @jsz.Cim
+                        </MudCheckBox>
+                    }
+
+                    @* === SZABVÁNYOK === *@
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.MenuBook" Class="mr-2" />
+                        Kapcsolódó szabványok
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                        Válaszd ki, mely szabványok jelenjenek meg alapértelmezetten a jegyzőkönyvben.
+                    </MudText>
+                    @foreach (var jsz in _osszeJogszabaly.Where(j => j.Tipus == JogszabalyTipus.Szabvany))
+                    {
+                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set2) && set2.Contains(jsz.Id);
                         <MudCheckBox T="bool"
                                      Value="hozzaRendelt"
                                      ValueChanged="(v) => JogszabalyToggle(tipus.Id, jsz.Id, v)"

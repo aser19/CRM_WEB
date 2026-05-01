@@ -167,4 +167,5 @@ public class KijeloltJogszabaly
     public string Szam { get; set; } = "";
     public string Cim { get; set; } = "";
     public bool Kivalasztva { get; set; } = true;
+    public bool IsSzabvany { get; set; } = false; // ÚJ
 }
