@@ -16,7 +16,9 @@
         <strong>Automatikus minősítés:</strong> In × Un × k &gt; Zs → NEM FELELT MEG
     </MudAlert>
 
-    <MudSelect @bind-Value="RendszerTipus" 
+    <MudSelect Value="@_lokalisRendszerTipus"
+               ValueChanged="@OnRendszerTipusValtozas"
+               T="string"
                Label="Mérési rendszer típusa" 
                Variant="Variant.Outlined" 
                Class="mb-4"
@@ -156,17 +158,28 @@
 </MudPaper>
 
 @code {
-    [Parameter]
-    public List<MeresiPontSor> MeresiPontok { get; set; } = new();
+    [Parameter] public List<MeresiPontSor> MeresiPontok { get; set; } = new();
+    [Parameter] public string RendszerTipus { get; set; } = "TN";
+    [Parameter] public EventCallback<string> RendszerTipusChanged { get; set; }
+    [Parameter] public EventCallback OnChange { get; set; }
 
-    [Parameter]
-    public string RendszerTipus { get; set; } = "TN";
+    private string _lokalisRendszerTipus = "TN";
+    private string _elozoRendszerTipus = "";
 
-    [Parameter]
-    public EventCallback<string> RendszerTipusChanged { get; set; }
+    protected override void OnParametersSet()
+    {
+        if (RendszerTipus != _elozoRendszerTipus)
+        {
+            _lokalisRendszerTipus = RendszerTipus;
+            _elozoRendszerTipus = RendszerTipus;
+        }
+    }
 
-    [Parameter]
-    public EventCallback OnChange { get; set; }
+    private async Task OnRendszerTipusValtozas(string ertek)
+    {
+        _lokalisRendszerTipus = ertek;
+        await RendszerTipusChanged.InvokeAsync(ertek);
+    }
 
     private List<ErintesvedelmiModOsztaly> _modOsztalyok = [];
     private List<TularamvedelemTipus> _tularamvedelemTipusok = [];

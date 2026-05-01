@@ -117,4 +117,32 @@ public class MeresTipusService : IMeresTipusService
             await context.SaveChangesAsync();
         }
     }
+
+    public async Task<List<MeresTipusJogszabaly>> GetJogszabalyokByTipusIdAsync(int meresTipusId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTipusJogszabalyok
+            .Include(x => x.Jogszabaly)
+            .Where(x => x.MeresTipusId == meresTipusId)
+            .OrderBy(x => x.Sorrend)
+            .ToListAsync();
+    }
+
+    public async Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<int> jogszabalyIds)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var meglevo = context.MeresTipusJogszabalyok
+            .Where(x => x.MeresTipusId == meresTipusId);
+        context.MeresTipusJogszabalyok.RemoveRange(meglevo);
+
+        var ujak = jogszabalyIds.Select((id, i) => new MeresTipusJogszabaly
+        {
+            MeresTipusId = meresTipusId,
+            JogszabalyId = id,
+            Sorrend = i
+        });
+        await context.MeresTipusJogszabalyok.AddRangeAsync(ujak);
+        await context.SaveChangesAsync();
+    }
 }

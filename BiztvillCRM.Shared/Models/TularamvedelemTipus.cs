@@ -22,35 +22,49 @@ public class TularamvedelemTipus
 
     public DateTime Letrehozva { get; set; } = DateTime.Now;
 
+    /// <summary>
+    /// Manuálisan megadott karakterisztika (A/B/C/D).
+    /// Ha be van állítva, felülírja az automatikus névből való felismerést.
+    /// </summary>
+    public string? KarakterisztikaFeluliras { get; set; }
+
     // ============================================================
     // Számított property-k
     // ============================================================
 
-    private const decimal U0 = 230m;
-    private const decimal Alfa = 0.8m;
+    /// <summary>Hálózati feszültség (Uo)</summary>
+    private const decimal Uo = 230m;
 
     /// <summary>
-    /// Kinyeri a karakterisztikát (B/C/D) a Nev mezőből.
-    /// Pl. "TDK-C16" → "C", "B20" → "B"
+    /// Karakterisztika (A/B/C/D):
+    /// 1. Elsőként a manuálisan megadott KarakterisztikaFeluliras-t veszi figyelembe.
+    /// 2. Ha nincs, megpróbálja kiolvasni a névből (pl. "TDK-C16" → "C").
     /// </summary>
     public string? Karakterisztika
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(KarakterisztikaFeluliras))
+                return KarakterisztikaFeluliras.ToUpperInvariant();
+
             if (string.IsNullOrWhiteSpace(Nev)) return null;
             var match = System.Text.RegularExpressions.Regex.Match(
-                Nev, @"[BbCcDd](?=\d)",
+                Nev, @"[AaBbCcDd](?=\d)",
                 System.Text.RegularExpressions.RegexOptions.None);
             return match.Success ? match.Value.ToUpperInvariant() : null;
         }
     }
 
     /// <summary>
-    /// Kikapcsolási szorzó karakterisztikától függően:
-    /// B = 5, C = 10, D = 20
+    /// Kikapcsolási áram szorzó karakterisztikától függően (IEC 60898):
+    ///   A = 3×In
+    ///   B = 5×In
+    ///   C = 10×In
+    ///   D = 20×In
     /// </summary>
     public decimal? KikapcsolasiSzorzo => Karakterisztika switch
     {
+        "A" => 3m,
         "B" => 5m,
         "C" => 10m,
         "D" => 20m,
@@ -58,18 +72,24 @@ public class TularamvedelemTipus
     };
 
     /// <summary>
-    /// Számított maximális megengedett hurokimpedancia:
-    /// Zs max = (U0 × α) / (In × szorzó)
-    /// Ha nincs karakterisztika: U0 / In (egyszerűsített)
+    /// Azonnali kikapcsolási áram: Ia = In × szorzó
+    /// </summary>
+    public decimal? Ia => KikapcsolasiSzorzo.HasValue
+        ? NevlegesAram * KikapcsolasiSzorzo.Value
+        : null;
+
+    /// <summary>
+    /// Maximális megengedett hurokimpedancia:
+    /// Zs max = Uo / Ia = 230 / (In × szorzó)
+    /// Ha nincs karakterisztika: Uo / In (egyszerűsített)
     /// </summary>
     public decimal MaxHurokimpedancia
     {
         get
         {
             if (NevlegesAram <= 0) return 0;
-            if (KikapcsolasiSzorzo.HasValue)
-                return Math.Round((U0 * Alfa) / (NevlegesAram * KikapcsolasiSzorzo.Value), 3);
-            return Math.Round(U0 / NevlegesAram, 3);
+            var ia = Ia ?? NevlegesAram;
+            return Math.Round(Uo / ia, 3);
         }
     }
 }

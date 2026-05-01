@@ -8,6 +8,7 @@
 @inject IKepzesTipusService KepzesTipusService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IJogszabalyService JogszabalyService
 
 <PageTitle>Méréstípusok kezelése</PageTitle>
 
@@ -178,6 +179,28 @@ else
                             @(_mentes ? "Mentés..." : "Mentés")
                         </MudButton>
                     </MudStack>
+
+                    @* Jogszabály hozzárendelés szekció – a típus szerkesztője *@
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Gavel" Class="mr-2" />
+                        Kapcsolódó jogszabályok
+                    </MudText>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                        Válaszd ki, mely jogszabályok jelenjenek meg alapértelmezetten a jegyzőkönyvben ehhez a típushoz.
+                    </MudText>
+
+                    @foreach (var jsz in _osszeJogszabaly)
+                    {
+                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set) && set.Contains(jsz.Id);
+                        <MudCheckBox T="bool"
+                                     Value="hozzaRendelt"
+                                     ValueChanged="(v) => JogszabalyToggle(tipus.Id, jsz.Id, v)"
+                                     Color="Color.Primary" Dense="true">
+                            <strong>@jsz.Szam</strong> – @jsz.Cim
+                        </MudCheckBox>
+                    }
                 </MudPaper>
             </MudTabPanel>
         }
@@ -227,6 +250,8 @@ else
 @code {
     private List<MeresTipus> _tipusok = [];
     private List<KepzesTipus> _kepzesTipusok = [];
+    private List<Jogszabaly> _osszeJogszabaly = [];
+    private Dictionary<int, HashSet<int>> _jogszabalyHozzarendelesek = new();
     private MeresTipus? _ujTipus;
     private int _ujKepzesTipusId;
     private int _activTabIndex;
@@ -245,6 +270,18 @@ else
         _betoltes = true;
         _tipusok = await MeresTipusService.GetAllWithKovetelemenyekAsync();
         _kepzesTipusok = await KepzesTipusService.GetAllActiveAsync();
+        _osszeJogszabaly = await JogszabalyService.GetAllAsync();
+
+        // Minden típushoz betöltjük a hozzárendelt jogszabályokat
+        _jogszabalyHozzarendelesek.Clear();
+        foreach (var tipus in _tipusok)
+        {
+            var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipus.Id);
+            _jogszabalyHozzarendelesek[tipus.Id] = hozzaRendeltek
+                .Select(x => x.JogszabalyId)
+                .ToHashSet();
+        }
+
         _betoltes = false;
     }
 
@@ -374,5 +411,19 @@ else
                 Snackbar.Add($"Nem törölhető - használatban van! ({ex.Message})", Severity.Error);
             }
         }
+    }
+
+    private async Task JogszabalyToggle(int tipusId, int jogszabalyId, bool hozzaad)
+    {
+        if (!_jogszabalyHozzarendelesek.ContainsKey(tipusId))
+            _jogszabalyHozzarendelesek[tipusId] = new HashSet<int>();
+
+        if (hozzaad) _jogszabalyHozzarendelesek[tipusId].Add(jogszabalyId);
+        else _jogszabalyHozzarendelesek[tipusId].Remove(jogszabalyId);
+
+        await MeresTipusService.MentJogszabalyHozzarendelesekAsync(
+            tipusId, 
+            _jogszabalyHozzarendelesek[tipusId].ToList());
+        Snackbar.Add("Jogszabály hozzárendelés mentve!", Severity.Success);
     }
 }

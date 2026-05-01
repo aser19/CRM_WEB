@@ -28,7 +28,7 @@ else
 {
     <MudButton Variant="Variant.Filled" Color="Color.Primary" 
                StartIcon="@Icons.Material.Filled.Add" OnClick="UjTipusMegnyitas" Class="mb-3">
-        Új típus
+        + Új típus
     </MudButton>
 
     <MudTable Items="@_tipusok" Dense="true" Hover="true" Bordered="true" Striped="true">
@@ -51,19 +51,20 @@ else
                                  Variant="Variant.Text" Margin="Margin.Dense" Style="max-width: 80px;" />
             </MudTd>
             <MudTd DataLabel="Karakterisztika">
-                @if (context.Karakterisztika != null)
-                {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">
-                        @context.Karakterisztika
-                    </MudChip>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
-                }
+                <MudSelect T="string" @bind-Value="context.KarakterisztikaFeluliras"
+                           Variant="Variant.Text" Margin="Margin.Dense" 
+                           Style="max-width: 110px;"
+                           Clearable="true"
+                           Placeholder="Auto">
+                    <MudSelectItem T="string" Value="@((string?)null)">– Auto –</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("A")">A (3×)</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("B")">B (5×)</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("C")">C (10×)</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("D")">D (20×)</MudSelectItem>
+                </MudSelect>
             </MudTd>
             <MudTd DataLabel="Zs max">
-                <MudChip T="decimal" Size="Size.Small" Color="Color.Info">
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">
                     @($"{context.MaxHurokimpedancia:F3} Ω")
                 </MudChip>
             </MudTd>
@@ -102,7 +103,7 @@ else
         {
             <MudGrid>
                 <MudItem xs="12">
-                    <MudTextField T="string" @bind-Value="_ujTipus.Nev" Label="Típus megnevezése *" 
+                    <MudTextField T="string" @bind-Value="_ujTipus.Nev" Label="Típus megnevezése **" 
                                   Required="true" Variant="Variant.Outlined" 
                                   Placeholder="pl. A9Z422316, TDK-C16"
                                   HelperText="A karakterisztika (B/C/D) automatikusan felismerhető a névből (pl. C16 → C)" />
@@ -111,6 +112,20 @@ else
                     <MudNumericField T="decimal" @bind-Value="_ujTipus.NevlegesAram" Label="Névleges áram (In) *" 
                                      Min="0m" Max="1000m" Variant="Variant.Outlined"
                                      Adornment="Adornment.End" AdornmentText="A" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    @* Karakterisztika felülírás *@
+                    <MudSelect T="string" @bind-Value="_ujTipus.KarakterisztikaFeluliras"
+                               Label="Karakterisztika (opcionális)"
+                               Variant="Variant.Outlined"
+                               Clearable="true"
+                               HelperText="Ha a névből nem ismerhető fel automatikusan">
+                        <MudSelectItem T="string" Value="@((string?)null)">– Automatikus (névből) –</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("A")">A  –  3× In</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("B")">B  –  5× In</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("C")">C  –  10× In</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("D")">D  –  20× In</MudSelectItem>
+                    </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField T="string" @bind-Value="_ujTipus.Leiras" Label="Leírás" 
@@ -135,7 +150,7 @@ else
     private TularamvedelemTipus? _ujTipus;
     private bool _betoltes = true;
     private bool _ujTipusDialogNyitva = false;
-    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,11 +216,7 @@ else
         try
         {
             await TipusService.UpdateAsync(tipus);
-            Snackbar.Add("Mentve!", Severity.Success);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Warning);
+            Snackbar.Add("Típus mentve!", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -215,14 +226,17 @@ else
 
     private async Task TorlesMegerositesAsync(TularamvedelemTipus tipus)
     {
-        if (await DialogService.ShowMessageBox("Törlés", 
-            $"Biztosan törölni szeretnéd: \"{tipus.Nev}\"?", 
-            yesText: "Törlés", cancelText: "Mégse") == true)
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törlöd a(z) '{tipus.Nev}' típust?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
         {
             try
             {
                 await TipusService.DeleteAsync(tipus.Id);
-                Snackbar.Add("Törölve.", Severity.Success);
+                Snackbar.Add("Típus törölve.", Severity.Success);
                 await BetoltesAsync();
             }
             catch (Exception ex)

@@ -37,4 +37,5 @@ public class MeresTipus
     
     /// <summary>Képzési követelmények</summary>
     public List<MeresTipusKepzesKovetelemeny> KepzesKovetelemenyei { get; set; } = new();
+    public List<MeresTipusJogszabaly> Jogszabalyok { get; set; } = new();
 }

@@ -14,4 +14,7 @@ public interface IMeresTipusService
     Task<int> CreateAsync(MeresTipus tipus);
     Task UpdateAsync(MeresTipus tipus);
     Task DeleteAsync(int id);
+
+    Task<List<MeresTipusJogszabaly>> GetJogszabalyokByTipusIdAsync(int meresTipusId);
+    Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<int> jogszabalyIds);
 }

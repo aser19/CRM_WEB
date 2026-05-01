@@ -42,6 +42,17 @@ public class JegyzokonyvAdatok
     public string HibavedelmiJkv { get; set; } = "";
     public string AvkJegyzokonyv { get; set; } = "";
 
+    // === MINŐSÍTŐ IRAT - 3. OLDAL - ÚJ MEZŐK ===
+    public string MinositasEredmenye { get; set; } = "MEGFELELŐ";
+    public string VizsgalatEredmenyMegjegyzes { get; set; } = "NINCS";
+    public string TalaltHibak { get; set; } = "Nincsenek";
+    public string HibaMellekletSzoveg { get; set; } = "1. melléklet alapján";
+    public bool HibaMellekletSzukseges { get; set; } = false;
+
+    // Word export
+    public string MINOSITAS_EREDMENY { get; set; } = "MEGFELELŐ";
+    public string HIBA_MELLEKLET_X { get; set; } = "☐";
+    
     // === MINŐSÍTŐ IRAT - 3. OLDAL (2/2) - HIÁNYZÓ PROPERTY-K ===
     public bool ErvenyessegMegrendeles { get; set; }
     public bool ErvenyessegBelsoSzabalyzat { get; set; }
@@ -107,4 +118,53 @@ public class JegyzokonyvAdatok
     
     // ÚJ: Dinamikus mérési pont táblázat (ID=5 sablon 3. oldalán)
     public List<MeresiPontSor> MeresiPontok { get; set; } = new();
+
+    // Következő felülvizsgálat checkboxok
+    public bool KovFelulv50kW { get; set; }
+    public bool KovFelulv32A { get; set; }
+    public bool KovFelulvVMBSZ { get; set; }
+    public bool KovFelulvRV300 { get; set; }
+
+    // Határidő checkboxok
+    public bool HataridoHarom { get; set; }
+    public bool HataridoHat { get; set; }
+    public bool HataridoRV { get; set; }
+
+    // === 4. OLDAL – IDŐSZAKOS VBF ===
+    // I. Névleges feszültség
+    public string NevlegesFeszultseg { get; set; } = "";        // "230V" vagy "3x230V / 400V"
+    public string NevlegesFeszultsegTipus { get; set; } = "";   // "1fazis" vagy "3fazis"
+
+    // II. Földelési típus
+    public string FoldelasiTipus { get; set; } = "";            // "A", "B", "A + B"
+    public string FoldelasiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
+
+    // III. Alapvető érintésvédelmi mód
+    public string ErintesvedelmiMod { get; set; } = "";          // értéket majd megadjuk
+
+    // === 4. OLDAL – Áramütés-elleni védelmi módok ===
+    public bool Vedelem404 { get; set; } // A táplálás önműködő lekapcsolása (TN-/TT-/IT-rendszer)
+    public bool Vedelem405 { get; set; } // Kettős vagy megerősített szigetelés
+    public bool Vedelem406 { get; set; } // Villamos elválasztás
+    public bool Vedelem407 { get; set; } // SELV/PELV törpefeszültség
+    public bool Vedelem408 { get; set; } // Védő egyenpotenciáli összekötés, védővezetők, védőösszekötő-vezetők
+    public bool Vedelem409 { get; set; } // Védelem földeletlen helyi egyenpotenciáli összekötéssel
+
+    // === 4. OLDAL – Betáplálás és dokumentáció ===
+    public string Betaplalas { get; set; } = "Nem része a felülvizsgálatnak"; // "Légvezeték", "Földkábel", "Nem része a felülvizsgálatnak"
+    public string TartalekEnergia { get; set; } = "Nincs";                    // "Van", "Nincs"
+    public string LegutolsoFelujitas { get; set; } = "Ismeretlen";            // év (pl. "2018") vagy "Ismeretlen"
+    public string Dokumentaciok { get; set; } = "";                           // max 150 karakter
+
+    // === JOGSZABÁLYOK (4. oldal) ===
+    public List<KijeloltJogszabaly> KijeloltJogszabalyok { get; set; } = new();
+
+} // <-- JegyzokonyvAdatok osztály lezárása
+
+public class KijeloltJogszabaly
+{
+    public int JogszabalyId { get; set; }
+    public string Szam { get; set; } = "";
+    public string Cim { get; set; } = "";
+    public bool Kivalasztva { get; set; } = true;
 }

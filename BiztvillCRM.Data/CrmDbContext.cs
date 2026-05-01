@@ -43,6 +43,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
 
     // --- Jogszabályok ---
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
+    public DbSet<MeresTipusJogszabaly> MeresTipusJogszabalyok { get; set; }
 
     // --- Képzés szabályok ---
     public DbSet<KepzesSzabaly> KepzesSzabalyok { get; set; }
@@ -557,11 +558,13 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.ToTable("TularamvedelemTipusok");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Nev).IsRequired().HasMaxLength(100);
-            entity.HasIndex(e => e.Nev).IsUnique(); // Egyedi típusnév
+            entity.HasIndex(e => e.Nev).IsUnique();
             entity.Property(e => e.Leiras).HasMaxLength(500);
             entity.Property(e => e.NevlegesAram).HasPrecision(10, 2);
-            entity.Property(e => e.NevlegesFeszultseg).HasPrecision(10, 2);
-            entity.Property(e => e.KorrekciosTenyezo).HasPrecision(5, 3);
+            entity.Property(e => e.KarakterisztikaFeluliras).HasMaxLength(1); // ÚJ
+            entity.Ignore(e => e.Karakterisztika);        // számított, nem tárolt
+            entity.Ignore(e => e.KikapcsolasiSzorzo);    // számított, nem tárolt
+            entity.Ignore(e => e.MaxHurokimpedancia);     // számított, nem tárolt
         });
 
         // Seed adatok
@@ -571,8 +574,6 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
                 Id = 1, 
                 Nev = "A9Z422316", 
                 NevlegesAram = 16, 
-                NevlegesFeszultseg = 230, 
-                KorrekciosTenyezo = 0.8m,
                 Leiras = "Schneider Electric 16A típusú védőkapcsoló",
                 Aktiv = true, 
                 Letrehozva = new DateTime(2024, 1, 1) 
@@ -582,8 +583,6 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
                 Id = 2, 
                 Nev = "TDK-C16", 
                 NevlegesAram = 16, 
-                NevlegesFeszultseg = 230, 
-                KorrekciosTenyezo = 0.8m,
                 Aktiv = true, 
                 Letrehozva = new DateTime(2024, 1, 1) 
             },
@@ -592,8 +591,6 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
                 Id = 3, 
                 Nev = "TDK-C25", 
                 NevlegesAram = 25, 
-                NevlegesFeszultseg = 230, 
-                KorrekciosTenyezo = 0.8m,
                 Aktiv = true, 
                 Letrehozva = new DateTime(2024, 1, 1) 
             }
