@@ -173,6 +173,59 @@ else
                         </MudButton>
                     </MudStack>
 
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mr-2" />
+                        Berendezés típus → alapértelmezett határidő
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Ha a felhasználó kiválaszt egy berendezés típust, automatikusan ez a határidő lesz előválasztva (manuálisan felülírható).
+                    </MudText>
+
+                    @{
+                        var berendezesek = new[]
+                        {
+                            ("50kW",    "az épületnek nem minősülő műtárgy 50 kW-ot meghaladó csatlakozási teljesítményű"),
+                            ("32A",     "fázisonként 32 A-nél nagyobb névleges áramerősségű túráramvédelemmel korlátozott"),
+                            ("VMBSZ",   "VMBSZ szerint lakóépület, kommunális épület, valamint egyéb épület"),
+                            ("RV300",   "≥300 kg/l robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben"),
+                            ("RV_EGYEB","egyéb (RV osztályú anyagot NEM tartalmazó) helyiségekben"),
+                        };
+                        var mapping = tipus.BerendezesHataridoMapping;
+                    }
+
+                    <MudSimpleTable Dense="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th>Berendezés típus</th>
+                                <th style="width:140px">Alapért. határidő</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (kod, leiras) in berendezesek)
+                            {
+                                var aktualisKod = kod; // closure
+                                var kivalasztott = mapping.TryGetValue(aktualisKod, out var v) ? v : "";
+                                <tr>
+                                    <td><MudText Typo="Typo.body2">@leiras</MudText></td>
+                                    <td>
+                                        <MudSelect T="string"
+                                                   Value="kivalasztott"
+                                                   ValueChanged="(val) => OnBerendezesHataridoValtozas(tipus, aktualisKod, val)"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   AnchorOrigin="Origin.BottomCenter">
+                                            <MudSelectItem Value="@("")">–</MudSelectItem>
+                                            <MudSelectItem Value="@("3EV")">3 év</MudSelectItem>
+                                            <MudSelectItem Value="@("6EV")">6 év</MudSelectItem>
+                                            <MudSelectItem Value="@("EGYEB")">Egyéb</MudSelectItem>
+                                        </MudSelect>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+
                     <MudStack Row="true" Class="mt-4" Justify="Justify.FlexEnd" Spacing="2">
                         <MudButton Variant="Variant.Filled" Color="Color.Success" 
                                    OnClick="() => MentesAsync(tipus)" Disabled="_mentes">
@@ -445,5 +498,15 @@ else
             tipusId, 
             _jogszabalyHozzarendelesek[tipusId].ToList());
         Snackbar.Add("Jogszabály hozzárendelés mentve!", Severity.Success);
+    }
+
+    private void OnBerendezesHataridoValtozas(MeresTipus tipus, string berendezesKod, string hataridoKod)
+    {
+        var mapping = tipus.BerendezesHataridoMapping;
+        if (string.IsNullOrEmpty(hataridoKod))
+            mapping.Remove(berendezesKod);
+        else
+            mapping[berendezesKod] = hataridoKod;
+        tipus.BerendezesHataridoMapping = mapping; // visszaírja JSON-ba
     }
 }

@@ -125,6 +125,12 @@ public class JegyzokonyvAdatok
     public bool KovFelulvVMBSZ { get; set; }
     public bool KovFelulvRV300 { get; set; }
 
+    // Következő felülvizsgálat radio (régi bool-ok helyett)
+    public string KovFelulvTipus { get; set; } = ""; // "50kW","32A","VMBSZ","RV300","RV_EGYEB","EGYEB"
+
+    // Határidő radio (régi bool-ok helyett)
+    public string HataridoTipusRadio { get; set; } = ""; // "3EV","6EV","EGYEB"
+
     // Határidő checkboxok
     public bool HataridoHarom { get; set; }
     public bool HataridoHat { get; set; }
@@ -136,8 +142,8 @@ public class JegyzokonyvAdatok
     public string NevlegesFeszultsegTipus { get; set; } = "";   // "1fazis" vagy "3fazis"
 
     // II. Földelési típus
-    public string FoldelasiTipus { get; set; } = "";            // "A", "B", "A + B"
-    public string FoldelasiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
+    public string FoldelesiTipus { get; set; } = "";            // "A", "B", "A + B"
+    public string FoldelesiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
 
     // III. Alapvető érintésvédelmi mód
     public string ErintesvedelmiMod { get; set; } = "";          // értéket majd megadjuk
