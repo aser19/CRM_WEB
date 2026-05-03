@@ -128,18 +128,18 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["ERV_SZABALYZAT_X"] = formAdatok?.ERV_SZABALYZAT_X ?? "☐",
             ["ERV_DATUM"] = formAdatok?.ERV_DATUM ?? "",
 
-            ["301"] = formAdatok != null && formAdatok.KovFelulv50kW ? "☑" : "☐",
-            ["302"] = formAdatok != null && formAdatok.KovFelulv32A ? "☑" : "☐",
-            ["303"] = formAdatok != null && formAdatok.KovFelulvVMBSZ ? "☑" : "☐",
-            ["304"] = formAdatok != null && formAdatok.KovFelulvRV300 ? "☑" : "☐",
-            ["305"] = formAdatok != null && formAdatok.HataridoRV ? "☑" : "☐",
-            ["306"] = formAdatok?.KOV_EGYEB1_X ?? "☐",
+            ["KOV_50KW_X"] = formAdatok != null && formAdatok.KovFelulv50kW ? "☑" : "☐",
+            ["KOV_32A_X"] = formAdatok != null && formAdatok.KovFelulv32A ? "☑" : "☐",
+            ["KOV_VMBSZ_X"] = formAdatok != null && formAdatok.KovFelulvVMBSZ ? "☑" : "☐",
+            ["KOV_RV300_X"] = formAdatok != null && formAdatok.KovFelulvRV300 ? "☑" : "☐",
+            ["KOV_EGYEB1_X"] = formAdatok?.KOV_EGYEB1_X ?? "☐",
             ["KOV_EGYEB1_SZOVEG"] = formAdatok?.KOV_EGYEB1_SZOVEG ?? "",
 
-            ["307"] = formAdatok != null && formAdatok.HataridoHarom ? "☑" : "☐",
+            ["HAT_3EV_X"] = formAdatok != null && formAdatok.HataridoHarom ? "☑" : "☐",
             ["HAT_3EV_DATUM"] = formAdatok?.HAT_3EV_DATUM ?? "",
-            ["308"] = formAdatok != null && formAdatok.HataridoHat ? "☑" : "☐",
-            ["309"] = formAdatok?.HAT_EGYEB2_X ?? "☐",
+            ["HAT_LAKAS_X"] = formAdatok != null && formAdatok.HataridoHat ? "☑" : "☐",
+            ["HAT_RV_X"] = formAdatok != null && formAdatok.HataridoRV ? "☑" : "☐",
+            ["HAT_EGYEB2_X"] = formAdatok?.HAT_EGYEB2_X ?? "☐",
             ["HAT_EGYEB2_SZOVEG"] = formAdatok?.HAT_EGYEB2_SZOVEG ?? "",
             ["HAT_6EV_DATUM"] = formAdatok?.HAT_6EV_DATUM ?? "",
             
@@ -237,32 +237,9 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 mp_megjegyzes         = mp.Megjegyzes ?? ""
             }).ToList(),
             ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
-            // === JOGSZABÁLYOK ÉS SZABVÁNYOK (MiniWord loop) ===
-            ["jogszabalyok"] = GenerateJogszabalyLista(formAdatok?.KijeloltJogszabalyok),
-            ["szabvanyok"] = GenerateSzabvanyLista(formAdatok?.KijeloltJogszabalyok),
-
-            // === 4. OLDAL – IDŐSZAKOS VBF MINŐSÍTÉSI ALAPADATOK ===
-
-            // I–III. Fejléc adatok (SCAN helyére kerülnek)
-            ["401"]  = formAdatok?.NevlegesFeszultseg ?? "",
-            ["402"]      = formAdatok?.FoldelesiTipus ?? "",
-            ["403"]   = formAdatok?.ErintesvedelmiMod ?? "",
-
-            // Védelmi módok checkboxok
-            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☒" : "☐",
-            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☒" : "☐",
-            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☒" : "☐",
-            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☒" : "☐",
-            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☒" : "☐",
-            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☒" : "☐",
-
-            // Betáplálás, tartalék energia, felújítás, dokumentáció
-            ["410"]          = formAdatok?.Betaplalas ?? "",
-            ["411"]    = formAdatok?.TartalekEnergia ?? "",
-            ["412"] = formAdatok?.LegutolsoFelujitas ?? "",
-            ["413"]       = formAdatok?.Dokumentaciok ?? "",
         };
 
+        
         // DEBUG: Ellenőrizd az adatokat
         var meresiPontokList = adatok["meresi_pontok"] as List<object>;
         System.Diagnostics.Debug.WriteLine($"[DEBUG] Mérési pontok száma: {meresiPontokList?.Count ?? 0}");
@@ -366,56 +343,6 @@ foreach (var kv in adatok)
                 });
                 sorszam++;
             }
-        }
-
-        return eredmeny;
-    }
-
-    /// <summary>
-    /// Jogszabálylista generálása MiniWord táblázat loop-hoz.
-    /// </summary>
-    private static List<object> GenerateJogszabalyLista(List<KijeloltJogszabaly>? kijeloltek)
-    {
-        var eredmeny = new List<object>();
-        if (kijeloltek == null) return eredmeny;
-
-        var lista = kijeloltek
-            .Where(j => !j.IsSzabvany && j.Kivalasztva)
-            .ToList();
-
-        for (int i = 0; i < lista.Count; i++)
-        {
-            eredmeny.Add(new
-            {
-                jogszabaly_sorszam = (i + 1).ToString() + ".",
-                jogszabaly_szam    = lista[i].Szam ?? "",
-                jogszabaly_cim     = lista[i].Cim ?? "",
-            });
-        }
-
-        return eredmeny;
-    }
-
-    /// <summary>
-    /// Szabványlista generálása MiniWord táblázat loop-hoz.
-    /// </summary>
-    private static List<object> GenerateSzabvanyLista(List<KijeloltJogszabaly>? kijeloltek)
-    {
-        var eredmeny = new List<object>();
-        if (kijeloltek == null) return eredmeny;
-
-        var lista = kijeloltek
-            .Where(j => j.IsSzabvany && j.Kivalasztva)
-            .ToList();
-
-        for (int i = 0; i < lista.Count; i++)
-        {
-            eredmeny.Add(new
-            {
-                szabvany_sorszam = (i + 1).ToString() + ".",
-                szabvany_szam    = lista[i].Szam ?? "",
-                szabvany_cim     = lista[i].Cim ?? "",
-            });
         }
 
         return eredmeny;

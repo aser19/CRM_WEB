@@ -32,12 +32,10 @@ public class MeresTipusService : IMeresTipusService
     public async Task<List<MeresTipus>> GetAllWithKovetelemenyekAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
+        
         return await context.MeresTipusok
             .Include(m => m.KepzesKovetelemenyei)
                 .ThenInclude(k => k.KepzesTipus)
-            .Include(m => m.Jogszabalyok)
-                .ThenInclude(j => j.Jogszabaly)
-            .AsSplitQuery()   // ← ez szünteti meg a MultipleCollectionInclude warningot
             .OrderBy(m => m.Nev)
             .ToListAsync();
     }
@@ -124,7 +122,7 @@ public class MeresTipusService : IMeresTipusService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.MeresTipusJogszabalyok
-            .Include(x => x.Jogszabaly)  // ← ez nélkül Szam/Cim null lesz!
+            .Include(x => x.Jogszabaly)
             .Where(x => x.MeresTipusId == meresTipusId)
             .OrderBy(x => x.Sorrend)
             .ToListAsync();
@@ -134,10 +132,8 @@ public class MeresTipusService : IMeresTipusService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         
-        // ✅ JAVÍTÁS: .ToListAsync() szükséges mielőtt RemoveRange
-        var meglevo = await context.MeresTipusJogszabalyok
-            .Where(x => x.MeresTipusId == meresTipusId)
-            .ToListAsync();
+        var meglevo = context.MeresTipusJogszabalyok
+            .Where(x => x.MeresTipusId == meresTipusId);
         context.MeresTipusJogszabalyok.RemoveRange(meglevo);
 
         var ujak = jogszabalyIds.Select((id, i) => new MeresTipusJogszabaly
