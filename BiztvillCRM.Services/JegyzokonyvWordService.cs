@@ -237,6 +237,33 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 mp_megjegyzes         = mp.Megjegyzes ?? ""
             }).ToList(),
             ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
+
+            // === 4. OLDAL – VILLAMOS BERENDEZÉS ADATAI ===
+            ["401"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "230 V" : "3×230 V / 400 V",
+            ["NEVLEGES_FESZULTSEG_1F_X"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "☒" : "☐",
+            ["NEVLEGES_FESZULTSEG_3F_X"] = formAdatok?.NevlegesFeszultsegTipus == "3fazis" ? "☒" : "☐",
+
+            ["402"] = formAdatok?.FoldelesiTipusKod switch
+            {
+                "szonda" => "A",
+                "vizszintes" => "B",
+                "mindketto" => "A + B",
+                _ => ""
+            },
+
+            ["403"] = formAdatok?.ErintesvedelmiMod ?? "",
+
+            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☒" : "☐",
+            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☒" : "☐",
+            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☒" : "☐",
+            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☒" : "☐",
+            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☒" : "☐",
+            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☒" : "☐",
+
+            ["410"] = formAdatok?.Betaplalas ?? "",
+            ["411"] = formAdatok?.TartalekEnergia ?? "",
+            ["412"] = formAdatok?.LegutolsoFelujitas ?? "",
+            ["413"] = formAdatok?.Dokumentaciok ?? "",
         };
 
         

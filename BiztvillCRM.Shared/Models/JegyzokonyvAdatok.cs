@@ -136,8 +136,8 @@ public class JegyzokonyvAdatok
     public string NevlegesFeszultsegTipus { get; set; } = "";   // "1fazis" vagy "3fazis"
 
     // II. Földelési típus
-    public string FoldelasiTipus { get; set; } = "";            // "A", "B", "A + B"
-    public string FoldelasiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
+    public string FoldelesiTipus { get; set; } = "";            // "A", "B", "A + B"
+    public string FoldelesiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
 
     // III. Alapvető érintésvédelmi mód
     public string ErintesvedelmiMod { get; set; } = "";          // értéket majd megadjuk
