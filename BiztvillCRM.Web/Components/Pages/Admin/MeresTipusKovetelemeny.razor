@@ -191,7 +191,9 @@ else
                         Válaszd ki, mely jogszabályok jelenjenek meg alapértelmezetten a jegyzőkönyvben ehhez a típushoz.
                     </MudText>
 
-                    @foreach (var jsz in _osszeJogszabaly.Where(j => j.Tipus != JogszabalyTipus.Szabvany))
+                    @foreach (var jsz in _osszeJogszabaly
+                        .Where(j => j.Tipus != JogszabalyTipus.Szabvany)
+                        .OrderBy(j => j.Szam))
                     {
                         var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set1) && set1.Contains(jsz.Id);
                         <MudCheckBox T="bool"
@@ -211,7 +213,9 @@ else
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
                         Válaszd ki, mely szabványok jelenjenek meg alapértelmezetten a jegyzőkönyvben.
                     </MudText>
-                    @foreach (var jsz in _osszeJogszabaly.Where(j => j.Tipus == JogszabalyTipus.Szabvany))
+                    @foreach (var jsz in _osszeJogszabaly
+                        .Where(j => j.Tipus == JogszabalyTipus.Szabvany)
+                        .OrderBy(j => j.Szam))
                     {
                         var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set2) && set2.Contains(jsz.Id);
                         <MudCheckBox T="bool"

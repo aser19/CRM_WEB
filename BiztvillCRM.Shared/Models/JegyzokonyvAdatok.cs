@@ -58,11 +58,11 @@ public class JegyzokonyvAdatok
     public bool ErvenyessegBelsoSzabalyzat { get; set; }
     public DateTime? ErvenyessegDatum { get; set; }
     
-    public string KovetkezoFelulvizsgalatTipus { get; set; } = "";
+    public string? KovetkezoFelulvizsgalatTipus { get; set; } = null;
     public string KovetkezoFelulvizsgalatEgyeb { get; set; } = "";
     public DateTime? KovetkezoFelulvizsgalatDatum { get; set; }
     
-    public string HataridoTipus { get; set; } = "";
+    public string? HataridoTipus { get; set; } = null;
     public string HataridoEgyeb { get; set; } = "";
     public string MinositoMegjegyzes { get; set; } = "";
 

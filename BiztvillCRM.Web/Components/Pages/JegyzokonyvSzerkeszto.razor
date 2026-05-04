@@ -517,6 +517,84 @@
 
                     <MudItem xs="12" Class="mt-4">
                         <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos villamos biztonsági felülvizsgálatát:
+                        </MudText>
+
+                        @* === 3 ÉVES CSOPORT (301-305) === *@
+                        <MudRadioGroup T="string" Value="_adatok.KovetkezoFelulvizsgalatTipus"
+                                       ValueChanged="@((string v) => { _adatok.KovetkezoFelulvizsgalatTipus = v; _adatok.HataridoTipus = null; _adatok.HataridoEgyeb = null; })"
+                                       Class="d-flex flex-column gap-1">
+                            <MudRadio Value="@("50kW")" Color="Color.Primary" Dense="true">
+                                az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
+                            </MudRadio>
+                            <MudRadio Value="@("32A")" Color="Color.Primary" Dense="true">
+                                a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túráramvédelemmel korlátozott villamos berendezésén
+                            </MudRadio>
+                            <MudRadio Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
+                                a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
+                            </MudRadio>
+                            <MudRadio Value="@("RV300")" Color="Color.Primary" Dense="true">
+                                <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben és szabadtéren (korábban: A és B osztályú helyiségek)
+                            </MudRadio>
+                            <MudRadio Value="@("egyeb305")" Color="Color.Primary" Dense="true">
+                                egyéb, itt nem szereplő esetekben:
+                            </MudRadio>
+                        </MudRadioGroup>
+
+                        @* 3051 szövegmező – csak ha "egyeb305" van kiválasztva *@
+                        @if (_adatok.KovetkezoFelulvizsgalatTipus == "egyeb305")
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-1 ml-6">
+                                <MudTextField @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyeb"
+                                              Variant="Variant.Outlined"
+                                              Style="max-width: 350px;" Margin="Margin.Dense"
+                                              Placeholder="Egyéb eset leírása..." />
+                            </MudStack>
+                        }
+
+                        @* 310 – automatikusan jelenik meg, ha 3 éves csoport van kiválasztva *@
+                        @if (_adatok.KovetkezoFelulvizsgalatTipus is "50kW" or "32A" or "VMBSZ" or "RV300" or "egyeb305")
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                a kiadási dátumtól számított <strong>3 éven belül, legkésőbb: @GetSzamitottDatum(3)-ig</strong> kell elvégezni.
+                            </MudAlert>
+                        }
+
+                        @* === 6 ÉVES CSOPORT (307-308) === *@
+                        <MudRadioGroup T="string" Value="_adatok.HataridoTipus"
+                                       ValueChanged="@((string v) => { _adatok.HataridoTipus = v; _adatok.KovetkezoFelulvizsgalatTipus = null; _adatok.KovetkezoFelulvizsgalatEgyeb = null; })"
+                                       Class="d-flex flex-column gap-1 mt-3">
+                            <MudRadio Value="@("307")" Color="Color.Primary" Dense="true">
+                                egyéb (robbanásveszélyes /RV/ osztályú anyagot NEM tartalmazó) helyiségekben és térségekben (korábban: C, D és E osztályú helyiségek)
+                            </MudRadio>
+                            <MudRadio Value="@("308")" Color="Color.Primary" Dense="true">
+                                egyéb, itt nem szereplő esetekben:
+                            </MudRadio>
+                        </MudRadioGroup>
+
+                        @* 3081 szövegmező – csak ha "308" van kiválasztva *@
+                        @if (_adatok.HataridoTipus == "308")
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-1 ml-6">
+                                <MudTextField @bind-Value="_adatok.HataridoEgyeb"
+                                              Variant="Variant.Outlined"
+                                              Style="max-width: 350px;" Margin="Margin.Dense"
+                                              Placeholder="Egyéb eset leírása..." />
+                            </MudStack>
+                        }
+
+                        @* 309 – automatikusan jelenik meg, ha 6 éves csoport van kiválasztva *@
+                        @if (_adatok.HataridoTipus is "307" or "308")
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                a kiadási dátumtól számított <strong>6 éven belül, legkésőbb: @GetSzamitottDatum(6)-ig</strong> kell elvégezni.
+                            </MudAlert>
+                        }
+                    </MudItem>
+                }
+                    @*
+                    <MudItem xs="12" Class="mt-4">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
                             Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos felülvizsgálatát:
                         </MudText>
                         <MudRadioGroup T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatTipus" Class="d-flex flex-column gap-1">
@@ -544,6 +622,8 @@
                         </MudStack>
                     </MudItem>
                 }
+
+                *@
                 <MudItem xs="12" Class="mt-4">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">a kiadási dátumtól számított:</MudText>
                     <MudRadioGroup T="string" Value="_adatok.HataridoTipus"
@@ -564,6 +644,88 @@
                     </MudStack>
                 </MudItem>
 
+                @* === KAPCSOLÓDÓ JOGSZABÁLYOK ÉS SZABVÁNYOK === *@
+                @if (_adatok.KijeloltJogszabalyok.Any())
+                {
+                    var jogszabalyok = _adatok.KijeloltJogszabalyok
+                        .Where(j => !j.IsSzabvany)
+                        .OrderBy(j => j.Szam)
+                        .ToList();
+                    var szabvanyok = _adatok.KijeloltJogszabalyok
+                        .Where(j => j.IsSzabvany)
+                        .OrderBy(j => j.Szam)
+                        .ToList();
+
+                    <MudItem xs="12" Class="mt-4">
+                        <MudDivider />
+                    </MudItem>
+
+                    @if (jogszabalyok.Any())
+                    {
+                        <MudItem xs="12" Class="mt-3">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Class="mr-2" />
+                                Kapcsolódó jogszabályok
+                            </MudText>
+                            <MudGrid>
+                                @foreach (var j in jogszabalyok)
+                                {
+                                    <MudItem xs="12" md="4">
+                                        <MudCheckBox @bind-Value="j.Kivalasztva" Color="Color.Primary" Dense="true">
+                                            <strong>@j.Szam</strong> – @j.Cim
+                                        </MudCheckBox>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudItem>
+                    }
+
+                    @if (szabvanyok.Any())
+                    {
+                        <MudItem xs="12" Class="mt-3">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Rule" Class="mr-2" />
+                                Kapcsolódó szabványok
+                            </MudText>
+                            <MudGrid>
+                                @foreach (var sz in szabvanyok)
+                                {
+                                    <MudItem xs="12" md="4">
+                                        <MudCheckBox @bind-Value="sz.Kivalasztva" Color="Color.Primary" Dense="true">
+                                            <strong>@sz.Szam</strong> – @sz.Cim
+                                        </MudCheckBox>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudItem>
+                    }
+                }
+
+                @* === KÖVETKEZŐ FELÜLVIZSGÁLAT DÁTUMA === *@
+                @if (IsIdoszakosVBFTipus())
+                {
+                    <MudItem xs="12" Class="mt-4">
+                        <MudDivider />
+                    </MudItem>
+                    <MudItem xs="12" Class="mt-3">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-2" />
+                            Következő felülvizsgálat határideje
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
+                                       Label="Következő felülvizsgálat határideje"
+                                       Variant="Variant.Outlined"
+                                       DateFormat="yyyy.MM.dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="6" Class="d-flex align-center">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1">
+                            <strong>Számított határidő:</strong> @(_adatok.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") ?? GetSzamitottDatum(3))
+                        </MudAlert>
+                    </MudItem>
+                }
+
                 @* === HIBÁK ÉS VÉGSŐ MINŐSÍTÉS – 3. oldalra folytatólagosan áthozva === *@
                 @if (IsIdoszakosVBFTipus())
                 {
@@ -579,7 +741,8 @@
                     </MudItem>
 
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="_adatok.HibakB"
+                        <MudTextField Value="_adatok.HibakB"
+                                      ValueChanged="@((string v) => OnHibaBKitoltve(v))"
                                       Label="B kategória – Életveszélyes hibák"
                                       Variant="Variant.Outlined"
                                       Lines="3"
@@ -590,7 +753,8 @@
                     </MudItem>
 
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="_adatok.HibakC"
+                        <MudTextField Value="_adatok.HibakC"
+                                      ValueChanged="@((string v) => OnHibaCKitoltve(v))"
                                       Label="C kategória – Súlyos hibák"
                                       Variant="Variant.Outlined"
                                       Lines="3"
@@ -1660,5 +1824,19 @@
     private void OnLegutolsoFelujitasValtozas(string ertek)
     {
         _adatok.LegutolsoFelujitas = ertek;
+    }
+
+    private void OnHibaBKitoltve(string ertek)
+    {
+        _adatok.HibakB = ertek;
+        if (!string.IsNullOrWhiteSpace(ertek))
+            _adatok.VegsoMinosites = "NEM FELELT MEG";
+    }
+
+    private void OnHibaCKitoltve(string ertek)
+    {
+        _adatok.HibakC = ertek;
+        if (!string.IsNullOrWhiteSpace(ertek))
+            _adatok.VegsoMinosites = "NEM FELELT MEG";
     }
 }

@@ -116,12 +116,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
 
             // Eredmény checkbox-ok
-            ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☒" : "☐",
-            ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☒" : "☐",
+            ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☑" : "☐",
+            ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☑" : "☐",
 
             // Végső minősítés checkbox-ok
-            ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☒" : "☐",
-            ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☒" : "☐",
+            ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☑" : "☐",
+            ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☑" : "☐",
 
             // === 3. OLDAL ===
             ["ERV_MEGRENDELES_X"] = formAdatok?.ERV_MEGRENDELES_X ?? "☐",
@@ -238,10 +238,30 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             }).ToList(),
             ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
 
+            // 3 éves csoport (301-305, 310, 311)
+            ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "☐",
+            ["302"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "32A" ? "☑" : "☐",
+            ["303"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☑" : "☐",
+            ["304"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "RV300" ? "☑" : "☐",
+            ["305"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305" ? "☑" : "☐",
+            ["3051"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305"
+    ? (formAdatok.KovetkezoFelulvizsgalatEgyeb ?? "") : "",
+            ["310"] = (formAdatok?.KovetkezoFelulvizsgalatTipus is "50kW" or "32A" or "VMBSZ" or "RV300" or "egyeb305")
+    ? $"a kiadási dátumtól számított 3 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 3)}-ig kell elvégezni." : "",
+            ["311"] = GetSzamitottDatumStatic(meres?.Datum, 3),
+
+            // 6 éves csoport (307, 308, 3081, 309)
+            ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "☐",
+            ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "☐",
+            ["3081"] = formAdatok?.HataridoTipus == "308"
+    ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["309"] = (formAdatok?.HataridoTipus is "307" or "308")
+    ? GetSzamitottDatumStatic(meres?.Datum, 6) : "",
+
             // === 4. OLDAL – VILLAMOS BERENDEZÉS ADATAI ===
             ["401"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "230 V" : "3×230 V / 400 V",
-            ["NEVLEGES_FESZULTSEG_1F_X"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "☒" : "☐",
-            ["NEVLEGES_FESZULTSEG_3F_X"] = formAdatok?.NevlegesFeszultsegTipus == "3fazis" ? "☒" : "☐",
+            ["NEVLEGES_FESZULTSEG_1F_X"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "☑" : "☐",
+            ["NEVLEGES_FESZULTSEG_3F_X"] = formAdatok?.NevlegesFeszultsegTipus == "3fazis" ? "☑" : "☐",
 
             ["402"] = formAdatok?.FoldelesiTipusKod switch
             {
@@ -253,12 +273,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
 
             ["403"] = formAdatok?.ErintesvedelmiMod ?? "",
 
-            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☒" : "☐",
-            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☒" : "☐",
-            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☒" : "☐",
-            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☒" : "☐",
-            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☒" : "☐",
-            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☒" : "☐",
+            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☑" : "☐",
+            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☑" : "☐",
+            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☑" : "☐",
+            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☑" : "☐",
+            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☑" : "☐",
+            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☑" : "☐",
 
             ["410"] = formAdatok?.Betaplalas ?? "",
             ["411"] = formAdatok?.TartalekEnergia ?? "",
@@ -374,4 +394,6 @@ foreach (var kv in adatok)
 
         return eredmeny;
     }
+    private static string GetSzamitottDatumStatic(DateTime? datum, int evek)
+    => datum?.AddYears(evek).ToString("yyyy.MM.dd") ?? "-";
 }
