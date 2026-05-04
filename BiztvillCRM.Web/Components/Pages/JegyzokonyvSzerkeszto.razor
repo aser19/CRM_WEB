@@ -624,25 +624,6 @@
                 }
 
                 *@
-                <MudItem xs="12" Class="mt-4">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">a kiadási dátumtól számított:</MudText>
-                    <MudRadioGroup T="string" Value="_adatok.HataridoTipus"
-                                   ValueChanged="OnHataridoTipusValtozas"
-                                   Class="d-flex flex-column gap-1">
-                        <MudRadio Value="@("3EV")" Color="Color.Primary" Dense="true">
-                            <strong>3 éven</strong> belül, legkésőbb: <strong>@GetSzamitottDatum(3)</strong>-ig kell elvégezni.
-                        </MudRadio>
-                        <MudRadio Value="@("LAKAS")" Color="Color.Primary" Dense="true">
-                            lakóépületek villamos berendezésén - <strong>6 éven</strong> belül: <strong>@GetSzamitottDatum(6)</strong>-ig
-                        </MudRadio>
-                    </MudRadioGroup>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
-                        <MudText Typo="Typo.body2">egyéb:</MudText>
-                        <MudTextField @bind-Value="_adatok.HataridoEgyeb"
-                                      Variant="Variant.Outlined"
-                                      Style="max-width: 350px;" Margin="Margin.Dense" />
-                    </MudStack>
-                </MudItem>
 
                 @* === KAPCSOLÓDÓ JOGSZABÁLYOK ÉS SZABVÁNYOK === *@
                 @if (_adatok.KijeloltJogszabalyok.Any())
@@ -667,12 +648,14 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Gavel" Class="mr-2" />
                                 Kapcsolódó jogszabályok
                             </MudText>
-                            <MudGrid>
+                            <MudGrid Spacing="1">
                                 @foreach (var j in jogszabalyok)
                                 {
-                                    <MudItem xs="12" md="4">
+                                    <MudItem xs="12" md="4" Style="display:flex; align-items:flex-start;">
                                         <MudCheckBox @bind-Value="j.Kivalasztva" Color="Color.Primary" Dense="true">
-                                            <strong>@j.Szam</strong> – @j.Cim
+                                            <span style="font-size:0.8rem; line-height:1.3;">
+                                                <strong>@j.Szam</strong> – @j.Cim
+                                            </span>
                                         </MudCheckBox>
                                     </MudItem>
                                 }
@@ -687,12 +670,14 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Rule" Class="mr-2" />
                                 Kapcsolódó szabványok
                             </MudText>
-                            <MudGrid>
+                            <MudGrid Spacing="1">
                                 @foreach (var sz in szabvanyok)
                                 {
-                                    <MudItem xs="12" md="4">
+                                    <MudItem xs="12" md="4" Style="display:flex; align-items:flex-start;">
                                         <MudCheckBox @bind-Value="sz.Kivalasztva" Color="Color.Primary" Dense="true">
-                                            <strong>@sz.Szam</strong> – @sz.Cim
+                                            <span style="font-size:0.8rem; line-height:1.3;">
+                                                <strong>@sz.Szam</strong> – @sz.Cim
+                                            </span>
                                         </MudCheckBox>
                                     </MudItem>
                                 }
@@ -713,15 +698,13 @@
                             Következő felülvizsgálat határideje
                         </MudText>
                     </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudDatePicker @bind-Date="_adatok.KovetkezoFelulvizsgalatDatum"
-                                       Label="Következő felülvizsgálat határideje"
-                                       Variant="Variant.Outlined"
-                                       DateFormat="yyyy.MM.dd" />
-                    </MudItem>
                     <MudItem xs="12" md="6" Class="d-flex align-center">
                         <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1">
-                            <strong>Számított határidő:</strong> @(_adatok.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") ?? GetSzamitottDatum(3))
+                            <strong>Számított határidő:</strong>
+                            @{
+                                var evek = _adatok.HataridoTipus is "307" or "308" ? 6 : 3;
+                            }
+                            @GetSzamitottDatum(evek)
                         </MudAlert>
                     </MudItem>
                 }
@@ -957,10 +940,28 @@
                 </MudItem>
 
                 <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="_adatok.LegutolsoFelujitas"
-                                  Label="Legutolsó felújítás éve"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="pl. 2018 vagy Ismeretlen" />
+                    <MudText Typo="Typo.caption" Class="mb-1">Legutolsó felújítás éve</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudSelect T="string" Value="@GetFelujitasEv()"
+                                   ValueChanged="@((string v) => OnFelujitasEvValtozas(v))"
+                                   Label="Év" Variant="Variant.Outlined"
+                                   Style="max-width: 140px;">
+                            <MudSelectItem Value="@("Ismeretlen")">Ismeretlen</MudSelectItem>
+                            @for (int ev = DateTime.Now.Year; ev >= 1940; ev--)
+                            {
+                                var evStr = ev.ToString();
+                                <MudSelectItem Value="@evStr">@evStr</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudCheckBox @bind-Value="_legutolsoFelujitasElott"
+                                     Color="Color.Primary" Dense="true"
+                                     Label="előtt"
+                                     Disabled="@(_adatok.LegutolsoFelujitas == "Ismeretlen")"
+                                     CheckedChanged="@((bool v) => OnFelujitasElottValtozas(v))" />
+                        <MudText Typo="Typo.body2" Color="Color.Primary">
+                            → <strong>@_adatok.LegutolsoFelujitas</strong>
+                        </MudText>
+                    </MudStack>
                 </MudItem>
 
                 <MudItem xs="12">
@@ -1137,6 +1138,38 @@
     // ✅ ÚJ: Hiányzó változó
     private JegyzokonyvImportAdatok importAdatok = new();
     
+    // ✅ ÚJ: Feszültség, földelés, érintésvédelem
+
+    private bool _legutolsoFelujitasElott = false;
+
+    private string GetFelujitasEv()
+    {
+        var ertek = _adatok.LegutolsoFelujitas;
+        if (string.IsNullOrEmpty(ertek) || ertek == "Ismeretlen") return "Ismeretlen";
+        return ertek.TrimStart('<');
+    }
+
+    private void OnFelujitasEvValtozas(string ev)
+    {
+        if (ev == "Ismeretlen")
+        {
+            _legutolsoFelujitasElott = false;
+            _adatok.LegutolsoFelujitas = "Ismeretlen";
+        }
+        else
+        {
+            _adatok.LegutolsoFelujitas = _legutolsoFelujitasElott ? $"<{ev}" : ev;
+        }
+    }
+
+    private void OnFelujitasElottValtozas(bool elott)
+    {
+        _legutolsoFelujitasElott = elott;
+        var ev = GetFelujitasEv();
+        if (ev != "Ismeretlen")
+            _adatok.LegutolsoFelujitas = elott ? $"<{ev}" : ev;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _tipusok = await MeresTipusService.GetAllAsync();

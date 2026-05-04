@@ -132,15 +132,15 @@ public class JegyzokonyvAdatok
 
     // === 4. OLDAL – IDŐSZAKOS VBF ===
     // I. Névleges feszültség
-    public string NevlegesFeszultseg { get; set; } = "";        // "230V" vagy "3x230V / 400V"
-    public string NevlegesFeszultsegTipus { get; set; } = "";   // "1fazis" vagy "3fazis"
+    public string NevlegesFeszultseg { get; set; } = "230V";
+    public string NevlegesFeszultsegTipus { get; set; } = "1fazis";
 
     // II. Földelési típus
-    public string FoldelesiTipus { get; set; } = "";            // "A", "B", "A + B"
-    public string FoldelesiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
+    public string FoldelesiTipus { get; set; } = "A";
+    public string FoldelesiTipusKod { get; set; } = "szonda";
 
     // III. Alapvető érintésvédelmi mód
-    public string ErintesvedelmiMod { get; set; } = "";          // értéket majd megadjuk
+    public string ErintesvedelmiMod { get; set; } = "TN-C-S";
 
     // === 4. OLDAL – Áramütés-elleni védelmi módok ===
     public bool Vedelem404 { get; set; } // A táplálás önműködő lekapcsolása (TN-/TT-/IT-rendszer)
