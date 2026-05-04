@@ -16,22 +16,22 @@ public class JegyzokonyvAdatok
     public string Megjegyzes { get; set; } = "";
     public string UzemiKisero { get; set; } = "";
     public string KapcsolatTarto { get; set; } = "";
-    
+
     // Felelős felülvizsgáló
     public string FelulvizsgaloNev { get; set; } = "";
     public string FelulvizsgaloBizonyitvany { get; set; } = "";
     public string FelulvizsgaloKepzes { get; set; } = "";
-    
+
     // Segítő felülvizsgáló
     public string SegitoFelulvizsgalo { get; set; } = "";
     public string SegitoBizonyitvany { get; set; } = "";
     public string SegitoKepzes { get; set; } = "";
-    
+
     // Ellenőr
     public string Ellenor { get; set; } = "";
     public string EllenorBizonyitvany { get; set; } = "";
     public string EllenorKepzes { get; set; } = "";
-    
+
     // === MINŐSÍTŐ IRAT - 2. OLDAL ===
     public string HibakB { get; set; } = "";
     public string HibakC { get; set; } = "";
@@ -52,16 +52,16 @@ public class JegyzokonyvAdatok
     // Word export
     public string MINOSITAS_EREDMENY { get; set; } = "MEGFELELŐ";
     public string HIBA_MELLEKLET_X { get; set; } = "☐";
-    
-    // === MINŐSÍTŐ IRAT - 3. OLDAL (2/2) - HIÁNYZÓ PROPERTY-K ===
+
+    // === MINŐSÍTŐ IRAT - 3. OLDAL ===
     public bool ErvenyessegMegrendeles { get; set; }
     public bool ErvenyessegBelsoSzabalyzat { get; set; }
     public DateTime? ErvenyessegDatum { get; set; }
-    
+
     public string KovetkezoFelulvizsgalatTipus { get; set; } = "";
     public string KovetkezoFelulvizsgalatEgyeb { get; set; } = "";
     public DateTime? KovetkezoFelulvizsgalatDatum { get; set; }
-    
+
     public string HataridoTipus { get; set; } = "";
     public string HataridoEgyeb { get; set; } = "";
     public string MinositoMegjegyzes { get; set; } = "";
@@ -92,8 +92,8 @@ public class JegyzokonyvAdatok
     public string? MatricaSorszamTol { get; set; }
     public string? MatricaSorszamIg { get; set; }
 
-    public bool VanMatricaSorszam => 
-        !string.IsNullOrWhiteSpace(MatricaSorszamTol) && 
+    public bool VanMatricaSorszam =>
+        !string.IsNullOrWhiteSpace(MatricaSorszamTol) &&
         !string.IsNullOrWhiteSpace(MatricaSorszamIg);
 
     // Műszerek
@@ -109,14 +109,14 @@ public class JegyzokonyvAdatok
 
     // Dinamikus eszközlista
     public List<HordozhatoEszkozSor> Eszkozok { get; set; } = new();
-    
+
     // Dinamikus műszerlista
     public List<MuszerSor> Muszerek { get; set; } = new();
-    
-    // ÚJ: Mérési rendszer típusa (TN/TT/IT) - egyszer választják ki az egész jegyzőkönyvre
+
+    // Mérési rendszer típusa (TN/TT/IT)
     public string MeresiRendszerTipus { get; set; } = "TN";
-    
-    // ÚJ: Dinamikus mérési pont táblázat (ID=5 sablon 3. oldalán)
+
+    // Dinamikus mérési pont táblázat
     public List<MeresiPontSor> MeresiPontok { get; set; } = new();
 
     // Következő felülvizsgálat checkboxok
@@ -124,48 +124,26 @@ public class JegyzokonyvAdatok
     public bool KovFelulv32A { get; set; }
     public bool KovFelulvVMBSZ { get; set; }
     public bool KovFelulvRV300 { get; set; }
+<<<<<<< HEAD
+=======
+    public string KovFelulvTipus { get; set; } = "";
+>>>>>>> cb6d5b2280f73a5aa5867b5ff2368af51c33c19a
 
     // Határidő checkboxok
     public bool HataridoHarom { get; set; }
     public bool HataridoHat { get; set; }
     public bool HataridoRV { get; set; }
+    public string HataridoTipusRadio { get; set; } = "";
 
-    // === 4. OLDAL – IDŐSZAKOS VBF ===
-    // I. Névleges feszültség
-    public string NevlegesFeszultseg { get; set; } = "";        // "230V" vagy "3x230V / 400V"
-    public string NevlegesFeszultsegTipus { get; set; } = "";   // "1fazis" vagy "3fazis"
+    // === 4. OLDAL – MINŐSÍTÉSI ALAPADATOK ===
+    public string NevlegesFeszultseg { get; set; } = "";
+    public string NevlegesFeszultsegTipus { get; set; } = "";
+    public string FoldelesiTipus { get; set; } = "";
+    public string FoldelesiTipusKod { get; set; } = "";
+    public string ErintesvedelmiMod { get; set; } = "";
 
-    // II. Földelési típus
-    public string FoldelesiTipus { get; set; } = "";            // "A", "B", "A + B"
-    public string FoldelesiTipusKod { get; set; } = "";         // "szonda", "vizszintes", "mindketto"
-
-    // III. Alapvető érintésvédelmi mód
-    public string ErintesvedelmiMod { get; set; } = "";          // értéket majd megadjuk
-
-    // === 4. OLDAL – Áramütés-elleni védelmi módok ===
-    public bool Vedelem404 { get; set; } // A táplálás önműködő lekapcsolása (TN-/TT-/IT-rendszer)
-    public bool Vedelem405 { get; set; } // Kettős vagy megerősített szigetelés
-    public bool Vedelem406 { get; set; } // Villamos elválasztás
-    public bool Vedelem407 { get; set; } // SELV/PELV törpefeszültség
-    public bool Vedelem408 { get; set; } // Védő egyenpotenciáli összekötés, védővezetők, védőösszekötő-vezetők
-    public bool Vedelem409 { get; set; } // Védelem földeletlen helyi egyenpotenciáli összekötéssel
-
-    // === 4. OLDAL – Betáplálás és dokumentáció ===
-    public string Betaplalas { get; set; } = "Nem része a felülvizsgálatnak"; // "Légvezeték", "Földkábel", "Nem része a felülvizsgálatnak"
-    public string TartalekEnergia { get; set; } = "Nincs";                    // "Van", "Nincs"
-    public string LegutolsoFelujitas { get; set; } = "Ismeretlen";            // év (pl. "2018") vagy "Ismeretlen"
-    public string Dokumentaciok { get; set; } = "";                           // max 150 karakter
-
-    // === JOGSZABÁLYOK (4. oldal) ===
-    public List<KijeloltJogszabaly> KijeloltJogszabalyok { get; set; } = new();
-
-} // <-- JegyzokonyvAdatok osztály lezárása
-
-public class KijeloltJogszabaly
-{
-    public int JogszabalyId { get; set; }
-    public string Szam { get; set; } = "";
-    public string Cim { get; set; } = "";
-    public bool Kivalasztva { get; set; } = true;
-    public bool IsSzabvany { get; set; } = false; // ÚJ
+    // Áramütés elleni védelmi módok
+    public bool Vedelem404 { get; set; }
+    public bool Vedelem405 { get; set; }
+    public bool Vedelem406 { get; set; }
 }

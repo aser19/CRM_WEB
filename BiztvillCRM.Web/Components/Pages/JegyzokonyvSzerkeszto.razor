@@ -564,6 +564,7 @@
                     </MudStack>
                 </MudItem>
 
+<<<<<<< HEAD
                 @* === HIBÁK ÉS VÉGSŐ MINŐSÍTÉS – 3. oldalra folytatólagosan áthozva === *@
                 @if (IsIdoszakosVBFTipus())
                 {
@@ -620,10 +621,44 @@
                                       Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.HomeRepairService"
                                       AdornmentColor="Color.Secondary" />
+=======
+    @* === 4. LÉPÉS: csak Időszakos VBF === *@
+    @if (IsIdoszakosVBFTipus())
+    {
+        <MudStep Title="4. oldal" Icon="@Icons.Material.Filled.Assignment">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+                    Minősítési alapadatok (4. oldal)
+                </MudText>
+
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.NevlegesFeszultseg"
+                                      Label="A villamos berendezés névleges feszültsége"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. 230/400V" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="string" @bind-Value="_adatok.FoldelesModja"
+                                   Label="A villamos hálózat földelési típusa"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("TN")">TN</MudSelectItem>
+                            <MudSelectItem Value="@("TT")">TT</MudSelectItem>
+                            <MudSelectItem Value="@("IT")">IT</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_adatok.ErintesvedelmMod"
+                                      Label="Alapvető érintésvédelmi mód"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="pl. Alapszigeteléssel" />
+>>>>>>> cb6d5b2280f73a5aa5867b5ff2368af51c33c19a
                     </MudItem>
 
                     <MudItem xs="12">
                         <MudDivider Class="my-3" />
+<<<<<<< HEAD
                     </MudItem>
 
                     <MudItem xs="12">
@@ -680,9 +715,35 @@
                                       Variant="Variant.Outlined"
                                       Lines="2"
                                       Placeholder="pl. A hibák kijavítása után a berendezés üzembe helyezhető." />
+=======
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            <strong>A felülvizsgált áramütés elleni védelmi módok és eszközök:</strong>
+                        </MudText>
+                        <MudStack Spacing="1">
+                            <MudCheckBox @bind-Value="_adatok.VedTápTN" Color="Color.Primary" Dense="true">
+                                A tápláló önműködő lekapcsolása (TN-, TT-, IT-rendszer)
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="_adatok.VedKettosSzigeteles" Color="Color.Primary" Dense="true">
+                                Kettős vagy megerősített szigetelés
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="_adatok.VedVillamosElvalasztas" Color="Color.Primary" Dense="true">
+                                Villamos elválasztás
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="_adatok.VedSELVPELV" Color="Color.Primary" Dense="true">
+                                SELV, PELV törpefeszültség
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="_adatok.VedEgyenpotencial" Color="Color.Primary" Dense="true">
+                                Védő-egyenpotenciálú összekötés, védővezetők, védőösszekötő-vezetők
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="_adatok.VedFoldeletlen" Color="Color.Primary" Dense="true">
+                                Védelem földeletlen helyi egyenpotenciálú összekötéssel
+                            </MudCheckBox>
+                        </MudStack>
+>>>>>>> cb6d5b2280f73a5aa5867b5ff2368af51c33c19a
                     </MudItem>
                 }
 
+<<<<<<< HEAD
                 <MudItem xs="12" Class="mt-4">
                     <MudStack Row="true" Spacing="2">
                         <MudButton Variant="Variant.Outlined" Color="Color.Default"
@@ -825,6 +886,34 @@
             </MudGrid>
         </MudPaper>
     </MudStep>
+=======
+                    <MudItem xs="12"><MudDivider Class="my-3" /></MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.Betaplalas"
+                                      Label="Betáplálás"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Nem része a felülvizsgálatnak" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.TaralekEnergia"
+                                      Label="Tartalék energia"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Nincs" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.LegutolsoFelujitasEve"
+                                      Label="A berendezés létesítésének/legutolsó felújításának évszáma"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Ismeretlen" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_adatok.RendelkezesreBocsDok"
+                                      Label="A rendelkezésünkre bocsátott dokumentációk"
+                                      Variant="Variant.Outlined"
+                                      Lines="2" />
+                    </MudItem>
+>>>>>>> cb6d5b2280f73a5aa5867b5ff2368af51c33c19a
 
     @* === 5. LÉPÉS: ÖSSZEGEZÉS === *@
     <MudStep Title="Összegzés" Icon="@Icons.Material.Filled.Summarize">
@@ -1308,6 +1397,7 @@
             }
         }
     }
+<<<<<<< HEAD
 
     private void OnHataridoTipusValtozas(string tipus)
     {
@@ -1660,5 +1750,18 @@
     private void OnLegutolsoFelujitasValtozas(string ertek)
     {
         _adatok.LegutolsoFelujitas = ertek;
+    }
+=======
+    private void OnHataridoTipusValtozas(string kod)
+    {
+        _adatok.HataridoTipus = kod;
+
+        // Ha van alapértelmezett mapping, automatikusan beugratja – de csak ha a user nem írt egyebet
+        if (_berendezesHataridoMapping.TryGetValue(kod, out var alapHatarido))
+        {
+            _adatok.HataridoTipusRadio = alapHatarido;
+            if (alapHatarido != "EGYEB")
+                _adatok.HataridoEgyeb = ""; // egyéb mező törlése
+        }
     }
 }
