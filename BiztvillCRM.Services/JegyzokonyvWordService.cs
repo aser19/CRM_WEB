@@ -116,34 +116,38 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
 
             // Eredmény checkbox-ok
-            ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☑" : "☐",
-            ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☑" : "☐",
+            ["MF_X"] = (formAdatok?.Eredmeny == "MEGFELELT") ? "☑" : "🗷",
+            ["NMF_X"] = (formAdatok?.Eredmeny == "NEM FELELT MEG") ? "☑" : "🗷",
 
             // Végső minősítés checkbox-ok
-            ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☑" : "☐",
-            ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☑" : "☐",
+            ["VMF_X"] = (formAdatok?.VegsoMinosites == "MEGFELELT") ? "☑" : "🗷",
+            ["VNMF_X"] = (formAdatok?.VegsoMinosites == "NEM FELELT MEG") ? "☑" : "🗷",
 
             // === 3. OLDAL ===
-            ["ERV_MEGRENDELES_X"] = formAdatok?.ERV_MEGRENDELES_X ?? "☐",
-            ["ERV_SZABALYZAT_X"] = formAdatok?.ERV_SZABALYZAT_X ?? "☐",
+            ["ERV_MEGRENDELES_X"] = formAdatok?.ERV_MEGRENDELES_X ?? "🗷",
+            ["ERV_SZABALYZAT_X"] = formAdatok?.ERV_SZABALYZAT_X ?? "🗷",
             ["ERV_DATUM"] = formAdatok?.ERV_DATUM ?? "",
 
-            ["KOV_50KW_X"] = formAdatok != null && formAdatok.KovFelulv50kW ? "☑" : "☐",
-            ["KOV_32A_X"] = formAdatok != null && formAdatok.KovFelulv32A ? "☑" : "☐",
-            ["KOV_VMBSZ_X"] = formAdatok != null && formAdatok.KovFelulvVMBSZ ? "☑" : "☐",
-            ["KOV_RV300_X"] = formAdatok != null && formAdatok.KovFelulvRV300 ? "☑" : "☐",
-            ["KOV_EGYEB1_X"] = formAdatok?.KOV_EGYEB1_X ?? "☐",
-            ["KOV_EGYEB1_SZOVEG"] = formAdatok?.KOV_EGYEB1_SZOVEG ?? "",
+            // 3 éves csoport (301-305, 310, 311)
+            ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "🗷",
+            ["302"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "32A" ? "☑" : "🗷",
+            ["303"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☑" : "🗷",
+            ["304"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "RV300" ? "☑" : "🗷",
+            ["305"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305" ? "☑" : "🗷",
+            ["3051"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305"  ? (formAdatok.KovetkezoFelulvizsgalatEgyeb ?? "") : "",
+            ["310"] = (formAdatok?.KovetkezoFelulvizsgalatTipus is "50kW" or "32A" or "VMBSZ" or "RV300" or "egyeb305")
+                ? $"a kiadási dátumtól számított 3 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 3)}-ig kell elvégezni." : "",
+            ["311"] = GetSzamitottDatumStatic(meres?.Datum, 3),
 
-            ["HAT_3EV_X"] = formAdatok != null && formAdatok.HataridoHarom ? "☑" : "☐",
-            ["HAT_3EV_DATUM"] = formAdatok?.HAT_3EV_DATUM ?? "",
-            ["HAT_LAKAS_X"] = formAdatok != null && formAdatok.HataridoHat ? "☑" : "☐",
-            ["HAT_RV_X"] = formAdatok != null && formAdatok.HataridoRV ? "☑" : "☐",
-            ["HAT_EGYEB2_X"] = formAdatok?.HAT_EGYEB2_X ?? "☐",
-            ["HAT_EGYEB2_SZOVEG"] = formAdatok?.HAT_EGYEB2_SZOVEG ?? "",
-            ["HAT_6EV_DATUM"] = formAdatok?.HAT_6EV_DATUM ?? "",
-            
-            ["MINOSITO_MEGJEGYZES"] = formAdatok?.MINOSITO_MEGJEGYZES ?? "",
+            // 6 éves csoport (307, 308, 3081, 309)
+            ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "🗷",
+            ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
+            ["309"] = formAdatok?.HataridoTipus == "308" ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["3091"] = formAdatok?.HataridoTipus == "309" ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["312"] = (formAdatok?.HataridoTipus is "307" or "308" or "309")            
+                ? $"a kiadási dátumtól számított 6 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 6)}-ig kell elvégezni." : "",
+
+            ["313_MEGJEGYZES"] = formAdatok?.MINOSITO_MEGJEGYZES ?? "",
 
             // === HORDOZHATÓ KÉSZÜLÉK SPECIFIKUS ===
             ["ugyfel_nev"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
@@ -239,11 +243,11 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
 
             // 3 éves csoport (301-305, 310, 311)
-            ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "☐",
-            ["302"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "32A" ? "☑" : "☐",
-            ["303"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☑" : "☐",
-            ["304"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "RV300" ? "☑" : "☐",
-            ["305"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305" ? "☑" : "☐",
+            ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "🗷",
+            ["302"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "32A" ? "☑" : "🗷",
+            ["303"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "VMBSZ" ? "☑" : "🗷",
+            ["304"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "RV300" ? "☑" : "🗷",
+            ["305"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305" ? "☑" : "🗷",
             ["3051"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "egyeb305"
     ? (formAdatok.KovetkezoFelulvizsgalatEgyeb ?? "") : "",
             ["310"] = (formAdatok?.KovetkezoFelulvizsgalatTipus is "50kW" or "32A" or "VMBSZ" or "RV300" or "egyeb305")
@@ -251,17 +255,20 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["311"] = GetSzamitottDatumStatic(meres?.Datum, 3),
 
             // 6 éves csoport (307, 308, 3081, 309)
-            ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "☐",
-            ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "☐",
-            ["3081"] = formAdatok?.HataridoTipus == "308"
+            ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "🗷",
+            ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
+            ["309"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
+            ["3091"] = formAdatok?.HataridoTipus == "309"
     ? (formAdatok.HataridoEgyeb ?? "") : "",
-            ["309"] = (formAdatok?.HataridoTipus is "307" or "308")
-    ? GetSzamitottDatumStatic(meres?.Datum, 6) : "",
+            ["312"] = (formAdatok?.HataridoTipus is "307" or "308" or "309")
+    ? $"a kiadási dátumtól számított 6 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 6)}-ig kell elvégezni." : "",
+            ["313"] = GetSzamitottDatumStatic(meres?.Datum, 6),
+            ["313_MEGJEGYZES"] = formAdatok?.MinositoIratMegjegyzes ?? "",
 
             // === 4. OLDAL – VILLAMOS BERENDEZÉS ADATAI ===
             ["401"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "230 V" : "3×230 V / 400 V",
-            ["NEVLEGES_FESZULTSEG_1F_X"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "☑" : "☐",
-            ["NEVLEGES_FESZULTSEG_3F_X"] = formAdatok?.NevlegesFeszultsegTipus == "3fazis" ? "☑" : "☐",
+            ["NEVLEGES_FESZULTSEG_1F_X"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "☑" : "🗷",
+            ["NEVLEGES_FESZULTSEG_3F_X"] = formAdatok?.NevlegesFeszultsegTipus == "3fazis" ? "☑" : "🗷",
 
             ["402"] = formAdatok?.FoldelesiTipusKod switch
             {
@@ -273,18 +280,179 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
 
             ["403"] = formAdatok?.ErintesvedelmiMod ?? "",
 
-            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☑" : "☐",
-            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☑" : "☐",
-            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☑" : "☐",
-            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☑" : "☐",
-            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☑" : "☐",
-            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☑" : "☐",
+            ["404"] = formAdatok != null && formAdatok.Vedelem404 ? "☑" : "🗷",
+            ["405"] = formAdatok != null && formAdatok.Vedelem405 ? "☑" : "🗷",
+            ["406"] = formAdatok != null && formAdatok.Vedelem406 ? "☑" : "🗷",
+            ["407"] = formAdatok != null && formAdatok.Vedelem407 ? "☑" : "🗷",
+            ["408"] = formAdatok != null && formAdatok.Vedelem408 ? "☑" : "🗷",
+            ["409"] = formAdatok != null && formAdatok.Vedelem409 ? "☑" : "🗷",
 
             ["410"] = formAdatok?.Betaplalas ?? "",
             ["411"] = formAdatok?.TartalekEnergia ?? "",
             ["412"] = formAdatok?.LegutolsoFelujitas ?? "",
             ["413"] = formAdatok?.Dokumentaciok ?? "",
+
+            // === JOGSZABÁLYOK ÉS SZABVÁNYOK LISTA ===
+            ["jogszabalyok"] = (formAdatok?.KijeloltJogszabalyok?
+                .Where(j => !j.IsSzabvany && j.Kivalasztva)
+                .OrderBy(j => j.Szam)
+                .Select(j => new Dictionary<string, object> { ["jsz_szam"] = j.Szam })
+                .ToList() as object) ?? new List<Dictionary<string, object>>(),
+
+            ["szabvanyok"] = (formAdatok?.KijeloltJogszabalyok?
+                .Where(j => j.IsSzabvany && j.Kivalasztva)
+                .OrderBy(j => j.Szam)
+                .Select(j => new Dictionary<string, object> { ["sz_szam"] = j.Szam })
+                .ToList() as object) ?? new List<Dictionary<string, object>>(),
+
+            // === 5. OLDAL – MSZ HD 60364-6 ELLENŐRZÉSEK ===
+            // Szerkezetek
+            ["501"] = formAdatok?.Ellen5_Sz_A ?? "MF",
+            ["502"] = formAdatok?.Ellen5_Sz_B ?? "MF",
+            ["503"] = formAdatok?.Ellen5_Sz_C ?? "MF",
+
+            // Megtekintéses ellenőrzések
+            ["504"] = formAdatok?.Ellen5_Me_A ?? "MF",
+            ["505"] = formAdatok?.Ellen5_Me_B ?? "MF",
+            ["506"] = formAdatok?.Ellen5_Me_C ?? "MF",
+            ["507"] = formAdatok?.Ellen5_Me_D ?? "MF",
+            ["508"] = formAdatok?.Ellen5_Me_E ?? "MF",
+            ["509"] = formAdatok?.Ellen5_Me_F ?? "MF",
+            ["510"] = formAdatok?.Ellen5_Me_G ?? "MF",
+            ["511"] = formAdatok?.Ellen5_Me_H ?? "MF",
+            ["512"] = formAdatok?.Ellen5_Me_I ?? "MF",
+            ["513"] = formAdatok?.Ellen5_Me_J ?? "MF",
+            ["514"] = formAdatok?.Ellen5_Me_K ?? "MF",
+            ["515"] = formAdatok?.Ellen5_Me_L ?? "MF",
+            ["516"] = formAdatok?.Ellen5_Me_M ?? "MF",
+            ["517"] = formAdatok?.Ellen5_Me_N ?? "MF",
+            ["518"] = formAdatok?.Ellen5_Me_O ?? "MF",
+            ["519"] = formAdatok?.Ellen5_Me_P ?? "MF",
+
+            // Megjegyzések
+            // === 5. OLDAL – MEGJEGYZÉSEK ===
+            ["501M"] = formAdatok?.Ellen5_Sz_A_M ?? "",
+            ["502M"] = formAdatok?.Ellen5_Sz_B_M ?? "",
+            ["503M"] = formAdatok?.Ellen5_Sz_C_M ?? "",
+            ["504M"] = formAdatok?.Ellen5_Me_A_M ?? "",
+            ["505M"] = formAdatok?.Ellen5_Me_B_M ?? "",
+            ["506M"] = formAdatok?.Ellen5_Me_C_M ?? "",
+            ["507M"] = formAdatok?.Ellen5_Me_D_M ?? "",
+            ["508M"] = formAdatok?.Ellen5_Me_E_M ?? "",
+            ["509M"] = formAdatok?.Ellen5_Me_F_M ?? "",
+            ["510M"] = formAdatok?.Ellen5_Me_G_M ?? "",
+            ["511M"] = formAdatok?.Ellen5_Me_H_M ?? "",
+            ["512M"] = formAdatok?.Ellen5_Me_I_M ?? "",
+            ["513M"] = formAdatok?.Ellen5_Me_J_M ?? "",
+            ["514M"] = formAdatok?.Ellen5_Me_K_M ?? "",
+            ["515M"] = formAdatok?.Ellen5_Me_L_M ?? "",
+            ["516M"] = formAdatok?.Ellen5_Me_M_M ?? "",
+            ["517M"] = formAdatok?.Ellen5_Me_N_M ?? "",
+            ["518M"] = formAdatok?.Ellen5_Me_O_M ?? "",
+            ["519M"] = formAdatok?.Ellen5_Me_P_M ?? "",
+            ["Ellen5_Megjegyzes"] = formAdatok?.Ellen5_Megjegyzes ?? "",
+            // === 5. OLDAL – MÉRÉSEK ===
+            ["520"] = formAdatok?.Ellen5_Mr_A ?? "MF",
+            ["521"] = formAdatok?.Ellen5_Mr_B ?? "MF",
+            ["522"] = formAdatok?.Ellen5_Mr_C ?? "MF",
+            ["523"] = formAdatok?.Ellen5_Mr_D ?? "MF",
+            ["524"] = formAdatok?.Ellen5_Mr_E ?? "MF",
+            ["525"] = formAdatok?.Ellen5_Mr_F ?? "MF",
+            ["526"] = formAdatok?.Ellen5_Mr_G ?? "MF",
+            ["527"] = formAdatok?.Ellen5_Mr_H ?? "MF",
+            ["528"] = formAdatok?.Ellen5_Mr_I ?? "MF",
+            ["529"] = formAdatok?.Ellen5_Mr_J ?? "MF",
+            ["520M"] = formAdatok?.Ellen5_Mr_A_M ?? "",
+            ["521M"] = formAdatok?.Ellen5_Mr_B_M ?? "",
+            ["522M"] = formAdatok?.Ellen5_Mr_C_M ?? "",
+            ["523M"] = formAdatok?.Ellen5_Mr_D_M ?? "",
+            ["524M"] = formAdatok?.Ellen5_Mr_E_M ?? "",
+            ["525M"] = formAdatok?.Ellen5_Mr_F_M ?? "",
+            ["526M"] = formAdatok?.Ellen5_Mr_G_M ?? "",
+            ["527M"] = formAdatok?.Ellen5_Mr_H_M ?? "",
+            ["528M"] = formAdatok?.Ellen5_Mr_I_M ?? "",
+            ["529M"] = formAdatok?.Ellen5_Mr_J_M ?? "",
+            // === 6. OLDAL – OTSZ ELLENŐRZÉSEK ===
+            ["601"] = formAdatok?.Ellen6_A ?? "MF",
+            ["602"] = formAdatok?.Ellen6_B ?? "MF",
+            ["603"] = formAdatok?.Ellen6_C ?? "MF",
+            ["604"] = formAdatok?.Ellen6_D ?? "MF",
+            ["605"] = formAdatok?.Ellen6_E ?? "MF",
+            ["606"] = formAdatok?.Ellen6_F ?? "MF",
+            ["607"] = formAdatok?.Ellen6_G ?? "MF",
+            ["608"] = formAdatok?.Ellen6_H ?? "MF",
+            ["609"] = formAdatok?.Ellen6_I ?? "MF",
+            ["610"] = formAdatok?.Ellen6_J ?? "MF",
+            ["611"] = formAdatok?.Ellen6_K ?? "MF",
+            ["612"] = formAdatok?.Ellen6_L ?? "MF",
+            ["613"] = formAdatok?.Ellen6_M ?? "MF",
+            ["614"] = formAdatok?.Ellen6_N ?? "MF",
+            ["615"] = formAdatok?.Ellen6_O ?? "MF",
+            ["616"] = formAdatok?.Ellen6_P ?? "MF",
+            ["601M"] = formAdatok?.Ellen6_A_M ?? "",
+            ["602M"] = formAdatok?.Ellen6_B_M ?? "",
+            ["603M"] = formAdatok?.Ellen6_C_M ?? "",
+            ["604M"] = formAdatok?.Ellen6_D_M ?? "",
+            ["605M"] = formAdatok?.Ellen6_E_M ?? "",
+            ["606M"] = formAdatok?.Ellen6_F_M ?? "",
+            ["607M"] = formAdatok?.Ellen6_G_M ?? "",
+            ["608M"] = formAdatok?.Ellen6_H_M ?? "",
+            ["609M"] = formAdatok?.Ellen6_I_M ?? "",
+            ["610M"] = formAdatok?.Ellen6_J_M ?? "",
+            ["611M"] = formAdatok?.Ellen6_K_M ?? "",
+            ["612M"] = formAdatok?.Ellen6_L_M ?? "",
+            ["613M"] = formAdatok?.Ellen6_M_M ?? "",
+            ["614M"] = formAdatok?.Ellen6_N_M ?? "",
+            ["615M"] = formAdatok?.Ellen6_O_M ?? "",
+            ["616M"] = formAdatok?.Ellen6_P_M ?? "",
+            ["Ellen6_Megjegyzes"] = formAdatok?.Ellen6_Megjegyzes ?? "",
+
+            // === 6. OLDAL – VMBSZ ELLENŐRZÉSEK ===
+            ["701"] = formAdatok?.Ellen6V_01 ?? "MF",
+            ["702"] = formAdatok?.Ellen6V_02 ?? "MF",
+            ["703"] = formAdatok?.Ellen6V_03 ?? "MF",
+            ["704"] = formAdatok?.Ellen6V_04 ?? "MF",
+            ["705"] = formAdatok?.Ellen6V_05 ?? "MF",
+            ["706"] = formAdatok?.Ellen6V_06 ?? "MF",
+            ["707"] = formAdatok?.Ellen6V_07 ?? "MF",
+            ["708"] = formAdatok?.Ellen6V_08 ?? "MF",
+            ["709"] = formAdatok?.Ellen6V_09 ?? "MF",
+            ["710"] = formAdatok?.Ellen6V_10 ?? "MF",
+            ["711"] = formAdatok?.Ellen6V_11 ?? "MF",
+            ["712"] = formAdatok?.Ellen6V_12 ?? "MF",
+            ["713"] = formAdatok?.Ellen6V_13 ?? "MF",
+            ["714"] = formAdatok?.Ellen6V_14 ?? "MF",
+            ["715"] = formAdatok?.Ellen6V_15 ?? "MF",
+            ["716"] = formAdatok?.Ellen6V_16 ?? "MF",
+            ["717"] = formAdatok?.Ellen6V_17 ?? "MF",
+            ["701M"] = formAdatok?.Ellen6V_01_M ?? "",
+            ["702M"] = formAdatok?.Ellen6V_02_M ?? "",
+            ["703M"] = formAdatok?.Ellen6V_03_M ?? "",
+            ["704M"] = formAdatok?.Ellen6V_04_M ?? "",
+            ["705M"] = formAdatok?.Ellen6V_05_M ?? "",
+            ["706M"] = formAdatok?.Ellen6V_06_M ?? "",
+            ["707M"] = formAdatok?.Ellen6V_07_M ?? "",
+            ["708M"] = formAdatok?.Ellen6V_08_M ?? "",
+            ["709M"] = formAdatok?.Ellen6V_09_M ?? "",
+            ["710M"] = formAdatok?.Ellen6V_10_M ?? "",
+            ["711M"] = formAdatok?.Ellen6V_11_M ?? "",
+            ["712M"] = formAdatok?.Ellen6V_12_M ?? "",
+            ["713M"] = formAdatok?.Ellen6V_13_M ?? "",
+            ["714M"] = formAdatok?.Ellen6V_14_M ?? "",
+            ["715M"] = formAdatok?.Ellen6V_15_M ?? "",
+            ["716M"] = formAdatok?.Ellen6V_16_M ?? "",
+            ["717M"] = formAdatok?.Ellen6V_17_M ?? "",
+            ["718"] = formAdatok?.Ellen6V_18 ?? "MF",
+            ["719"] = formAdatok?.Ellen6V_19 ?? "MF",
+            ["720"] = formAdatok?.Ellen6V_20 ?? "MF",
+            ["721"] = formAdatok?.Ellen6V_21 ?? "MF",
+            ["718M"] = formAdatok?.Ellen6V_18_M ?? "",
+            ["719M"] = formAdatok?.Ellen6V_19_M ?? "",
+            ["720M"] = formAdatok?.Ellen6V_20_M ?? "",
+            ["721M"] = formAdatok?.Ellen6V_21_M ?? "",
+            ["700_Megjegyzes"] = formAdatok?.Ellen6V_Megjegyzes ?? "",
         };
+
 
         
         // DEBUG: Ellenőrizd az adatokat

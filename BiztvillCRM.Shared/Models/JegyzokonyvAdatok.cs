@@ -129,6 +129,7 @@ public class JegyzokonyvAdatok
     public bool HataridoHarom { get; set; }
     public bool HataridoHat { get; set; }
     public bool HataridoRV { get; set; }
+    public string MinositoIratMegjegyzes { get; set; } = "";
 
     // === 4. OLDAL – IDŐSZAKOS VBF ===
     // I. Névleges feszültség
@@ -159,6 +160,153 @@ public class JegyzokonyvAdatok
     // === JOGSZABÁLYOK (4. oldal) ===
     public List<KijeloltJogszabaly> KijeloltJogszabalyok { get; set; } = new();
 
+    // === 5. OLDAL – MSZ HD 60364-6 ELLENŐRZÉSEK ===
+    // Rögzített villamos berendezés szerkezetei
+    public string Ellen5_Sz_A { get; set; } = "MF";
+    public string Ellen5_Sz_B { get; set; } = "MF";
+    public string Ellen5_Sz_C { get; set; } = "MF";
+
+    // Megtekintéses ellenőrzések
+    public string Ellen5_Me_A { get; set; } = "MF";
+    public string Ellen5_Me_B { get; set; } = "MF";
+    public string Ellen5_Me_C { get; set; } = "MF";
+    public string Ellen5_Me_D { get; set; } = "MF";
+    public string Ellen5_Me_E { get; set; } = "MF";
+    public string Ellen5_Me_F { get; set; } = "MF";
+    public string Ellen5_Me_G { get; set; } = "MF";
+    public string Ellen5_Me_H { get; set; } = "MF";
+    public string Ellen5_Me_I { get; set; } = "MF";
+    public string Ellen5_Me_J { get; set; } = "MF";
+    public string Ellen5_Me_K { get; set; } = "MF";
+    public string Ellen5_Me_L { get; set; } = "MF";
+    public string Ellen5_Me_M { get; set; } = "MF";
+    public string Ellen5_Me_N { get; set; } = "MF";
+    public string Ellen5_Me_O { get; set; } = "MF";
+    public string Ellen5_Me_P { get; set; } = "MF";
+
+    // Megjegyzések
+    // === 5. OLDAL – MEGJEGYZÉSEK ===
+    public string Ellen5_Sz_A_M { get; set; } = "";
+    public string Ellen5_Sz_B_M { get; set; } = "";
+    public string Ellen5_Sz_C_M { get; set; } = "";
+    public string Ellen5_Me_A_M { get; set; } = "";
+    public string Ellen5_Me_B_M { get; set; } = "";
+    public string Ellen5_Me_C_M { get; set; } = "";
+    public string Ellen5_Me_D_M { get; set; } = "";
+    public string Ellen5_Me_E_M { get; set; } = "";
+    public string Ellen5_Me_F_M { get; set; } = "";
+    public string Ellen5_Me_G_M { get; set; } = "";
+    public string Ellen5_Me_H_M { get; set; } = "";
+    public string Ellen5_Me_I_M { get; set; } = "";
+    public string Ellen5_Me_J_M { get; set; } = "";
+    public string Ellen5_Me_K_M { get; set; } = "";
+    public string Ellen5_Me_L_M { get; set; } = "";
+    public string Ellen5_Me_M_M { get; set; } = "";
+    public string Ellen5_Me_N_M { get; set; } = "";
+    public string Ellen5_Me_O_M { get; set; } = "";
+    public string Ellen5_Me_P_M { get; set; } = "";
+    public string Ellen5_Megjegyzes { get; set; } = "";
+    // === 5. OLDAL – MÉRÉSEK ===
+    public string Ellen5_Mr_A { get; set; } = "MF";
+    public string Ellen5_Mr_B { get; set; } = "MF";
+    public string Ellen5_Mr_C { get; set; } = "MF";
+    public string Ellen5_Mr_D { get; set; } = "MF";
+    public string Ellen5_Mr_E { get; set; } = "MF";
+    public string Ellen5_Mr_F { get; set; } = "MF";
+    public string Ellen5_Mr_G { get; set; } = "MF";
+    public string Ellen5_Mr_H { get; set; } = "MF";
+    public string Ellen5_Mr_I { get; set; } = "MF";
+    public string Ellen5_Mr_J { get; set; } = "MF";
+    public string Ellen5_Mr_A_M { get; set; } = "";
+    public string Ellen5_Mr_B_M { get; set; } = "";
+    public string Ellen5_Mr_C_M { get; set; } = "";
+    public string Ellen5_Mr_D_M { get; set; } = "";
+    public string Ellen5_Mr_E_M { get; set; } = "";
+    public string Ellen5_Mr_F_M { get; set; } = "";
+    public string Ellen5_Mr_G_M { get; set; } = "";
+    public string Ellen5_Mr_H_M { get; set; } = "";
+    public string Ellen5_Mr_I_M { get; set; } = "";
+    public string Ellen5_Mr_J_M { get; set; } = "";
+
+    // === 6. OLDAL – OTSZ ELLENŐRZÉSEK ===
+    public string Ellen6_A { get; set; } = "MF";
+    public string Ellen6_B { get; set; } = "MF";
+    public string Ellen6_C { get; set; } = "MF";
+    public string Ellen6_D { get; set; } = "MF";
+    public string Ellen6_E { get; set; } = "MF";
+    public string Ellen6_F { get; set; } = "MF";
+    public string Ellen6_G { get; set; } = "MF";
+    public string Ellen6_H { get; set; } = "MF";
+    public string Ellen6_I { get; set; } = "MF";
+    public string Ellen6_J { get; set; } = "MF";
+    public string Ellen6_K { get; set; } = "MF";
+    public string Ellen6_L { get; set; } = "MF";
+    public string Ellen6_M { get; set; } = "MF";
+    public string Ellen6_N { get; set; } = "MF";
+    public string Ellen6_O { get; set; } = "MF";
+    public string Ellen6_P { get; set; } = "MF";
+    public string Ellen6_A_M { get; set; } = "";
+    public string Ellen6_B_M { get; set; } = "";
+    public string Ellen6_C_M { get; set; } = "";
+    public string Ellen6_D_M { get; set; } = "";
+    public string Ellen6_E_M { get; set; } = "";
+    public string Ellen6_F_M { get; set; } = "";
+    public string Ellen6_G_M { get; set; } = "";
+    public string Ellen6_H_M { get; set; } = "";
+    public string Ellen6_I_M { get; set; } = "";
+    public string Ellen6_J_M { get; set; } = "";
+    public string Ellen6_K_M { get; set; } = "";
+    public string Ellen6_L_M { get; set; } = "";
+    public string Ellen6_M_M { get; set; } = "";
+    public string Ellen6_N_M { get; set; } = "";
+    public string Ellen6_O_M { get; set; } = "";
+    public string Ellen6_P_M { get; set; } = "";
+    public string Ellen6_Megjegyzes { get; set; } = "";
+
+    // === 6. OLDAL – VMBSZ ELLENŐRZÉSEK ===
+    public string Ellen6V_01 { get; set; } = "MF";
+    public string Ellen6V_02 { get; set; } = "MF";
+    public string Ellen6V_03 { get; set; } = "MF";
+    public string Ellen6V_04 { get; set; } = "MF";
+    public string Ellen6V_05 { get; set; } = "MF";
+    public string Ellen6V_06 { get; set; } = "MF";
+    public string Ellen6V_07 { get; set; } = "MF";
+    public string Ellen6V_08 { get; set; } = "MF";
+    public string Ellen6V_09 { get; set; } = "MF";
+    public string Ellen6V_10 { get; set; } = "MF";
+    public string Ellen6V_11 { get; set; } = "MF";
+    public string Ellen6V_12 { get; set; } = "MF";
+    public string Ellen6V_13 { get; set; } = "MF";
+    public string Ellen6V_14 { get; set; } = "MF";
+    public string Ellen6V_15 { get; set; } = "MF";
+    public string Ellen6V_16 { get; set; } = "MF";
+    public string Ellen6V_17 { get; set; } = "MF";
+    public string Ellen6V_01_M { get; set; } = "";
+    public string Ellen6V_02_M { get; set; } = "";
+    public string Ellen6V_03_M { get; set; } = "";
+    public string Ellen6V_04_M { get; set; } = "";
+    public string Ellen6V_05_M { get; set; } = "";
+    public string Ellen6V_06_M { get; set; } = "";
+    public string Ellen6V_07_M { get; set; } = "";
+    public string Ellen6V_08_M { get; set; } = "";
+    public string Ellen6V_09_M { get; set; } = "";
+    public string Ellen6V_10_M { get; set; } = "";
+    public string Ellen6V_11_M { get; set; } = "";
+    public string Ellen6V_12_M { get; set; } = "";
+    public string Ellen6V_13_M { get; set; } = "";
+    public string Ellen6V_14_M { get; set; } = "";
+    public string Ellen6V_15_M { get; set; } = "";
+    public string Ellen6V_16_M { get; set; } = "";
+    public string Ellen6V_17_M { get; set; } = "";
+    public string Ellen6V_Megjegyzes { get; set; } = "";
+    public string Ellen6V_18 { get; set; } = "MF";
+    public string Ellen6V_19 { get; set; } = "MF";
+    public string Ellen6V_20 { get; set; } = "MF";
+    public string Ellen6V_21 { get; set; } = "MF";
+    public string Ellen6V_18_M { get; set; } = "";
+    public string Ellen6V_19_M { get; set; } = "";
+    public string Ellen6V_20_M { get; set; } = "";
+    public string Ellen6V_21_M { get; set; } = "";
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly

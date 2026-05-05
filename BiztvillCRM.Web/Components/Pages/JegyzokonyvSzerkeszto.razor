@@ -524,19 +524,19 @@
                         <MudRadioGroup T="string" Value="_adatok.KovetkezoFelulvizsgalatTipus"
                                        ValueChanged="@((string v) => { _adatok.KovetkezoFelulvizsgalatTipus = v; _adatok.HataridoTipus = null; _adatok.HataridoEgyeb = null; })"
                                        Class="d-flex flex-column gap-1">
-                            <MudRadio Value="@("50kW")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("50kW")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
                             </MudRadio>
-                            <MudRadio Value="@("32A")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("32A")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túráramvédelemmel korlátozott villamos berendezésén
                             </MudRadio>
-                            <MudRadio Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("VMBSZ")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
                             </MudRadio>
-                            <MudRadio Value="@("RV300")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("RV300")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben és szabadtéren (korábban: A és B osztályú helyiségek)
                             </MudRadio>
-                            <MudRadio Value="@("egyeb305")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("egyeb305")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 egyéb, itt nem szereplő esetekben:
                             </MudRadio>
                         </MudRadioGroup>
@@ -560,20 +560,23 @@
                             </MudAlert>
                         }
 
-                        @* === 6 ÉVES CSOPORT (307-308) === *@
+                        @* === 6 ÉVES CSOPORT (307-309) === *@
                         <MudRadioGroup T="string" Value="_adatok.HataridoTipus"
                                        ValueChanged="@((string v) => { _adatok.HataridoTipus = v; _adatok.KovetkezoFelulvizsgalatTipus = null; _adatok.KovetkezoFelulvizsgalatEgyeb = null; })"
                                        Class="d-flex flex-column gap-1 mt-3">
-                            <MudRadio Value="@("307")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("307")" Color="Color.Primary" Dense="true" Style="width:100%">
+                                a lakóépületek villamos berendezésén (kivéve: lakások, ha Ib ≤ 32 A és IΔn ≤ 30 mA)
+                            </MudRadio>
+                            <MudRadio Value="@("308")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 egyéb (robbanásveszélyes /RV/ osztályú anyagot NEM tartalmazó) helyiségekben és térségekben (korábban: C, D és E osztályú helyiségek)
                             </MudRadio>
-                            <MudRadio Value="@("308")" Color="Color.Primary" Dense="true">
+                            <MudRadio Value="@("309")" Color="Color.Primary" Dense="true" Style="width:100%">
                                 egyéb, itt nem szereplő esetekben:
                             </MudRadio>
                         </MudRadioGroup>
 
-                        @* 3081 szövegmező – csak ha "308" van kiválasztva *@
-                        @if (_adatok.HataridoTipus == "308")
+                        @* 3091 szövegmező – csak ha "309" van kiválasztva *@
+                        @if (_adatok.HataridoTipus == "309")
                         {
                             <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-1 ml-6">
                                 <MudTextField @bind-Value="_adatok.HataridoEgyeb"
@@ -583,47 +586,21 @@
                             </MudStack>
                         }
 
-                        @* 309 – automatikusan jelenik meg, ha 6 éves csoport van kiválasztva *@
-                        @if (_adatok.HataridoTipus is "307" or "308")
+                        @* 312 – automatikusan jelenik meg, ha 6 éves csoport van kiválasztva *@
+                        @if (_adatok.HataridoTipus is "307" or "308" or "309")
                         {
                             <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
                                 a kiadási dátumtól számított <strong>6 éven belül, legkésőbb: @GetSzamitottDatum(6)-ig</strong> kell elvégezni.
                             </MudAlert>
                         }
                     </MudItem>
+                    <MudTextField @bind-Value="_adatok.MinositoIratMegjegyzes"
+                                  Label="Megjegyzés"
+                                  Variant="Variant.Outlined"
+                                  Lines="3"
+                                  Class="mt-3"
+                                  Placeholder="Megjegyzések a minősítő irathoz..." />
                 }
-                    @*
-                    <MudItem xs="12" Class="mt-4">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">
-                            Az érvényességi feltételek betartása esetén a villamos berendezés következő időszakos felülvizsgálatát:
-                        </MudText>
-                        <MudRadioGroup T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatTipus" Class="d-flex flex-column gap-1">
-                            <MudRadio Value="@("50kW")" Color="Color.Primary" Dense="true">
-                                az épületnek nem minősülő műtárgy <strong>50 kW</strong>-ot meghaladó csatlakozási teljesítményű villamos berendezésén
-                            </MudRadio>
-                            <MudRadio Value="@("32A")" Color="Color.Primary" Dense="true">
-                                a fázisonként <strong>32 A</strong>-nél nagyobb névleges áramerősségű túráramvédelemmel korlátozott villamos berendezésén
-                            </MudRadio>
-                            <MudRadio Value="@("VMBSZ")" Color="Color.Primary" Dense="true">
-                                a <strong>VMBSZ</strong> szerint lakóépület, kommunális épület, valamint egyéb épület villamos berendezésén
-                            </MudRadio>
-                            <MudRadio Value="@("RV300")" Color="Color.Primary" Dense="true">
-                                <strong>≥300 kg/l</strong> robbanásveszélyes (RV) osztályú anyagot tartalmazó helyiségekben
-                            </MudRadio>
-                            <MudRadio Value="@("egyebRV")" Color="Color.Primary" Dense="true">
-                                egyéb (RV osztályú anyagot NEM tartalmazó) helyiségekben
-                            </MudRadio>
-                        </MudRadioGroup>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
-                            <MudText Typo="Typo.body2">egyéb:</MudText>
-                            <MudTextField @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyeb"
-                                          Variant="Variant.Outlined"
-                                          Style="max-width: 350px;" Margin="Margin.Dense" />
-                        </MudStack>
-                    </MudItem>
-                }
-
-                *@
 
                 @* === KAPCSOLÓDÓ JOGSZABÁLYOK ÉS SZABVÁNYOK === *@
                 @if (_adatok.KijeloltJogszabalyok.Any())
@@ -895,22 +872,22 @@
                     <MudText Typo="Typo.subtitle1" Class="mb-2">Áramütés-elleni védelmi módok</MudText>
                     <MudStack Spacing="1">
                         <MudCheckBox @bind-Value="_adatok.Vedelem404" Color="Color.Primary" Dense="true">
-                            404 – A táplálás önműködő lekapcsolása (TN-/TT-/IT-rendszer)
+                            A táplálás önműködő lekapcsolása (TN-/TT-/IT-rendszer)
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="_adatok.Vedelem405" Color="Color.Primary" Dense="true">
-                            405 – Kettős vagy megerősített szigetelés
+                            Kettős vagy megerősített szigetelés
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="_adatok.Vedelem406" Color="Color.Primary" Dense="true">
-                            406 – Villamos elválasztás
+                            Villamos elválasztás
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="_adatok.Vedelem407" Color="Color.Primary" Dense="true">
-                            407 – SELV/PELV törpefeszültség
+                            SELV/PELV törpefeszültség
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="_adatok.Vedelem408" Color="Color.Primary" Dense="true">
-                            408 – Védő egyenpotenciáli összekötés, védővezetők, védőösszekötő-vezetők
+                            Védő egyenpotenciálú összekötés, védővezetők, védőösszekötő-vezetők
                         </MudCheckBox>
                         <MudCheckBox @bind-Value="_adatok.Vedelem409" Color="Color.Primary" Dense="true">
-                            409 – Védelem földeletlen helyi egyenpotenciáli összekötéssel
+                            Védelem földeletlen helyi egyenpotenciálú összekötéssel
                         </MudCheckBox>
                     </MudStack>
                 </MudItem>
@@ -941,11 +918,11 @@
 
                 <MudItem xs="12" md="4">
                     <MudText Typo="Typo.caption" Class="mb-1">Legutolsó felújítás éve</MudText>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudSelect T="string" Value="@GetFelujitasEv()"
                                    ValueChanged="@((string v) => OnFelujitasEvValtozas(v))"
-                                   Label="Év" Variant="Variant.Outlined"
-                                   Style="max-width: 140px;">
+                                   Variant="Variant.Outlined"
+                                   Style="max-width: 130px; margin-top:0;">
                             <MudSelectItem Value="@("Ismeretlen")">Ismeretlen</MudSelectItem>
                             @for (int ev = DateTime.Now.Year; ev >= 1940; ev--)
                             {
@@ -991,7 +968,373 @@
         </MudPaper>
     </MudStep>
 
-    @* === 5. LÉPÉS: ÖSSZEGEZÉS === *@
+        @* === 5. LÉPÉS: MSZ HD 60364-6 ELLENŐRZÉSEK === *@
+    <MudStep Title="5. oldal" Icon="@Icons.Material.Filled.FactCheck"
+             Disabled="@(!IsIdoszakosVBFTipus())">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
+                MSZ HD 60364-6 ellenőrzések (5. oldal)
+            </MudText>
+
+            <MudGrid>
+                @* === RÖGZÍTETT VILLAMOS BERENDEZÉS SZERKEZETEI === *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-2" />
+                        A rögzített villamos berendezés szerkezetei
+                    </MudText>
+                </MudItem>
+
+                @{
+                    var szerkezetek = new[]
+                    {
+                        ("a", "megfelelnek a vonatkozó termékszabvány biztonsági követelményeinek (jelölések, tanúsítványok és gyártói információk alapján)", nameof(_adatok.Ellen5_Sz_A)),
+                        ("b", "az MSZ HD 60364 szabványsorozat és a gyártó előírásai szerinti a kiválasztásuk és a szerelésük", nameof(_adatok.Ellen5_Sz_B)),
+                        ("c", "épek és nincsen olyan látható sérülésük, amely csökkentené a biztonságot", nameof(_adatok.Ellen5_Sz_C)),
+                    };
+                }
+                @foreach (var (bet, szoveg, _) in szerkezetek)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="min-width:16px; font-weight:600;">@bet)</MudText>
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen5(bet, false)"
+                                       ValueChanged="@((string v) => SetEllen5(bet, false, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen5Megjegyzes(bet, false)"
+                                          ValueChanged="@((string v) => SetEllen5Megjegyzes(bet, false, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="mt-3">
+                    <MudDivider />
+                </MudItem>
+
+                @* === MEGTEKINTÉSES ELLENŐRZÉSEK === *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Visibility" Class="mr-2" />
+                        Megtekintéses ellenőrzések
+                    </MudText>
+                </MudItem>
+
+                @{
+                    var megtekintesek = new[]
+                    {
+                        ("a", "az áramütés elleni védelem kialakítása (védelmi mód, nullavezetők, védő vezetők és védőösszekötő-vezetők megléte, jelölésük, szétválasztásuk és megfelelőségük – MSZ HD 60364-4-41 és -5-54 sz. alapján)"),
+                        ("b", "tűzvédelmi óvintézkedések és hőhatás elleni védelmek (MSZ HD 60364-4-42 és MSZ HD 60364-5-52 sz. 527. fej. alapján)"),
+                        ("c", "a vezetők megfelelő megválasztása (MSZ HD 60364-4-43 és MSZ HD 60364-5-52 sz. 523. f. alapján)"),
+                        ("d", "védelmi és ellenőrző eszközök kiválasztása és beállítása (MSZ HD 60364-5-53 sz. 536. f. alapján)"),
+                        ("e", "túlfeszültségvédelmi eszközök megléte és elhelyezése (MSZ HD 60364-5-534 sz. alapján)"),
+                        ("f", "leválasztó és kapcsoló eszközök megléte és elhelyezése (MSZ HD 60364-5-53 sz. 536 alapján)"),
+                        ("g", "a villamos szerkezetek és védelmi módok kiválasztása (MSZ HD 60364-4-42 sz. 422. fejezete, MSZ EN 60529 és MSZ HD 60364-5-51 sz. 512.2. fejezete alapján)"),
+                        ("h", "az N- és a PE-vezető jelölése (MSZ HD 60364-5-51 sz. 514.3. alapján)"),
+                        ("i", "kapcsolási rajzok és figyelmeztető feliratok megléte (MSZ HD 60364-5-51 sz. 514.5. fejezete alapján)"),
+                        ("j", "áramkörök, készülékek, csatlakozó- és sorozatkapcsok jelölése (MSZ HD 60364-5-51 sz. 514. fejezete alapján)"),
+                        ("k", "a vezetők csatlakozásainak megfelelősége (MSZ HD 60364-5-52 sz. 526. fejezete alapján)"),
+                        ("l", "földelők, PE-vezetők és csatlakozásuk (MSZ HD 60364-5-54 alapján)"),
+                        ("m", "a szerkezetek könnyen azonosíthatók és a karbantartáshoz jól hozzáférhetők (MSZ HD 60364-5-51 sz. 513. és 514. f. alapján)"),
+                        ("n", "EMC elleni intézkedések (MSZ HD 60364-4-44 sz. 444. f. alapján)"),
+                        ("o", "megérinthető fémrészek csatlakoznak-e a földelő rendszerhez? (MSZ HD 60364-4-41 sz. 411. f. alapján)"),
+                        ("p", "vezetékek, huzalozás (MSZ HD 60364-5-52 sz. 521., 522. f. alapján)"),
+                    };
+                }
+
+                @foreach (var (bet, szoveg) in megtekintesek)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="min-width:16px; font-weight:600;">@bet)</MudText>
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen5(bet, true)"
+                                       ValueChanged="@((string v) => SetEllen5(bet, true, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen5Megjegyzes(bet, true)"
+                                          ValueChanged="@((string v) => SetEllen5Megjegyzes(bet, true, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+                <MudItem xs="12" Class="mt-3">
+                    <MudDivider />
+                </MudItem>
+
+                @* === MÉRÉSEK === *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Speed" Class="mr-2" />
+                        Mérések
+                    </MudText>
+                </MudItem>
+
+                @{
+                    var meresek = new[]
+                    {
+                        ("a", "a vezetők folytonossága (6.4.3.2. szakasz)"),
+                        ("b", "a villamos berendezés szigetelési ellenállása (6.4.3.3. szakasz)"),
+                        ("c", "SELV és PELV és a villamos elválasztás védelmi módok megvalósítása (6.4.3.4. szakasz)"),
+                        ("d", "a padlózat és fal ellenállása/impedanciája (6.4.3.5. szakasz)"),
+                        ("e", "a polaritás ellenőrzése (6.4.3.6. szakasz)"),
+                        ("f", "a táplálás önműködő lekapcsolása (6.4.3.7. szakasz)"),
+                        ("g", "a kiegészítő védelmek ellenőrzése (6.4.3.8. szakasz)"),
+                        ("h", "a fázissorrend ellenőrzése (6.4.3.9. szakasz)"),
+                        ("i", "üzemszerű funkciók és működés ellenőrzése (6.4.3.10. szakasz)"),
+                        ("j", "a feszültségesés ellenőrzése (6.4.3.11. szakasz)"),
+                    };
+                }
+
+                @foreach (var (bet, szoveg) in meresek)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="min-width:16px; font-weight:600;">@bet)</MudText>
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen5Meres(bet)"
+                                       ValueChanged="@((string v) => SetEllen5Meres(bet, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen5MeresMegjegyzes(bet)"
+                                          ValueChanged="@((string v) => SetEllen5MeresMegjegyzes(bet, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+                <MudItem xs="12" Class="mt-3">
+                    <MudDivider />
+                </MudItem>
+
+                @* === MEGJEGYZÉSEK === *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudTextField @bind-Value="_adatok.Ellen5_Megjegyzes"
+                                  Label="Megjegyzések, észrevételek"
+                                  Variant="Variant.Outlined"
+                                  Lines="4"
+                                  Placeholder="Ide írhatók a megjegyzések és észrevételek..." />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                                   OnClick="VisszaEggyetLepes"
+                                   StartIcon="@Icons.Material.Filled.ArrowBack">
+                            Vissza
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="@(async () => await (_stepper?.NextStepAsync() ?? Task.CompletedTask))"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az összegzéshez
+                        </MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudStep>
+
+    @* === 6. LÉPÉS: OTSZ ELLENŐRZÉSEK === *@
+    <MudStep Title="6. oldal" Icon="@Icons.Material.Filled.LocalFireDepartment"
+             Disabled="@(!IsIdoszakosVBFTipus())">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" Class="mr-2" />
+                Az OTSZ létesítési előírásainak ellenőrzése (6. oldal)
+            </MudText>
+
+            <MudGrid>
+                @{
+                    var otsz = new[]
+                    {
+                        ("a", "Érvényes tűzveszélyességi vagy kockázati osztályba sorolás megléte 10.§, 12.§"),
+                        ("b", "Gépészeti és villamos átvezetések tömítése: 27. §"),
+                        ("c", "Biztonsági világítás megléte: 56.§ (1) d, 57.§ (1)c, 58.§ (6), 113.§ (2), 134.§ (2), 146.§ … 153.§"),
+                        ("d", "Napelemek: kapcsolók, feliratok megléte 87.§"),
+                        ("e", "Hő és füst elleni védelem vezérlőtábla megléte 89.§"),
+                        ("f", "Alagutak és felszín alatti vasutak speciális előírásait teljesítették-e? 113.§ (7)(8), 118.§ (9), 121.§ (4)(5), 122.§"),
+                        ("g", "Központi, ill. részegységenkénti tűzeseti lekapcsolás kialakítása. Csoportosan szerelt kapcsolók és készülékek jelölése 135.§"),
+                        ("h", "Középfeszültségről táplált KK és MK o. épületek követelményei (lekapcsolás, száraztranszformátor) 136.§"),
+                        ("i", "Tűzeseti fogyasztók kialakítása, működőképessége 137.§, 138.§"),
+                        ("j", "Villámvédelem NV vagy 274V megléte, ellenőrzése, dokumentálása 139.§, 144.§, 279.§, 281.§"),
+                        ("k", "Elektrosztatikus feltöltődés elleni védelem, ellenőrzése, dokumentálása * 145.§, 278.§"),
+                        ("l", "Beépített tűzjelző berendezés, felülvizsgálata, dokumentálása ** 154.§, 164.§, 253.§, 261.§"),
+                        ("m", "Beépített tűzoltó berendezés, felülvizsgálata, dokumentálása ** 154.§, 160.§, 165.§, 166.§, 253.§, 254.§, 256.§, 262.§"),
+                        ("n", "A villamos berendezés nem okoz gyújtásveszélyt, kikapcsolás, leválasztás. 200.§"),
+                        ("o", "Villamos szerelési munka és dokumentálása PB-gáz cseretelepen 245.§ (2)(4)"),
+                        ("p", "Tűzvédelmi Műszaki Megfelelőségi Kézikönyv (TMMK) megléte, vezetése, felülvizsgálata 282.§, 284.§"),
+                    };
+                }
+
+                @foreach (var (bet, szoveg) in otsz)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="min-width:16px; font-weight:600;">@bet)</MudText>
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen6(bet)"
+                                       ValueChanged="@((string v) => SetEllen6(bet, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen6Megjegyzes(bet)"
+                                          ValueChanged="@((string v) => SetEllen6Megjegyzes(bet, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudDivider />
+                </MudItem>
+
+                @* === VMBSZ === *@
+                <MudItem xs="12" Class="mt-3">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Apartment" Class="mr-2" />
+                        A VMBSZ létesítési előírásainak ellenőrzése – Szemrevételezéses ellenőrzés
+                    </MudText>
+                </MudItem>
+
+                @{
+                    var vmbsz = new[]
+                    {
+                        ("01", "1. A villamos berendezések műszaki biztonsági követelményei"),
+                        ("02", "3. Összekötő berendezések kivitelezése"),
+                        ("03", "3.1. Átkapcsolható vezeték szakaszok: fázissorrend"),
+                        ("04", "3.2. Összekapcsolható vezetékszakaszok: párhuzamos kapcsolása"),
+                        ("05", "3.3. Nem azonos fázishelyzetű hálózatok összekötés tiltása"),
+                        ("06", "3.4. Illetéktelenek működtetésének megakadályozása"),
+                        ("07", "3.8. Életveszélyt okozó üzemzavar esetén szükséges intézkedések"),
+                        ("08", "3.10. Felhasználói belső szabályzatok megléte"),
+                        ("09", "3.16. Összekötő berendezések kezelési utasításának megléte"),
+                        ("10", "3.22. Új összekötő berendezések: védővezető kiépítése"),
+                        ("11", "3.23. Biztosító betétek értékeinek jelölése vagy kapcsolási rajz"),
+                        ("12", "4.1. Felvonulási területek berendezéseinek biztonságos kivitele"),
+                        ("13", "4.2. Rögzítetten bekötött berendezések üzembe helyezése"),
+                        ("14", "4.9. Áram-védőkapcsolók ellenőrzése és bizonylatolása"),
+                        ("15", "4.10. Nem megfelelőségek javítása, ezek dokumentálása és megléte"),
+                        ("16", "6.1.2. Egyedi villamos szerkezetek: kivitelhez szükséges nyilatkozatok"),
+                        ("17", "6.2. Javítás utáni vizsgálatokról készült jegyzőkönyvek meglétének és tartalmának ellenőrzése"),
+                    };
+                }
+
+                @foreach (var (key, szoveg) in vmbsz)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen6V(key)"
+                                       ValueChanged="@((string v) => SetEllen6V(key, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen6VMegjegyzes(key)"
+                                          ValueChanged="@((string v) => SetEllen6VMegjegyzes(key, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.body2" Class="mb-1"><strong>Ajánlott ellenőrizni – Villamos szerkezetek:</strong></MudText>
+                </MudItem>
+
+                @{
+                    var vmbszAjanlott = new[]
+                    {
+                        ("18", "Minden kisfeszültségű villamos, illetve RB-kivitelű szerkezetre igazolni kell a biztonsági követelmények teljesülését. Az okmányok meglétét ellenőrizni kell!"),
+                        ("19", "Kisfeszültségű termékek: vizsgálati tanúsítványok, CE-j. alkalmazása."),
+                        ("20", "Nagyfeszültségű termékek: gyártói nyilatkozat, tanúsítványok."),
+                        ("21", "RB-kivitelű termékek: ATEX Tanúsítványok, EU-megfelelőségi nyilatkozat, CE-jel alkalmazása."),
+                    };
+                }
+
+                @foreach (var (key, szoveg) in vmbszAjanlott)
+                {
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="3">
+                            <MudText Style="flex:1;">@szoveg</MudText>
+                            <MudSelect T="string" Style="min-width:90px; max-width:90px;"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Value="@GetEllen6V(key)"
+                                       ValueChanged="@((string v) => SetEllen6V(key, v))">
+                                <MudSelectItem Value="@("MF")">MF</MudSelectItem>
+                                <MudSelectItem Value="@("NMF")">NMF</MudSelectItem>
+                                <MudSelectItem Value="@("NA")">NA</MudSelectItem>
+                            </MudSelect>
+                            <MudTextField Value="@GetEllen6VMegjegyzes(key)"
+                                          ValueChanged="@((string v) => SetEllen6VMegjegyzes(key, v))"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="Megjegyzés..." Style="min-width:200px;" />
+                        </MudStack>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="mt-3">
+                    <MudTextField @bind-Value="_adatok.Ellen6V_Megjegyzes"
+                                  Label="VMBSZ megjegyzések, észrevételek"
+                                  Variant="Variant.Outlined"
+                                  Lines="3"
+                                  Placeholder="Ide írhatók a VMBSZ ellenőrzéshez tartozó megjegyzések..." />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-3">
+                    <MudDivider />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-2">
+                    <MudTextField @bind-Value="_adatok.Ellen6_Megjegyzes"
+                                  Label="Megjegyzések, észrevételek"
+                                  Variant="Variant.Outlined"
+                                  Lines="4"
+                                  Placeholder="Ide írhatók a megjegyzések és észrevételek..." />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                                   OnClick="VisszaEggyetLepes"
+                                   StartIcon="@Icons.Material.Filled.ArrowBack">
+                            Vissza
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="@(async () => await (_stepper?.NextStepAsync() ?? Task.CompletedTask))"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az összegzéshez
+                        </MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudStep>
+
+    @* === 7. LÉPÉS: ÖSSZEGEZÉS === *@
     <MudStep Title="Összegzés" Icon="@Icons.Material.Filled.Summarize">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">
@@ -1871,5 +2214,398 @@
         _adatok.HibakC = ertek;
         if (!string.IsNullOrWhiteSpace(ertek))
             _adatok.VegsoMinosites = "NEM FELELT MEG";
+    }
+    private string GetEllen5(string bet, bool megtekintesMod)
+    {
+        if (megtekintesMod) return bet switch
+        {
+            "a" => _adatok.Ellen5_Me_A,
+            "b" => _adatok.Ellen5_Me_B,
+            "c" => _adatok.Ellen5_Me_C,
+            "d" => _adatok.Ellen5_Me_D,
+            "e" => _adatok.Ellen5_Me_E,
+            "f" => _adatok.Ellen5_Me_F,
+            "g" => _adatok.Ellen5_Me_G,
+            "h" => _adatok.Ellen5_Me_H,
+            "i" => _adatok.Ellen5_Me_I,
+            "j" => _adatok.Ellen5_Me_J,
+            "k" => _adatok.Ellen5_Me_K,
+            "l" => _adatok.Ellen5_Me_L,
+            "m" => _adatok.Ellen5_Me_M,
+            "n" => _adatok.Ellen5_Me_N,
+            "o" => _adatok.Ellen5_Me_O,
+            "p" => _adatok.Ellen5_Me_P,
+            _ => "MF"
+        };
+        return bet switch
+        {
+            "a" => _adatok.Ellen5_Sz_A,
+            "b" => _adatok.Ellen5_Sz_B,
+            "c" => _adatok.Ellen5_Sz_C,
+            _ => "MF"
+        };
+    }
+
+    private void SetEllen5(string bet, bool megtekintesMod, string ertek)
+    {
+        if (megtekintesMod)
+        {
+            switch (bet)
+            {
+                case "a": _adatok.Ellen5_Me_A = ertek; break;
+                case "b": _adatok.Ellen5_Me_B = ertek; break;
+                case "c": _adatok.Ellen5_Me_C = ertek; break;
+                case "d": _adatok.Ellen5_Me_D = ertek; break;
+                case "e": _adatok.Ellen5_Me_E = ertek; break;
+                case "f": _adatok.Ellen5_Me_F = ertek; break;
+                case "g": _adatok.Ellen5_Me_G = ertek; break;
+                case "h": _adatok.Ellen5_Me_H = ertek; break;
+                case "i": _adatok.Ellen5_Me_I = ertek; break;
+                case "j": _adatok.Ellen5_Me_J = ertek; break;
+                case "k": _adatok.Ellen5_Me_K = ertek; break;
+                case "l": _adatok.Ellen5_Me_L = ertek; break;
+                case "m": _adatok.Ellen5_Me_M = ertek; break;
+                case "n": _adatok.Ellen5_Me_N = ertek; break;
+                case "o": _adatok.Ellen5_Me_O = ertek; break;
+                case "p": _adatok.Ellen5_Me_P = ertek; break;
+            }
+        }
+        else
+        {
+            switch (bet)
+            {
+                case "a": _adatok.Ellen5_Sz_A = ertek; break;
+                case "b": _adatok.Ellen5_Sz_B = ertek; break;
+                case "c": _adatok.Ellen5_Sz_C = ertek; break;
+            }
+        }
+    }
+    private string GetEllen5Megjegyzes(string bet, bool megtekintesMod)
+    {
+        if (megtekintesMod) return bet switch
+        {
+            "a" => _adatok.Ellen5_Me_A_M,
+            "b" => _adatok.Ellen5_Me_B_M,
+            "c" => _adatok.Ellen5_Me_C_M,
+            "d" => _adatok.Ellen5_Me_D_M,
+            "e" => _adatok.Ellen5_Me_E_M,
+            "f" => _adatok.Ellen5_Me_F_M,
+            "g" => _adatok.Ellen5_Me_G_M,
+            "h" => _adatok.Ellen5_Me_H_M,
+            "i" => _adatok.Ellen5_Me_I_M,
+            "j" => _adatok.Ellen5_Me_J_M,
+            "k" => _adatok.Ellen5_Me_K_M,
+            "l" => _adatok.Ellen5_Me_L_M,
+            "m" => _adatok.Ellen5_Me_M_M,
+            "n" => _adatok.Ellen5_Me_N_M,
+            "o" => _adatok.Ellen5_Me_O_M,
+            "p" => _adatok.Ellen5_Me_P_M,
+            _ => ""
+        };
+        return bet switch
+        {
+            "a" => _adatok.Ellen5_Sz_A_M,
+            "b" => _adatok.Ellen5_Sz_B_M,
+            "c" => _adatok.Ellen5_Sz_C_M,
+            _ => ""
+        };
+    }
+
+    private void SetEllen5Megjegyzes(string bet, bool megtekintesMod, string ertek)
+    {
+        if (megtekintesMod)
+        {
+            switch (bet)
+            {
+                case "a": _adatok.Ellen5_Me_A_M = ertek; break;
+                case "b": _adatok.Ellen5_Me_B_M = ertek; break;
+                case "c": _adatok.Ellen5_Me_C_M = ertek; break;
+                case "d": _adatok.Ellen5_Me_D_M = ertek; break;
+                case "e": _adatok.Ellen5_Me_E_M = ertek; break;
+                case "f": _adatok.Ellen5_Me_F_M = ertek; break;
+                case "g": _adatok.Ellen5_Me_G_M = ertek; break;
+                case "h": _adatok.Ellen5_Me_H_M = ertek; break;
+                case "i": _adatok.Ellen5_Me_I_M = ertek; break;
+                case "j": _adatok.Ellen5_Me_J_M = ertek; break;
+                case "k": _adatok.Ellen5_Me_K_M = ertek; break;
+                case "l": _adatok.Ellen5_Me_L_M = ertek; break;
+                case "m": _adatok.Ellen5_Me_M_M = ertek; break;
+                case "n": _adatok.Ellen5_Me_N_M = ertek; break;
+                case "o": _adatok.Ellen5_Me_O_M = ertek; break;
+                case "p": _adatok.Ellen5_Me_P_M = ertek; break;
+            }
+        }
+        else
+        {
+            switch (bet)
+            {
+                case "a": _adatok.Ellen5_Sz_A_M = ertek; break;
+                case "b": _adatok.Ellen5_Sz_B_M = ertek; break;
+                case "c": _adatok.Ellen5_Sz_C_M = ertek; break;
+            }
+        }
+    }
+    private string GetEllen5Meres(string bet) => bet switch
+    {
+        "a" => _adatok.Ellen5_Mr_A,
+        "b" => _adatok.Ellen5_Mr_B,
+        "c" => _adatok.Ellen5_Mr_C,
+        "d" => _adatok.Ellen5_Mr_D,
+        "e" => _adatok.Ellen5_Mr_E,
+        "f" => _adatok.Ellen5_Mr_F,
+        "g" => _adatok.Ellen5_Mr_G,
+        "h" => _adatok.Ellen5_Mr_H,
+        "i" => _adatok.Ellen5_Mr_I,
+        "j" => _adatok.Ellen5_Mr_J,
+        _ => "MF"
+    };
+
+    private void SetEllen5Meres(string bet, string ertek)
+    {
+        switch (bet)
+        {
+            case "a": _adatok.Ellen5_Mr_A = ertek; break;
+            case "b": _adatok.Ellen5_Mr_B = ertek; break;
+            case "c": _adatok.Ellen5_Mr_C = ertek; break;
+            case "d": _adatok.Ellen5_Mr_D = ertek; break;
+            case "e": _adatok.Ellen5_Mr_E = ertek; break;
+            case "f": _adatok.Ellen5_Mr_F = ertek; break;
+            case "g": _adatok.Ellen5_Mr_G = ertek; break;
+            case "h": _adatok.Ellen5_Mr_H = ertek; break;
+            case "i": _adatok.Ellen5_Mr_I = ertek; break;
+            case "j": _adatok.Ellen5_Mr_J = ertek; break;
+        }
+    }
+
+    private string GetEllen5MeresMegjegyzes(string bet) => bet switch
+    {
+        "a" => _adatok.Ellen5_Mr_A_M,
+        "b" => _adatok.Ellen5_Mr_B_M,
+        "c" => _adatok.Ellen5_Mr_C_M,
+        "d" => _adatok.Ellen5_Mr_D_M,
+        "e" => _adatok.Ellen5_Mr_E_M,
+        "f" => _adatok.Ellen5_Mr_F_M,
+        "g" => _adatok.Ellen5_Mr_G_M,
+        "h" => _adatok.Ellen5_Mr_H_M,
+        "i" => _adatok.Ellen5_Mr_I_M,
+        "j" => _adatok.Ellen5_Mr_J_M,
+        _ => ""
+    };
+
+    private void SetEllen5MeresMegjegyzes(string bet, string ertek)
+    {
+        switch (bet)
+        {
+            case "a": _adatok.Ellen5_Mr_A_M = ertek; break;
+            case "b": _adatok.Ellen5_Mr_B_M = ertek; break;
+            case "c": _adatok.Ellen5_Mr_C_M = ertek; break;
+            case "d": _adatok.Ellen5_Mr_D_M = ertek; break;
+            case "e": _adatok.Ellen5_Mr_E_M = ertek; break;
+            case "f": _adatok.Ellen5_Mr_F_M = ertek; break;
+            case "g": _adatok.Ellen5_Mr_G_M = ertek; break;
+            case "h": _adatok.Ellen5_Mr_H_M = ertek; break;
+            case "i": _adatok.Ellen5_Mr_I_M = ertek; break;
+            case "j": _adatok.Ellen5_Mr_J_M = ertek; break;
+        }
+    }
+    private string GetEllen6(string bet) => bet switch
+    {
+        "a" => _adatok.Ellen6_A,
+        "b" => _adatok.Ellen6_B,
+        "c" => _adatok.Ellen6_C,
+        "d" => _adatok.Ellen6_D,
+        "e" => _adatok.Ellen6_E,
+        "f" => _adatok.Ellen6_F,
+        "g" => _adatok.Ellen6_G,
+        "h" => _adatok.Ellen6_H,
+        "i" => _adatok.Ellen6_I,
+        "j" => _adatok.Ellen6_J,
+        "k" => _adatok.Ellen6_K,
+        "l" => _adatok.Ellen6_L,
+        "m" => _adatok.Ellen6_M,
+        "n" => _adatok.Ellen6_N,
+        "o" => _adatok.Ellen6_O,
+        "p" => _adatok.Ellen6_P,
+        _ => "MF"
+    };
+
+    private void SetEllen6(string bet, string ertek)
+    {
+        switch (bet)
+        {
+            case "a": _adatok.Ellen6_A = ertek; break;
+            case "b": _adatok.Ellen6_B = ertek; break;
+            case "c": _adatok.Ellen6_C = ertek; break;
+            case "d": _adatok.Ellen6_D = ertek; break;
+            case "e": _adatok.Ellen6_E = ertek; break;
+            case "f": _adatok.Ellen6_F = ertek; break;
+            case "g": _adatok.Ellen6_G = ertek; break;
+            case "h": _adatok.Ellen6_H = ertek; break;
+            case "i": _adatok.Ellen6_I = ertek; break;
+            case "j": _adatok.Ellen6_J = ertek; break;
+            case "k": _adatok.Ellen6_K = ertek; break;
+            case "l": _adatok.Ellen6_L = ertek; break;
+            case "m": _adatok.Ellen6_M = ertek; break;
+            case "n": _adatok.Ellen6_N = ertek; break;
+            case "o": _adatok.Ellen6_O = ertek; break;
+            case "p": _adatok.Ellen6_P = ertek; break;
+        }
+    }
+
+    private string GetEllen6Megjegyzes(string bet) => bet switch
+    {
+        "a" => _adatok.Ellen6_A_M,
+        "b" => _adatok.Ellen6_B_M,
+        "c" => _adatok.Ellen6_C_M,
+        "d" => _adatok.Ellen6_D_M,
+        "e" => _adatok.Ellen6_E_M,
+        "f" => _adatok.Ellen6_F_M,
+        "g" => _adatok.Ellen6_G_M,
+        "h" => _adatok.Ellen6_H_M,
+        "i" => _adatok.Ellen6_I_M,
+        "j" => _adatok.Ellen6_J_M,
+        "k" => _adatok.Ellen6_K_M,
+        "l" => _adatok.Ellen6_L_M,
+        "m" => _adatok.Ellen6_M_M,
+        "n" => _adatok.Ellen6_N_M,
+        "o" => _adatok.Ellen6_O_M,
+        "p" => _adatok.Ellen6_P_M,
+        _ => ""
+    };
+
+    private void SetEllen6Megjegyzes(string bet, string ertek)
+    {
+        switch (bet)
+        {
+            case "a": _adatok.Ellen6_A_M = ertek; break;
+            case "b": _adatok.Ellen6_B_M = ertek; break;
+            case "c": _adatok.Ellen6_C_M = ertek; break;
+            case "d": _adatok.Ellen6_D_M = ertek; break;
+            case "e": _adatok.Ellen6_E_M = ertek; break;
+            case "f": _adatok.Ellen6_F_M = ertek; break;
+            case "g": _adatok.Ellen6_G_M = ertek; break;
+            case "h": _adatok.Ellen6_H_M = ertek; break;
+            case "i": _adatok.Ellen6_I_M = ertek; break;
+            case "j": _adatok.Ellen6_J_M = ertek; break;
+            case "k": _adatok.Ellen6_K_M = ertek; break;
+            case "l": _adatok.Ellen6_L_M = ertek; break;
+            case "m": _adatok.Ellen6_M_M = ertek; break;
+            case "n": _adatok.Ellen6_N_M = ertek; break;
+            case "o": _adatok.Ellen6_O_M = ertek; break;
+            case "p": _adatok.Ellen6_P_M = ertek; break;
+        }
+    }
+
+    private string GetEllen6V(string key) => key switch
+    {
+        "01" => _adatok.Ellen6V_01,
+        "02" => _adatok.Ellen6V_02,
+        "03" => _adatok.Ellen6V_03,
+        "04" => _adatok.Ellen6V_04,
+        "05" => _adatok.Ellen6V_05,
+        "06" => _adatok.Ellen6V_06,
+        "07" => _adatok.Ellen6V_07,
+        "08" => _adatok.Ellen6V_08,
+        "09" => _adatok.Ellen6V_09,
+        "10" => _adatok.Ellen6V_10,
+        "11" => _adatok.Ellen6V_11,
+        "12" => _adatok.Ellen6V_12,
+        "13" => _adatok.Ellen6V_13,
+        "14" => _adatok.Ellen6V_14,
+        "15" => _adatok.Ellen6V_15,
+        "16" => _adatok.Ellen6V_16,
+        "17" => _adatok.Ellen6V_17,
+        // GetEllen6V switch bővítése:
+        "18" => _adatok.Ellen6V_18,
+        "19" => _adatok.Ellen6V_19,
+        "20" => _adatok.Ellen6V_20,
+        "21" => _adatok.Ellen6V_21,
+
+        _ => "MF"
+    };
+
+    private void SetEllen6V(string key, string ertek)
+    {
+        switch (key)
+        {
+            case "01": _adatok.Ellen6V_01 = ertek; break;
+            case "02": _adatok.Ellen6V_02 = ertek; break;
+            case "03": _adatok.Ellen6V_03 = ertek; break;
+            case "04": _adatok.Ellen6V_04 = ertek; break;
+            case "05": _adatok.Ellen6V_05 = ertek; break;
+            case "06": _adatok.Ellen6V_06 = ertek; break;
+            case "07": _adatok.Ellen6V_07 = ertek; break;
+            case "08": _adatok.Ellen6V_08 = ertek; break;
+            case "09": _adatok.Ellen6V_09 = ertek; break;
+            case "10": _adatok.Ellen6V_10 = ertek; break;
+            case "11": _adatok.Ellen6V_11 = ertek; break;
+            case "12": _adatok.Ellen6V_12 = ertek; break;
+            case "13": _adatok.Ellen6V_13 = ertek; break;
+            case "14": _adatok.Ellen6V_14 = ertek; break;
+            case "15": _adatok.Ellen6V_15 = ertek; break;
+            case "16": _adatok.Ellen6V_16 = ertek; break;
+            case "17": _adatok.Ellen6V_17 = ertek; break;
+            // SetEllen6V switch bővítése:
+            case "18": _adatok.Ellen6V_18 = ertek; break;
+            case "19": _adatok.Ellen6V_19 = ertek; break;
+            case "20": _adatok.Ellen6V_20 = ertek; break;
+            case "21": _adatok.Ellen6V_21 = ertek; break;
+
+        }
+    }
+
+    private string GetEllen6VMegjegyzes(string key) => key switch
+    {
+        "01" => _adatok.Ellen6V_01_M,
+        "02" => _adatok.Ellen6V_02_M,
+        "03" => _adatok.Ellen6V_03_M,
+        "04" => _adatok.Ellen6V_04_M,
+        "05" => _adatok.Ellen6V_05_M,
+        "06" => _adatok.Ellen6V_06_M,
+        "07" => _adatok.Ellen6V_07_M,
+        "08" => _adatok.Ellen6V_08_M,
+        "09" => _adatok.Ellen6V_09_M,
+        "10" => _adatok.Ellen6V_10_M,
+        "11" => _adatok.Ellen6V_11_M,
+        "12" => _adatok.Ellen6V_12_M,
+        "13" => _adatok.Ellen6V_13_M,
+        "14" => _adatok.Ellen6V_14_M,
+        "15" => _adatok.Ellen6V_15_M,
+        "16" => _adatok.Ellen6V_16_M,
+        "17" => _adatok.Ellen6V_17_M,
+
+
+        _ => ""
+    };
+
+    private void SetEllen6VMegjegyzes(string key, string ertek)
+    {
+        switch (key)
+        {
+            case "01": _adatok.Ellen6V_01_M = ertek; break;
+            case "02": _adatok.Ellen6V_02_M = ertek; break;
+            case "03": _adatok.Ellen6V_03_M = ertek; break;
+            case "04": _adatok.Ellen6V_04_M = ertek; break;
+            case "05": _adatok.Ellen6V_05_M = ertek; break;
+            case "06": _adatok.Ellen6V_06_M = ertek; break;
+            case "07": _adatok.Ellen6V_07_M = ertek; break;
+            case "08": _adatok.Ellen6V_08_M = ertek; break;
+            case "09": _adatok.Ellen6V_09_M = ertek; break;
+            case "10": _adatok.Ellen6V_10_M = ertek; break;
+            case "11": _adatok.Ellen6V_11_M = ertek; break;
+            case "12": _adatok.Ellen6V_12_M = ertek; break;
+            case "13": _adatok.Ellen6V_13_M = ertek; break;
+            case "14": _adatok.Ellen6V_14_M = ertek; break;
+            case "15": _adatok.Ellen6V_15_M = ertek; break;
+            case "16": _adatok.Ellen6V_16_M = ertek; break;
+            case "17": _adatok.Ellen6V_17_M = ertek; break;
+            // SetEllen6VMegjegyzes switch bővítése:
+            case "18": _adatok.Ellen6V_18_M = ertek; break;
+            case "19": _adatok.Ellen6V_19_M = ertek; break;
+            case "20": _adatok.Ellen6V_20_M = ertek; break;
+            case "21": _adatok.Ellen6V_21_M = ertek; break;
+           
+
+        }
     }
 }
