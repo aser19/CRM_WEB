@@ -307,6 +307,18 @@ public class JegyzokonyvAdatok
     public string Ellen6V_19_M { get; set; } = "";
     public string Ellen6V_20_M { get; set; } = "";
     public string Ellen6V_21_M { get; set; } = "";
+
+    // === 7. OLDAL – A VÉDELMEK ELLENŐRZÉSE ===
+    public string Ellen7_Balesetvédelem { get; set; } = "";
+    public string Ellen7_TulaAramvedelem { get; set; } = "";
+    public string Ellen7_AramutesElleni { get; set; } = "";
+    public string Ellen7_Villamvedelem { get; set; } = "";
+    public string Ellen7_Tulfeszultseg { get; set; } = "";
+    public string Ellen7_Feszultsegcsokkenes { get; set; } = "";
+    public string Ellen7_Elektrosztatikus { get; set; } = "";
+    public string Ellen7_Megjegyzes { get; set; } = "";
+    public string Ellen7_AtfogoErtekeles { get; set; } = "";
+
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly

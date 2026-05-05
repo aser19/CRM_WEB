@@ -1334,7 +1334,102 @@
         </MudPaper>
     </MudStep>
 
-    @* === 7. LÉPÉS: ÖSSZEGEZÉS === *@
+    @* === 7. LÉPÉS: A VÉDELMEK ELLENŐRZÉSE === *@
+    <MudStep Title="7. oldal" Icon="@Icons.Material.Filled.Shield"
+             Disabled="@(!IsIdoszakosVBFTipus())">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Class="mr-2" />
+                A védelmek ellenőrzése (7. oldal)
+            </MudText>
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Balesetvédelem"
+                                  Label="Balesetvédelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="Rendszeres karbantartása esetén a balesetveszély csökkentésére tett intézkedések megfelelők. Villamos szereléseket csak az arra feljogosított szerelő végezhet. A villamos berendezések burkolatai épek, a feszültség alatt álló részek közvetlen érintés elleni védelme biztosított. A kapcsoló- és elosztóberendezések környezetében a kezelési távolságok és a menekülési utak szabadok. A szükséges figyelmeztető feliratok és jelölések olvashatók." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_TulaAramvedelem"
+                                  Label="Túláramvédelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="A hálózat védelmét megfelelően megválasztott és méretezett kismegszakítók / olvadóbiztosítók látják el. A vezetékek keresztmetszete a túláramvédelmi szervek névleges áramértékéhez igazodik. A védelmi készülékek állapota megfelelő, rendellenes melegedés nem tapasztalható." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_AramutesElleni"
+                                  Label="Áramütés elleni védelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="A mért hurokimpedancia értékek a lekapcsolási feltételeket teljesítik. Az áram-védőkapcsolók (RCD) a próbagombos ellenőrzés és a műszeres mérés alapján (lekapcsolási idő és hibaáram) az előírt határértékeken belül működnek." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Villamvedelem"
+                                  Label="Villámvédelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="Az épület külső villámvédelmi rendszere (LPS) nem része a felülvizsgálatnak. A szemrevételezés alapján folytonos, a korrózióvédelem és a mechanikai rögzítések megfelelőek." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Tulfeszultseg"
+                                  Label="Túlfeszültség-védelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="A mért hálózaton többlépcsős (Type 1, 2, 3) túlfeszültség-korlátozó berendezés(ek) került(ek) beépítésre. Az egységek állapotjelzői „megfelelő" státuszt mutatnak, a műszeres mérés alapján megfelelő(k)." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Feszultsegcsokkenes"
+                                  Label="Feszültségcsökkenés elleni védelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="A technológiai gépsorok és motoros hajtások önműködő újraindulás elleni védelemmel (mágneskapcsolók, feszültségfigyelő relék) rendelkeznek. Feszültségkimaradás vagy jelentős csökkenés esetén a berendezések biztonsági állapotba állnak, az újraindulás csak beavatkozással lehetséges." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Elektrosztatikus"
+                                  Label="Elektrosztatikus feltöltődés elleni védelem"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="Az antisztatikus padlóburkolatok és az ESD védelmi pontok folytonossága biztosított. Az MSZ EN 61340 szabvány szerinti levezetési ellenállások mérése megfelelő; a technológiai berendezések földelései az elektrosztatikus kisülések megakadályozására alkalmasak." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="my-3" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_Megjegyzes"
+                                  Label="Megjegyzések, észrevételek"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="A felülvizsgálat során kritikus hiba nem került feltárásra. Javasolt az elosztóberendezések sorkapcsainak éves utánhúzása és a hőkamerás ellenőrzés ütemezése a megelőző karbantartás keretében." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_AtfogoErtekeles"
+                                  Label="A védelmek átfogó, rendszerszintű értékelése"
+                                  Variant="Variant.Outlined" Lines="5"
+                                  Placeholder="A vizsgált villamos berendezés védelmi rendszerei összehangoltan működnek, a vonatkozó szabványok előírásait teljesítik. Az alkalmazott védelmi megoldások biztosítják az élet- és vagyonbiztonságot, a berendezés rendeltetésszerű használatra ALKALMAS." />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                                   OnClick="VisszaEggyetLepes"
+                                   StartIcon="@Icons.Material.Filled.ArrowBack">
+                            Vissza
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="@(async () => await (_stepper?.NextStepAsync() ?? Task.CompletedTask))"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az összegzéshez
+                        </MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudStep>
+
+    @* === 8. LÉPÉS: ÖSSZEGEZÉS === *@
     <MudStep Title="Összegzés" Icon="@Icons.Material.Filled.Summarize">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">

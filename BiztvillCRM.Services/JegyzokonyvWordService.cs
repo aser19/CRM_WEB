@@ -451,6 +451,17 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["720M"] = formAdatok?.Ellen6V_20_M ?? "",
             ["721M"] = formAdatok?.Ellen6V_21_M ?? "",
             ["700_Megjegyzes"] = formAdatok?.Ellen6V_Megjegyzes ?? "",
+
+            // === 7. OLDAL – A VÉDELMEK ELLENŐRZÉSE ===
+            ["Ellen7_Balesetvédelem"] = formAdatok?.Ellen7_Balesetvédelem ?? "",
+            ["Ellen7_TulaAramvedelem"] = formAdatok?.Ellen7_TulaAramvedelem ?? "",
+            ["Ellen7_AramutesElleni"] = formAdatok?.Ellen7_AramutesElleni ?? "",
+            ["Ellen7_Villamvedelem"] = formAdatok?.Ellen7_Villamvedelem ?? "",
+            ["Ellen7_Tulfeszultseg"] = formAdatok?.Ellen7_Tulfeszultseg ?? "",
+            ["Ellen7_Feszultsegcsokkenes"] = formAdatok?.Ellen7_Feszultsegcsokkenes ?? "",
+            ["Ellen7_Elektrosztatikus"] = formAdatok?.Ellen7_Elektrosztatikus ?? "",
+            ["Ellen7_Megjegyzes"] = formAdatok?.Ellen7_Megjegyzes ?? "",
+            ["Ellen7_AtfogoErtekeles"] = formAdatok?.Ellen7_AtfogoErtekeles ?? "",
         };
 
 
