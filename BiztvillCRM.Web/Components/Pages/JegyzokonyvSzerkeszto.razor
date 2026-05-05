@@ -960,7 +960,7 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                    OnClick="Lepes4ValidalasEsTovabbAsync"
                                    EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább az összegzéshez
+                            Tovább az 5. oldalra
                         </MudButton>
                     </MudStack>
                 </MudItem>
@@ -1143,7 +1143,7 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                    OnClick="@(async () => await (_stepper?.NextStepAsync() ?? Task.CompletedTask))"
                                    EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább az összegzéshez
+                            Tovább a 6. oldalra
                         </MudButton>
                     </MudStack>
                 </MudItem>
@@ -1326,7 +1326,7 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                    OnClick="@(async () => await (_stepper?.NextStepAsync() ?? Task.CompletedTask))"
                                    EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább az összegzéshez
+                            Tovább a 7. oldalra
                         </MudButton>
                     </MudStack>
                 </MudItem>
@@ -1409,6 +1409,78 @@
                                   Label="A védelmek átfogó, rendszerszintű értékelése"
                                   Variant="Variant.Outlined" Lines="5"
                                   Placeholder="A vizsgált villamos berendezés védelmi rendszerei összehangoltan működnek, a vonatkozó szabványok előírásait teljesítik. Az alkalmazott védelmi megoldások biztosítják az élet- és vagyonbiztonságot, a berendezés rendeltetésszerű használatra ALKALMAS." />
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-3">
+                    <MudDivider />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_AltalánosEszrevételek"
+                                  Label="Általános észrevételek"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="Általános észrevételek a helyszíni felülvizsgálatról..." />
+                </MudItem>
+
+                @* === ÁRAMKÖRÖK LEÍRÁSA HELYISÉGENKÉNT === *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.TableChart" Class="mr-2" />
+                        Áramkörök leírása helyiségenként
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSimpleTable Dense="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th style="width:35%">Helyiség neve</th>
+                                <th>Áramkörök leírása</th>
+                                <th style="width:50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (sor, idx) in _adatok.Aramkorok.Select((s, i) => (s, i)))
+                            {
+                                <tr>
+                                    <td>
+                                        <MudTextField T="string"
+                                                      Value="sor.HelyisegNev"
+                                                      ValueChanged="@((string v) => { sor.HelyisegNev = v; OnAramkorMezoValtozas(); })"
+                                                      Variant="Variant.Text" Margin="Margin.Dense"
+                                                      Placeholder="pl. Iroda, Konyha, Gépház..." />
+                                    </td>
+                                    <td>
+                                        <MudTextField T="string"
+                                                      Value="sor.Leiras"
+                                                      ValueChanged="@((string v) => { sor.Leiras = v; OnAramkorMezoValtozas(); })"
+                                                      Variant="Variant.Text" Margin="Margin.Dense"
+                                                      Placeholder="pl. világítási áramkör, dugalj áramkör, 2xf.cső arm., 6xdugalj" />
+                                    </td>
+                                    <td>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error" Size="Size.Small"
+                                                       OnClick="@(() => AramkorTorles(idx))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="AramkorHozzaad">
+                        Sor hozzáadása
+                    </MudButton>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_adatok.Ellen7_MegjegyzesekEszrevételek"
+                                  Label="Megjegyzések, észrevételek"
+                                  Variant="Variant.Outlined" Lines="4"
+                                  Placeholder="Megjegyzések és észrevételek..." />
                 </MudItem>
 
                 <MudItem xs="12" Class="mt-4">
@@ -2702,5 +2774,27 @@
            
 
         }
+    }
+
+    private void AramkorHozzaad()
+    {
+        _adatok.Aramkorok.Add(new AramkorSor());
+    }
+
+    private void OnAramkorMezoValtozas()
+    {
+        var utolso = _adatok.Aramkorok.LastOrDefault();
+        if (utolso != null &&
+            !string.IsNullOrWhiteSpace(utolso.HelyisegNev) &&
+            !string.IsNullOrWhiteSpace(utolso.Leiras))
+        {
+            _adatok.Aramkorok.Add(new AramkorSor());
+        }
+    }
+
+    private void AramkorTorles(int index)
+    {
+        if (index >= 0 && index < _adatok.Aramkorok.Count)
+            _adatok.Aramkorok.RemoveAt(index);
     }
 }

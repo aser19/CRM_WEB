@@ -319,6 +319,11 @@ public class JegyzokonyvAdatok
     public string Ellen7_Megjegyzes { get; set; } = "";
     public string Ellen7_AtfogoErtekeles { get; set; } = "";
 
+    // === 7. OLDAL – ÁRAMKÖRÖK LEÍRÁSA HELYISÉGENKÉNT ===
+    public List<AramkorSor> Aramkorok { get; set; } = new();
+    public string Ellen7_AltalánosEszrevételek { get; set; } = "";
+    public string Ellen7_MegjegyzesekEszrevételek { get; set; } = "";
+
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly
@@ -329,3 +334,12 @@ public class KijeloltJogszabaly
     public bool Kivalasztva { get; set; } = true;
     public bool IsSzabvany { get; set; } = false; // ÚJ
 }
+
+public class AramkorSor
+{
+    public string HelyisegNev { get; set; } = "";
+    public string Leiras { get; set; } = "";
+}
+
+
+

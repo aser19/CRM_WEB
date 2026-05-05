@@ -462,6 +462,19 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["Ellen7_Elektrosztatikus"] = formAdatok?.Ellen7_Elektrosztatikus ?? "",
             ["Ellen7_Megjegyzes"] = formAdatok?.Ellen7_Megjegyzes ?? "",
             ["Ellen7_AtfogoErtekeles"] = formAdatok?.Ellen7_AtfogoErtekeles ?? "",
+
+            // === 7. OLDAL – ÁRAMKÖRÖK ===
+            // === 7. OLDAL – ÁRAMKÖRÖK ===
+            ["aramkorok"] = (formAdatok?.Aramkorok ?? new())
+               .Select(a => new Dictionary<string, object>
+               {
+                   ["aramkor_helyiseg"] = a.HelyisegNev ?? "",
+                   ["aramkor_leiras"] = a.Leiras ?? ""
+               })
+                .ToList<object>(),
+
+            ["altalanos_eszrevetelek"] = formAdatok?.Ellen7_AltalánosEszrevételek ?? "",
+            ["megjegyzesek_eszrevetelek"] = formAdatok?.Ellen7_MegjegyzesekEszrevételek ?? "",
         };
 
 
