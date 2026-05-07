@@ -1,0 +1,226 @@
+@page "/admin/jegyozokonyv-sablon"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,CegAdmin")]
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IJegyzokonyvSablonService SablonService
+@inject IMeresTipusService MeresTipusService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Jegyzőkönyv sablon tételek - Biztovill CRM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Jegyzőkönyv sablon tételek</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudSelect T="int?" Label="Mérés típus szűrő"
+                   Value="_szurtMeresTipusId"
+                   ValueChanged="@(async (int? v) => { _szurtMeresTipusId = v; await LoadTetelek(); })"
+                   Clearable="true" Style="max-width:300px" AnchorOrigin="Origin.BottomLeft">
+            @foreach (var mt in _meresTipusok)
+            {
+                <MudSelectItem T="int?" Value="@((int?)mt.Id)">@mt.Nev</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="UjTetelMegnyitas">
+            Új tétel
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudDataGrid T="JegyzokonyvSablonTetel" Items="_tetelek" Hover="true" Striped="true"
+             Loading="_betoltes" SortMode="SortMode.Multiple" Filterable="true">
+    <Columns>
+        <PropertyColumn Property="t => t.MeresTipus!.Nev" Title="Mérés típus" />
+        <PropertyColumn Property="t => t.OldalSzam" Title="Oldal" />
+        <PropertyColumn Property="t => t.Kategoria" Title="Kategória" />
+        <PropertyColumn Property="t => t.Sorrend" Title="Sor." />
+        <PropertyColumn Property="t => t.Felirat" Title="Felirat" />
+        <PropertyColumn Property="t => t.LehetsegesErtekek" Title="Értékek" />
+        <PropertyColumn Property="t => t.AlapertelmezettErtek" Title="Alapért." />
+        <TemplateColumn Title="Megjegyzés mező">
+            <CellTemplate>
+                <MudIcon Icon="@(context.Item.VanMegjegyzesMezo
+                    ? Icons.Material.Filled.CheckCircle
+                    : Icons.Material.Filled.Cancel)"
+                    Color="@(context.Item.VanMegjegyzesMezo ? Color.Success : Color.Default)" />
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Aktív">
+            <CellTemplate>
+                <MudIcon Icon="@(context.Item.Aktiv
+                    ? Icons.Material.Filled.CheckCircle
+                    : Icons.Material.Filled.Cancel)"
+                    Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Műveletek" Sortable="false" Filterable="false">
+            <CellTemplate>
+                <MudStack Row="true">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   Size="Size.Small" OnClick="@(() => SzerkesztesTetel(context.Item))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   Size="Size.Small" OnClick="@(() => TorlesTetel(context.Item))" />
+                </MudStack>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@* Szerkesztő dialog *@
+<MudDialog @bind-Visible="_dialogNyitva" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_szerkesztettTetel?.Id == 0 ? "Új tétel" : "Tétel szerkesztése")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztettTetel is not null)
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" Label="Mérés típus" @bind-Value="_szerkesztettTetel.MeresTipusId"
+                               Required="true" AnchorOrigin="Origin.BottomLeft">
+                        @foreach (var mt in _meresTipusok)
+                        {
+                            <MudSelectItem T="int" Value="@mt.Id">@mt.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField T="int" Label="Oldal száma" @bind-Value="_szerkesztettTetel.OldalSzam"
+                                     Min="1" Max="20" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudNumericField T="int" Label="Sorrend" @bind-Value="_szerkesztettTetel.Sorrend"
+                                     Min="1" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Kategória" @bind-Value="_szerkesztettTetel.Kategoria"
+                                  Required="true" HelperText='pl. "60364-6 Vizsgálatok"' />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Felirat" @bind-Value="_szerkesztettTetel.Felirat"
+                                  Required="true" Lines="2"
+                                  HelperText='pl. "1.1 Tápvezeték keresztmetszet ellenőrzése"' />
+                </MudItem>
+                <MudItem xs="12" sm="8">
+                    <MudTextField Label="Lehetséges értékek (;-vel elválasztva)"
+                                  @bind-Value="_szerkesztettTetel.LehetsegesErtekek"
+                                  HelperText='pl. "MF;NMF;NA" vagy "MF;NMF"' Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="Alapértelmezett érték"
+                                  @bind-Value="_szerkesztettTetel.AlapertelmezettErtek"
+                                  HelperText='pl. "MF"' />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudCheckBox T="bool" @bind-Value="_szerkesztettTetel.VanMegjegyzesMezo"
+                                 Label="Legyen megjegyzés mező" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudCheckBox T="bool" @bind-Value="_szerkesztettTetel.Aktiv"
+                                 Label="Aktív" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _dialogNyitva = false)">Mégse</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Mentés">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<JegyzokonyvSablonTetel> _tetelek = [];
+    private List<MeresTipus> _meresTipusok = [];
+    private int? _szurtMeresTipusId;
+    private bool _betoltes = true;
+    private bool _dialogNyitva;
+    private JegyzokonyvSablonTetel? _szerkesztettTetel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _meresTipusok = await MeresTipusService.GetAllAsync();
+        await LoadTetelek();
+    }
+
+    private async Task LoadTetelek()
+    {
+        _betoltes = true;
+        _tetelek = await SablonService.GetOsszesTetelek(_szurtMeresTipusId);
+        _betoltes = false;
+    }
+
+    private void UjTetelMegnyitas()
+    {
+        _szerkesztettTetel = new JegyzokonyvSablonTetel
+        {
+            MeresTipusId = _szurtMeresTipusId ?? (_meresTipusok.FirstOrDefault()?.Id ?? 0),
+            OldalSzam = 5,
+            Sorrend = (_tetelek.MaxBy(t => t.Sorrend)?.Sorrend ?? 0) + 1,
+            LehetsegesErtekek = "MF;NMF;NA",
+            AlapertelmezettErtek = "MF",
+            VanMegjegyzesMezo = true,
+            Aktiv = true
+        };
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesTetel(JegyzokonyvSablonTetel tetel)
+    {
+        // Másolat szerkesztésre, hogy cancel esetén ne változzon
+        _szerkesztettTetel = new JegyzokonyvSablonTetel
+        {
+            Id = tetel.Id,
+            MeresTipusId = tetel.MeresTipusId,
+            OldalSzam = tetel.OldalSzam,
+            Kategoria = tetel.Kategoria,
+            Sorrend = tetel.Sorrend,
+            Felirat = tetel.Felirat,
+            LehetsegesErtekek = tetel.LehetsegesErtekek,
+            AlapertelmezettErtek = tetel.AlapertelmezettErtek,
+            VanMegjegyzesMezo = tetel.VanMegjegyzesMezo,
+            Aktiv = tetel.Aktiv
+        };
+        _dialogNyitva = true;
+    }
+
+    private async Task Mentés()
+    {
+        if (_szerkesztettTetel is null) return;
+        try
+        {
+            if (_szerkesztettTetel.Id == 0)
+                await SablonService.CreateAsync(_szerkesztettTetel);
+            else
+                await SablonService.UpdateAsync(_szerkesztettTetel);
+
+            Snackbar.Add("Mentés sikeres!", Severity.Success);
+            _dialogNyitva = false;
+            await LoadTetelek();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesTetel(JegyzokonyvSablonTetel tetel)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törlöd ezt a tételt?\n\"{tetel.Felirat}\"",
+            yesText: "Igen, törlöm", cancelText: "Mégse");
+
+        if (confirm == true)
+        {
+            await SablonService.DeleteAsync(tetel.Id);
+            Snackbar.Add("Tétel törölve.", Severity.Info);
+            await LoadTetelek();
+        }
+    }
+}

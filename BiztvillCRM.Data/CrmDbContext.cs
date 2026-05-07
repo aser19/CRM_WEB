@@ -70,6 +70,11 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
     public DbSet<Helyiseg> Helyisegek { get; set; }
 
+    // --- Jegyzőkönyv sablonok ---
+    public DbSet<JegyzokonyvSablonTetel> JegyzokonyvSablonTetelek { get; set; }
+    public DbSet<VizsgalatiSablon> VizsgalatiSablonok { get; set; }
+    public DbSet<VizsgalatiSablonTetelErtek> VizsgalatiSablonTetelErtekek { get; set; }
+
     // --- Eszköz sablonok ---
     public DbSet<EszkozSablon> EszkozSablonok { get; set; }
     public DbSet<EszkozSablonAlkatresz> EszkozSablonAlkatreszek { get; set; }

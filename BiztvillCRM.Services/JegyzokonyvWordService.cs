@@ -110,9 +110,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["HIBAK_D"] = formAdatok?.HibakD ?? "",
             ["HIBAK_E"] = formAdatok?.HibakE ?? "",
             ["VEGSO_MINOSITES"] = formAdatok?.VegsoMinosites ?? "",
-            ["Melleklet_db"] = formAdatok?.MellekletekSzama ?? "",
             ["HIBAVED_JKV"] = formAdatok?.HibavedelmiJkv ?? "",
             ["AVK_JEGYZOKONYV"] = formAdatok?.AvkJegyzokonyv ?? "",
+            ["SZIGELL_JGYK"] = formAdatok?.SzigetelesiJkv ?? "",
+            ["VV_N_JGYK"] = formAdatok?.VillamJkv ?? "",
+            ["VV_NN_JGYK"] = formAdatok?.VillamNemJkv ?? "",
+            ["Melleklet_db"] = formAdatok?.MellekletekSzama ?? "",
             ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
 
             // Eredmény checkbox-ok

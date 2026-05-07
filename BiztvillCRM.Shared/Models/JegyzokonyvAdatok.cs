@@ -38,9 +38,33 @@ public class JegyzokonyvAdatok
     public string HibakD { get; set; } = "";
     public string HibakE { get; set; } = "";
     public string VegsoMinosites { get; set; } = "";
-    public string MellekletekSzama { get; set; } = "";
-    public string HibavedelmiJkv { get; set; } = "";
-    public string AvkJegyzokonyv { get; set; } = "";
+
+    // === MELLÉKLETEK – CHECKBOXOK ===
+    public bool MellekletHibavedelem { get; set; } = false;   // Hibavédelmi jgyk (Hurok)
+    public bool MellekletAvk { get; set; } = false;            // Áramvédő kapcsolók
+    public bool MellekletSzigeteles { get; set; } = false;     // Szigetelés ellenállás mérés
+    public bool MellekletVillam { get; set; } = false;         // Norma szerinti Villám
+    public bool MellekletVillamNem { get; set; } = false;      // Nem norma szerinti Villám
+
+    // Automatikusan generált melléklet-számok (csak olvasásra a UI-ban)
+    public string HibavedelmiJkv { get; set; } = "";           // meglévő – megtartva
+    public string AvkJegyzokonyv { get; set; } = "";           // meglévő – megtartva
+    public string SzigetelesiJkv { get; set; } = "";
+    public string VillamJkv { get; set; } = "";
+    public string VillamNemJkv { get; set; } = "";
+    public string MellekletekSzama
+    {
+        get
+        {
+            int count = 0;
+            if (MellekletHibavedelem) count++;
+            if (MellekletAvk) count++;
+            if (MellekletSzigeteles) count++;
+            if (MellekletVillam) count++;
+            if (MellekletVillamNem) count++;
+            return count.ToString();
+        }
+    }
 
     // === MINŐSÍTŐ IRAT - 3. OLDAL - ÚJ MEZŐK ===
     public string MinositasEredmenye { get; set; } = "MEGFELELŐ";

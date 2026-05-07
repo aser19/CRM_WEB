@@ -754,25 +754,81 @@
                         <MudText Typo="Typo.subtitle1" Class="mb-2">Mellékletek</MudText>
                     </MudItem>
 
-                    <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_adatok.MellekletekSzama"
-                                      Label="Mellékletek száma"
-                                      Variant="Variant.Outlined"
-                                      Placeholder="pl. 2 db" />
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Mellékletek</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">
+                            A kipipált mellékletekhez automatikusan generálódik a hivatkozási szám.
+                        </MudText>
                     </MudItem>
 
-                    <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_adatok.HibavedelmiJkv"
-                                      Label="Hibavédelmi mérési jkv."
-                                      Variant="Variant.Outlined"
-                                      Placeholder="pl. 2024/HVM-001" />
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCheckBox T="bool"
+                                     Value="_adatok.MellekletHibavedelem"
+                                     ValueChanged="@((bool v) => { _adatok.MellekletHibavedelem = v; GeneraltMellekletSzamok(); })"
+                                     Label="Hibavédelmi jgyk (Hurok)"
+                                     Color="Color.Primary" />
+                        @if (_adatok.MellekletHibavedelem)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.HibavedelmiJkv</MudText>
+                        }
                     </MudItem>
 
-                    <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="_adatok.AvkJegyzokonyv"
-                                      Label="ÁVK mérési jkv."
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCheckBox T="bool"
+                                     Value="_adatok.MellekletAvk"
+                                     ValueChanged="@((bool v) => { _adatok.MellekletAvk = v; GeneraltMellekletSzamok(); })"
+                                     Label="Áramvédő kapcsolók"
+                                     Color="Color.Primary" />
+                        @if (_adatok.MellekletAvk)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.AvkJegyzokonyv</MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCheckBox T="bool"
+                                     Value="_adatok.MellekletSzigeteles"
+                                     ValueChanged="@((bool v) => { _adatok.MellekletSzigeteles = v; GeneraltMellekletSzamok(); })"
+                                     Label="Szigetelés ellenállás mérés"
+                                     Color="Color.Primary" />
+                        @if (_adatok.MellekletSzigeteles)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.SzigetelesiJkv</MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCheckBox T="bool"
+                                     Value="_adatok.MellekletVillam"
+                                     ValueChanged="@((bool v) => { _adatok.MellekletVillam = v; if (v) _adatok.MellekletVillamNem = false; GeneraltMellekletSzamok(); })"
+                                     Label="Norma szerinti Villám"
+                                     Color="Color.Primary" />
+                        @if (_adatok.MellekletVillam)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamJkv</MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCheckBox T="bool"
+                                     Value="_adatok.MellekletVillamNem"
+                                     ValueChanged="@((bool v) => { _adatok.MellekletVillamNem = v; if (v) _adatok.MellekletVillam = false; GeneraltMellekletSzamok(); })"
+                                     Label="Nem norma szerinti Villám"
+                                     Color="Color.Primary" />
+                        @if (_adatok.MellekletVillamNem)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamNemJkv</MudText>
+                        }
+                    </MudItem>
+
+                    @* Összesített melléklet szám (automatikus) *@
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudTextField Value="@_mellekletekSzamaAuto"
+                                      Label="Mellékletek száma (auto)"
                                       Variant="Variant.Outlined"
-                                      Placeholder="pl. 2024/AVK-001" />
+                                      ReadOnly="true"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Lock" />
                     </MudItem>
 
                     <MudItem xs="12">
@@ -2382,6 +2438,30 @@
         if (!string.IsNullOrWhiteSpace(ertek))
             _adatok.VegsoMinosites = "NEM FELELT MEG";
     }
+
+    private string _mellekletekSzamaAuto => new[]
+{
+        _adatok.MellekletHibavedelem,
+        _adatok.MellekletAvk,
+        _adatok.MellekletSzigeteles,
+        _adatok.MellekletVillam,
+        _adatok.MellekletVillamNem
+    }.Count(x => x) + " db";
+
+    private void GeneraltMellekletSzamok()
+    {
+        var alapSzam = _adatok.JegyzokonyvSzam;
+        if (string.IsNullOrWhiteSpace(alapSzam))
+            alapSzam = $"VBF-{DateTime.Now:yyyy}-MELL";
+
+        _adatok.HibavedelmiJkv = _adatok.MellekletHibavedelem ? $"{alapSzam}/HVM" : "";
+        _adatok.AvkJegyzokonyv = _adatok.MellekletAvk ? $"{alapSzam}/AVK" : "";
+        _adatok.SzigetelesiJkv = _adatok.MellekletSzigeteles ? $"{alapSzam}/SZI" : "";
+        _adatok.VillamJkv = _adatok.MellekletVillam ? $"{alapSzam}/VVN" : "";
+        _adatok.VillamNemJkv = _adatok.MellekletVillamNem ? $"{alapSzam}/VVN-NEM" : "";
+        // MellekletekSzama törölve – automatikusan számolódik a modellben
+    }
+
     private string GetEllen5(string bet, bool megtekintesMod)
     {
         if (megtekintesMod) return bet switch

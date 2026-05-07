@@ -1,13 +1,14 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BiztvillCRM.Shared.Models;
 
-/// <summary>Jegyzőkönyv sablon metaadatok.</summary>
+/// <summary>Word fájl alapú sablon (pl. VBF_KIF_MINTA.docx) – az ISablonService használja.</summary>
 public class JegyzokonyvSablon
 {
-    public string Id { get; set; } = "";           // Fájlnév kiterjesztés nélkül
-    public string Nev { get; set; } = "";          // Megjelenített név
-    public string FajlNev { get; set; } = "";      // Teljes fájlnév (.docx)
-    public string? Leiras { get; set; }
-    public string? Kategoria { get; set; }         // pl. "VBF", "Tűzvédelem", stb.
+    public string Id { get; set; } = string.Empty;
+    public string Nev { get; set; } = string.Empty;
+    public string FajlNev { get; set; } = string.Empty;
+    public string Kategoria { get; set; } = string.Empty;
     public DateTime UtolsoModositas { get; set; }
     public bool Aktiv { get; set; } = true;
 }

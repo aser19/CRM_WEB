@@ -122,6 +122,7 @@ builder.Services.AddScoped<IJegyzokonyvOcrService, JegyzokonyvOcrService>(); // 
 builder.Services.AddScoped<IEszkozSablonService, EszkozSablonService>();
 builder.Services.AddScoped<IErintesvedelmiModOsztalyService, ErintesvedelmiModOsztalyService>(); // ÚJ
 builder.Services.AddScoped<ITularamvedelemTipusService, TularamvedelemTipusService>(); // ÚJ
+builder.Services.AddScoped<IJegyzokonyvSablonService, JegyzokonyvSablonService>(); 
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
