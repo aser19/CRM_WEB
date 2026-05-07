@@ -1601,6 +1601,52 @@
                         @(_feldolgozas ? "Generálás..." : "Letöltés (Word)")
                     </MudButton>
                 </MudItem>
+
+
+                @* === MELLÉKLET JGYK. PANEL === *@
+                @if (_mellekletek.Count > 0)
+                {
+                    <MudPaper Class="pa-4 mt-4" Elevation="3">
+                        <MudText Typo="Typo.h6" Class="mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Class="mr-2" />
+                            Melléklet jegyzőkönyvek
+                        </MudText>
+
+                        <MudGrid>
+                            @foreach (var m in _mellekletek)
+                            {
+                                <MudItem xs="12" sm="6" md="4">
+                                    <MudCard Outlined="true">
+                                        <MudCardContent Class="pa-3">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                <div>
+                                                    <MudText Typo="Typo.subtitle2">@MellekletJegyzokonyv.TipusNev(m.Tipus)</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@m.Szam</MudText>
+                                                </div>
+                                                <MudChip T="string"
+                                                         Color="@(m.KeszeE ? Color.Success : Color.Warning)"
+                                                         Size="Size.Small">
+                                                    @(m.KeszeE ? "Kész" : "Folyamatban")
+                                                </MudChip>
+                                            </MudStack>
+                                        </MudCardContent>
+                                        <MudCardActions Class="pa-2">
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="@(m.KeszeE ? Color.Default : Color.Primary)"
+                                                       Size="Size.Small" FullWidth="true"
+                                                       StartIcon="@(m.KeszeE ? Icons.Material.Filled.Visibility : Icons.Material.Filled.Edit)"
+                                                       OnClick="@(() => MellekletMegnyitas(m))">
+                                                @(m.KeszeE ? "Megtekintés" : "Folytatás / Szerkesztés")
+                                            </MudButton>
+                                        </MudCardActions>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudPaper>
+                }
+
+
             </MudGrid>
         </MudPaper>
     </MudStep>
@@ -1754,7 +1800,11 @@
         _cegMatricaElotag = ceg?.MatricaElotag;
 
         if (MeresId.HasValue)
+        {
             await BetoltMeresbolAsync(MeresId.Value);
+            // Meglévő melléklet jgyk-ok betöltése
+            _mellekletek = await MellekletService.GetByMeresIdAsync(MeresId.Value);
+        }
     }
 
     private async Task OnTipusValtozas(int tipusId)
@@ -1973,6 +2023,11 @@
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
             Snackbar.Add("Jegyzőkönyv sikeresen legenerálva és mentve!", Severity.Success);
+
+            // Melléklet jgyk-ok létrehozása a generálás után
+
+            await MellekletekLetrehozasa();
+            StateHasChanged(); // ← panel megjelenik
         }
         catch (Exception ex)
         {
@@ -2876,5 +2931,55 @@
     {
         if (index >= 0 && index < _adatok.Aramkorok.Count)
             _adatok.Aramkorok.RemoveAt(index);
+    }
+
+    @inject IMellekletJegyzokonyvService MellekletService
+
+    // --- mezők ---
+    private List<MellekletJegyzokonyv> _mellekletek = [];
+
+    // Hívd meg a Word generálás után:
+    private async Task MellekletekLetrehozasa()
+    {
+        if (MeresId is null) return;
+        var meresId = MeresId.Value;
+
+        var tetelek = new List<(bool aktiv, string tipus, string szam)>
+        {
+            (_adatok.MellekletHibavedelem, "HVM",     _adatok.HibavedelmiJkv),
+            (_adatok.MellekletAvk,         "AVK",     _adatok.AvkJegyzokonyv),
+            (_adatok.MellekletSzigeteles,  "SZI",     _adatok.SzigetelesiJkv),
+            (_adatok.MellekletVillam,      "VVN",     _adatok.VillamJkv),
+            (_adatok.MellekletVillamNem,   "VVN-NEM", _adatok.VillamNemJkv),
+        };
+
+        foreach (var (aktiv, tipus, szam) in tetelek.Where(t => t.aktiv))
+            await MellekletService.LetrehozVagyFrissitAsync(meresId, tipus, szam);
+
+        _mellekletek = await MellekletService.GetByMeresIdAsync(meresId);
+    }
+
+    private async Task MellekletMegnyitas(MellekletJegyzokonyv m)
+    {
+        // MeresTipus kikeresése tipus kód alapján
+        var meresTipusNev = m.Tipus switch
+        {
+            "HVM" => "Hibavédelmi mérés",
+            "AVK" => "Áramvédő kapcsolók",
+            "SZI" => "Szigetelés ellenállás",
+            "VVN" => "Villámvédelem (norma)",
+            "VVN-NEM" => "Villámvédelem (nem norma)",
+            _ => ""
+        };
+
+        var meresTipus = _tipusok.FirstOrDefault(t => t.Nev == meresTipusNev);
+        if (meresTipus is null)
+        {
+            Snackbar.Add($"Nincs '{meresTipusNev}' nevű mérés típus az adatbázisban!", Severity.Warning);
+            return;
+        }
+
+        var meresId = await MellekletService.MellekletMeresLetrehozAsync(m.Id, meresTipus.Id, _adatok);
+        Navigation.NavigateTo($"/jegyzokonyv/{meresId}");
     }
 }

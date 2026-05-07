@@ -82,6 +82,9 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // --- Automatika futásnaplók ---
     public DbSet<AutomatikaFutasNaplo> AutomatikaFutasNaplok { get; set; }
 
+    // --- Melléklet Jegyzőkönyvek ---
+    public DbSet<MellekletJegyzokonyv> MellekletJegyzokonyvek { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
