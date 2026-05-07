@@ -63,6 +63,7 @@ public class MeresTipusService : IMeresTipusService
         existing.JegyzokonyvPrefix = tipus.JegyzokonyvPrefix;
         existing.SablonId = tipus.SablonId;
         existing.OcrModelId = tipus.OcrModelId;
+        existing.MellekletTipusKod = tipus.MellekletTipusKod; // ← EZT ADD HOZZÁ
         existing.Aktiv = tipus.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
@@ -78,16 +79,15 @@ public class MeresTipusService : IMeresTipusService
             .FirstOrDefaultAsync(m => m.Id == tipus.Id)
             ?? throw new InvalidOperationException("Mérés típus nem található");
 
-        // Alapadatok frissítése
         existing.Nev = tipus.Nev;
         existing.Leiras = tipus.Leiras;
         existing.JegyzokonyvPrefix = tipus.JegyzokonyvPrefix;
         existing.SablonId = tipus.SablonId;
         existing.OcrModelId = tipus.OcrModelId;
+        existing.MellekletTipusKod = tipus.MellekletTipusKod;
         existing.Aktiv = tipus.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
-        // Követelmények frissítése (remove all + add new)
         context.MeresTipusKepzesKovetelemenyei.RemoveRange(existing.KepzesKovetelemenyei);
         existing.KepzesKovetelemenyei.Clear();
 

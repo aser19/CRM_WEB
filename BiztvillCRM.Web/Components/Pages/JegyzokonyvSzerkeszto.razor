@@ -4,6 +4,7 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Services
+@using BiztvillCRM.Shared.Enums
 @inject IMeresService MeresService
 @inject IUgyfelService UgyfelService
 @inject ITelephelyService TelephelyService
@@ -21,6 +22,7 @@
 @inject IMunkaszamService MunkaszamService
 @inject IMatricaValidatorService MatricaValidator
 @inject IJegyzokonyvOcrService OcrService
+@inject IMellekletJegyzokonyvService MellekletService
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -1719,6 +1721,7 @@
     private List<Ugyfel> _ugyfelek = [];
     private List<Telephely> _telephelyek = [];
     private List<Telephely> _szurtTelephelyek = [];
+    private List<MeresTipus> _osszesTipus = [];
 
     private int _kivalasztottTipusId;
     private string? _kivalasztottTipusNev;
@@ -1789,6 +1792,7 @@
         _telephelyek = await TelephelyService.GetAllAsync();
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
         _muszerek = await EszkozService.GetAllAsync();
+        _osszesTipus = _tipusok;
 
         await BetoltCegAdatokAsync();
 
@@ -2006,28 +2010,51 @@
             _feldolgozas = true;
             StateHasChanged();
 
-            var meresId = MeresId ?? 0;
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
             var sablonId = tipus?.SablonId ?? "VBF_KIF_MINTA";
 
-            // ✅ MENTÉS ADATBÁZISBA
-            if (meresId > 0)
+            int meresId;
+            if (!MeresId.HasValue || MeresId == 0)
             {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    // Már el lett mentve korábban (pl. 2. letöltésnél)
+                    meresId = _ujonnanMentettMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+                }
+                else
+                {
+                    // Első mentés
+                    var ujMeres = new Meres
+                    {
+                        UgyfelId = _kivalasztottUgyfelId,
+                        TelephelyId = _kivalasztottTelephelyId,
+                        MeresTipusId = _kivalasztottTipusId,
+                        Datum = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz = MeresStatusz.Elvegezve,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    };
+                    ujMeres = await MeresService.CreateAsync(ujMeres);
+                    meresId = ujMeres.Id;
+                    _ujonnanMentettMeresId = meresId; // ← eltároljuk, nem navigálunk
+                }
+            }
+            else
+            {
+                meresId = MeresId.Value;
                 await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
             }
 
             var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
             var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
-
             using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
             Snackbar.Add("Jegyzőkönyv sikeresen legenerálva és mentve!", Severity.Success);
 
-            // Melléklet jgyk-ok létrehozása a generálás után
-
             await MellekletekLetrehozasa();
-            StateHasChanged(); // ← panel megjelenik
+            _mellekletek = await MellekletService.GetByMeresIdAsync(meresId);
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -2941,8 +2968,8 @@
     // Hívd meg a Word generálás után:
     private async Task MellekletekLetrehozasa()
     {
-        if (MeresId is null) return;
-        var meresId = MeresId.Value;
+        var meresId = MeresId ?? _ujonnanMentettMeresId;
+        if (meresId is null) return;
 
         var tetelek = new List<(bool aktiv, string tipus, string szam)>
         {
@@ -2953,33 +2980,65 @@
             (_adatok.MellekletVillamNem,   "VVN-NEM", _adatok.VillamNemJkv),
         };
 
-        foreach (var (aktiv, tipus, szam) in tetelek.Where(t => t.aktiv))
-            await MellekletService.LetrehozVagyFrissitAsync(meresId, tipus, szam);
+              foreach (var (aktiv, tipus, szam) in tetelek.Where(t => t.aktiv))
+            await MellekletService.LetrehozVagyFrissitAsync(meresId.Value, tipus, szam);
 
-        _mellekletek = await MellekletService.GetByMeresIdAsync(meresId);
+        _mellekletek = await MellekletService.GetByMeresIdAsync(meresId.Value);
     }
 
     private async Task MellekletMegnyitas(MellekletJegyzokonyv m)
     {
-        // MeresTipus kikeresése tipus kód alapján
+        // Ha már van hozzárendelt mérés, egyszerűen navigálunk
+        if (m.MellekletMeresId.HasValue)
+        {
+            Navigation.NavigateTo($"/jegyzokonyv/{m.MellekletMeresId.Value}");
+            return;
+        }
+    
+        // Típus neve → MeresTipus keresése
         var meresTipusNev = m.Tipus switch
         {
-            "HVM" => "Hibavédelmi mérés",
-            "AVK" => "Áramvédő kapcsolók",
-            "SZI" => "Szigetelés ellenállás",
-            "VVN" => "Villámvédelem (norma)",
+            "HVM" => "Hibavédelmi mérés (Hurok)",
+            "AVK" => "Áramvédő kapcsolók mérés",
+            "SZI" => "Szigetelési ellenállás mérés",
+            "VVN" => "Villámvédelem (norma szerinti)",
             "VVN-NEM" => "Villámvédelem (nem norma)",
             _ => ""
         };
-
-        var meresTipus = _tipusok.FirstOrDefault(t => t.Nev == meresTipusNev);
+    
+        var meresTipus = _osszesTipus.FirstOrDefault(t =>
+            t.Nev.Equals(meresTipusNev, StringComparison.OrdinalIgnoreCase));
+    
         if (meresTipus is null)
         {
-            Snackbar.Add($"Nincs '{meresTipusNev}' nevű mérés típus az adatbázisban!", Severity.Warning);
+            Snackbar.Add(
+                $"A '{meresTipusNev}' mérés típus nincs felvéve! " +
+                $"Add hozzá az Admin → Méréstípusok menüben.",
+                Severity.Warning);
             return;
         }
-
-        var meresId = await MellekletService.MellekletMeresLetrehozAsync(m.Id, meresTipus.Id, _adatok);
-        Navigation.NavigateTo($"/jegyzokonyv/{meresId}");
+    
+        _feldolgozas = true;
+        StateHasChanged();
+    
+        try
+        {
+            var meresId = await MellekletService.MellekletMeresLetrehozAsync(
+                m.Id, meresTipus.Id, _adatok);
+    
+            Navigation.NavigateTo($"/jegyzokonyv/{meresId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
     }
+
+    // Mező a @code blokkban – a tényleges meresId tárolásához
+    private int _aktualMeresId => MeresId ?? _ujonnanMentettMeresId ?? 0;
+    private int? _ujonnanMentettMeresId;
 }

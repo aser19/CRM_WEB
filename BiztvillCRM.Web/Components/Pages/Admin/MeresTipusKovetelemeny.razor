@@ -110,6 +110,22 @@ else
                                 </MudAlert>
                             }
                         </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string?"
+                                       Value="tipus.MellekletTipusKod"
+                                       ValueChanged="@((string? v) => tipus.MellekletTipusKod = v)"
+                                       Label="Melléklet típus kód"
+                                       Variant="Variant.Outlined"
+                                       Clearable="true"
+                                       HelperText="Ha ez a méréstípus egy melléklethez tartozik, add meg a melléklet kódját">
+                                <MudSelectItem T="string?" Value="@((string?)null)">-- Nincs (főjegyzőkönyv) --</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@("HVM")">HVM – Hibavédelmi jgyk (Hurok)</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@("AVK")">AVK – Áramvédő kapcsolók</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@("SZI")">SZI – Szigetelés ellenállás mérés</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@("VVN")">VVN – Norma szerinti Villám</MudSelectItem>
+                                <MudSelectItem T="string?" Value="@("VVN-NEM")">VVN-NEM – Nem norma szerinti Villám</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
                     </MudGrid>
 
                     <MudDivider Class="my-4" />

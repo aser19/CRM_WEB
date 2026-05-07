@@ -1,0 +1,106 @@
+@using BiztvillCRM.Shared.Models
+
+<MudText Typo="Typo.subtitle1" Class="mb-2">
+    <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-1" />
+    Áramvédő kapcsolók (RCD/MCB) mérési adatok
+</MudText>
+
+<MudTable Items="@Sorok" Dense="true" Hover="true" Striped="true" Bordered="true">
+    <HeaderContent>
+        <MudTh Style="width:40px">#</MudTh>
+        <MudTh>Áramkör / helyiség</MudTh>
+        <MudTh Style="width:90px">Típus</MudTh>
+        <MudTh Style="width:80px">In [A]</MudTh>
+        <MudTh Style="width:90px">IΔn [mA]</MudTh>
+        <MudTh Style="width:100px">Kioldás [ms]</MudTh>
+        <MudTh Style="width:90px">Uc [V]</MudTh>
+        <MudTh Style="width:90px">Eredmény</MudTh>
+        <MudTh Style="width:120px">Megjegyzés</MudTh>
+        <MudTh Style="width:36px"></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Sorsz</MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.AramkorNev" Variant="Variant.Text"
+                          Placeholder="pl. Konyha" />
+        </MudTd>
+        <MudTd>
+            <MudSelect T="string" @bind-Value="context.Tipus" Variant="Variant.Text"
+                       AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="@("RCD")">RCD</MudSelectItem>
+                <MudSelectItem Value="@("MCB")">MCB</MudSelectItem>
+                <MudSelectItem Value="@("RCBO")">RCBO</MudSelectItem>
+            </MudSelect>
+        </MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.NevlegesAram" Variant="Variant.Text"
+                          Placeholder="16" />
+        </MudTd>
+        <MudTd>
+            @if (context.Tipus != "MCB")
+            {
+                <MudTextField @bind-Value="context.KioldoAram" Variant="Variant.Text"
+                              Placeholder="30" />
+            }
+            else
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.KioldasiIdo" Variant="Variant.Text"
+                          Placeholder="mért" />
+        </MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.ErintesiFeszultseg" Variant="Variant.Text"
+                          Placeholder="mért" />
+        </MudTd>
+        <MudTd>
+            <MudToggleGroup T="string" @bind-Value="context.Eredmeny"
+                            Color="Color.Primary" Dense="true" Rounded="true">
+                <MudToggleItem Value="@("MF")" Text="MF" />
+                <MudToggleItem Value="@("NMF")" Text="NMF" />
+            </MudToggleGroup>
+        </MudTd>
+        <MudTd>
+            <MudTextField @bind-Value="context.Megjegyzes" Variant="Variant.Text" />
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                           Color="Color.Error" Size="Size.Small"
+                           OnClick="@(() => SorTorlese(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudButton Variant="Variant.Outlined" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           Class="mt-2" OnClick="UjSorHozzaadas">
+    Új sor
+</MudButton>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<AvkSor> Sorok { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<AvkSor>> SorokChanged { get; set; }
+
+    private void UjSorHozzaadas()
+    {
+        Sorok.Add(new AvkSor { Sorsz = Sorok.Count + 1 });
+        SzamozasAktualizalas();
+    }
+
+    private void SorTorlese(AvkSor sor)
+    {
+        Sorok.Remove(sor);
+        SzamozasAktualizalas();
+    }
+
+    private void SzamozasAktualizalas()
+    {
+        for (int i = 0; i < Sorok.Count; i++)
+            Sorok[i].Sorsz = i + 1;
+    }
+}

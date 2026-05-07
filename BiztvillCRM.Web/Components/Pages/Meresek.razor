@@ -15,6 +15,8 @@
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
+@inject NavigationManager Navigation
+@inject IMellekletJegyzokonyvService MellekletService
 
 <PageTitle>Mérések</PageTitle>
 
@@ -41,24 +43,24 @@
                 <CellTemplate>
                     <MudStack Row="true" Spacing="1">
                         <MudTooltip Text="Word jegyzőkönyv">
-                            <MudIconButton Icon="@Icons.Material.Filled.Description" 
-                                           Color="Color.Info" 
-                                           Size="Size.Small" 
+                            <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                           Color="Color.Info"
+                                           Size="Size.Small"
                                            OnClick="() => WordLetoltesAsync(context.Item)" />
                         </MudTooltip>
                         <MudTooltip Text="Email küldése">
-                            <MudIconButton Icon="@Icons.Material.Filled.Email" 
-                                           Color="Color.Secondary" 
-                                           Size="Size.Small" 
+                            <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                           Color="Color.Secondary"
+                                           Size="Size.Small"
                                            OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
                         </MudTooltip>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                       Color="Color.Primary" 
-                                       Size="Size.Small" 
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
                                        OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                       Color="Color.Error" 
-                                       Size="Size.Small" 
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
                                        OnClick="() => TorlesMegerosites(context.Item)" />
                     </MudStack>
                 </CellTemplate>
@@ -160,6 +162,58 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
+
+                @* === FŐJEGYZŐKÖNYV SZERKESZTÉSE === *@
+                <MudItem xs="12">
+                    <MudDivider Class="my-3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.EditNote"
+                               FullWidth="true"
+                               OnClick="@(() => { _dialogNyitva = false; Navigation.NavigateTo($"/jegyzokonyv/{_szerkesztesAlatt!.Id}"); })">
+                        Főjegyőkönyv megnyitása / szerkesztése
+                    </MudButton>
+                </MudItem>
+
+                @* === MELLÉKLET JEGYZŐKÖNYVEK === *@
+                @if (_szerkesztettMellekletek.Count > 0)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2 mt-2">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                            Melléklet jegyzőkönyvek
+                        </MudText>
+                    </MudItem>
+                    @foreach (var m in _szerkesztettMellekletek)
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Outlined="true" Class="pa-2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <div>
+                                        <MudText Typo="Typo.body2"><b>@MellekletJegyzokonyv.TipusNev(m.Tipus)</b></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@m.Szam</MudText>
+                                    </div>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudChip T="string"
+                                                 Color="@(m.KeszeE ? Color.Success : Color.Warning)"
+                                                 Size="Size.Small">
+                                            @(m.KeszeE ? "Kész" : "Folyamatban")
+                                        </MudChip>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   StartIcon="@(m.MellekletMeresId.HasValue ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)"
+                                                   OnClick="@(async () => await MellekletSzerkesztes(m))">
+                                            @(m.MellekletMeresId.HasValue ? "Szerkesztés" : "Megnyitás")
+                                        </MudButton>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                }
             </MudGrid>
         }
     </DialogContent>
@@ -175,6 +229,7 @@
     private List<Telephely> _telephelyek = new();
     private List<Telephely> _szurtTelephelyek = new();
     private List<MeresTipus> _tipusok = new();
+    private List<MellekletJegyzokonyv> _szerkesztettMellekletek = [];
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private Meres? _szerkesztesAlatt;
@@ -231,23 +286,28 @@
         _dialogNyitva = true; 
     }
 
-    private void SzerkesztesMegnyitasa(Meres item) 
-    { 
-        _szerkesztesAlatt = new Meres 
-        { 
-            Id = item.Id, 
+    private async Task SzerkesztesMegnyitasa(Meres item)
+    {
+        _szerkesztesAlatt = new Meres
+        {
+            Id = item.Id,
             UgyfelId = item.UgyfelId,
-            TelephelyId = item.TelephelyId, 
-            MeresTipusId = item.MeresTipusId, 
-            Eredmeny = item.Eredmeny, 
-            MeresStatusz = item.MeresStatusz, 
-            Megjegyzes = item.Megjegyzes 
-        }; 
+            TelephelyId = item.TelephelyId,
+            MeresTipusId = item.MeresTipusId,
+            Eredmeny = item.Eredmeny,
+            MeresStatusz = item.MeresStatusz,
+            Megjegyzes = item.Megjegyzes
+        };
         _kivalasztottUgyfelId = item.UgyfelId;
         _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
-        _datum = item.Datum; 
-        _kovetkezoDatum = item.KovetkezoDatum; 
-        _dialogNyitva = true; 
+        _datum = item.Datum;
+        _kovetkezoDatum = item.KovetkezoDatum;
+
+        // Mellékletek betöltése
+        _szerkesztettMellekletek = await MellekletService.GetByMeresIdAsync(item.Id);
+
+        _dialogNyitva = true;
+        StateHasChanged();
     }
 
     private Task UgyfelValtozottAsync(int ugyfelId)
@@ -413,6 +473,47 @@
         finally
         {
             _emailKuldes = false;
+        }
+    }
+
+    private void JegyzokonyvSzerkesztes(Meres meres)
+    {
+        Navigation.NavigateTo($"/jegyzokonyv/{meres.Id}");
+    }
+
+    private async Task MellekletSzerkesztes(MellekletJegyzokonyv m)
+    {
+        _dialogNyitva = false;
+
+        if (m.MellekletMeresId.HasValue)
+        {
+            // Van már melléklet mérés → megnyitjuk
+            Navigation.NavigateTo($"/jegyzokonyv/{m.MellekletMeresId.Value}");
+            return;
+        }
+
+        // Nincs még melléklet mérés → létrehozzuk
+        // A MellekletTipusKod alapján keressük meg a megfelelő méréstípust
+        var mellekletTipus = _tipusok.FirstOrDefault(t =>
+            !string.IsNullOrEmpty(t.MellekletTipusKod) &&
+            t.MellekletTipusKod == m.Tipus);
+
+        if (mellekletTipus == null)
+        {
+            Snackbar.Add($"Nem található méréstípus a(z) '{m.Tipus}' melléklet kódhoz. " +
+                         "Az Admin → Méréstípusok felületen add meg a Melléklet típus kódot!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var ujMeresId = await MellekletService.MellekletMeresLetrehozAsync(
+                m.Id, mellekletTipus.Id, new BiztvillCRM.Shared.Models.JegyzokonyvAdatok());
+            Navigation.NavigateTo($"/jegyzokonyv/{ujMeresId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a melléklet mérés létrehozásakor: {ex.Message}", Severity.Error);
         }
     }
 }

@@ -10,32 +10,33 @@ public class MeresTipus
     [MaxLength(100)]
     public string Nev { get; set; } = "";
     
-    /// <summary>Leírás (opcionális)</summary>
     [MaxLength(1000)]
     public string? Leiras { get; set; }
     
-    /// <summary>Érvényesség hónapokban (pl. 12 = 1 év, 24 = 2 év)</summary>
     public int? ErvenyessegHonap { get; set; }
     
-    /// <summary>Jegyzőkönyv prefix (pl. "VBF", "HME", "ÉV", "HK2")</summary>
     [MaxLength(10)]
-    [RegularExpression(@"^[A-ZÁÉÍÓÖŐÚÜŰ0-9]+$", ErrorMessage = "A prefix csak nagybetűket és számokat tartalmazhat (pl. VBF, HME2, ÉV)!")]
+    [RegularExpression(@"^[A-ZÁÉÍÓÖŐÚÜŰ0-9]+$", ErrorMessage = "A prefix csak nagybetűket és számokat tartalmazhat!")]
     public string? JegyzokonyvPrefix { get; set; }
     
-    /// <summary>Word sablon azonosító (pl. "VBF_KIF_MINTA")</summary>
     [MaxLength(50)]
     public string? SablonId { get; set; }
     
-    /// <summary>Azure Document Intelligence OCR Model ID (pl. "JegyzokonyvFelismeres_HME")</summary>
     [MaxLength(100)]
     public string? OcrModelId { get; set; }
-    
+
+    /// <summary>
+    /// Melléklet típus kód – megmondja, hogy ez a méréstípus melyik melléklet-típushoz tartozik.
+    /// Lehetséges értékek: HV (hibavédelmi), AVK (érintésvédelmi kvalitatív), SZ (szigetelési), VV (villámvédelmi), VV_N (villámvédelmi nem szükséges)
+    /// </summary>
+    [MaxLength(20)]
+    public string? MellekletTipusKod { get; set; }
+
     public bool Aktiv { get; set; } = true;
     
     public DateTime Letrehozva { get; set; } = DateTime.UtcNow;
     public DateTime? Modositva { get; set; }
     
-    /// <summary>Képzési követelmények</summary>
     public List<MeresTipusKepzesKovetelemeny> KepzesKovetelemenyei { get; set; } = new();
     public List<MeresTipusJogszabaly> Jogszabalyok { get; set; } = new();
 }

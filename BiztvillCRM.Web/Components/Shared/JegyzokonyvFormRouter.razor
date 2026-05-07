@@ -1,0 +1,47 @@
+@namespace BiztvillCRM.Web.Components.Shared
+@using BiztvillCRM.Shared.Models
+
+@* 
+    Ez a komponens dönti el, hogy melyik melléklet-specifikus form jelenjen meg.
+    Új típus hozzáadása: csak egy @else if ág kell ide + egy új XyzMeresiTabla.razor fájl.
+*@
+
+@if (TipusKod == "AVK")
+{
+   @* <AvkMeresiTabla @bind-Sorok="Adatok.AvkSorok" /> *@
+}
+else if (TipusKod == "HVM")
+{
+    @* <HvmMeresiTabla @bind-Sorok="Adatok.HvmSorok" /> *@
+    <MudAlert Severity="Severity.Info">HVM form – hamarosan</MudAlert>
+}
+else if (TipusKod == "SZI")
+{
+    @* <SzigetelesiMeresiTabla @bind-Sorok="Adatok.SziSorok" /> *@
+    <MudAlert Severity="Severity.Info">Szigetelési form – hamarosan</MudAlert>
+}
+else if (TipusKod == "VVN" || TipusKod == "VVN-NEM")
+{
+    @* <VillamvedelmiTabla @bind-Adatok="Adatok" /> *@
+    <MudAlert Severity="Severity.Info">Villámvédelmi form – hamarosan</MudAlert>
+}
+else
+{
+    @* Főjegyőkönyv (VBF, hordozható, stb.) – nem melléklet típus, a wizard léptet tovább *@
+    <MudAlert Severity="Severity.Warning" Dense="true">
+        Ismeretlen típus kód: <strong>@TipusKod</strong>
+    </MudAlert>
+}
+
+@code {
+    /// <summary>A kiválasztott méréstípus MellekletTipusKod értéke (pl. "AVK", "HVM", null).</summary>
+    [Parameter, EditorRequired]
+    public string? TipusKod { get; set; }
+
+    /// <summary>A közös adatmodell – a gyermek komponensek ebbe írnak.</summary>
+    [Parameter, EditorRequired]
+    public JegyzokonyvAdatok Adatok { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<JegyzokonyvAdatok> AdatokChanged { get; set; }
+}
