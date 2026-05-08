@@ -85,6 +85,9 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // --- Melléklet Jegyzőkönyvek ---
     public DbSet<MellekletJegyzokonyv> MellekletJegyzokonyvek { get; set; }
 
+    // Túláramvédelem - ÁVK
+    public DbSet<AvkVedelemTipus> AvkVedelemTipusok { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

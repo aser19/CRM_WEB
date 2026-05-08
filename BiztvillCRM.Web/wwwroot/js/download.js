@@ -1,7 +1,6 @@
 window.downloadFileFromStream = async (fileName, contentStreamReference) => {
     const arrayBuffer = await contentStreamReference.arrayBuffer();
     
-    // MIME típus meghatározása kiterjesztés alapján
     const mimeTypes = {
         '.pdf': 'application/pdf',
         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -17,5 +16,18 @@ window.downloadFileFromStream = async (fileName, contentStreamReference) => {
     a.href = url;
     a.download = fileName;
     a.click();
+    URL.revokeObjectURL(url);
+};
+
+window.downloadFileFromBytes = (fileName, mimeType, bytes) => {
+    const uint8Array = new Uint8Array(bytes);
+    const blob = new Blob([uint8Array], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
 };

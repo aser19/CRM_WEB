@@ -136,6 +136,8 @@ builder.Services.AddHostedService<EmailErtesitesBackgroundService>();
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();
 
+builder.Services.AddScoped<IAvkVedelemTipusService, AvkVedelemTipusService>();
+
 // === Authorization policies ===
 builder.Services.AddAuthorizationCore(options =>
 {

@@ -388,11 +388,22 @@
                     </MudItem>
                 }
                 <MudItem xs="12" Class="mt-4">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               OnClick="Lepes2ValidalasEsTovabbAsync"
-                               EndIcon="@Icons.Material.Filled.ArrowForward">
-                        Tovább a 3. oldal kitöltéséhez
-                    </MudButton>
+                    @if (GetAktualisTipusKod() == "AVK")
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2AvkTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az AVK adatok kitöltéséhez
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2ValidalasEsTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a 3. oldal kitöltéséhez
+                        </MudButton>
+                    }
                 </MudItem>
             </MudGrid>
         </MudPaper>
@@ -401,6 +412,7 @@
     @* === 3. LÉPÉS: 3. OLDAL - MINDKÉT TÍPUSNÁL === *@
     <MudStep Title="3. oldal" Icon="@Icons.Material.Filled.FactCheck"
              Disabled="@(_kivalasztottFelulvizsgaloId == null)">
+        Disabled="@(IsMellekletTipus() || _kivalasztottFelulvizsgaloId == null)">
         <MudPaper Class="pa-4">
             <MudGrid>
                 @if (IsHordozhatoTipus())
@@ -886,6 +898,7 @@
     @* === 4. LÉPÉS: VILLAMOS BERENDEZÉS ADATAI (csak Időszakos VBF) === *@
     <MudStep Title="4. oldal" Icon="@Icons.Material.Filled.ElectricBolt"
              Disabled="@(!IsIdoszakosVBFTipus())">
+        Disabled="@(IsMellekletTipus() || _kivalasztottFelulvizsgaloId == null)">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">
                 <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
@@ -1029,6 +1042,7 @@
         @* === 5. LÉPÉS: MSZ HD 60364-6 ELLENŐRZÉSEK === *@
     <MudStep Title="5. oldal" Icon="@Icons.Material.Filled.FactCheck"
              Disabled="@(!IsIdoszakosVBFTipus())">
+        Disabled="@(IsMellekletTipus() || _kivalasztottFelulvizsgaloId == null)">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">
                 <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
@@ -1212,6 +1226,7 @@
     @* === 6. LÉPÉS: OTSZ ELLENŐRZÉSEK === *@
     <MudStep Title="6. oldal" Icon="@Icons.Material.Filled.LocalFireDepartment"
              Disabled="@(!IsIdoszakosVBFTipus())">
+        Disabled="@(IsMellekletTipus() || _kivalasztottFelulvizsgaloId == null)">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">
                 <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" Class="mr-2" />
@@ -1395,6 +1410,7 @@
     @* === 7. LÉPÉS: A VÉDELMEK ELLENŐRZÉSE === *@
     <MudStep Title="7. oldal" Icon="@Icons.Material.Filled.Shield"
              Disabled="@(!IsIdoszakosVBFTipus())">
+        Disabled="@(IsMellekletTipus() || _kivalasztottFelulvizsgaloId == null)">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-4">
                 <MudIcon Icon="@Icons.Material.Filled.Shield" Class="mr-2" />
@@ -1889,7 +1905,77 @@
         if (telephely != null)
             _adatok.VizsgalatHelye = $"{telephely.Nev} - {telephely.Cim}";
 
-        _activeStep++; // Továbblépés
+        _activeStep++;
+    }
+
+        private async Task Lepes2AvkTovabbAsync()
+    {
+        // Ugyanaz a validáció mint Lepes2ValidalasEsTovabbAsync
+        if (_kivalasztottFelulvizsgaloId == null)
+        {
+            Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning);
+            return;
+        }
+        var vanKivalasztottMuszer = _adatok.Muszerek.Any(m => !string.IsNullOrEmpty(m.Tipus));
+        if (!vanKivalasztottMuszer)
+        {
+            Snackbar.Add("Legalább 1 műszer kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _feldolgozas = true;
+        StateHasChanged();
+        try
+        {
+            // Főmérés mentése
+            Meres foMeres;
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    foMeres = (await MeresService.GetByIdAsync(_ujonnanMentettMeresId.Value))!;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(foMeres.Id, _adatok);
+                }
+                else
+                {
+                    foMeres = await MeresService.CreateAsync(new Meres
+                    {
+                        UgyfelId              = _kivalasztottUgyfelId,
+                        TelephelyId           = _kivalasztottTelephelyId,
+                        MeresTipusId          = _kivalasztottTipusId,
+                        Datum                 = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz          = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    });
+                    _ujonnanMentettMeresId = foMeres.Id;
+                }
+            }
+            else
+            {
+                foMeres = (await MeresService.GetByIdAsync(MeresId.Value))!;
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(foMeres.Id, _adatok);
+            }
+
+            // AVK melléklet rekord
+            var melleklet = await MellekletService.LetrehozVagyFrissitAsync(
+                foMeres.Id, "AVK", $"{_adatok.JegyzokonyvSzam}/AVK");
+
+            if (!melleklet.MellekletMeresId.HasValue)
+            {
+                await MellekletService.MellekletMeresLetrehozAsync(
+                    melleklet.Id, _kivalasztottTipusId, _adatok);
+            }
+
+            Navigation.NavigateTo($"/avk-szerkeszto/{melleklet.Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
     }
 
     private async Task Lepes2ValidalasEsTovabbAsync()
@@ -2142,7 +2228,15 @@
                             if (int.TryParse(igSzoveg, out int ig))
                                 _matricaSorszamIg = ig;
                         }
+                        // Muszerek null-check
+                        _adatok.Muszerek ??= new List<MuszerSor>();
 
+                        // _kivalasztottMuszerIds visszatöltése a mentett EszkozId alapján
+                        _kivalasztottMuszerIds = new List<int?> { null, null, null };
+                        for (int i = 0; i < _adatok.Muszerek.Count && i < 3; i++)
+                        {
+                            _kivalasztottMuszerIds[i] = _adatok.Muszerek[i].EszkozId;
+                        }
                         Snackbar.Add("Korábban mentett adatok betöltve!", Severity.Info);
                     }
                 }
@@ -2294,6 +2388,7 @@
 
                 _adatok.Muszerek[index] = new MuszerSor
                 {
+                    EszkozId = eszkozId,    // ← ÚJ
                     Tipus = muszer.Nev ?? "",
                     GyariSzam = muszer.GyariSzam ?? "",
                     Kalibralas = utolsoKalibracio?.Datum.ToString("yyyy.MM.dd") ?? ""
@@ -2988,27 +3083,70 @@
 
     private async Task MellekletMegnyitas(MellekletJegyzokonyv m)
     {
-        // Ha már van hozzárendelt mérés, egyszerűen navigálunk
+        // AVK → dedikált szerkesztő
+        if (m.Tipus == "AVK")
+        {
+            if (!m.MellekletMeresId.HasValue)
+            {
+                var avkTipus = _osszesTipus.FirstOrDefault(t =>
+                    t.MellekletTipusKod == "AVK");
+                if (avkTipus is null)
+                {
+                    Snackbar.Add(
+                        "Nincs 'AVK' kóddal ellátott méréstípus! " +
+                        "Add hozzá az Admin → Méréstípusok menüben.",
+                        Severity.Warning);
+                    return;
+                }
+
+                _feldolgozas = true;
+                StateHasChanged();
+                try
+                {
+                    await MellekletService.MellekletMeresLetrehozAsync(
+                        m.Id, avkTipus.Id, _adatok);
+                    // Frissítjük a listát, hogy MellekletMeresId bekerüljön
+                    _mellekletek = await MellekletService.GetByMeresIdAsync(
+                        _aktualMeresId);
+                    m = _mellekletek.First(x => x.Id == m.Id);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+                    return;
+                }
+                finally
+                {
+                    _feldolgozas = false;
+                }
+            }
+            Navigation.NavigateTo($"/avk-szerkeszto/{m.Id}");
+            return;
+        }
+
+        // Jövőbeli típusok helye:
+        // if (m.Tipus == "HVM") { Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}"); return; }
+
+        // Alapértelmezett: ha van melléklet-mérés, a főwizardba navigálunk
         if (m.MellekletMeresId.HasValue)
         {
             Navigation.NavigateTo($"/jegyzokonyv/{m.MellekletMeresId.Value}");
             return;
         }
-    
-        // Típus neve → MeresTipus keresése
+
+        // Nincs még mérés — névalapon keresünk típust
         var meresTipusNev = m.Tipus switch
         {
             "HVM" => "Hibavédelmi mérés (Hurok)",
-            "AVK" => "Áramvédő kapcsolók mérés",
             "SZI" => "Szigetelési ellenállás mérés",
             "VVN" => "Villámvédelem (norma szerinti)",
             "VVN-NEM" => "Villámvédelem (nem norma)",
             _ => ""
         };
-    
+
         var meresTipus = _osszesTipus.FirstOrDefault(t =>
             t.Nev.Equals(meresTipusNev, StringComparison.OrdinalIgnoreCase));
-    
+
         if (meresTipus is null)
         {
             Snackbar.Add(
@@ -3017,15 +3155,14 @@
                 Severity.Warning);
             return;
         }
-    
+
         _feldolgozas = true;
         StateHasChanged();
-    
+
         try
         {
             var meresId = await MellekletService.MellekletMeresLetrehozAsync(
                 m.Id, meresTipus.Id, _adatok);
-    
             Navigation.NavigateTo($"/jegyzokonyv/{meresId}");
         }
         catch (Exception ex)
@@ -3041,4 +3178,15 @@
     // Mező a @code blokkban – a tényleges meresId tárolásához
     private int _aktualMeresId => MeresId ?? _ujonnanMentettMeresId ?? 0;
     private int? _ujonnanMentettMeresId;
+    /// <summary>Igaz, ha a kiválasztott típus egy melléklet-specifikus workflow (AVK, HVM, stb.).</summary>
+    private bool IsMellekletTipus()
+    {
+        return !string.IsNullOrEmpty(GetAktualisTipusKod());
+    }
+
+    /// <summary>Visszaadja a kiválasztott méréstípus MellekletTipusKod értékét (vagy null-t).</summary>
+    private string? GetAktualisTipusKod()
+    {
+        return _osszesTipus.FirstOrDefault(t => t.Id == _kivalasztottTipusId)?.MellekletTipusKod;
+    }
 }

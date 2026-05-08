@@ -1,0 +1,228 @@
+@page "/avk-szerkeszto/{MellekletId:int}"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IMellekletJegyzokonyvService MellekletService
+@inject IMeresService MeresService
+@inject IMeresTipusService MeresTipusService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IJegyzokonyvWordService WordService
+
+<PageTitle>ÁVK Mérési Táblázat</PageTitle>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-8" />
+}
+else if (_melleklet == null)
+{
+    <MudAlert Severity="Severity.Error">A melléklet nem található.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
+        Áramvédő kapcsolók mérési táblázata —
+        <MudChip T="string" Color="Color.Primary" Size="Size.Small">@_melleklet.Szam</MudChip>
+        @if (_onalloMod)
+        {
+            <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-1">Önálló AVK</MudChip>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-1">Melléklet</MudChip>
+        }
+    </MudText>
+
+    @* === FEJLÉC ADATOK === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            @if (_onalloMod)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-1" />
+                <span>Vizsgálat adatai</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                <span>Főjegyzőkönyv adatai (csak olvasható)</span>
+            }
+        </MudText>
+    </MudPaper>
+
+    @* === AVK MÉRÉSI TÁBLÁZAT === *@
+    <MudPaper Class="pa-4">
+        <AvkMeresiTabla @bind-Sorok="_adatok.AvkSorok" />
+
+        <MudDivider Class="my-4" />
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="Vissza">Vissza</MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="MentesEsBezarAsync"
+                       Disabled="_feldolgozas">Mentés és bezár</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public int MellekletId { get; set; }
+
+    private MellekletJegyzokonyv? _melleklet;
+    private JegyzokonyvAdatok _adatok = new();
+    private bool _betoltes = true;
+    private bool _feldolgozas;
+    private bool _onalloMod; // true = önálló AVK főjgyk, false = melléklet
+    private string _sablonId = "VBF_AVK_MERES"; // Sablon azonosító cache-elése
+
+    protected override async Task OnInitializedAsync()
+    {
+        _melleklet = await MellekletService.GetByIdAsync(MellekletId);
+
+        if (_melleklet != null)
+        {
+            // foMeres a külső scope-ban deklarálva
+            var foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+
+            if (foMeres != null)
+            {
+                var foTipus = await MeresTipusService.GetByIdAsync(foMeres.MeresTipusId);
+                _onalloMod = foTipus?.MellekletTipusKod == "AVK";
+            }
+
+            // AVK saját adatok betöltése (ha van melléklet-mérés)
+            if (_melleklet.MellekletMeresId.HasValue)
+            {
+                var avkMeres = await MeresService.GetByIdAsync(_melleklet.MellekletMeresId.Value);
+                if (!string.IsNullOrEmpty(avkMeres?.JegyzokonyvAdatokJson))
+                {
+                    _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                        avkMeres.JegyzokonyvAdatokJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                    ) ?? new();
+                }
+            }
+
+            // Főjegyzőkönyvből adatok előtöltése – foMeres már elérhető itt
+            if (foMeres != null && !string.IsNullOrEmpty(foMeres.JegyzokonyvAdatokJson))
+            {
+                var foAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    foMeres.JegyzokonyvAdatokJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
+                if (foAdatok != null)
+                {
+                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
+                        _adatok.FelulvizsgaloNev          = foAdatok.FelulvizsgaloNev;
+                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloBizonyitvany))
+                        _adatok.FelulvizsgaloBizonyitvany = foAdatok.FelulvizsgaloBizonyitvany;
+                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloKepzes))
+                        _adatok.FelulvizsgaloKepzes       = foAdatok.FelulvizsgaloKepzes;
+                    if (string.IsNullOrEmpty(_adatok.SegitoFelulvizsgalo))
+                        _adatok.SegitoFelulvizsgalo       = foAdatok.SegitoFelulvizsgalo;
+                    if (string.IsNullOrEmpty(_adatok.SegitoBizonyitvany))
+                        _adatok.SegitoBizonyitvany        = foAdatok.SegitoBizonyitvany;
+                    if (string.IsNullOrEmpty(_adatok.SegitoKepzes))
+                        _adatok.SegitoKepzes              = foAdatok.SegitoKepzes;
+                    if (string.IsNullOrEmpty(_adatok.Ellenor))
+                        _adatok.Ellenor                   = foAdatok.Ellenor;
+                    if (string.IsNullOrEmpty(_adatok.EllenorBizonyitvany))
+                        _adatok.EllenorBizonyitvany       = foAdatok.EllenorBizonyitvany;
+                    if (string.IsNullOrEmpty(_adatok.EllenorKepzes))
+                        _adatok.EllenorKepzes             = foAdatok.EllenorKepzes;
+                    if (string.IsNullOrEmpty(_adatok.KapcsolatTarto))
+                        _adatok.KapcsolatTarto            = foAdatok.KapcsolatTarto;
+                    if (string.IsNullOrEmpty(_adatok.UzemiKisero))
+                        _adatok.UzemiKisero               = foAdatok.UzemiKisero;
+                    if (string.IsNullOrEmpty(_adatok.VizsgalatHelye))
+                        _adatok.VizsgalatHelye            = foAdatok.VizsgalatHelye;
+                    if (string.IsNullOrEmpty(_adatok.Megrendelo))
+                        _adatok.Megrendelo                = foAdatok.Megrendelo;
+                    if (string.IsNullOrEmpty(_adatok.Munkaszam))
+                        _adatok.Munkaszam                 = foAdatok.Munkaszam;
+                    if (string.IsNullOrEmpty(_adatok.VizsgalatIdotartama))
+                        _adatok.VizsgalatIdotartama       = foAdatok.VizsgalatIdotartama;
+
+                    // Műszerlista – mindig a főjegyzőkönyvből
+                    if (!_adatok.Muszerek.Any() && foAdatok.Muszerek.Any())
+                        _adatok.Muszerek = foAdatok.Muszerek;
+                }
+            }
+        }
+
+        // Sablon azonosító
+        var avkTipus = (await MeresTipusService.GetAllAsync())
+            .FirstOrDefault(t => t.MellekletTipusKod == "AVK");
+        _sablonId = avkTipus?.SablonId ?? "VBF_AVK_MERES";
+
+        _adatok.AvkSorok ??= new List<AvkSor>();
+        _betoltes = false;
+    }
+
+    private Meres? _foMeres; // cache a OnInitializedAsync-ból
+
+    private async Task MentesEsBezarAsync()
+    {
+        _feldolgozas = true;
+        try
+        {
+            var melleklet = await MellekletService.GetByIdAsync(MellekletId);
+            if (melleklet == null)
+            {
+                Snackbar.Add("A melléklet nem található!", Severity.Error);
+                return;
+            }
+            if (!melleklet.MellekletMeresId.HasValue)
+            {
+                Snackbar.Add("A melléklet mérés még nincs létrehozva!", Severity.Warning);
+                return;
+            }
+
+            // 1. Adatok mentése
+            await MeresService.MentesJegyzokonyvAdatokkalAsync(
+                melleklet.MellekletMeresId.Value, _adatok);
+
+            // 2. Melléklet státusza → Kész
+            await MellekletService.StatuszFrissitesAsync(melleklet.Id, MellekletStatusz.Kesz);
+
+            // 3. Word dokumentum generálása
+            try
+            {
+                var wordBytes = await WordService.GeneralasAsync(
+                    melleklet.MellekletMeresId.Value, _adatok, _sablonId);
+
+                if (wordBytes is { Length: > 0 })
+                {
+                    var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.docx";
+                    await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        wordBytes);
+                }
+            }
+            catch (Exception exWord)
+            {
+                Snackbar.Add($"Word generálás sikertelen: {exWord.Message}", Severity.Warning);
+            }
+
+            Snackbar.Add("ÁVK adatok mentve, dokumentum letöltve!", Severity.Success);
+            await Task.Delay(600);
+            await JS.InvokeVoidAsync("history.back");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private async Task Vissza() => await JS.InvokeVoidAsync("history.back");
+}

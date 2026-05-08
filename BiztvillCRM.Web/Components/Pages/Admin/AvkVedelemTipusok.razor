@@ -1,0 +1,210 @@
+@page "/admin/avk-vedelem-tipusok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IAvkVedelemTipusService TipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>ÁVK típusok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-2" />
+    Áramvédő kapcsoló (RCD/RCBO) típusok kezelése
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Az itt felvett típusokból olvassa ki a mérési táblázat az <strong>In</strong>, <strong>IΔn</strong>,
+    <strong>Un</strong> és <strong>Pólusszám</strong> értékeket automatikusan.
+</MudAlert>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="UjTipusMegnyitas" Class="mb-3">
+        + Új típus
+    </MudButton>
+
+    <MudTable Items="@_tipusok" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Típus neve</MudTh>
+            <MudTh Style="width:80px">In [A]</MudTh>
+            <MudTh Style="width:90px">IΔn [mA]</MudTh>
+            <MudTh Style="width:80px">Un [V]</MudTh>
+            <MudTh Style="width:70px">Pólus</MudTh>
+            <MudTh>Leírás</MudTh>
+            <MudTh Style="width:60px">Aktív</MudTh>
+            <MudTh Style="width:80px">Műveletek</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudTextField T="string" @bind-Value="context.Nev"
+                              Variant="Variant.Text" Margin="Margin.Dense" Required="true" />
+            </MudTd>
+            <MudTd>
+                <MudNumericField T="decimal" @bind-Value="context.In"
+                                 Min="0m" Max="1000m"
+                                 Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>
+                <MudNumericField T="decimal" @bind-Value="context.IDn"
+                                 Min="0m" Max="10000m"
+                                 Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>
+                <MudNumericField T="decimal" @bind-Value="context.Un"
+                                 Min="0m" Max="1000m"
+                                 Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>
+                <MudNumericField T="int" @bind-Value="context.Polusszam"
+                                 Min="1" Max="4"
+                                 Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>
+                <MudTextField T="string" @bind-Value="context.Leiras"
+                              Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>
+                <MudSwitch T="bool" @bind-Value="context.Aktiv" Color="Color.Success" />
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                   Color="Color.Success" Size="Size.Small"
+                                   OnClick="@(async () => await MentesAsync(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error" Size="Size.Small"
+                                   OnClick="@(async () => await TorlesMegerositesAsync(context))" />
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@* Új típus dialog *@
+<MudDialog @bind-Visible="_ujDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új ÁVK típus felvétele
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTipus is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Nev"
+                                  Label="Típus megnevezése *" Required="true"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="pl. F202A-25/0,03, DS201 C16 A30" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_ujTipus.In"
+                                     Label="In [A] *" Min="0m" Max="1000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End" AdornmentText="A" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_ujTipus.IDn"
+                                     Label="IΔn [mA] *" Min="0m" Max="10000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End" AdornmentText="mA" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_ujTipus.Un"
+                                     Label="Un [V]" Min="0m" Max="1000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End" AdornmentText="V" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="int" @bind-Value="_ujTipus.Polusszam"
+                                     Label="Pólusszám" Min="1" Max="4"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End" AdornmentText="P" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Leiras"
+                                  Label="Leírás (opcionális)"
+                                  Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _ujDialogNyitva = false)">Mégsem</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="UjTipusMentes">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<AvkVedelemTipus> _tipusok = new();
+    private bool _betoltes = true;
+    private bool _ujDialogNyitva = false;
+    private AvkVedelemTipus? _ujTipus;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _tipusok = await TipusService.GetAktivTipusokAsync();
+        _betoltes = false;
+    }
+
+    private void UjTipusMegnyitas()
+    {
+        _ujTipus = new AvkVedelemTipus { Un = 230, Polusszam = 2, Aktiv = true };
+        _ujDialogNyitva = true;
+    }
+
+    private async Task UjTipusMentes()
+    {
+        if (_ujTipus is null || string.IsNullOrWhiteSpace(_ujTipus.Nev)) return;
+
+        await TipusService.MentesAsync(_ujTipus);
+        Snackbar.Add("Típus sikeresen mentve.", Severity.Success);
+        _ujDialogNyitva = false;
+        await BetoltesAsync();
+    }
+
+    private async Task MentesAsync(AvkVedelemTipus tipus)
+    {
+        await TipusService.MentesAsync(tipus);
+        Snackbar.Add($"{tipus.Nev} mentve.", Severity.Success);
+    }
+
+    private async Task TorlesMegerositesAsync(AvkVedelemTipus tipus)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan inaktiválod: {tipus.Nev}?",
+            yesText: "Igen", cancelText: "Mégsem");
+
+        if (result == true)
+        {
+            await TipusService.TorlesAsync(tipus.Id);
+            Snackbar.Add($"{tipus.Nev} inaktiválva.", Severity.Warning);
+            await BetoltesAsync();
+        }
+    }
+}

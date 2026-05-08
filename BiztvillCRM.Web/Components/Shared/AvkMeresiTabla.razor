@@ -1,60 +1,105 @@
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IAvkVedelemTipusService AvkTipusService
 
 <MudText Typo="Typo.subtitle1" Class="mb-2">
     <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-1" />
-    Áramvédő kapcsolók (RCD/MCB) mérési adatok
+    Áramvédő kapcsolók (RCD/RCBO) mérési adatok
 </MudText>
 
 <MudTable Items="@Sorok" Dense="true" Hover="true" Striped="true" Bordered="true">
     <HeaderContent>
         <MudTh Style="width:40px">#</MudTh>
-        <MudTh>Áramkör / helyiség</MudTh>
-        <MudTh Style="width:90px">Típus</MudTh>
-        <MudTh Style="width:80px">In [A]</MudTh>
-        <MudTh Style="width:90px">IΔn [mA]</MudTh>
-        <MudTh Style="width:100px">Kioldás [ms]</MudTh>
-        <MudTh Style="width:90px">Uc [V]</MudTh>
+        <MudTh Style="width:70px">Jele</MudTh>
+        <MudTh Style="width:180px">Típus</MudTh>
+        <MudTh Style="width:110px">Helye</MudTh>
+        <MudTh Style="width:70px">In [A]</MudTh>
+        <MudTh Style="width:80px">IΔn névl. [mA]</MudTh>
+        <MudTh Style="width:80px">IΔn mért [mA]</MudTh>
+        <MudTh Style="width:70px">Un [V]</MudTh>
+        <MudTh Style="width:70px">Pólus</MudTh>
+        <MudTh Style="width:80px">t1× [ms]</MudTh>
+        <MudTh Style="width:80px">t5× [ms]</MudTh>
         <MudTh Style="width:90px">Eredmény</MudTh>
-        <MudTh Style="width:120px">Megjegyzés</MudTh>
         <MudTh Style="width:36px"></MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.Sorsz</MudTd>
+
+        @* Jele – manuális *@
         <MudTd>
-            <MudTextField @bind-Value="context.AramkorNev" Variant="Variant.Text"
-                          Placeholder="pl. Konyha" />
+            <MudTextField @bind-Value="context.Jele" Variant="Variant.Text"
+                          Placeholder="pl. F1" />
         </MudTd>
+
+        @* Típus – AVK típuslistából, keresés gépelésre *@
         <MudTd>
-            <MudSelect T="string" @bind-Value="context.Tipus" Variant="Variant.Text"
-                       AnchorOrigin="Origin.BottomCenter">
-                <MudSelectItem Value="@("RCD")">RCD</MudSelectItem>
-                <MudSelectItem Value="@("MCB")">MCB</MudSelectItem>
-                <MudSelectItem Value="@("RCBO")">RCBO</MudSelectItem>
-            </MudSelect>
+            <MudAutocomplete T="AvkVedelemTipus"
+                             Value="@(_tipusok.FirstOrDefault(t => t.Id == context.AvkTipusId))"
+                             ValueChanged="@((AvkVedelemTipus t) => TipusValtoztatva(context, t))"
+                             SearchFunc="@KeresTipus"
+                             ToStringFunc="@(t => t?.Nev ?? "")"
+                             Variant="Variant.Text"
+                             Dense="true"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="true"
+                             Placeholder="Típus keresése..." />
         </MudTd>
+
+        @* Helye – manuális *@
         <MudTd>
-            <MudTextField @bind-Value="context.NevlegesAram" Variant="Variant.Text"
-                          Placeholder="16" />
+            <MudTextField @bind-Value="context.Helye" Variant="Variant.Text"
+                          Placeholder="pl. Főelosztó" />
         </MudTd>
+
+        @* In – típusból, readonly *@
         <MudTd>
-            @if (context.Tipus != "MCB")
-            {
-                <MudTextField @bind-Value="context.KioldoAram" Variant="Variant.Text"
-                              Placeholder="30" />
-            }
-            else
-            {
-                <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
-            }
+            <MudText Typo="Typo.body2" Class="text-center">
+                @(string.IsNullOrEmpty(context.In) ? "–" : context.In)
+            </MudText>
         </MudTd>
+
+        @* IΔn névleges – típusból, readonly *@
         <MudTd>
-            <MudTextField @bind-Value="context.KioldasiIdo" Variant="Variant.Text"
+            <MudText Typo="Typo.body2" Class="text-center"
+                     Style="color: var(--mud-palette-text-secondary);">
+                @(string.IsNullOrEmpty(context.IDn) ? "–" : context.IDn)
+            </MudText>
+        </MudTd>
+
+        @* IΔn mért – manuális *@
+        <MudTd>
+            <MudTextField @bind-Value="context.IDnMert" Variant="Variant.Text"
                           Placeholder="mért" />
         </MudTd>
+
+        @* Un – típusból, readonly *@
         <MudTd>
-            <MudTextField @bind-Value="context.ErintesiFeszultseg" Variant="Variant.Text"
+            <MudText Typo="Typo.body2" Class="text-center">
+                @(string.IsNullOrEmpty(context.Un) ? "–" : context.Un)
+            </MudText>
+        </MudTd>
+
+        @* Pólusszám – típusból, readonly *@
+        <MudTd>
+            <MudText Typo="Typo.body2" Class="text-center">
+                @(string.IsNullOrEmpty(context.Polusszam) ? "–" : context.Polusszam)
+            </MudText>
+        </MudTd>
+
+        @* t1× – manuális *@
+        <MudTd>
+            <MudTextField @bind-Value="context.T1x" Variant="Variant.Text"
                           Placeholder="mért" />
         </MudTd>
+
+        @* t5× – manuális *@
+        <MudTd>
+            <MudTextField @bind-Value="context.T5x" Variant="Variant.Text"
+                          Placeholder="mért" />
+        </MudTd>
+
+        @* Eredmény *@
         <MudTd>
             <MudToggleGroup T="string" @bind-Value="context.Eredmeny"
                             Color="Color.Primary" Dense="true" Rounded="true">
@@ -62,9 +107,7 @@
                 <MudToggleItem Value="@("NMF")" Text="NMF" />
             </MudToggleGroup>
         </MudTd>
-        <MudTd>
-            <MudTextField @bind-Value="context.Megjegyzes" Variant="Variant.Text" />
-        </MudTd>
+
         <MudTd>
             <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
                            Color="Color.Error" Size="Size.Small"
@@ -86,6 +129,46 @@
     [Parameter]
     public EventCallback<List<AvkSor>> SorokChanged { get; set; }
 
+    private List<AvkVedelemTipus> _tipusok = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tipusok = await AvkTipusService.GetAktivTipusokAsync();
+    }
+
+    private Task<IEnumerable<AvkVedelemTipus>> KeresTipus(string szoveg, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(szoveg))
+            return Task.FromResult(_tipusok.AsEnumerable());
+
+        return Task.FromResult(
+            _tipusok.Where(t => t.Nev.Contains(szoveg, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void TipusValtoztatva(AvkSor sor, AvkVedelemTipus? tipus)
+    {
+        if (tipus is not null)
+        {
+            sor.AvkTipusId = tipus.Id;
+            sor.TipusNev   = tipus.Nev;
+            sor.In         = tipus.In.ToString("0.#");
+            sor.IDn        = tipus.IDn.ToString("0.#");
+            sor.Un         = tipus.Un.ToString("0.#");
+            sor.Polusszam  = tipus.Polusszam.ToString();
+        }
+        else
+        {
+            sor.AvkTipusId = null;
+            sor.TipusNev   = "";
+            sor.In         = "";
+            sor.IDn        = "";
+            sor.Un         = "";
+            sor.Polusszam  = "";
+        }
+
+        StateHasChanged();
+    }
+
     private void UjSorHozzaadas()
     {
         Sorok.Add(new AvkSor { Sorsz = Sorok.Count + 1 });
@@ -102,5 +185,6 @@
     {
         for (int i = 0; i < Sorok.Count; i++)
             Sorok[i].Sorsz = i + 1;
+        StateHasChanged();
     }
 }

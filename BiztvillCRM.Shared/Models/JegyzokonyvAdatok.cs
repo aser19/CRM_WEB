@@ -348,6 +348,9 @@ public class JegyzokonyvAdatok
     public string Ellen7_AltalánosEszrevételek { get; set; } = "";
     public string Ellen7_MegjegyzesekEszrevételek { get; set; } = "";
 
+    // === AVK MELLÉKLET – ÁRAMVÉDŐ KAPCSOLÓK ===
+    public List<AvkSor> AvkSorok { get; set; } = new();
+
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly

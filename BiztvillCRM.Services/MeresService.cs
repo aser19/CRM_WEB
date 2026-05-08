@@ -122,16 +122,33 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == id);
 
-        if (meres is not null)
-        {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel!.CegId != cegId)
-            {
-                throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
-            }
+        if (meres is null) return;
 
-            context.Meresek.Remove(meres);
-            await context.SaveChangesAsync();
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel!.CegId != cegId)
+        {
+            throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
         }
+
+        // 1. Ha ez a mérés egy melléklet-mérés volt, nullázzuk a hivatkozást
+        var mellekletHivatkozas = await context.MellekletJegyzokonyvek
+            .Where(m => m.MellekletMeresId == id)
+            .ToListAsync();
+        foreach (var m in mellekletHivatkozas)
+        {
+            m.MellekletMeresId = null;
+            m.Modositva = DateTime.UtcNow;
+        }
+
+        // 2. Ha ez a főmérés – töröljük a hozzá tartozó melléklet-jgyk rekordokat
+        var mellekletek = await context.MellekletJegyzokonyvek
+            .Where(m => m.MeresId == id)
+            .ToListAsync();
+        context.MellekletJegyzokonyvek.RemoveRange(mellekletek);
+
+        // 3. Magát a mérést töröljük
+        context.Meresek.Remove(meres);
+
+        await context.SaveChangesAsync();
     }
 
     public async Task<JegyzokonyvAdatok?> BetoltJegyzokonyvAdatokAsync(int meresId)

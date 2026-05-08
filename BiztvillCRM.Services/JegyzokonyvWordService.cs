@@ -10,7 +10,7 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
     private readonly ITenantService _tenantService;
     private readonly ICegService _cegService;
     private readonly ISablonService _sablonService;
-
+    
     public JegyzokonyvWordService(
         IMeresService meresService, 
         ITenantService tenantService,
@@ -33,7 +33,6 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
 
     public async Task<byte[]> GeneralasAsync(int meresId, JegyzokonyvAdatok formAdatok, string sablonId = "VBF_KIF_MINTA")
     {
-        // Új jegyzőkönyvnél (meresId == 0) a meres objektum opcionális
         Meres? meres = null;
         if (meresId > 0)
         {
@@ -41,6 +40,16 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             if (meres == null)
                 throw new ArgumentException($"Mérés nem található: {meresId}");
         }
+
+        // ← ÚJ: ha formAdatok null, töltsük be a DB-ből mentett JSON-ból
+        if (formAdatok == null && meres != null && !string.IsNullOrEmpty(meres.JegyzokonyvAdatokJson))
+        {
+            formAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                meres.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            ) ?? new JegyzokonyvAdatok();
+        }
+        formAdatok ??= new JegyzokonyvAdatok();
 
         var sablon = await _sablonService.GetByIdAsync(sablonId)
             ?? throw new ArgumentException($"Sablon nem található: {sablonId}");
@@ -63,8 +72,37 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             .Where(m => !string.IsNullOrEmpty(m.Tipus))
             .ToList() ?? new List<MuszerSor>();
 
+        // Fallback: ha a lista üres, az egyedi Muszer1/2/3 mezőkből töltjük fel
+        if (!kitoltottMuszerek.Any() && formAdatok != null)
+        {
+            if (!string.IsNullOrEmpty(formAdatok.Muszer1Tipus))
+                kitoltottMuszerek.Add(new MuszerSor
+                {
+                    Tipus      = formAdatok.Muszer1Tipus,
+                    GyariSzam  = formAdatok.Muszer1GyariSzam ?? "",
+                    Kalibralas = formAdatok.Muszer1Kalibralas ?? ""
+                });
+            if (!string.IsNullOrEmpty(formAdatok.Muszer2Tipus))
+                kitoltottMuszerek.Add(new MuszerSor
+                {
+                    Tipus      = formAdatok.Muszer2Tipus,
+                    GyariSzam  = formAdatok.Muszer2GyariSzam ?? "",
+                    Kalibralas = formAdatok.Muszer2Kalibralas ?? ""
+                });
+            if (!string.IsNullOrEmpty(formAdatok.Muszer3Tipus))
+                kitoltottMuszerek.Add(new MuszerSor
+                {
+                    Tipus      = formAdatok.Muszer3Tipus,
+                    GyariSzam  = formAdatok.Muszer3GyariSzam ?? "",
+                    Kalibralas = formAdatok.Muszer3Kalibralas ?? ""
+                });
+        }
+
         // *** ÚJ: MÉRÉSI PONTOK ***
         var meresiPontok = formAdatok?.MeresiPontok ?? new List<MeresiPontSor>();
+
+        // === AVK MÉRÉSI SOROK ===
+        var avkSorok = formAdatok?.AvkSorok ?? new List<AvkSor>();
 
         var adatok = new Dictionary<string, object>
         {
@@ -188,12 +226,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["kalib3"] = kitoltottMuszerek.ElementAtOrDefault(2)?.Kalibralas ?? "",
 
             // Dinamikus műszerlista
-            ["muszerek"] = kitoltottMuszerek.Select((m, i) => new 
+            ["muszerek"] = kitoltottMuszerek.Select((m, i) => (object)new Dictionary<string, object>
             {
-                muszer_sorszam = (i + 1).ToString(),
-                muszer_tipus = m.Tipus ?? "",
-                muszer_gysz = m.GyariSzam ?? "",
-                muszer_kalib = m.Kalibralas ?? "",
+                ["muszer_sorszam"] = (i + 1).ToString(),
+                ["muszer_tipus"]   = m.Tipus ?? "",
+                ["muszer_gysz"]    = m.GyariSzam ?? "",
+                ["muszer_kalib"]   = m.Kalibralas ?? "",
             }).ToList(),
 
             // Van-e műszer feltételek
@@ -245,6 +283,31 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             }).ToList(),
             ["meresi_pontok_db"] = meresiPontok.Count.ToString(),
 
+            // AVK méretes sorok (dinamikus tábla)
+            ["avk_sorok"] = avkSorok.Select((s, i) => (object)new
+            {
+                avk_sorsz = (i + 1).ToString(),
+                avk_jele = s.Jele ?? "",
+                avk_tipus = s.TipusNev ?? "",
+                avk_helye = s.Helye ?? "",
+                avk_in_a = s.In ?? "",
+                avk_idn_ma = s.IDn ?? "",
+                avk_idn_mert_ma = s.IDnMert ?? "",
+                avk_un_v = s.Un ?? "",
+                avk_polusszam = s.Polusszam ?? "",
+                avk_t1x_ms = s.T1x ?? "",
+                avk_t5x_ms = s.T5x ?? "",
+                avk_eredmeny = s.Eredmeny ?? "",
+                avk_megfelelt_x = s.Eredmeny == "MF" ? "☑" : "🗷",
+                avk_nmf_x = s.Eredmeny == "NMF" ? "☑" : "🗷",
+            }).ToList(),
+            ["avk_sorok_db"]       = avkSorok.Count.ToString(),
+            ["avk_mf_db"]          = avkSorok.Count(s => s.Eredmeny == "MF").ToString(),
+            ["avk_nmf_db"]         = avkSorok.Count(s => s.Eredmeny == "NMF").ToString(),
+            ["avk_jkv_szam"]       = formAdatok?.JegyzokonyvSzam ?? "",
+            ["avk_vizsgalat_helye"] = formAdatok?.VizsgalatHelye ?? "",
+            ["avk_datum"]          = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
+
             // 3 éves csoport (301-305, 310, 311)
             ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "🗷",
             ["302"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "32A" ? "☑" : "🗷",
@@ -295,18 +358,32 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["412"] = formAdatok?.LegutolsoFelujitas ?? "",
             ["413"] = formAdatok?.Dokumentaciok ?? "",
 
-            // === JOGSZABÁLYOK ÉS SZABVÁNYOK LISTA ===
-            ["jogszabalyok"] = (formAdatok?.KijeloltJogszabalyok?
-                .Where(j => !j.IsSzabvany && j.Kivalasztva)
-                .OrderBy(j => j.Szam)
-                .Select(j => new Dictionary<string, object> { ["jsz_szam"] = j.Szam })
-                .ToList() as object) ?? new List<Dictionary<string, object>>(),
+            // === JOGSZABÁLYOK 3 HASÁBBAN ===
+            ["jogszabalyok"] = ChunkToRows(
+                formAdatok?.KijeloltJogszabalyok?
+                    .Where(j => !j.IsSzabvany && j.Kivalasztva)
+                    .OrderBy(j => j.Szam)
+                    .Select(j => j.Szam)
+                    .ToList() ?? new List<string>(), 3)
+                .Select(sor => (object)new Dictionary<string, object>
+                {
+                    ["jsz_1"] = sor.ElementAtOrDefault(0) ?? "",
+                    ["jsz_2"] = sor.ElementAtOrDefault(1) ?? "",
+                    ["jsz_3"] = sor.ElementAtOrDefault(2) ?? "",
+                }).ToList(),
 
-            ["szabvanyok"] = (formAdatok?.KijeloltJogszabalyok?
-                .Where(j => j.IsSzabvany && j.Kivalasztva)
-                .OrderBy(j => j.Szam)
-                .Select(j => new Dictionary<string, object> { ["sz_szam"] = j.Szam })
-                .ToList() as object) ?? new List<Dictionary<string, object>>(),
+            ["szabvanyok"] = ChunkToRows(
+                formAdatok?.KijeloltJogszabalyok?
+                    .Where(j => j.IsSzabvany && j.Kivalasztva)
+                    .OrderBy(j => j.Szam)
+                    .Select(j => j.Szam)
+                    .ToList() ?? new List<string>(), 3)
+                .Select(sor => (object)new Dictionary<string, object>
+                {
+                    ["sz_1"] = sor.ElementAtOrDefault(0) ?? "",
+                    ["sz_2"] = sor.ElementAtOrDefault(1) ?? "",
+                    ["sz_3"] = sor.ElementAtOrDefault(2) ?? "",
+                }).ToList(),
 
             // === 5. OLDAL – MSZ HD 60364-6 ELLENŐRZÉSEK ===
             // Szerkezetek
@@ -591,4 +668,10 @@ foreach (var kv in adatok)
     }
     private static string GetSzamitottDatumStatic(DateTime? datum, int evek)
     => datum?.AddYears(evek).ToString("yyyy.MM.dd") ?? "-";
+
+    private static IEnumerable<List<string>> ChunkToRows(List<string> items, int chunkSize)
+    {
+        for (int i = 0; i < items.Count; i += chunkSize)
+            yield return items.Skip(i).Take(chunkSize).ToList();
+    }
 }

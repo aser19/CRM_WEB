@@ -13,6 +13,7 @@
 @inject ITenantService TenantService
 @inject IModulJogosultsagService ModulService
 @inject NavigationManager Navigation
+@inject IMellekletJegyzokonyvService MellekletJegyzokonyvService
 
 <PageTitle>Dashboard - Biztovill CRM</PageTitle>
 
@@ -470,22 +471,31 @@ else
         if (_hasModulMeresek)
         {
             var meresek = await MeresService.GetAllAsync();
+
+            // Melléklet mérések kiszűrése – csak a fő jegyzőkönyvek számítanak
+            var mellekletMeresIds = await MellekletJegyzokonyvService.GetMellekletMeresIdsAsync();
+
             var tevekenysegUgyfelek = ugyfelek.Where(u => u.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres)).ToList();
             var tevekenysegUgyfelIds = tevekenysegUgyfelek.Select(u => u.Id).ToHashSet();
-            var tevekenysegMeresek = meresek.Where(m => tevekenysegUgyfelIds.Contains(m.UgyfelId)).ToList();
+            var tevekenysegMeresek = meresek
+                .Where(m => tevekenysegUgyfelIds.Contains(m.UgyfelId) && !mellekletMeresIds.Contains(m.Id))
+                .ToList();
 
             _statisztikak[TevekenysegTipus.VillanosMeres] = new DashboardStatisztika
             {
                 UgyfelekSzama = tevekenysegUgyfelek.Count,
                 MeresekSzama = tevekenysegMeresek.Count,
-                LejaroMeresekSzama = tevekenysegMeresek.Count(m => 
+                LejaroMeresekSzama = tevekenysegMeresek.Count(m =>
                     m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value > ma && m.KovetkezoDatum.Value <= harmincNapMulva),
-                LejartMeresekSzama = tevekenysegMeresek.Count(m => 
+                LejartMeresekSzama = tevekenysegMeresek.Count(m =>
                     m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value < ma)
             };
 
             _lejaroMeresek = meresek
-                .Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value > ma && m.KovetkezoDatum.Value <= harmincNapMulva)
+                .Where(m => !mellekletMeresIds.Contains(m.Id)
+                    && m.KovetkezoDatum.HasValue
+                    && m.KovetkezoDatum.Value > ma
+                    && m.KovetkezoDatum.Value <= harmincNapMulva)
                 .OrderBy(m => m.KovetkezoDatum)
                 .ToList();
         }

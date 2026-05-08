@@ -1,36 +1,32 @@
 namespace BiztvillCRM.Shared.Models;
 
 /// <summary>
-/// Egy áramvédő kapcsoló (RCD/MCB) mérési sora az AVK melléklet-jegyzőkönyvben.
+/// Egy áramvédő kapcsoló (RCD/RCBO) mérési sora az AVK melléklet-jegyzőkönyvben.
+/// In, IΔn, Un és Pólusszám a kiválasztott típusból töltődik be.
+/// t1x és t5x manuálisan kerül beírásra.
 /// </summary>
 public class AvkSor
 {
     public int Sorsz { get; set; }
+    public string Jele { get; set; } = "";
+    public int? AvkTipusId { get; set; }
+    public string TipusNev { get; set; } = "";
+    public string Helye { get; set; } = "";
 
-    /// <summary>Áramkör megnevezése / helyiség</summary>
-    public string AramkorNev { get; set; } = "";
+    /// <summary>Névleges áram In [A] – típusból</summary>
+    public string In { get; set; } = "";
 
-    /// <summary>Típus: RCD / MCB / RCBO</summary>
-    public string Tipus { get; set; } = "RCD";
+    /// <summary>Névleges kioldóáram IΔn [mA] – típusból</summary>
+    public string IDn { get; set; } = "";
 
-    /// <summary>Névleges áram [A]</summary>
-    public string NevlegesAram { get; set; } = "";
+    /// <summary>Mért kioldóáram IΔn [mA] – manuális</summary>
+    public string IDnMert { get; set; } = "";
 
-    /// <summary>Névleges kioldóáram [mA] (RCD-nél)</summary>
-    public string KioldoAram { get; set; } = "30";
-
-    /// <summary>Mért kioldási idő [ms]</summary>
-    public string KioldasiIdo { get; set; } = "";
-
-    /// <summary>Mért érintési feszültség [V]</summary>
-    public string ErintesiFeszultseg { get; set; } = "";
-
-    /// <summary>Eredmény: MF / NMF</summary>
+    public string Un { get; set; } = "";
+    public string Polusszam { get; set; } = "";
+    public string T1x { get; set; } = "";
+    public string T5x { get; set; } = "";
     public string Eredmeny { get; set; } = "MF";
-
-    /// <summary>Megjegyzés</summary>
     public string Megjegyzes { get; set; } = "";
-
-    /// <summary>UI: nincs DB mentés, csak lokális számítás</summary>
     public bool MegfeleltE => Eredmeny == "MF";
 }
