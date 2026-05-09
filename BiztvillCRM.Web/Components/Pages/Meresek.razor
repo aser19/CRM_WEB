@@ -41,7 +41,11 @@
             <PropertyColumn Property="m => m.MeresStatusz" Title="Státusz" />
             <TemplateColumn Title="" Sortable="false" HeaderStyle="width:40px">
                 <CellTemplate>
-                    @if (_meresIdsWithMelleklet.Contains(context.Item.Id))
+                    @{
+                        var tipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
+                        var vanMelleklet = _meresIdsWithMelleklet.Contains(context.Item.Id) && tipusKod != "AVK";
+                    }
+                    @if (vanMelleklet)
                     {
                         <MudTooltip Text="Van melléklet">
                             <MudIconButton Icon="@Icons.Material.Filled.Attachment"
@@ -154,8 +158,8 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum (auto)" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" DateFormat="yyyy.MM.dd" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum (auto)" DateFormat="yyyy.MM.dd" /></MudItem>                                        
                 <MudItem xs="12" md="6">
                     <MudText Typo="Typo.body2" Class="mb-1">Eredmény</MudText>
                     <MudToggleGroup T="string" @bind-Value="_szerkesztesAlatt.Eredmeny" 
@@ -176,22 +180,35 @@
                 </MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
 
-                @* === FŐJEGYZŐKÖNYV SZERKESZTÉSE === *@
+                @* === FŐJEGYZŐKÖNYV / SZERKESZTÉS GOMB === *@
                 <MudItem xs="12">
                     <MudDivider Class="my-3" />
                 </MudItem>
                 <MudItem xs="12">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.EditNote"
-                               FullWidth="true"
-                               OnClick="@(() => { _dialogNyitva = false; Navigation.NavigateTo($"/jegyzokonyv/{_szerkesztesAlatt!.Id}"); })">
-                        Főjegyőkönyv megnyitása / szerkesztése
-                    </MudButton>
+                    @if (IsOnalloAvk)
+                    {
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.ElectricalServices"
+                                   FullWidth="true"
+                                   OnClick="@(() => { _dialogNyitva = false; Navigation.NavigateTo($"/avk-szerkeszto/meres/{_szerkesztesAlatt!.Id}"); })">
+                            ÁVK mérési adatok szerkesztése
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.EditNote"
+                                   FullWidth="true"
+                                   OnClick="@(() => { _dialogNyitva = false; Navigation.NavigateTo($"/jegyzokonyv/{_szerkesztesAlatt!.Id}"); })">
+                            Főjegyőkönyv megnyitása / szerkesztése
+                        </MudButton>
+                    }
                 </MudItem>
 
-                @* === MELLÉKLET JEGYZŐKÖNYVEK === *@
-                @if (_szerkesztettMellekletek.Count > 0)
+                @* === MELLÉKLET JEGYZŐKÖNYVEK – csak nem-önálló AVK esetén === *@
+                @if (!IsOnalloAvk && _szerkesztettMellekletek.Count > 0)
                 {
                     <MudItem xs="12">
                         <MudText Typo="Typo.subtitle2" Class="mb-2 mt-2">
@@ -217,8 +234,6 @@
                                                  Icon="@(m.KeszeE ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)">
                                             @(m.KeszeE ? "Kész" : "Folyamatban")
                                         </MudChip>
-
-                                        @* Word letöltés – csak ha kész *@
                                         @if (m.KeszeE && m.MellekletMeresId.HasValue)
                                         {
                                             <MudIconButton Icon="@Icons.Material.Filled.Download"
@@ -227,7 +242,6 @@
                                                            Title="Word letöltése"
                                                            OnClick="@(async () => await MellekletWordLetoltes(m))" />
                                         }
-
                                         <MudButton Variant="Variant.Outlined"
                                                    Color="Color.Primary"
                                                    Size="Size.Small"
@@ -342,6 +356,10 @@
         _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
         _datum = item.Datum;
         _kovetkezoDatum = item.KovetkezoDatum;
+
+        // Ha nincs elmentett következő dátum, számoljuk ki automatikusan
+        if (_kovetkezoDatum == null)
+            SzamolKovetkezoDatum();
 
         // Mellékletek betöltése
         _szerkesztettMellekletek = await MellekletService.GetByMeresIdAsync(item.Id);
@@ -650,4 +668,5 @@
         }
         catch (Exception ex) { Snackbar.Add($"Word letöltés hiba: {ex.Message}", Severity.Error); }
     }
+    private bool IsOnalloAvk => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "AVK";
 }

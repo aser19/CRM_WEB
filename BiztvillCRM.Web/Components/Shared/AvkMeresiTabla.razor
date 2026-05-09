@@ -1,5 +1,6 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Services
 @inject IAvkVedelemTipusService AvkTipusService
 
 <MudText Typo="Typo.subtitle1" Class="mb-2">
@@ -7,114 +8,172 @@
     Áramvédő kapcsolók (RCD/RCBO) mérési adatok
 </MudText>
 
-<MudTable Items="@Sorok" Dense="true" Hover="true" Striped="true" Bordered="true">
-    <HeaderContent>
-        <MudTh Style="width:40px">#</MudTh>
-        <MudTh Style="width:70px">Jele</MudTh>
-        <MudTh Style="width:180px">Típus</MudTh>
-        <MudTh Style="width:110px">Helye</MudTh>
-        <MudTh Style="width:70px">In [A]</MudTh>
-        <MudTh Style="width:80px">IΔn névl. [mA]</MudTh>
-        <MudTh Style="width:80px">IΔn mért [mA]</MudTh>
-        <MudTh Style="width:70px">Un [V]</MudTh>
-        <MudTh Style="width:70px">Pólus</MudTh>
-        <MudTh Style="width:80px">t1× [ms]</MudTh>
-        <MudTh Style="width:80px">t5× [ms]</MudTh>
-        <MudTh Style="width:90px">Eredmény</MudTh>
-        <MudTh Style="width:36px"></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd>@context.Sorsz</MudTd>
+<MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+    <strong>Hálózat: @(HalozatTipus ?? "TN")</strong> —
+    Megengedett max: IΔn mért ≤ <strong>@AvkHatarertekService.GetHatarertekek(HalozatTipus, null).MaxIDnMa mA</strong> |
+    t1× ≤ <strong>@AvkHatarertekService.GetHatarertekek(HalozatTipus, null).MaxT1x_s ms</strong> |
+    t5× ≤ <strong>@AvkHatarertekService.GetHatarertekek(HalozatTipus, null).MaxT5x_s ms</strong>
+</MudAlert>
 
-        @* Jele – manuális *@
-        <MudTd>
-            <MudTextField @bind-Value="context.Jele" Variant="Variant.Text"
-                          Placeholder="pl. F1" />
-        </MudTd>
+@* Drag&drop: MudTable helyett saját HTML tábla, hogy a tr-re is tehessünk drag eseményeket *@
+<div style="overflow-x:auto;">
+<table class="mud-table mud-table-dense mud-table-hover mud-table-striped mud-table-bordered" style="width:100%">
+    <thead>
+        <tr>
+            <th style="width:40px">#</th>
+            <th style="width:36px"></th>
+            <th style="width:70px">Jele</th>
+            <th style="width:180px">Típus</th>
+            <th style="width:110px">Helye</th>
+            <th style="width:70px">In [A]</th>
+            <th style="width:80px">IΔn névl. [mA]</th>
+            <th style="width:120px">IΔn mért [mA]</th>
+            <th style="width:70px">Un [V]</th>
+            <th style="width:70px">Pólus</th>
+            <th style="width:110px">t1× [ms]</th>
+            <th style="width:110px">t5× [ms]</th>
+            <th style="width:90px">Eredmény</th>
+            <th style="width:36px"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < Sorok.Count; i++)
+        {
+            var idx = i;
+            var sor = Sorok[idx];
+            var isDragOver = _dragOverIndex == idx;
+            var rowStyle = isDragOver
+                ? "border-top: 3px solid var(--mud-palette-primary); cursor:default;"
+                : "cursor:default;";
 
-        @* Típus – AVK típuslistából, keresés gépelésre *@
-        <MudTd>
-            <MudAutocomplete T="AvkVedelemTipus"
-                             Value="@(_tipusok.FirstOrDefault(t => t.Id == context.AvkTipusId))"
-                             ValueChanged="@((AvkVedelemTipus t) => TipusValtoztatva(context, t))"
-                             SearchFunc="@KeresTipus"
-                             ToStringFunc="@(t => t?.Nev ?? "")"
-                             Variant="Variant.Text"
-                             Dense="true"
-                             ResetValueOnEmptyText="true"
-                             CoerceText="true"
-                             Placeholder="Típus keresése..." />
-        </MudTd>
+            <tr style="@rowStyle"
+                draggable="false"
+                @ondragover="@(() => OnDragOver(idx))"
+                @ondragover:preventDefault="true"
+                @ondrop="@(() => OnDrop(idx))"
+                @ondrop:preventDefault="true">
 
-        @* Helye – manuális *@
-        <MudTd>
-            <MudTextField @bind-Value="context.Helye" Variant="Variant.Text"
-                          Placeholder="pl. Főelosztó" />
-        </MudTd>
+                <td class="mud-table-cell">@sor.Sorsz</td>
 
-        @* In – típusból, readonly *@
-        <MudTd>
-            <MudText Typo="Typo.body2" Class="text-center">
-                @(string.IsNullOrEmpty(context.In) ? "–" : context.In)
-            </MudText>
-        </MudTd>
+                @* Drag handle – csak ez a cella draggable *@
+                <td class="mud-table-cell"
+                    style="cursor:grab; text-align:center; padding:0;"
+                    draggable="true"
+                    @ondragstart="@(() => OnDragStart(idx))"
+                    @ondragend="OnDragEnd">
+                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator"
+                             Size="Size.Small" Color="Color.Default" />
+                </td>
 
-        @* IΔn névleges – típusból, readonly *@
-        <MudTd>
-            <MudText Typo="Typo.body2" Class="text-center"
-                     Style="color: var(--mud-palette-text-secondary);">
-                @(string.IsNullOrEmpty(context.IDn) ? "–" : context.IDn)
-            </MudText>
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudTextField @bind-Value="sor.Jele" Variant="Variant.Text" Placeholder="pl. F1" />
+                </td>
 
-        @* IΔn mért – manuális *@
-        <MudTd>
-            <MudTextField @bind-Value="context.IDnMert" Variant="Variant.Text"
-                          Placeholder="mért" />
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudAutocomplete T="AvkVedelemTipus"
+                                     Value="@(_tipusok.FirstOrDefault(t => t.Id == sor.AvkTipusId))"
+                                     ValueChanged="@((AvkVedelemTipus t) => TipusValtoztatva(sor, t))"
+                                     SearchFunc="@KeresTipus"
+                                     ToStringFunc="@(t => t?.Nev ?? "")"
+                                     Variant="Variant.Text"
+                                     Dense="true"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="true"
+                                     Placeholder="Típus keresése..." />
+                </td>
 
-        @* Un – típusból, readonly *@
-        <MudTd>
-            <MudText Typo="Typo.body2" Class="text-center">
-                @(string.IsNullOrEmpty(context.Un) ? "–" : context.Un)
-            </MudText>
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudTextField @bind-Value="sor.Helye" Variant="Variant.Text" Placeholder="pl. Főelosztó" />
+                </td>
 
-        @* Pólusszám – típusból, readonly *@
-        <MudTd>
-            <MudText Typo="Typo.body2" Class="text-center">
-                @(string.IsNullOrEmpty(context.Polusszam) ? "–" : context.Polusszam)
-            </MudText>
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudText Typo="Typo.body2" Class="text-center">
+                        @(string.IsNullOrEmpty(sor.In) ? "–" : sor.In)
+                    </MudText>
+                </td>
 
-        @* t1× – manuális *@
-        <MudTd>
-            <MudTextField @bind-Value="context.T1x" Variant="Variant.Text"
-                          Placeholder="mért" />
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudText Typo="Typo.body2" Class="text-center"
+                             Style="color: var(--mud-palette-text-secondary);">
+                        @(string.IsNullOrEmpty(sor.IDn) ? "–" : sor.IDn)
+                    </MudText>
+                </td>
 
-        @* t5× – manuális *@
-        <MudTd>
-            <MudTextField @bind-Value="context.T5x" Variant="Variant.Text"
-                          Placeholder="mért" />
-        </MudTd>
+                @* IΔn mért – vessző→pont konverzió *@
+                <td class="mud-table-cell" style="@(IsIdnTullepve(sor) ? "background:#fff3f3" : "")">
+                    <MudTextField Value="@sor.IDnMert"
+                                  ValueChanged="@((string v) => { sor.IDnMert = NormalizalTizedes(v); AutoEredmeny(sor); })"
+                                  Variant="Variant.Text"
+                                  Placeholder="mért"
+                                  Immediate="true" />
+                    @if (IsIdnTullepve(sor))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">
+                            max: @AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod).MaxIDnMa mA
+                        </MudText>
+                    }
+                </td>
 
-        @* Eredmény *@
-        <MudTd>
-            <MudToggleGroup T="string" @bind-Value="context.Eredmeny"
-                            Color="Color.Primary" Dense="true" Rounded="true">
-                <MudToggleItem Value="@("MF")" Text="MF" />
-                <MudToggleItem Value="@("NMF")" Text="NMF" />
-            </MudToggleGroup>
-        </MudTd>
+                <td class="mud-table-cell">
+                    <MudText Typo="Typo.body2" Class="text-center">
+                        @(string.IsNullOrEmpty(sor.Un) ? "–" : sor.Un)
+                    </MudText>
+                </td>
 
-        <MudTd>
-            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
-                           Color="Color.Error" Size="Size.Small"
-                           OnClick="@(() => SorTorlese(context))" />
-        </MudTd>
-    </RowTemplate>
-</MudTable>
+                <td class="mud-table-cell">
+                    <MudText Typo="Typo.body2" Class="text-center">
+                        @(string.IsNullOrEmpty(sor.Polusszam) ? "–" : sor.Polusszam)
+                    </MudText>
+                </td>
+
+                @* t1× – csak egész ms, no tizedes *@
+                <td class="mud-table-cell" style="@(IsT1Tullepve(sor) ? "background:#fff3f3" : "")">
+                    <MudTextField Value="@sor.T1x"
+                                  ValueChanged="@((string v) => { sor.T1x = CsakEgesz(v); AutoEredmeny(sor); })"
+                                  Variant="Variant.Text"
+                                  Placeholder="ms"
+                                  Immediate="true" />
+                    @if (IsT1Tullepve(sor))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">
+                            max: @AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod).MaxT1x_s ms
+                        </MudText>
+                    }
+                </td>
+
+                @* t5× – csak egész ms, no tizedes *@
+                <td class="mud-table-cell" style="@(IsT5Tullepve(sor) ? "background:#fff3f3" : "")">
+                    <MudTextField Value="@sor.T5x"
+                                  ValueChanged="@((string v) => { sor.T5x = CsakEgesz(v); AutoEredmeny(sor); })"
+                                  Variant="Variant.Text"
+                                  Placeholder="ms"
+                                  Immediate="true" />
+                    @if (IsT5Tullepve(sor))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">
+                            max: @AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod).MaxT5x_s ms
+                        </MudText>
+                    }
+                </td>
+
+                <td class="mud-table-cell">
+                    <MudToggleGroup T="string" @bind-Value="sor.Eredmeny"
+                                    Color="Color.Primary" Dense="true" Rounded="true">
+                        <MudToggleItem Value="@("MF")" Text="MF" />
+                        <MudToggleItem Value="@("NMF")" Text="NMF" />
+                    </MudToggleGroup>
+                </td>
+
+                <td class="mud-table-cell">
+                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                   Color="Color.Error" Size="Size.Small"
+                                   OnClick="@(() => SorTorlese(sor))" />
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
 
 <MudButton Variant="Variant.Outlined" Color="Color.Primary"
            StartIcon="@Icons.Material.Filled.Add"
@@ -129,18 +188,116 @@
     [Parameter]
     public EventCallback<List<AvkSor>> SorokChanged { get; set; }
 
+    [Parameter]
+    public string? HalozatTipus { get; set; }
+
     private List<AvkVedelemTipus> _tipusok = new();
+    private int _dragSourceIndex = -1;
+    private int _dragOverIndex = -1;
 
     protected override async Task OnInitializedAsync()
     {
         _tipusok = await AvkTipusService.GetAktivTipusokAsync();
     }
 
+    // === DRAG AND DROP ===
+    private void OnDragStart(int index)
+    {
+        _dragSourceIndex = index;
+    }
+
+    private void OnDragOver(int index)
+    {
+        if (_dragOverIndex != index)
+        {
+            _dragOverIndex = index;
+            StateHasChanged();
+        }
+    }
+
+    private void OnDrop(int targetIndex)
+    {
+        if (_dragSourceIndex < 0 || _dragSourceIndex == targetIndex)
+        {
+            OnDragEnd();
+            return;
+        }
+        var sor = Sorok[_dragSourceIndex];
+        Sorok.RemoveAt(_dragSourceIndex);
+        Sorok.Insert(targetIndex, sor);
+        SzamozasAktualizalas();
+        OnDragEnd();
+    }
+
+    private void OnDragEnd()
+    {
+        _dragSourceIndex = -1;
+        _dragOverIndex = -1;
+        StateHasChanged();
+    }
+
+    // === INPUT NORMALIZÁLÁS ===
+
+    /// <summary>Vesszőt pontra cserél tizedes elválasztóként (IΔn mért mezőhöz).</summary>
+    private static string NormalizalTizedes(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return "";
+        return v.Replace(',', '.');
+    }
+
+    /// <summary>Csak egész számot enged (t1×, t5× [ms] mezőkhöz). Tizedes és utána mindent levág.</summary>
+    private static string CsakEgesz(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return "";
+        // pont vagy vessző előtti részt vesszük
+        var normalized = v.Replace(',', '.');
+        var dotIdx = normalized.IndexOf('.');
+        var egeszResz = dotIdx >= 0 ? normalized[..dotIdx] : normalized;
+        // csak számjegyeket hagyunk
+        return new string(egeszResz.Where(char.IsDigit).ToArray());
+    }
+
+    // === HATÁRÉRTÉK ELLENŐRZÉS ===
+    private bool IsIdnTullepve(AvkSor sor)
+    {
+        var hatar = AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod);
+        return !string.IsNullOrEmpty(sor.IDnMert) &&
+               decimal.TryParse(sor.IDnMert, System.Globalization.NumberStyles.Any,
+                   System.Globalization.CultureInfo.InvariantCulture, out var v) &&
+               v > hatar.MaxIDnMa;
+    }
+
+    private bool IsT1Tullepve(AvkSor sor)
+    {
+        var hatar = AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod);
+        return !string.IsNullOrEmpty(sor.T1x) &&
+               decimal.TryParse(sor.T1x, System.Globalization.NumberStyles.Any,
+                   System.Globalization.CultureInfo.InvariantCulture, out var v) &&
+               v > hatar.MaxT1x_s;
+    }
+
+    private bool IsT5Tullepve(AvkSor sor)
+    {
+        var hatar = AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod);
+        return !string.IsNullOrEmpty(sor.T5x) &&
+               decimal.TryParse(sor.T5x, System.Globalization.NumberStyles.Any,
+                   System.Globalization.CultureInfo.InvariantCulture, out var v) &&
+               v > hatar.MaxT5x_s;
+    }
+
+    // === AUTOMATIKUS EREDMÉNY ===
+    private void AutoEredmeny(AvkSor sor)
+    {
+        sor.Eredmeny = AvkHatarertekService.SzamitEredmeny(
+            HalozatTipus, sor.TipusKod, sor.IDnMert, sor.T1x, sor.T5x);
+        StateHasChanged();
+    }
+
+    // === TÍPUS KERESÉS ===
     private Task<IEnumerable<AvkVedelemTipus>> KeresTipus(string szoveg, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(szoveg))
             return Task.FromResult(_tipusok.AsEnumerable());
-
         return Task.FromResult(
             _tipusok.Where(t => t.Nev.Contains(szoveg, StringComparison.OrdinalIgnoreCase)));
     }
@@ -151,6 +308,7 @@
         {
             sor.AvkTipusId = tipus.Id;
             sor.TipusNev   = tipus.Nev;
+            sor.TipusKod   = tipus.TipusKod;
             sor.In         = tipus.In.ToString("0.#");
             sor.IDn        = tipus.IDn.ToString("0.#");
             sor.Un         = tipus.Un.ToString("0.#");
@@ -159,16 +317,13 @@
         else
         {
             sor.AvkTipusId = null;
-            sor.TipusNev   = "";
-            sor.In         = "";
-            sor.IDn        = "";
-            sor.Un         = "";
-            sor.Polusszam  = "";
+            sor.TipusNev = sor.TipusKod = "";
+            sor.In = sor.IDn = sor.Un = sor.Polusszam = "";
         }
-
-        StateHasChanged();
+        AutoEredmeny(sor);
     }
 
+    // === LISTA KEZELÉS ===
     private void UjSorHozzaadas()
     {
         Sorok.Add(new AvkSor { Sorsz = Sorok.Count + 1 });

@@ -186,6 +186,8 @@ builder.Services.AddAuthorizationCore(options =>
 // Authorization handler regisztrálása
 builder.Services.AddScoped<IAuthorizationHandler, BiztvillCRM.Web.Authorization.ModulAuthorizationHandler>();
 
+builder.Services.AddScoped<INyilvanosLekerdezesService, NyilvanosLekerdezesService>();
+
 var app = builder.Build();
 
 // --- Adatbázis inicializálás + szerepkörök létrehozása ---
@@ -353,4 +355,22 @@ static async Task AdminFelhasznaloLetrehozasa(CrmDbContext db, UserManager<Felha
             await userManager.AddToRoleAsync(admin, FelhasznaloSzerepkor.Admin.ToString());
         }
     }
+}
+
+// === OCR szolgáltatás - Singleton, mert a DocumentAnalysisClient újrafelhasználható ===
+var ocrEndpoint = builder.Configuration["AzureDocumentIntelligence:Endpoint"] ?? "";
+var ocrApiKey = builder.Configuration["AzureDocumentIntelligence:ApiKey"] ?? "";
+
+if (!string.IsNullOrEmpty(ocrEndpoint) && !string.IsNullOrEmpty(ocrApiKey)
+    && ocrApiKey != "SecretApiKeyStoredLocally")
+{
+    builder.Services.AddSingleton<IJegyzokonyvOcrService>(sp =>
+        new JegyzokonyvOcrService(
+            builder.Configuration,
+            sp.GetRequiredService<ILogger<JegyzokonyvOcrService>>()));
+}
+else
+{
+    // Ha nincs kulcs konfigurálva, dummy service regisztrálása
+    builder.Services.AddSingleton<IJegyzokonyvOcrService, DisabledOcrService>();
 }

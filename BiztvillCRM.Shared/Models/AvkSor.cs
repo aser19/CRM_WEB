@@ -11,6 +11,8 @@ public class AvkSor
     public string Jele { get; set; } = "";
     public int? AvkTipusId { get; set; }
     public string TipusNev { get; set; } = "";
+    public string TipusKod { get; set; } = "AC";
+
     public string Helye { get; set; } = "";
 
     /// <summary>Névleges áram In [A] – típusból</summary>

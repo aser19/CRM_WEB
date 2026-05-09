@@ -23,10 +23,18 @@ public class MeresService : IMeresService
         await using var context = await _contextFactory.CreateDbContextAsync();
         
         var cegId = _tenantService.GetCurrentCegId();
+
+        // Melléklet-mérések ID-jei (ezeket kizárjuk a főlistából)
+        var mellekletMeresIds = await context.MellekletJegyzokonyvek
+            .Where(m => m.MellekletMeresId.HasValue)
+            .Select(m => m.MellekletMeresId!.Value)
+            .ToListAsync();
+
         var query = context.Meresek
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
+            .Where(m => !mellekletMeresIds.Contains(m.Id))
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))

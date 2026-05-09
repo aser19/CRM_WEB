@@ -2413,20 +2413,23 @@
         try
         {
             var maxFileSize = 15 * 1024 * 1024;
-            
-            using var stream = file.OpenReadStream(maxFileSize);
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
+
+            // MemoryStream-et NEM zárjuk be using-gal – a service többször reseteli
+            var memoryStream = new MemoryStream();
+            await using (var stream = file.OpenReadStream(maxFileSize))
+            {
+                await stream.CopyToAsync(memoryStream);
+            }
             memoryStream.Position = 0;
 
-            // ✅ Mérés típus OCR model ID-jának lekérése
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
-            var ocrModelId = tipus?.OcrModelId; // null ha nincs megadva
+            var ocrModelId = tipus?.OcrModelId;
 
-            // OCR feldolgozás a megfelelő modellel
             var importAdatok = await OcrService.FeldolgozAsync(memoryStream, file.Name, ocrModelId);
 
-            // Adatok egyesítése
+            // MemoryStream manuális felszabadítása
+            await memoryStream.DisposeAsync();
+
             MergeImportaltAdatok(importAdatok);
 
             _feltoltottFajlNev = file.Name;
@@ -2445,54 +2448,63 @@
     }
 
     private void MergeImportaltAdatok(JegyzokonyvImportAdatok import)
+{
+    // Csak nem üres mezők felülírása
+    if (!string.IsNullOrWhiteSpace(import.DolgozoNeve))
+        _adatok.DolgozoNeve = import.DolgozoNeve;
+
+    if (!string.IsNullOrWhiteSpace(import.ForgalmiRendszam))
+        _adatok.ForgalmiRendszam = import.ForgalmiRendszam;
+
+    if (!string.IsNullOrWhiteSpace(import.Megrendelo))
+        _adatok.Megrendelo = import.Megrendelo;
+
+    if (!string.IsNullOrWhiteSpace(import.UzemiKisero))
+        _adatok.UzemiKisero = import.UzemiKisero;
+
+    if (!string.IsNullOrWhiteSpace(import.KapcsolatTarto))
+        _adatok.KapcsolatTarto = import.KapcsolatTarto;
+
+    if (!string.IsNullOrWhiteSpace(import.VizsgalatHelye))
+        _adatok.VizsgalatHelye = import.VizsgalatHelye;
+
+    // Eszközök hozzáadása (HME típusoknál)
+    if (import.Eszkozok.Any())
     {
-        // Csak nem üres mezők felülírása
-        if (!string.IsNullOrWhiteSpace(import.DolgozoNeve))
-            _adatok.DolgozoNeve = import.DolgozoNeve;
-
-        if (!string.IsNullOrWhiteSpace(import.ForgalmiRendszam))
-            _adatok.ForgalmiRendszam = import.ForgalmiRendszam;
-
-        if (!string.IsNullOrWhiteSpace(import.Megrendelo))
-            _adatok.Megrendelo = import.Megrendelo;
-
-        if (!string.IsNullOrWhiteSpace(import.UzemiKisero))
-            _adatok.UzemiKisero = import.UzemiKisero;
-
-        if (!string.IsNullOrWhiteSpace(import.KapcsolatTarto))
-            _adatok.KapcsolatTarto = import.KapcsolatTarto;
-
-        if (!string.IsNullOrWhiteSpace(import.VizsgalatHelye))
-            _adatok.VizsgalatHelye = import.VizsgalatHelye;
-
-        // Eszközök hozzáadása
-        if (import.Eszkozok.Any())
+        foreach (var impEszkoz in import.Eszkozok)
         {
-            foreach (var impEszkoz in import.Eszkozok)
+            var ujEszkoz = new HordozhatoEszkozSor
             {
-                var ujEszkoz = new HordozhatoEszkozSor
-                {
-                    Sorsz = _adatok.Eszkozok.Count + 1,
-                    Megnevezes = impEszkoz.Eszkoznev ?? "",
-                    Tipus = impEszkoz.Tipus ?? "",
-                    Azonosito = impEszkoz.GyariSzam ?? impEszkoz.Leltariszam ?? "",
-                    VedelmiOsztaly = "I", // Alapértelmezett
-                    Telj = impEszkoz.JellemzoTeljesitmeny ?? "230V",
-                    Megtekint = impEszkoz.Megtekintes ?? "MF",
-                    Folyt = impEszkoz.Folytonossag ?? "",
-                    Szigell = impEszkoz.Szigeteles ?? "",
-                    Szivargo = impEszkoz.SzivargoAram ?? "",
-                    
-                    // Hierarchikus mezők
-                    CsoportNev = impEszkoz.CsoportNev,
-                    CsoportSorrend = impEszkoz.CsoportSorrend
-                };
-                _adatok.Eszkozok.Add(ujEszkoz);
-            }
-    
-            StateHasChanged();
+                Sorsz = _adatok.Eszkozok.Count + 1,
+                Megnevezes = impEszkoz.Eszkoznev ?? "",
+                Tipus = impEszkoz.Tipus ?? "",
+                Azonosito = impEszkoz.GyariSzam ?? impEszkoz.Leltariszam ?? "",
+                VedelmiOsztaly = "I",
+                Telj = impEszkoz.JellemzoTeljesitmeny ?? "230V",
+                Megtekint = impEszkoz.Megtekintes ?? "MF",
+                Folyt = impEszkoz.Folytonossag ?? "",
+                Szigell = impEszkoz.Szigeteles ?? "",
+                Szivargo = impEszkoz.SzivargoAram ?? "",
+                CsoportNev = impEszkoz.CsoportNev,
+                CsoportSorrend = impEszkoz.CsoportSorrend
+            };
+            _adatok.Eszkozok.Add(ujEszkoz);
         }
     }
+
+    // ← ÚJ: AVK sorok hozzáadása (AVK típusoknál)
+    if (import.AvkSorok.Any())
+    {
+        _adatok.AvkSorok ??= new List<AvkSor>();
+        _adatok.AvkSorok.Clear();
+        foreach (var sor in import.AvkSorok)
+            _adatok.AvkSorok.Add(sor);
+
+        _importaltEszkozokSzama = import.AvkSorok.Count; // snackbar szám is helyes legyen
+    }
+
+    StateHasChanged();
+}
 
     private void FeltoltottFajlTorles()
     {

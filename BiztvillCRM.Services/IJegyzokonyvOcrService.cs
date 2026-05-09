@@ -42,18 +42,23 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
 
     // ✅ NORMÁL FELDOLGOZÁS
     public async Task<JegyzokonyvImportAdatok> FeldolgozAsync(
-        Stream fileStream, 
-        string fileName, 
+        Stream fileStream,
+        string fileName,
         string? customModelId = null)
     {
         var importAdatok = new JegyzokonyvImportAdatok();
+
+        // Bemásoljuk a teljes tartalmat egy saját MemoryStream-be,
+        // amit bármikor újra lehet olvasni
+        var buffer = new MemoryStream();
+        await fileStream.CopyToAsync(buffer);
 
         try
         {
             _logger.LogInformation("OCR feldolgozás indítása: {FileName}", fileName);
 
-            string modelId = !string.IsNullOrWhiteSpace(customModelId) 
-                ? customModelId 
+            string modelId = !string.IsNullOrWhiteSpace(customModelId)
+                ? customModelId
                 : _defaultFallbackModel;
 
             AnalyzeResult result;
@@ -61,76 +66,77 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             try
             {
                 _logger.LogInformation("📋 OCR model használata: {ModelId}", modelId);
-                
+
+                buffer.Position = 0;
                 var operation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed,
-                    modelId,
-                    fileStream);
+                    WaitUntil.Completed, modelId, buffer);
 
                 result = operation.Value;
             }
             catch (RequestFailedException azureEx) when (azureEx.Status == 404 && modelId != _defaultFallbackModel)
             {
-                _logger.LogWarning("⚠️ Custom model '{ModelId}' nem található, fallback: {FallbackModel}", 
+                _logger.LogWarning("⚠️ Custom model '{ModelId}' nem található, fallback: {FallbackModel}",
                     modelId, _defaultFallbackModel);
-                
-                fileStream.Position = 0;
-                
+
+                buffer.Position = 0;
                 var operation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed,
-                    _defaultFallbackModel,
-                    fileStream);
+                    WaitUntil.Completed, _defaultFallbackModel, buffer);
 
                 result = operation.Value;
-                
                 _logger.LogInformation("✅ Fallback model sikeresen használva");
             }
 
             _logger.LogInformation("📄 Talált oldalak: {PageCount}", result.Pages.Count);
             _logger.LogInformation("📋 Talált táblázatok: {TableCount}", result.Tables.Count);
 
-            // ✅ ÚJ: Ha kevés táblázat, próbáljuk újra prebuilt-layout-tal
+            // Ha kevés táblázat, próbáljuk újra prebuilt-layout-tal (csak HME esetén)
             if (result.Tables.Count < 2 && result.Pages.Count > 2 && modelId == "HME")
             {
-                _logger.LogWarning("⚠️ Kevés táblázat ({TableCount}) több oldalon ({PageCount}), újrapróbálás prebuilt-layout-tal", 
-                    result.Tables.Count, result.Pages.Count);
-    
-                fileStream.Position = 0;
-    
+                _logger.LogWarning("⚠️ Kevés táblázat ({TableCount}), újrapróbálás prebuilt-layout-tal",
+                    result.Tables.Count);
+
+                buffer.Position = 0;
                 var retryOperation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed,
-                    "prebuilt-layout",
-                    fileStream);
-    
+                    WaitUntil.Completed, "prebuilt-layout", buffer);
+
                 result = retryOperation.Value;
-    
                 _logger.LogInformation("📋 Újrapróbálás után: {TableCount} táblázat", result.Tables.Count);
             }
 
-            // ✅ Teljes szöveg feldolgozása (eredeti)
             FeldolgozTeljesSzoveg(result.Content, importAdatok);
-            
-            // ✅ ÚJ: Oldal-alapú feldolgozás (3-8. oldal adataihoz)
             FeldolgozOldalanként(result, importAdatok);
 
-            // Táblázatok feldolgozása (minden oldalról)
             if (result.Tables.Count > 0)
             {
                 _logger.LogInformation("🔍 Táblázatok feldolgozása...");
-                FeldolgozEszkozTablazat(result.Tables, importAdatok);
+
+                // AVK modelnél először AVK-specifikus feldolgozás
+                if (modelId == "AVK")
+                {
+                    var avkSikerult = FeldolgozAvkTablazat(result.Tables, importAdatok);
+                    if (!avkSikerult)
+                        FeldolgozEszkozTablazat(result.Tables, importAdatok);
+                }
+                else
+                {
+                    FeldolgozEszkozTablazat(result.Tables, importAdatok);
+                }
             }
 
-            _logger.LogInformation("✅ Feldolgozás sikeres. {EszkozokSzama} eszköz", 
+            _logger.LogInformation("✅ Feldolgozás sikeres. {EszkozokSzama} eszköz",
                 importAdatok.Eszkozok.Count);
 
             LogTalaltAdatok(importAdatok);
-
             return importAdatok;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Hiba az OCR feldolgozás során: {FileName}", fileName);
             throw new ApplicationException($"OCR feldolgozás sikertelen: {ex.Message}", ex);
+        }
+        finally
+        {
+            await buffer.DisposeAsync();
         }
     }
 
@@ -787,4 +793,112 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
         }
         return null;
     }
+
+    // Hívd meg FeldolgozEszkozTablazat ELŐTT, ha AVK model
+    private bool FeldolgozAvkTablazat(IReadOnlyList<DocumentTable> tables, JegyzokonyvImportAdatok adatok)
+    {
+        foreach (var table in tables)
+        {
+            // AVK fejléc felismerése: IΔn + t[ms] + MINŐSÍTÉS oszlopok
+            var fejlecSor = table.Cells
+                .Where(c => c.RowIndex == 0)
+                .OrderBy(c => c.ColumnIndex)
+                .Select(c => c.Content?.Trim() ?? "")
+                .ToList();
+
+            bool isAvkTabla = fejlecSor.Any(h =>
+                h.Contains("IAn", StringComparison.OrdinalIgnoreCase) ||
+                h.Contains("IΔn", StringComparison.OrdinalIgnoreCase) ||
+                h.Contains("MINŐSÍTÉS", StringComparison.OrdinalIgnoreCase));
+
+            if (!isAvkTabla) continue;
+
+            _logger.LogInformation("✅ AVK táblázat felismerve, {RowCount} sorral", table.RowCount);
+
+            // Oszlop indexek a fejlécből
+            int? jelCol = null, helyeCol = null, tipusCol = null,
+                 inCol = null, idnCol = null, unCol = null, polusCol = null,
+                 idnMertCol = null, t1Col = null, t5Col = null, eredmenyCol = null;
+
+            for (int c = 0; c < fejlecSor.Count; c++)
+            {
+                var h = fejlecSor[c].ToLower();
+                if (h.Contains("jele"))                                   jelCol = c;
+                else if (h.Contains("helye"))                             helyeCol = c;
+                else if (h.Contains("típus") || h.Contains("tipus"))     tipusCol = c;
+                else if (h == "in [a]" || h == "in[a]")                  inCol = c;
+                else if (h.Contains("névl") || h == "ian [ma]")          idnCol = c;
+                else if (h.Contains("un") || h.Contains("[v]"))          unCol = c;
+                else if (h.Contains("pólus") || h.Contains("polus"))     polusCol = c;
+                else if (h.Contains("mért") || h.Contains("mert"))       idnMertCol = c;
+                else if (h.Contains("ian") && h.Contains("t [ms]"))      t1Col = c;
+                else if (h.Contains("5x") || h.Contains("5xian"))        t5Col = c;
+                else if (h.Contains("minős") || h.Contains("eredmény"))  eredmenyCol = c;
+            }
+
+            // Ha t1 és t5 nem különült el, pozíció alapján:
+            // [9]= t1×, [10]= t5×
+            t1Col ??= fejlecSor.Count > 9 ? 9 : null;
+            t5Col ??= fejlecSor.Count > 10 ? 10 : null;
+            idnMertCol ??= fejlecSor.Count > 8 ? 8 : null;
+
+            for (int row = 1; row < table.RowCount; row++)
+            {
+                var cellak = table.Cells
+                    .Where(c => c.RowIndex == row)
+                    .OrderBy(c => c.ColumnIndex)
+                    .ToDictionary(c => c.ColumnIndex, c => c.Content?.Trim() ?? "");
+
+                if (!cellak.Any(kv => !string.IsNullOrWhiteSpace(kv.Value))) continue;
+
+                string Get(int? col) => col.HasValue && cellak.TryGetValue(col.Value, out var v) ? v : "";
+
+                // Sorszámsor átugrása
+                var ssz = Get(0);
+                if (ssz == "Ssz." || ssz == "#") continue;
+
+                var avkSor = new AvkSor
+                {
+                    Sorsz      = int.TryParse(ssz.TrimEnd('.'), out var s) ? s : (adatok.AvkSorok.Count + 1),
+                    Jele       = Get(jelCol),
+                    Helye      = Get(helyeCol),
+                    TipusNev   = Get(tipusCol),
+                    In         = Get(inCol),
+                    IDn        = Get(idnCol),
+                    Un         = Get(unCol),
+                    Polusszam  = Get(polusCol),
+                    IDnMert    = Get(idnMertCol),
+                    T1x        = Get(t1Col),
+                    T5x        = Get(t5Col),
+                    Eredmeny   = Get(eredmenyCol) switch
+                    {
+                        var e when e.Contains("MEGFELEL") && !e.Contains("NEM") => "MF",
+                        var e when e.Contains("NEM") => "NMF",
+                        _ => "MF"
+                    }
+                };
+
+                if (!string.IsNullOrWhiteSpace(avkSor.Jele) ||
+                    !string.IsNullOrWhiteSpace(avkSor.TipusNev))
+                {
+                    adatok.AvkSorok.Add(avkSor);
+                    _logger.LogInformation("  ✅ AVK sor: {Jele} | {Tipus} | IDn={IDn} | t1={T1} | t5={T5} | {Eredmeny}",
+                        avkSor.Jele, avkSor.TipusNev, avkSor.IDnMert, avkSor.T1x, avkSor.T5x, avkSor.Eredmeny);
+                }
+            }
+
+            return adatok.AvkSorok.Any();
+        }
+        return false;
+    }
+}
+
+/// <summary>Akkor aktív, ha nincs Azure Document Intelligence API kulcs konfigurálva.</summary>
+public class DisabledOcrService : IJegyzokonyvOcrService
+{
+    public Task<JegyzokonyvImportAdatok> FeldolgozAsync(Stream fileStream, string fileName, string? customModelId = null)
+        => throw new InvalidOperationException("Az OCR szolgáltatás nincs konfigurálva. Állítsd be az AzureDocumentIntelligence:ApiKey értékét.");
+
+    public Task<JegyzokonyvImportAdatok> FeldolgozHierarchikusAsync(Stream fileStream, string fileName, string? customModelId = null)
+        => throw new InvalidOperationException("Az OCR szolgáltatás nincs konfigurálva. Állítsd be az AzureDocumentIntelligence:ApiKey értékét.");
 }

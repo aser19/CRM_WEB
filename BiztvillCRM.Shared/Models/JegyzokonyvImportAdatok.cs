@@ -11,6 +11,7 @@ public class JegyzokonyvImportAdatok
     public string? KapcsolatTarto { get; set; }
     public string? VizsgalatHelye { get; set; }
     public List<HordozhatoEszkozImport> Eszkozok { get; set; } = new();
+    public List<AvkSor> AvkSorok { get; set; } = new();  // ← visszaállítva a valódi AvkSor-ra
 }
 
 public class HordozhatoEszkozImport
@@ -20,16 +21,26 @@ public class HordozhatoEszkozImport
     public string? Tipus { get; set; }
     public string? GyariSzam { get; set; }
     public string? Leltariszam { get; set; }
-    
-    // ✅ ÚJ MEZŐK
-    public string? JellemzoTeljesitmeny { get; set; } // 230V, 400V stb.
-    public string? Megtekintes { get; set; } // MF, NMF, KSZ
-    public string? Folytonossag { get; set; } // Ω
-    public string? Szigeteles { get; set; } // MΩ
-    public string? SzivargoAram { get; set; } // mA
+    public string? JellemzoTeljesitmeny { get; set; }
+    public string? Megtekintes { get; set; }
+    public string? Folytonossag { get; set; }
+    public string? Szigeteles { get; set; }
+    public string? SzivargoAram { get; set; }
     public string? Megjegyzes { get; set; }
-    
-    // Hierarchikus eszközökhöz
     public string? CsoportNev { get; set; }
     public int CsoportSorrend { get; set; }
+}
+
+// LeltarEszkozSor – IT eszköz leltár, külön osztályban marad
+public class LeltarEszkozSor
+{
+    public string? Terulet { get; set; }
+    public string? Rendszam { get; set; }
+    public string? Megnevezes { get; set; }
+    public string? Gyarto { get; set; }
+    public string? Tipus { get; set; }
+    public string? SorozatSzam { get; set; }
+    public string? OperaciosRendszer { get; set; }
+    public string? FinstalledProgramok { get; set; }
+    public string? EgyebAdatok { get; set; }
 }

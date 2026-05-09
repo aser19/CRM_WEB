@@ -1,7 +1,9 @@
 @page "/avk-szerkeszto/{MellekletId:int}"
+@page "/avk-szerkeszto/meres/{MeresId:int}"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Services
 @inject IMellekletJegyzokonyvService MellekletService
 @inject IMeresService MeresService
 @inject IMeresTipusService MeresTipusService
@@ -9,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IJegyzokonyvWordService WordService
+@inject IJegyzokonyvOcrService OcrService
 
 <PageTitle>ÁVK Mérési Táblázat</PageTitle>
 
@@ -16,23 +19,28 @@
 {
     <MudProgressCircular Indeterminate="true" Class="mt-8" />
 }
-else if (_melleklet == null)
+else if (MeresId == 0 && _melleklet == null)
 {
     <MudAlert Severity="Severity.Error">A melléklet nem található.</MudAlert>
+}
+else if (MeresId > 0 && _onalloMeres == null)
+{
+    <MudAlert Severity="Severity.Error">A mérés nem található.</MudAlert>
 }
 else
 {
     <MudText Typo="Typo.h5" Class="mb-4">
         <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
         Áramvédő kapcsolók mérési táblázata —
-        <MudChip T="string" Color="Color.Primary" Size="Size.Small">@_melleklet.Szam</MudChip>
         @if (_onalloMod)
         {
             <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-1">Önálló AVK</MudChip>
         }
         else
         {
-            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-1">Melléklet</MudChip>
+            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-1">
+                @(_melleklet?.Szam ?? "Melléklet")
+            </MudChip>
         }
     </MudText>
 
@@ -50,11 +58,40 @@ else
                 <span>Főjegyzőkönyv adatai (csak olvasható)</span>
             }
         </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_adatok.VizsgalatHelye"
+                              ValueChanged="@((string v) => _adatok.VizsgalatHelye = v)"
+                              Label="Vizsgálat helye"
+                              ReadOnly="@(!_onalloMod)" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_adatok.Munkaszam"
+                              ValueChanged="@((string v) => _adatok.Munkaszam = v)"
+                              Label="Munkaszám"
+                              ReadOnly="@(!_onalloMod)" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_adatok.FelulvizsgaloNev"
+                              ValueChanged="@((string v) => _adatok.FelulvizsgaloNev = v)"
+                              Label="Felülvizsgáló neve"
+                              ReadOnly="@(!_onalloMod)" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_adatok.KapcsolatTarto"
+                              ValueChanged="@((string v) => _adatok.KapcsolatTarto = v)"
+                              Label="Kapcsolattartó"
+                              ReadOnly="@(!_onalloMod)" />
+            </MudItem>
+        </MudGrid>
     </MudPaper>
 
     @* === AVK MÉRÉSI TÁBLÁZAT === *@
     <MudPaper Class="pa-4">
-        <AvkMeresiTabla @bind-Sorok="_adatok.AvkSorok" />
+        <AvkMeresiTabla @key="_avkTablaKey"
+                        @bind-Sorok="_adatok.AvkSorok"
+                        HalozatTipus="@(_foJegyzokonyvAdatok?.MeresiRendszerTipus ?? "TN")" />
 
         <MudDivider Class="my-4" />
 
@@ -66,157 +103,187 @@ else
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
                        OnClick="MentesEsBezarAsync"
-                       Disabled="_feldolgozas">Mentés és bezár</MudButton>
+                       Disabled="_feldolgozas">
+                @(_feldolgozas ? "Mentés..." : "Mentés és bezár")
+            </MudButton>
         </MudStack>
+    </MudPaper>
+
+    @* === OCR IMPORT === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Size="Size.Small" Class="mr-1" />
+            AVK táblázat importálása (PDF/kép)
+        </MudText>
+        <MudFileUpload T="IBrowserFile" FilesChanged="OcrImportAsync" Accept=".pdf,.jpg,.png">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Upload"
+                           Disabled="_ocrFeldolgozas">
+                    @(_ocrFeldolgozas ? "Feldolgozás..." : "Fájl kiválasztása")
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
     </MudPaper>
 }
 
 @code {
     [Parameter] public int MellekletId { get; set; }
+    [Parameter] public int MeresId { get; set; }
 
     private MellekletJegyzokonyv? _melleklet;
+    private Meres? _onalloMeres;
     private JegyzokonyvAdatok _adatok = new();
     private bool _betoltes = true;
     private bool _feldolgozas;
-    private bool _onalloMod; // true = önálló AVK főjgyk, false = melléklet
-    private string _sablonId = "VBF_AVK_MERES"; // Sablon azonosító cache-elése
+    private bool _onalloMod;
+    private string _sablonId = "VBF_AVK_MERES";
+    private Meres? _foMeres;
+    private JegyzokonyvAdatok? _foJegyzokonyvAdatok;
+    private bool _ocrFeldolgozas;
+    private int _avkTablaKey = 0;
 
     protected override async Task OnInitializedAsync()
     {
-        _melleklet = await MellekletService.GetByIdAsync(MellekletId);
-
-        if (_melleklet != null)
+        if (MeresId > 0)
         {
-            // foMeres a külső scope-ban deklarálva
-            var foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+            // === ÖNÁLLÓ AVK MÓD (MeresId alapján) ===
+            _onalloMod = true;
+            _onalloMeres = await MeresService.GetByIdAsync(MeresId);
 
-            if (foMeres != null)
+            if (_onalloMeres != null && !string.IsNullOrEmpty(_onalloMeres.JegyzokonyvAdatokJson))
             {
-                var foTipus = await MeresTipusService.GetByIdAsync(foMeres.MeresTipusId);
-                _onalloMod = foTipus?.MellekletTipusKod == "AVK";
-            }
-
-            // AVK saját adatok betöltése (ha van melléklet-mérés)
-            if (_melleklet.MellekletMeresId.HasValue)
-            {
-                var avkMeres = await MeresService.GetByIdAsync(_melleklet.MellekletMeresId.Value);
-                if (!string.IsNullOrEmpty(avkMeres?.JegyzokonyvAdatokJson))
-                {
-                    _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
-                        avkMeres.JegyzokonyvAdatokJson,
-                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                    ) ?? new();
-                }
-            }
-
-            // Főjegyzőkönyvből adatok előtöltése – foMeres már elérhető itt
-            if (foMeres != null && !string.IsNullOrEmpty(foMeres.JegyzokonyvAdatokJson))
-            {
-                var foAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
-                    foMeres.JegyzokonyvAdatokJson,
+                _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    _onalloMeres.JegyzokonyvAdatokJson,
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
-                if (foAdatok != null)
-                {
-                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
-                        _adatok.FelulvizsgaloNev          = foAdatok.FelulvizsgaloNev;
-                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloBizonyitvany))
-                        _adatok.FelulvizsgaloBizonyitvany = foAdatok.FelulvizsgaloBizonyitvany;
-                    if (string.IsNullOrEmpty(_adatok.FelulvizsgaloKepzes))
-                        _adatok.FelulvizsgaloKepzes       = foAdatok.FelulvizsgaloKepzes;
-                    if (string.IsNullOrEmpty(_adatok.SegitoFelulvizsgalo))
-                        _adatok.SegitoFelulvizsgalo       = foAdatok.SegitoFelulvizsgalo;
-                    if (string.IsNullOrEmpty(_adatok.SegitoBizonyitvany))
-                        _adatok.SegitoBizonyitvany        = foAdatok.SegitoBizonyitvany;
-                    if (string.IsNullOrEmpty(_adatok.SegitoKepzes))
-                        _adatok.SegitoKepzes              = foAdatok.SegitoKepzes;
-                    if (string.IsNullOrEmpty(_adatok.Ellenor))
-                        _adatok.Ellenor                   = foAdatok.Ellenor;
-                    if (string.IsNullOrEmpty(_adatok.EllenorBizonyitvany))
-                        _adatok.EllenorBizonyitvany       = foAdatok.EllenorBizonyitvany;
-                    if (string.IsNullOrEmpty(_adatok.EllenorKepzes))
-                        _adatok.EllenorKepzes             = foAdatok.EllenorKepzes;
-                    if (string.IsNullOrEmpty(_adatok.KapcsolatTarto))
-                        _adatok.KapcsolatTarto            = foAdatok.KapcsolatTarto;
-                    if (string.IsNullOrEmpty(_adatok.UzemiKisero))
-                        _adatok.UzemiKisero               = foAdatok.UzemiKisero;
-                    if (string.IsNullOrEmpty(_adatok.VizsgalatHelye))
-                        _adatok.VizsgalatHelye            = foAdatok.VizsgalatHelye;
-                    if (string.IsNullOrEmpty(_adatok.Megrendelo))
-                        _adatok.Megrendelo                = foAdatok.Megrendelo;
-                    if (string.IsNullOrEmpty(_adatok.Munkaszam))
-                        _adatok.Munkaszam                 = foAdatok.Munkaszam;
-                    if (string.IsNullOrEmpty(_adatok.VizsgalatIdotartama))
-                        _adatok.VizsgalatIdotartama       = foAdatok.VizsgalatIdotartama;
+                ) ?? new();
+                _foJegyzokonyvAdatok = _adatok;
+            }
+        }
+        else
+        {
+            // === MELLÉKLET MÓD (MellekletId alapján) ===
+            _melleklet = await MellekletService.GetByIdAsync(MellekletId);
 
-                    // Műszerlista – mindig a főjegyzőkönyvből
-                    if (!_adatok.Muszerek.Any() && foAdatok.Muszerek.Any())
-                        _adatok.Muszerek = foAdatok.Muszerek;
+            if (_melleklet != null)
+            {
+                _foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+
+                if (_foMeres != null)
+                {
+                    var foTipus = await MeresTipusService.GetByIdAsync(_foMeres.MeresTipusId);
+                    _onalloMod = foTipus?.MellekletTipusKod == "AVK";
+                }
+
+                if (_melleklet.MellekletMeresId.HasValue)
+                {
+                    var avkMeres = await MeresService.GetByIdAsync(_melleklet.MellekletMeresId.Value);
+                    if (!string.IsNullOrEmpty(avkMeres?.JegyzokonyvAdatokJson))
+                    {
+                        _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                            avkMeres.JegyzokonyvAdatokJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        ) ?? new();
+                    }
+                }
+
+                if (_foMeres != null && !string.IsNullOrEmpty(_foMeres.JegyzokonyvAdatokJson))
+                {
+                    var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var foAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                        _foMeres.JegyzokonyvAdatokJson, opts);
+                    if (foAdatok != null)
+                    {
+                        if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))        _adatok.FelulvizsgaloNev = foAdatok.FelulvizsgaloNev;
+                        if (string.IsNullOrEmpty(_adatok.FelulvizsgaloBizonyitvany)) _adatok.FelulvizsgaloBizonyitvany = foAdatok.FelulvizsgaloBizonyitvany;
+                        if (string.IsNullOrEmpty(_adatok.FelulvizsgaloKepzes))     _adatok.FelulvizsgaloKepzes = foAdatok.FelulvizsgaloKepzes;
+                        if (string.IsNullOrEmpty(_adatok.SegitoFelulvizsgalo))     _adatok.SegitoFelulvizsgalo = foAdatok.SegitoFelulvizsgalo;
+                        if (string.IsNullOrEmpty(_adatok.SegitoBizonyitvany))      _adatok.SegitoBizonyitvany = foAdatok.SegitoBizonyitvany;
+                        if (string.IsNullOrEmpty(_adatok.SegitoKepzes))            _adatok.SegitoKepzes = foAdatok.SegitoKepzes;
+                        if (string.IsNullOrEmpty(_adatok.Ellenor))                 _adatok.Ellenor = foAdatok.Ellenor;
+                        if (string.IsNullOrEmpty(_adatok.EllenorBizonyitvany))     _adatok.EllenorBizonyitvany = foAdatok.EllenorBizonyitvany;
+                        if (string.IsNullOrEmpty(_adatok.EllenorKepzes))           _adatok.EllenorKepzes = foAdatok.EllenorKepzes;
+                        if (string.IsNullOrEmpty(_adatok.KapcsolatTarto))          _adatok.KapcsolatTarto = foAdatok.KapcsolatTarto;
+                        if (string.IsNullOrEmpty(_adatok.UzemiKisero))             _adatok.UzemiKisero = foAdatok.UzemiKisero;
+                        if (string.IsNullOrEmpty(_adatok.VizsgalatHelye))          _adatok.VizsgalatHelye = foAdatok.VizsgalatHelye;
+                        if (string.IsNullOrEmpty(_adatok.Megrendelo))              _adatok.Megrendelo = foAdatok.Megrendelo;
+                        if (string.IsNullOrEmpty(_adatok.Munkaszam))               _adatok.Munkaszam = foAdatok.Munkaszam;
+                        if (string.IsNullOrEmpty(_adatok.VizsgalatIdotartama))     _adatok.VizsgalatIdotartama = foAdatok.VizsgalatIdotartama;
+                        if (!_adatok.Muszerek.Any() && foAdatok.Muszerek.Any())    _adatok.Muszerek = foAdatok.Muszerek;
+                        _foJegyzokonyvAdatok = foAdatok;
+                    }
                 }
             }
         }
 
-        // Sablon azonosító
-        var avkTipus = (await MeresTipusService.GetAllAsync())
-            .FirstOrDefault(t => t.MellekletTipusKod == "AVK");
+        var avkTipus = (await MeresTipusService.GetAllAsync()).FirstOrDefault(t => t.MellekletTipusKod == "AVK");
         _sablonId = avkTipus?.SablonId ?? "VBF_AVK_MERES";
-
         _adatok.AvkSorok ??= new List<AvkSor>();
         _betoltes = false;
     }
-
-    private Meres? _foMeres; // cache a OnInitializedAsync-ból
 
     private async Task MentesEsBezarAsync()
     {
         _feldolgozas = true;
         try
         {
-            var melleklet = await MellekletService.GetByIdAsync(MellekletId);
-            if (melleklet == null)
+            if (MeresId > 0)
             {
-                Snackbar.Add("A melléklet nem található!", Severity.Error);
-                return;
-            }
-            if (!melleklet.MellekletMeresId.HasValue)
-            {
-                Snackbar.Add("A melléklet mérés még nincs létrehozva!", Severity.Warning);
-                return;
-            }
-
-            // 1. Adatok mentése
-            await MeresService.MentesJegyzokonyvAdatokkalAsync(
-                melleklet.MellekletMeresId.Value, _adatok);
-
-            // 2. Melléklet státusza → Kész
-            await MellekletService.StatuszFrissitesAsync(melleklet.Id, MellekletStatusz.Kesz);
-
-            // 3. Word dokumentum generálása
-            try
-            {
-                var wordBytes = await WordService.GeneralasAsync(
-                    melleklet.MellekletMeresId.Value, _adatok, _sablonId);
-
+                // === ÖNÁLLÓ AVK MENTÉS ===
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(MeresId, _adatok);
+                var wordBytes = await WordService.GeneralasAsync(MeresId, _adatok, _sablonId);
                 if (wordBytes is { Length: > 0 })
                 {
-                    var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.docx";
+                    var fajlNev = $"AVK-{MeresId:D6}.docx";
                     await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         wordBytes);
                 }
+                Snackbar.Add("AVK mérés elmentve!", Severity.Success);
+                Navigation.NavigateTo("/meresek");
             }
-            catch (Exception exWord)
+            else
             {
-                Snackbar.Add($"Word generálás sikertelen: {exWord.Message}", Severity.Warning);
-            }
+                // === MELLÉKLET MENTÉS ===
+                var melleklet = await MellekletService.GetByIdAsync(MellekletId);
+                if (melleklet == null)
+                {
+                    Snackbar.Add("Melléklet nem található!", Severity.Error);
+                    return;
+                }
 
-            Snackbar.Add("ÁVK adatok mentve, dokumentum letöltve!", Severity.Success);
-            await Task.Delay(600);
-            await JS.InvokeVoidAsync("history.back");
+                int avkMeresId;
+                if (melleklet.MellekletMeresId.HasValue)
+                {
+                    avkMeresId = melleklet.MellekletMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(avkMeresId, _adatok);
+                }
+                else
+                {
+                    avkMeresId = await MellekletService.MellekletMeresLetrehozAsync(
+                        melleklet.Id,
+                        _foMeres?.MeresTipusId ?? 0,
+                        _adatok);
+                }
+
+                await MellekletService.MentAvkAdatokAsync(melleklet.Id, _adatok);
+
+                var wordBytes = await WordService.GeneralasAsync(avkMeresId, _adatok, _sablonId);
+                if (wordBytes is { Length: > 0 })
+                {
+                    var fajlNev = $"AVK-Melleklet-{MellekletId:D6}.docx";
+                    await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        wordBytes);
+                }
+
+                Snackbar.Add("AVK melléklet elmentve!", Severity.Success);
+                Navigation.NavigateTo("/meresek");
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Hiba mentés közben: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -224,5 +291,47 @@ else
         }
     }
 
-    private async Task Vissza() => await JS.InvokeVoidAsync("history.back");
+    private void Vissza()
+    {
+        Navigation.NavigateTo("/meresek");
+    }
+
+    private async Task OcrImportAsync(IBrowserFile file)
+    {
+        if (file == null) return;
+        _ocrFeldolgozas = true;
+        try
+        {
+            var buffer = new MemoryStream();
+            await using (var stream = file.OpenReadStream(15 * 1024 * 1024))
+                await stream.CopyToAsync(buffer);
+            buffer.Position = 0;
+
+            var importAdatok = await OcrService.FeldolgozAsync(buffer, file.Name, "AVK");
+            await buffer.DisposeAsync();
+
+            if (importAdatok.AvkSorok.Any())
+            {
+                _adatok.AvkSorok.Clear();
+                foreach (var sor in importAdatok.AvkSorok)
+                    _adatok.AvkSorok.Add(sor);
+
+                _avkTablaKey++;  // ← ez kikényszeríti a child komponens teljes újrarenderelését
+                Snackbar.Add($"{importAdatok.AvkSorok.Count} AVK sor betöltve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Nem sikerült AVK sorokat felismerni.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"OCR hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ocrFeldolgozas = false;
+            StateHasChanged();
+        }
+    }
 }

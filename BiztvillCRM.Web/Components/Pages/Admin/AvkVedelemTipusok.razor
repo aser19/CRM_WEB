@@ -142,7 +142,8 @@ else
     <DialogActions>
         <MudButton OnClick="@(() => _ujDialogNyitva = false)">Mégsem</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   OnClick="UjTipusMentes">Mentés</MudButton>
+                   OnClick="UjTipusMentes">Mentés
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -181,6 +182,17 @@ else
     {
         if (_ujTipus is null || string.IsNullOrWhiteSpace(_ujTipus.Nev)) return;
 
+        // Duplikátum ellenőrzés – azonos nevű típus ne kerüljön be kétszer
+        bool marLetezik = _tipusok.Any(t =>
+            t.Nev.Equals(_ujTipus.Nev.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (marLetezik)
+        {
+            Snackbar.Add($"A(z) \"{_ujTipus.Nev}\" típus már létezik!", Severity.Warning);
+            return;
+        }
+
+        _ujTipus.Nev = _ujTipus.Nev.Trim();
         await TipusService.MentesAsync(_ujTipus);
         Snackbar.Add("Típus sikeresen mentve.", Severity.Success);
         _ujDialogNyitva = false;

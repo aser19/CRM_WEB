@@ -9,6 +9,9 @@
 @inject ITelephelyService TelephelyService
 @inject ITenantService TenantService
 @inject ICegService CegService
+@inject INyilvanosLekerdezesService LekerdezesService
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
 
 <PageTitle>Ügyfelek</PageTitle>
 
@@ -92,6 +95,11 @@
                                        Size="Size.Small"
                                        OnClick="() => TorlesMegerosites(context.Item)"
                                        aria-label="Törlés" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Key"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="() => TokenKezelesMegnyitasa(context.Item)"
+                                       aria-label="Lekérdezési tokenek" />
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
@@ -271,6 +279,76 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Token kezelés dialógus -->
+<MudDialog @bind-Visible="_tokenDialogNyitva" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Key" Color="Color.Info" />
+            <MudText Typo="Typo.h6">Lekérdezési tokenek – @_tokenUgyfelNev</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+            Az ügyfél ezzel a kóddal kérheti le saját adatait bejelentkezés nélkül, 
+            a <b>/lekerdezes</b> oldalon. Csak az ő telephelyeihez tartozó adatokat látja.
+        </MudText>
+
+        @if (_tokenBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            @if (!_ugyfelTokenek.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-2">Még nincs aktív token ehhez az ügyfélhez.</MudAlert>
+            }
+            else
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var t in _ugyfelTokenek)
+                    {
+                        <MudListItem T="string">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Typo="Typo.body2" Style="font-family:monospace; word-break:break-all; flex:1">
+                                    @t.Token
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @t.Letrehozva.ToLocalTime().ToString("yyyy.MM.dd")
+                                </MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                               Size="Size.Small"
+                                               Title="Másolás"
+                                               OnClick="() => TokenMasolas(t.Token)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               Title="Link megnyitása"
+                                               OnClick="() => TokenLinkMegnyitasa(t.Token)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               Title="Token visszavonása"
+                                               OnClick="() => TokenVisszavonas(t)" />
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _tokenDialogNyitva = false" Variant="Variant.Text">Bezárás</MudButton>
+        <MudButton OnClick="UjTokenGeneralas"
+                   Color="Color.Info"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Disabled="_tokenBetoltes">
+            Új token generálása
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Ugyfel> _ugyfelek = new();
     private string _kereses = string.Empty;
@@ -286,6 +364,13 @@
     private TevekenysegTipus _aktualisCegTevekenyseg = TevekenysegTipus.Nincs;
     private bool _validacioMutatasa = false;
     private Ceg? _sajatCeg;
+
+    // === Token kezelés ===
+    private bool _tokenDialogNyitva = false;
+    private bool _tokenBetoltes = false;
+    private int _tokenUgyfelId;
+    private string _tokenUgyfelNev = "";
+    private List<UgyfelLekerdezesiToken> _ugyfelTokenek = new();
 
     private readonly DialogOptions _dialogOptions = new()
     {
@@ -592,5 +677,49 @@
                 Snackbar.Add($"Hiba a törlés során: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    // === Token kezelés ===
+    private async Task TokenKezelesMegnyitasa(Ugyfel ugyfel)
+    {
+        _tokenUgyfelId = ugyfel.Id;
+        _tokenUgyfelNev = ugyfel.Nev ?? "";
+        _tokenDialogNyitva = true;
+        await TokenekBetoltese();
+    }
+
+    private async Task TokenekBetoltese()
+    {
+        _tokenBetoltes = true;
+        _ugyfelTokenek = await LekerdezesService.GetTokenekByUgyfelAsync(_tokenUgyfelId);
+        _tokenBetoltes = false;
+    }
+
+    private async Task UjTokenGeneralas()
+    {
+        _tokenBetoltes = true;
+        var uj = await LekerdezesService.UjTokenGeneralasAsync(_tokenUgyfelId);
+        await TokenekBetoltese();
+        Snackbar.Add($"Új token létrehozva: {uj}", Severity.Success);
+    }
+
+    private async Task TokenVisszavonas(UgyfelLekerdezesiToken token)
+    {
+        await LekerdezesService.TokenDeaktivalasAsync(token.Id);
+        await TokenekBetoltese();
+        Snackbar.Add("Token visszavonva.", Severity.Warning);
+    }
+
+    private async Task TokenMasolas(string token)
+    {
+        var url = $"{NavManager.BaseUri}lekerdezes?token={token}";
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+        Snackbar.Add("Link a vágólapra másolva!", Severity.Info);
+    }
+
+    private void TokenLinkMegnyitasa(string token)
+    {
+        var url = $"/lekerdezes?token={token}";
+        NavManager.NavigateTo(url, forceLoad: true);
     }
 }

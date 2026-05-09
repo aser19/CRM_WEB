@@ -1,0 +1,154 @@
+using BiztvillCRM.Data;
+using BiztvillCRM.Services.Interfaces;
+using BiztvillCRM.Shared.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace BiztvillCRM.Services;
+
+public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
+{
+    private readonly IDbContextFactory<CrmDbContext> _contextFactory;
+
+    public NyilvanosLekerdezesService(IDbContextFactory<CrmDbContext> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
+
+    public async Task<UgyfelLekerdezesViewModel?> LekerdezesByTokenAsync(string token)
+    {
+        await using var ctx = await _contextFactory.CreateDbContextAsync();
+
+        var tokenRek = await ctx.UgyfelLekerdezesiTokenek
+            .Include(t => t.Ugyfel)
+            .FirstOrDefaultAsync(t => t.Token == token && t.Aktiv);
+
+        if (tokenRek == null || !tokenRek.ErvenyesE)
+            return null;
+
+        tokenRek.UtolsoHasznalat = DateTime.UtcNow;
+        await ctx.SaveChangesAsync();
+
+        var ugyfelId = tokenRek.UgyfelId;
+
+        var telephelyek = await ctx.Telephelyek
+            .Where(t => t.UgyfelId == ugyfelId)
+            .OrderBy(t => t.Nev)
+            .ToListAsync();
+
+        var meresek = await ctx.Meresek
+            .Include(m => m.MeresTipus)
+            .Where(m => m.UgyfelId == ugyfelId)
+            .OrderByDescending(m => m.Datum)
+            .ToListAsync();
+
+        var hitelesitesek = await ctx.Hitelesitesek
+            .Include(h => h.EszkozTipus)
+            .Where(h => h.UgyfelId == ugyfelId)
+            .OrderByDescending(h => h.Datum)
+            .ToListAsync();
+
+        var karbantartasok = await ctx.Karbantartasok
+            .Include(k => k.KarbantartasTipus)
+            .Where(k => k.UgyfelId == ugyfelId)
+            .OrderBy(k => k.KovetkezoDatum)
+            .ToListAsync();
+
+        var zonaterkepek = await ctx.Zonaterkepek
+            .Where(z => z.UgyfelId == ugyfelId && z.Aktiv)
+            .OrderByDescending(z => z.ErvenyessegVege)
+            .ToListAsync();
+
+        var kockazatertekelesek = await ctx.Kockazatertekelesek
+            .Where(k => k.UgyfelId == ugyfelId && k.Aktiv)
+            .OrderByDescending(k => k.ErtekelesDatuma)
+            .ToListAsync();
+
+        var result = new UgyfelLekerdezesViewModel
+        {
+            UgyfelNev = tokenRek.Ugyfel?.Nev ?? "",
+            Telephelyek = telephelyek.Select(tp => new TelephelyAdatok
+            {
+                Nev = tp.Nev ?? "",
+                Cim = tp.Cim ?? "",
+                Meresek = meresek
+                    .Where(m => m.TelephelyId == tp.Id)
+                    .Select(m => new MeresOsszefoglalo
+                    {
+                        Datum = m.Datum,
+                        Tipus = m.MeresTipus?.Nev ?? "",
+                        Eredmeny = m.Eredmeny,
+                        KovetkezoDatum = m.KovetkezoDatum,
+                        Statusz = m.MeresStatusz.ToString()
+                    }).ToList(),
+                Hitelesitesek = hitelesitesek
+                    .Where(h => h.TelephelyId == tp.Id)
+                    .Select(h => new HitelesitesOsszefoglalo
+                    {
+                        EszkozTipusNev = h.EszkozTipus?.Nev ?? "",
+                        Darabszam = h.Darabszam,
+                        Datum = h.Datum,
+                        LejaratDatum = h.LejaratDatum
+                    }).ToList(),
+                Karbantartasok = karbantartasok
+                    .Where(k => k.TelephelyId == tp.Id)
+                    .Select(k => new KarbantartasOsszefoglalo
+                    {
+                        TipusNev = k.KarbantartasTipus?.Nev ?? "",
+                        KovetkezoDatum = k.KovetkezoDatum,
+                        Elvegezve = k.Elvegezve
+                    }).ToList(),
+                Zonaterkepek = zonaterkepek
+                    .Where(z => z.TelephelyId == tp.Id || z.TelephelyId == null)
+                    .Select(z => new ZonaterkepOsszefoglalo
+                    {
+                        Megnevezes = z.Megnevezes,
+                        ZonaTipus = z.ZonaTipus.ToString(),
+                        ErvenyessegVege = z.ErvenyessegVege,
+                        Aktiv = z.Aktiv
+                    }).ToList(),
+                Kockazatertekelesek = kockazatertekelesek
+                    .Where(k => k.TelephelyId == tp.Id || k.TelephelyId == null)
+                    .Select(k => new KockazatertekelesOsszefoglalo
+                    {
+                        Megnevezes = k.Megnevezes,
+                        ErtekelesDatuma = k.ErtekelesDatuma,
+                        KovetkezoFelulvizsgalat = k.KovetkezoFelulvizsgalat,
+                        KockazatiSzint = k.KockazatiSzint.ToString(),
+                        Statusz = k.Statusz.ToString()
+                    }).ToList(),
+            }).ToList()
+        };
+
+        return result;
+    }
+
+    public async Task<string> UjTokenGeneralasAsync(int ugyfelId)
+    {
+        await using var ctx = await _contextFactory.CreateDbContextAsync();
+        var token = Guid.NewGuid().ToString("N");
+        ctx.UgyfelLekerdezesiTokenek.Add(new UgyfelLekerdezesiToken
+        {
+            UgyfelId = ugyfelId,
+            Token = token,
+            Letrehozva = DateTime.UtcNow
+        });
+        await ctx.SaveChangesAsync();
+        return token;
+    }
+
+    public async Task TokenDeaktivalasAsync(int tokenId)
+    {
+        await using var ctx = await _contextFactory.CreateDbContextAsync();
+        var t = await ctx.UgyfelLekerdezesiTokenek.FindAsync(tokenId);
+        if (t != null) { t.Aktiv = false; await ctx.SaveChangesAsync(); }
+    }
+
+    public async Task<List<UgyfelLekerdezesiToken>> GetTokenekByUgyfelAsync(int ugyfelId)
+    {
+        await using var ctx = await _contextFactory.CreateDbContextAsync();
+        return await ctx.UgyfelLekerdezesiTokenek
+            .Where(t => t.UgyfelId == ugyfelId && t.Aktiv)
+            .OrderByDescending(t => t.Letrehozva)
+            .ToListAsync();
+    }
+}

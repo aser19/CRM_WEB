@@ -1,0 +1,320 @@
+@page "/lekerdezes"
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services
+@inject INyilvanosLekerdezesService LekerdezesService
+@inject NavigationManager NavManager
+@layout BiztvillCRM.Web.Components.Layout.PublicLayout
+
+<PageTitle>Adatlekérdezés</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudPaper Class="pa-6" Elevation="3">
+        <MudText Typo="Typo.h5" Class="mb-1">
+            <MudIcon Icon="@Icons.Material.Filled.Search" Class="mr-2" />
+            Adatlekérdezés
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Adja meg a kapott azonosítókódot a saját adatainak megtekintéséhez.
+        </MudText>
+
+        <MudTextField @bind-Value="_token"
+                      Label="Azonosítókód"
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@Icons.Material.Filled.Key"
+                      Placeholder="pl. a1b2c3d4e5f6..."
+                      Class="mb-3" />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   OnClick="LekerdezesFuttatas"
+                   Disabled="_betoltes">
+            @(_betoltes ? "Lekérdezés..." : "Adatok megjelenítése")
+        </MudButton>
+
+        @if (_hibaUzenet != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_hibaUzenet</MudAlert>
+        }
+    </MudPaper>
+
+    @if (_eredmeny != null)
+    {
+        <MudText Typo="Typo.h6" Class="mt-6 mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" />
+            @_eredmeny.UgyfelNev adatai
+        </MudText>
+
+        @foreach (var tp in _eredmeny.Telephelyek)
+        {
+            var vanAdat = tp.Meresek.Any() || tp.Hitelesitesek.Any() || tp.Karbantartasok.Any();
+            if (!vanAdat) continue;
+
+            <MudExpansionPanels Class="mb-3">
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Color="Color.Primary" />
+                            <div>
+                                <MudText Typo="Typo.subtitle1"><b>@tp.Nev</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@tp.Cim</MudText>
+                            </div>
+                            <MudSpacer />
+                            @if (tp.Meresek.Any())
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                    @tp.Meresek.Count mérés
+                                </MudChip>
+                            }
+                            @if (tp.Hitelesitesek.Any())
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                                    @tp.Hitelesitesek.Count hitelesítés
+                                </MudChip>
+                            }
+                            @if (tp.Karbantartasok.Any())
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary">
+                                    @tp.Karbantartasok.Count karbantartás
+                                </MudChip>
+                            }
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        @* === MÉRÉSEK === *@
+                        @if (tp.Meresek.Any())
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-2 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Science" Size="Size.Small" Class="mr-1" />
+                                Villamos mérések
+                            </MudText>
+                            <MudTable Items="tp.Meresek" Dense="true" Hover="true" Outlined="true">
+                                <HeaderContent>
+                                    <MudTh>Dátum</MudTh>
+                                    <MudTh>Típus</MudTh>
+                                    <MudTh>Eredmény</MudTh>
+                                    <MudTh>Következő</MudTh>
+                                    <MudTh>Státusz</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd>@context.Tipus</MudTd>
+                                    <MudTd>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(context.Eredmeny == "MEGFELELT" ? Color.Success : context.Eredmeny == "NEM MEGFELELT" ? Color.Error : Color.Default)">
+                                            @(context.Eredmeny ?? "–")
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd>
+                                        @if (context.KovetkezoDatum.HasValue)
+                                        {
+                                            var lejart = context.KovetkezoDatum.Value < DateTime.Today;
+                                            <MudText Color="@(lejart ? Color.Error : Color.Success)">
+                                                @context.KovetkezoDatum.Value.ToString("yyyy.MM.dd")
+                                            </MudText>
+                                        }
+                                        else { <span>–</span> }
+                                    </MudTd>
+                                    <MudTd>@context.Statusz</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+
+                        @* === HITELESÍTÉSEK === *@
+                        @if (tp.Hitelesitesek.Any())
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Class="mr-1" />
+                                Hitelesítések
+                            </MudText>
+                            <MudTable Items="tp.Hitelesitesek" Dense="true" Hover="true" Outlined="true">
+                                <HeaderContent>
+                                    <MudTh>Eszköz típus</MudTh>
+                                    <MudTh>Db</MudTh>
+                                    <MudTh>Hitelesítés dátuma</MudTh>
+                                    <MudTh>Lejárat</MudTh>
+                                    <MudTh>Állapot</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.EszkozTipusNev</MudTd>
+                                    <MudTd>@context.Darabszam</MudTd>
+                                    <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd>@(context.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</MudTd>
+                                    <MudTd>
+                                        @{
+                                            var ervenyes = context.LejaratDatum == null || context.LejaratDatum.Value >= DateTime.Today;
+                                        }
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(ervenyes ? Color.Success : Color.Error)">
+                                            @(ervenyes ? "Érvényes" : "Lejárt")
+                                        </MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+
+                        @* === KARBANTARTÁSOK === *@
+                        @if (tp.Karbantartasok.Any())
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Class="mr-1" />
+                                Karbantartások
+                            </MudText>
+                            <MudTable Items="tp.Karbantartasok" Dense="true" Hover="true" Outlined="true">
+                                <HeaderContent>
+                                    <MudTh>Típus</MudTh>
+                                    <MudTh>Következő esedékesség</MudTh>
+                                    <MudTh>Státusz</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.TipusNev</MudTd>
+                                    <MudTd>
+                                        @if (context.KovetkezoDatum.HasValue)
+                                        {
+                                            var lejart = context.KovetkezoDatum.Value < DateTime.Today;
+                                            <MudText Color="@(lejart ? Color.Error : Color.Default)">
+                                                @context.KovetkezoDatum.Value.ToString("yyyy.MM.dd")
+                                            </MudText>
+                                        }
+                                        else { <span>–</span> }
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(context.Elvegezve ? Color.Success : Color.Warning)">
+                                            @(context.Elvegezve ? "Elvégezve" : "Nyitott")
+                                        </MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+
+                        @* === ZÓNATÉRKÉPEK === *@
+                        @if (tp.Zonaterkepek.Any())
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                                Zónatérképek
+                            </MudText>
+                            <MudTable Items="tp.Zonaterkepek" Dense="true" Hover="true" Outlined="true">
+                                <HeaderContent>
+                                    <MudTh>Megnevezés</MudTh>
+                                    <MudTh>Zóna típus</MudTh>
+                                    <MudTh>Érvényesség vége</MudTh>
+                                    <MudTh>Állapot</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Megnevezes</MudTd>
+                                    <MudTd>@context.ZonaTipus</MudTd>
+                                    <MudTd>
+                                        @if (context.ErvenyessegVege.HasValue)
+                                        {
+                                            var lejart = context.ErvenyessegVege.Value < DateTime.Today;
+                                            <MudText Color="@(lejart ? Color.Error : Color.Success)">
+                                                @context.ErvenyessegVege.Value.ToString("yyyy.MM.dd")
+                                            </MudText>
+                                        }
+                                        else { <span>–</span> }
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(context.Aktiv ? Color.Success : Color.Default)">
+                                            @(context.Aktiv ? "Aktív" : "Inaktív")
+                                        </MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+
+                        @* === KOCKÁZATÉRTÉKELÉSEK === *@
+                        @if (tp.Kockazatertekelesek.Any())
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                                Kockázatértékelések
+                            </MudText>
+                            <MudTable Items="tp.Kockazatertekelesek" Dense="true" Hover="true" Outlined="true">
+                                <HeaderContent>
+                                    <MudTh>Megnevezés</MudTh>
+                                    <MudTh>Értékelés dátuma</MudTh>
+                                    <MudTh>Következő felülvizsgálat</MudTh>
+                                    <MudTh>Kockázati szint</MudTh>
+                                    <MudTh>Státusz</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Megnevezes</MudTd>
+                                    <MudTd>@context.ErtekelesDatuma.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd>
+                                        @if (context.KovetkezoFelulvizsgalat.HasValue)
+                                        {
+                                            var lejart = context.KovetkezoFelulvizsgalat.Value < DateTime.Today;
+                                            <MudText Color="@(lejart ? Color.Error : Color.Default)">
+                                                @context.KovetkezoFelulvizsgalat.Value.ToString("yyyy.MM.dd")
+                                            </MudText>
+                                        }
+                                        else { <span>–</span> }
+                                    </MudTd>
+                                    <MudTd>@context.KockazatiSzint</MudTd>
+                                    <MudTd>@context.Statusz</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+            Az adatok csak az Ön számára kerülnek megjelenítésre. Az oldal nem igényel bejelentkezést.
+        </MudText>
+    }
+</MudContainer>
+
+@code {
+    private string _token = "";
+    private bool _betoltes = false;
+    private string? _hibaUzenet;
+    private UgyfelLekerdezesViewModel? _eredmeny;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // URL-ből token betöltése, pl. /lekerdezes?token=abc123
+        var uri = new Uri(NavManager.Uri);
+        var qs = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var urlToken = qs["token"];
+        if (!string.IsNullOrWhiteSpace(urlToken))
+        {
+            _token = urlToken;
+            await LekerdezesFuttatas();
+        }
+    }
+
+    private async Task LekerdezesFuttatas()
+    {
+        if (string.IsNullOrWhiteSpace(_token))
+        {
+            _hibaUzenet = "Kérjük adja meg az azonosítókódot!";
+            return;
+        }
+
+        _betoltes = true;
+        _hibaUzenet = null;
+        _eredmeny = null;
+
+        try
+        {
+            _eredmeny = await LekerdezesService.LekerdezesByTokenAsync(_token.Trim());
+            if (_eredmeny == null)
+                _hibaUzenet = "Érvénytelen vagy lejárt azonosítókód.";
+        }
+        catch (Exception ex)
+        {
+            _hibaUzenet = $"Hiba történt: {ex.Message}";
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+}

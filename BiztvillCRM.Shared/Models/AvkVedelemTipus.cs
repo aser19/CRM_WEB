@@ -4,7 +4,6 @@ namespace BiztvillCRM.Shared.Models;
 
 /// <summary>
 /// Áramvédő kapcsoló (RCD/RCCB/RCBO) típus és paraméterei.
-/// Az In, IΔn, Un és pólusszám ebből olvasódik ki a mérési sorba.
 /// </summary>
 public class AvkVedelemTipus
 {
@@ -12,6 +11,9 @@ public class AvkVedelemTipus
 
     /// <summary>Típus megnevezése (pl. F202A-25/0,03, DS201 C16 A30)</summary>
     public string Nev { get; set; } = "";
+
+    /// <summary>ÁVK típuskód: AC, A, B, F</summary>
+    public string TipusKod { get; set; } = "AC";
 
     /// <summary>Névleges áram In [A]</summary>
     [Column(TypeName = "decimal(8,2)")]

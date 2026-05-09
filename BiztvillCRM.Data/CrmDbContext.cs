@@ -88,6 +88,9 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // Túláramvédelem - ÁVK
     public DbSet<AvkVedelemTipus> AvkVedelemTipusok { get; set; }
 
+    // --- Lekérdezési tokenek ---
+    public DbSet<UgyfelLekerdezesiToken> UgyfelLekerdezesiTokenek { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
