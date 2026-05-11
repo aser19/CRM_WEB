@@ -198,6 +198,38 @@
     protected override async Task OnInitializedAsync()
     {
         _tipusok = await AvkTipusService.GetAktivTipusokAsync();
+        ResolveAvkTipusIdok();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Ha új sorok érkeznek (pl. OCR import után @key újrarender)
+        if (_tipusok.Any())
+            ResolveAvkTipusIdok();
+    }
+
+    /// <summary>
+    /// OCR csak TipusNev-et tölt, AvkTipusId null marad.
+    /// Ez párosítja név alapján a meglévő típusokhoz.
+    /// </summary>
+    private void ResolveAvkTipusIdok()
+    {
+        foreach (var sor in Sorok.Where(s => s.AvkTipusId == null && !string.IsNullOrWhiteSpace(s.TipusNev)))
+        {
+            var talalat = _tipusok.FirstOrDefault(t =>
+                t.Nev.Equals(sor.TipusNev, StringComparison.OrdinalIgnoreCase));
+
+            if (talalat != null)
+            {
+                sor.AvkTipusId = talalat.Id;
+                sor.TipusKod   = talalat.TipusKod;
+                // In, IDn, Un, Polusszam csak ha üres (OCR kitölthette már)
+                if (string.IsNullOrEmpty(sor.In))        sor.In        = talalat.In.ToString("0.#");
+                if (string.IsNullOrEmpty(sor.IDn))       sor.IDn       = talalat.IDn.ToString("0.#");
+                if (string.IsNullOrEmpty(sor.Un))        sor.Un        = talalat.Un.ToString("0.#");
+                if (string.IsNullOrEmpty(sor.Polusszam)) sor.Polusszam = talalat.Polusszam.ToString();
+            }
+        }
     }
 
     // === DRAG AND DROP ===

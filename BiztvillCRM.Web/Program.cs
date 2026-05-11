@@ -124,6 +124,8 @@ builder.Services.AddScoped<IErintesvedelmiModOsztalyService, ErintesvedelmiModOs
 builder.Services.AddScoped<ITularamvedelemTipusService, TularamvedelemTipusService>(); // ÚJ
 builder.Services.AddScoped<IJegyzokonyvSablonService, JegyzokonyvSablonService>(); 
 builder.Services.AddScoped<IMellekletJegyzokonyvService, MellekletJegyzokonyvService>();
+builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();
+builder.Services.AddScoped<IHitelesitesCsoportService, HitelesitesCsoportService>();
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
@@ -132,6 +134,7 @@ builder.Services.AddScoped<IEmailBeallitasService, EmailBeallitasService>();
 builder.Services.AddScoped<IEmailKuldoService, EmailKuldoService>();
 builder.Services.AddScoped<ILejaratErtesitoService, LejaratErtesitoService>();
 builder.Services.AddHostedService<EmailErtesitesBackgroundService>();
+builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();
 
 // Egyszerű authorization, FallbackPolicy NÉLKÜL
 builder.Services.AddAuthorizationCore();

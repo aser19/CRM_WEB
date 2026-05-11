@@ -83,10 +83,11 @@ public class HitelesitesService : IHitelesitesService
         existing.LejaratDatum = hitelesites.LejaratDatum;
         existing.HitelesitesStatusz = hitelesites.HitelesitesStatusz;
         existing.Megjegyzes = hitelesites.Megjegyzes;
-        existing.EgyediLejaratok = hitelesites.EgyediLejaratok; // ÚJ - Egyedi lejáratok JSON másolása
+        existing.EgyediLejaratok = hitelesites.EgyediLejaratok;
+        existing.EszkozAzonosito = hitelesites.EszkozAzonosito;        // ← ez hiányzott
+        existing.CsoportTagLejaratok = hitelesites.CsoportTagLejaratok; // ← ez hiányzott
         existing.Modositva = DateTime.UtcNow;
         
-        // Lejárat dátum automatikus számítása az eszköztípus alapján
         await SzamolLejaratDatumAsync(existing);
         
         await _context.SaveChangesAsync();

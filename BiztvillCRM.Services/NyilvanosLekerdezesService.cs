@@ -47,6 +47,16 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
             .OrderByDescending(h => h.Datum)
             .ToListAsync();
 
+        // Hitelesítési csoportok betöltése az eszköztípus-azonosítókhoz
+        var eszkozTipusIdk = hitelesitesek.Select(h => h.EszkozTipusId).Distinct().ToList();
+        var csoportok = await ctx.HitelesitesCsoportok
+            .Include(c => c.Tagok)
+                .ThenInclude(t => t.EszkozTipus)
+            .Where(c => c.Aktiv && (
+                eszkozTipusIdk.Contains(c.FoEszkozTipusId ?? 0) ||
+                c.Tagok.Any(t => eszkozTipusIdk.Contains(t.EszkozTipusId))))
+            .ToListAsync();
+
         var karbantartasok = await ctx.Karbantartasok
             .Include(k => k.KarbantartasTipus)
             .Where(k => k.UgyfelId == ugyfelId)
@@ -82,12 +92,42 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                     }).ToList(),
                 Hitelesitesek = hitelesitesek
                     .Where(h => h.TelephelyId == tp.Id)
-                    .Select(h => new HitelesitesOsszefoglalo
+                    .Select(h =>
                     {
-                        EszkozTipusNev = h.EszkozTipus?.Nev ?? "",
-                        Darabszam = h.Darabszam,
-                        Datum = h.Datum,
-                        LejaratDatum = h.LejaratDatum
+                        // Csoport keresése az eszköztípushoz
+                        var csoport = csoportok.FirstOrDefault(c =>
+                            c.FoEszkozTipusId == h.EszkozTipusId ||
+                            c.Tagok.Any(t => t.EszkozTipusId == h.EszkozTipusId));
+
+                        // Mentett egyedi dátumok
+                        var mentettDatumok = h.CsoportTagLejaratokLista;
+
+                        var kozbensoVizsgalatok = csoport?.Tagok
+                            .OrderBy(t => t.Sorrend)
+                            .Select(tag =>
+                            {
+                                var mentett = mentettDatumok.FirstOrDefault(m => m.EszkozTipusId == tag.EszkozTipusId);
+                                var autoLejarat = tag.EszkozTipus != null
+                                    ? h.Datum.AddMonths(tag.EszkozTipus.HitelesitesiIdotartamHonap)
+                                    : (DateTime?)null;
+                                return new CsoportTagLejaratReszlet
+                                {
+                                    EszkozTipusId = tag.EszkozTipusId,
+                                    EszkozTipusNev = tag.EszkozTipus?.Nev ?? "",
+                                    LejaratDatum = mentett?.LejaratDatum ?? autoLejarat,
+                                    Megjegyzes = tag.Megjegyzes
+                                };
+                            }).ToList() ?? new();
+
+                        return new HitelesitesOsszefoglalo
+                        {
+                            EszkozTipusNev = h.EszkozTipus?.Nev ?? "",
+                            EszkozAzonosito = h.EszkozAzonosito,
+                            Darabszam = h.Darabszam,
+                            Datum = h.Datum,
+                            LejaratDatum = h.LejaratDatum,
+                            KozbensoVizsgalatok = kozbensoVizsgalatok
+                        };
                     }).ToList(),
                 Karbantartasok = karbantartasok
                     .Where(k => k.TelephelyId == tp.Id)

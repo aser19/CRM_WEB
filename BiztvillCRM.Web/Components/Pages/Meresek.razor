@@ -543,35 +543,9 @@
     {
         _dialogNyitva = false;
 
-        // AVK → dedikált szerkesztő
         if (m.Tipus == "AVK")
         {
-            if (!m.MellekletMeresId.HasValue)
-            {
-                var avkTipus = _tipusok.FirstOrDefault(t =>
-                    t.MellekletTipusKod == "AVK");
-
-                if (avkTipus == null)
-                {
-                    Snackbar.Add(
-                        "Nem található 'AVK' kóddal ellátott méréstípus. " +
-                        "Az Admin → Méréstípusok felületen add meg!",
-                        Severity.Warning);
-                    return;
-                }
-
-                try
-                {
-                    await MellekletService.MellekletMeresLetrehozAsync(
-                        m.Id, avkTipus.Id, new BiztvillCRM.Shared.Models.JegyzokonyvAdatok());
-                }
-                catch (Exception ex)
-                {
-                    Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
-                    return;
-                }
-            }
-
+            // Nincs előzetes létrehozás – az AvkSzerkeszto mentéskor hozza létre
             Navigation.NavigateTo($"/avk-szerkeszto/{m.Id}");
             return;
         }

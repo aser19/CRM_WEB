@@ -29,9 +29,13 @@ public class MeresOsszefoglalo
 public class HitelesitesOsszefoglalo
 {
     public string EszkozTipusNev { get; set; } = "";
+    public string? EszkozAzonosito { get; set; }
     public int Darabszam { get; set; }
     public DateTime Datum { get; set; }
     public DateTime? LejaratDatum { get; set; }
+
+    /// <summary>Ha van hitelesítési csoport rendelve, itt jönnek a közbenső vizsgálatok</summary>
+    public List<CsoportTagLejaratReszlet> KozbensoVizsgalatok { get; set; } = new();
 }
 
 public class KarbantartasOsszefoglalo

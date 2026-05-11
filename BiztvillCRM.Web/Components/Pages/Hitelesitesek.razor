@@ -12,6 +12,8 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IEmailKuldoService EmailKuldoService
+@inject IHitelesitesCsoportService HitelesitesCsoportService
+@inject IHitelesitesCsoportService HitelesitesCsoportService
 
 <PageTitle>Hitelesítések</PageTitle>
 
@@ -89,6 +91,22 @@
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
+            <TemplateColumn Title="Eszközazonosító" Sortable="true">
+                <CellTemplate>
+                    @if (!string.IsNullOrEmpty(context.Item.EszkozAzonosito))
+                    {
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="Color.Secondary"
+                                 Icon="@Icons.Material.Filled.Label">
+                            @context.Item.EszkozAzonosito
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető hitelesítés.</MudText></NoRecordsContent>
     </MudDataGrid>
@@ -123,6 +141,87 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_szerkesztesAlatt.EszkozTipusId" ValueChanged="OnEszkozTipusValtozas" Label="Eszköztípus *" Required="true">
+                        @if (_aktivCsoport is not null)
+                        {
+                            <MudItem xs="12">
+                                <MudPaper Outlined="true" Class="pa-3 mt-1" Style="border-color: var(--mud-palette-info);">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.AccountTree"
+                                                 Color="Color.Info" Size="Size.Small" />
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Info">
+                                            @_aktivCsoport.Nev – közbenső vizsgálatok
+                                        </MudText>
+                                    </MudStack>
+
+                                    @foreach (var sor in _csoportTagSorok)
+                                    {
+                                        <MudPaper Outlined="true" Class="pa-2 mb-2">
+                                            <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                                                <!-- Vizsgálat neve -->
+                                                <MudItem xs="12" md="4">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudIcon Icon="@(sor.Tag.Kotelezo ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                                                 Size="Size.Small"
+                                                                 Color="@(sor.Tag.Kotelezo ? Color.Warning : Color.Default)" />
+                                                        <div>
+                                                            <MudText Typo="Typo.body2"><b>@sor.EszkozTipusNev</b></MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                                @sor.EszkozTipusHonap hónap
+                                                                @if (sor.Tag.Kotelezo)
+                                                                {
+                                                                    <MudChip T="string" Size="Size.Small"
+                                                                             Color="Color.Warning" Class="ml-1">Kötelező</MudChip>
+                                                                }
+                                                            </MudText>
+                                                        </div>
+                                                    </MudStack>
+                                                </MudItem>
+
+                                                <!-- Auto lejárat -->
+                                                <MudItem xs="12" md="3">
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Auto lejárat</MudText>
+                                                    <MudText Typo="Typo.body2">
+                                                        @(sor.AutoLejaratDatum?.ToString("yyyy.MM.dd") ?? "–")
+                                                    </MudText>
+                                                </MudItem>
+
+                                                <!-- Egyedi dátum toggle + picker -->
+                                                <MudItem xs="12" md="5">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudSwitch @bind-Value="sor.EgyediDatumHasznalata"
+                                                                   Color="Color.Primary"
+                                                                   Label="Eltérő dátum"
+                                                                   Size="Size.Small" />
+                                                        @if (sor.EgyediDatumHasznalata)
+                                                        {
+                                                            <MudDatePicker @bind-Date="sor.EgyediLejaratDatum"
+                                                                           Label="Egyedi lejárat"
+                                                                           DateFormat="yyyy.MM.dd"
+                                                                           Editable="true"
+                                                                           Margin="Margin.Dense"
+                                                                           Style="max-width:160px;" />
+                                                        }
+                                                    </MudStack>
+                                                    @if (!string.IsNullOrEmpty(sor.Tag.Megjegyzes))
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                            @sor.Tag.Megjegyzes
+                                                        </MudText>
+                                                    }
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudPaper>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(_aktivCsoport.Leiras))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                            @_aktivCsoport.Leiras
+                                        </MudText>
+                                    }
+                                </MudPaper>
+                            </MudItem>
+                        }
                         @foreach (var t in _eszkozTipusok)
                         {
                             <MudSelectItem Value="@t.Id">@t.Nev (@(t.HitelesitesiIdotartamHonap / 12) év)</MudSelectItem>
@@ -132,6 +231,18 @@
                 <MudItem xs="12" md="6">
                     <MudNumericField T="int" @bind-Value="_szerkesztesAlatt.Darabszam" Label="Darabszám" Min="1" Max="999" />
                 </MudItem>
+                @if (_aktivCsoport is not null || _eszkozTipusokVanCsoport)
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_szerkesztesAlatt.EszkozAzonosito"
+                                      Label="Eszköz azonosítója (opcionális)"
+                                      Placeholder="Pl. Tartály #1 · 50m³ · Északi tároló"
+                                      HelperText="Ha a telephelyen több azonos típusú eszköz van, add meg az egyedi azonosítót."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Label"
+                                      Clearable="true" />
+                    </MudItem>
+                }
                 <MudItem xs="12" md="6">
                     <MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" Editable="true" DateFormat="yyyy.MM.dd" />
                 </MudItem>
@@ -380,6 +491,17 @@
             (h.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
             (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
+    // Hitelesítési csoport
+    private List<HitelesitesCsoport> _csoportok = new();
+    private HitelesitesCsoport? _aktivCsoport;
+    // Megmutatja-e az azonosító mezőt (ha van csoport hozzárendelve az eszköztípushoz)
+    private bool _eszkozTipusokVanCsoport =>
+        _szerkesztesAlatt != null &&
+        _csoportok.Any(c =>
+            c.FoEszkozTipusId == _szerkesztesAlatt.EszkozTipusId ||
+            c.Tagok.Any(t => t.EszkozTipusId == _szerkesztesAlatt.EszkozTipusId));
+    private List<CsoportTagSor> _csoportTagSorok = new();
+
     protected override async Task OnInitializedAsync()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
@@ -389,6 +511,7 @@
         _hatosagok = await HatosagService.GetAllAsync();
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
+        _csoportok = await HitelesitesCsoportService.GetAllAsync();
     }
 
     private async Task BetoltesAsync() 
@@ -398,47 +521,49 @@
         _betoltes = false; 
     }
 
-    private void UjMegnyitasa() 
-    { 
+    private void UjMegnyitasa()
+    {
         var elsoTipus = _eszkozTipusok.FirstOrDefault();
         
-        _szerkesztesAlatt = new Hitelesites 
-        { 
+        _szerkesztesAlatt = new Hitelesites
+        {
             Darabszam = 1,
             EszkozTipusId = elsoTipus?.Id ?? 0
-        }; 
+            // EszkozAzonosito itt üres marad – új rekordnál nincs mit másolni
+        };
         _kivalasztottUgyfelId = null;
-        _datum = DateTime.Today; 
+        _datum = DateTime.Today;
         _lejaratDatum = null;
-        
-        // ÚJ: Egyedi lejáratok listájának törlése
         _aktualisEgyediLejaratok = new List<HitelesitesReszlet>();
         
         SzamoljLejaratot();
-        _dialogNyitva = true; 
+        FrissitsCsoportTagSorokat();
+        _dialogNyitva = true;
     }
 
     private void SzerkesztesMegnyitasa(Hitelesites item) 
     { 
-        _szerkesztesAlatt = new Hitelesites 
-        { 
-            Id = item.Id, 
+        _szerkesztesAlatt = new Hitelesites
+        {
+            Id = item.Id,
             UgyfelId = item.UgyfelId,
             TelephelyId = item.TelephelyId,
-            EszkozTipusId = item.EszkozTipusId, 
-            HatosagId = item.HatosagId, 
+            EszkozTipusId = item.EszkozTipusId,
+            HatosagId = item.HatosagId,
             Darabszam = item.Darabszam,
-            HitelesitesStatusz = item.HitelesitesStatusz, 
+            HitelesitesStatusz = item.HitelesitesStatusz,
             Megjegyzes = item.Megjegyzes,
-            EgyediLejaratok = item.EgyediLejaratok // ÚJ: JSON string átmásolása
-        }; 
+            EgyediLejaratok = item.EgyediLejaratok,
+            CsoportTagLejaratok = item.CsoportTagLejaratok,
+            EszkozAzonosito = item.EszkozAzonosito  // ← itt helyes
+        };
         _kivalasztottUgyfelId = item.UgyfelId;
         _datum = item.Datum; 
         _lejaratDatum = item.LejaratDatum;
         
         // ÚJ: Egyedi lejáratok betöltése
         _aktualisEgyediLejaratok = item.EgyediLejaratokLista.ToList();
-        
+        FrissitsCsoportTagSorokat();
         _dialogNyitva = true; 
     }
 
@@ -459,7 +584,49 @@
         {
             _szerkesztesAlatt.EszkozTipusId = ujEszkozTipusId;
             SzamoljLejaratot();
+            FrissitsCsoportTagSorokat();
         }
+    }
+
+    private void FrissitsCsoportTagSorokat()
+    {
+        if (_szerkesztesAlatt is null) return;
+
+        _aktivCsoport = _csoportok.FirstOrDefault(c =>
+            c.FoEszkozTipusId == _szerkesztesAlatt.EszkozTipusId ||
+            c.Tagok.Any(t => t.EszkozTipusId == _szerkesztesAlatt.EszkozTipusId));
+
+        if (_aktivCsoport is null)
+        {
+            _csoportTagSorok = new();
+            return;
+        }
+
+        // Meglévő egyedi dátumok betöltése (szerkesztés esetén)
+        var mentettDatumok = _szerkesztesAlatt.CsoportTagLejaratokLista;
+
+        _csoportTagSorok = _aktivCsoport.Tagok
+            .OrderBy(t => t.Sorrend)
+            .Select(tag =>
+            {
+                var eszkozTipus = _eszkozTipusok.FirstOrDefault(e => e.Id == tag.EszkozTipusId);
+                var autoLejarat = _datum.HasValue && eszkozTipus != null
+                    ? _datum.Value.AddMonths(eszkozTipus.HitelesitesiIdotartamHonap)
+                    : (DateTime?)null;
+
+                var mentett = mentettDatumok.FirstOrDefault(m => m.EszkozTipusId == tag.EszkozTipusId);
+
+                return new CsoportTagSor
+                {
+                    Tag = tag,
+                    EszkozTipusNev = eszkozTipus?.Nev ?? "–",
+                    EszkozTipusHonap = eszkozTipus?.HitelesitesiIdotartamHonap ?? 0,
+                    AutoLejaratDatum = autoLejarat,
+                    EgyediDatumHasznalata = mentett != null,
+                    EgyediLejaratDatum = mentett?.LejaratDatum ?? autoLejarat
+                };
+            })
+            .ToList();
     }
 
     private void OnDatumValtozas(DateTime? ujDatum)
@@ -504,6 +671,8 @@
         _szerkesztesAlatt = null; 
         _kivalasztottUgyfelId = null;
         _aktualisEgyediLejaratok.Clear(); // ÚJ
+        _aktivCsoport = null;
+        _csoportTagSorok.Clear();
     }
 
     private async Task MentesAsync()
@@ -541,6 +710,17 @@
         
         // ÚJ: Egyedi lejáratok mentése
         _szerkesztesAlatt.EgyediLejaratokLista = _aktualisEgyediLejaratok;
+        
+        // Csoporttag lejáratok mentése (csak az egyedi dátummal rendelkezőkét)
+        _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
+            .Where(s => s.EgyediDatumHasznalata && s.EgyediLejaratDatum.HasValue)
+            .Select(s => new CsoportTagLejaratReszlet
+            {
+                EszkozTipusId = s.Tag.EszkozTipusId,
+                EszkozTipusNev = s.EszkozTipusNev,
+                LejaratDatum = s.EgyediLejaratDatum
+            })
+            .ToList();
         
         // Automatikus lejárt státusz
         if (_lejaratDatum.HasValue && _lejaratDatum.Value.Date < DateTime.Today && 
@@ -714,5 +894,16 @@
         {
             _emailKuldes = false;
         }
+    }
+
+    // ---- Helper class a UI-hoz ----
+    private class CsoportTagSor
+    {
+        public HitelesitesCsoportTag Tag { get; set; } = null!;
+        public string EszkozTipusNev { get; set; } = "";
+        public int EszkozTipusHonap { get; set; }
+        public DateTime? AutoLejaratDatum { get; set; }
+        public bool EgyediDatumHasznalata { get; set; }
+        public DateTime? EgyediLejaratDatum { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using BiztvillCRM.Shared.Enums;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
@@ -43,6 +44,12 @@ public class Hitelesites
     public string? EgyediLejaratok { get; set; }
     
     /// <summary>
+    /// JSON formátumban tárolt közbenső vizsgálatok egyedi lejárati dátumai
+    /// (hitelesítési csoporthoz tartozó tagok eltérő dátumai).
+    /// </summary>
+    public string? CsoportTagLejaratok { get; set; }
+
+    /// <summary>
     /// Nem mapped property: az egyedi lejáratok strukturált formában.
     /// </summary>
     [NotMapped]
@@ -55,4 +62,24 @@ public class Hitelesites
             ? JsonSerializer.Serialize(value) 
             : null;
     }
+
+    [NotMapped]
+    public List<CsoportTagLejaratReszlet> CsoportTagLejaratokLista
+    {
+        get => string.IsNullOrWhiteSpace(CsoportTagLejaratok)
+            ? new List<CsoportTagLejaratReszlet>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<CsoportTagLejaratReszlet>>(CsoportTagLejaratok)
+              ?? new List<CsoportTagLejaratReszlet>();
+        set => CsoportTagLejaratok = value.Any()
+            ? System.Text.Json.JsonSerializer.Serialize(value)
+            : null;
+    }
+
+    /// <summary>
+    /// Az egyedi eszköz azonosítója a telephelyen belül.
+    /// Pl. "Tartály #1", "50m³-es tartály", "Északi tároló"
+    /// Üres = az egész telephely egységes hitelesítése.
+    /// </summary>
+    [MaxLength(200)]
+    public string? EszkozAzonosito { get; set; }
 }

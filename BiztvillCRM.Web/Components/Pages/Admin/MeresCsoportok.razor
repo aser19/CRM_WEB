@@ -1,0 +1,293 @@
+@page "/admin/meres-csoportok"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IMeresCsoportService MeresCsoportService
+@inject IMeresTipusService MeresTipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Vizsgálatcsoportok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Vizsgálatcsoportok</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true"
+                      Immediate="true" Style="max-width:350px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="UjMegnyitasa">Új csoport</MudButton>
+    </MudStack>
+
+    <MudDataGrid T="MeresCsoport" Items="_szurtLista" Hover="true" Striped="true"
+                 Loading="_betoltes" SortMode="SortMode.Single">
+        <Columns>
+            <PropertyColumn Property="c => c.Nev" Title="Csoport neve" />
+            <PropertyColumn Property="c => c.FoMeresTipus!.Nev" Title="Főhitelesítés típusa" />
+            <TemplateColumn Title="Tagok száma" Sortable="false">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                        @context.Item.Tagok.Count db vizsgálat
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="c => c.Leiras" Title="Leírás" />
+            <TemplateColumn Title="Műveletek" Sortable="false">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Primary" Size="Size.Small"
+                                       OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error" Size="Size.Small"
+                                       OnClick="() => TorlesMegerosites(context.Item)" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent><MudText>Nincs vizsgálatcsoport felvéve.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudPaper>
+
+<!-- Szerkesztő dialógus -->
+<MudDialog @bind-Visible="_dialogNyitva"
+           Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+            @(_szerkesztesAlatt?.Id > 0 ? "Csoport szerkesztése" : "Új vizsgálatcsoport")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_szerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <!-- Alapadatok -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Nev"
+                                  Label="Csoport neve *" Required="true"
+                                  Placeholder="Pl. Tartály 15 éves hitelesítési ciklus" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Leiras"
+                                  Label="Leírás" Lines="2" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="int?" @bind-Value="_szerkesztesAlatt.FoMeresTipusId"
+                               Label="Főhitelesítés méréstípusa"
+                               Clearable="true"
+                               HelperText="A 'csúcs' vizsgálat, amelyhez a közbenső vizsgálatok szükségesek (pl. 15 éves hitelesítés)"
+                               ToStringFunc="@(id => id.HasValue ? (_meresTipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "") : "")">
+                        @foreach (var t in _meresTipusok)
+                        {
+                            <MudSelectItem Value="@((int?)t.Id)">
+                                @t.Nev @(t.ErvenyessegHonap.HasValue ? $"({t.ErvenyessegHonap} hónap)" : "")
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Size="Size.Small" Class="mr-1" />
+                        Közbenső vizsgálatok (tagok)
+                    </MudText>
+                </MudItem>
+
+                <!-- Meglévő tagok -->
+                @foreach (var tag in _szerkesztesAlatt.Tagok.OrderBy(t => t.Sorrend))
+                {
+                    <MudItem xs="12">
+                        <MudPaper Outlined="true" Class="pa-3">
+                            <MudGrid>
+                                <MudItem xs="12" md="5">
+                                    <MudSelect T="int" @bind-Value="tag.MeresTipusId"
+                                               Label="Méréstípus *"
+                                               ToStringFunc="@(id => _meresTipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
+                                        @foreach (var t in _meresTipusok)
+                                        {
+                                            <MudSelectItem Value="@t.Id">
+                                                @t.Nev @(t.ErvenyessegHonap.HasValue ? $"({t.ErvenyessegHonap} hónap)" : "")
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="6" md="2">
+                                    <MudNumericField T="int" @bind-Value="tag.Sorrend"
+                                                     Label="Sorrend" Min="0" />
+                                </MudItem>
+                                <MudItem xs="6" md="2">
+                                    <MudCheckBox @bind-Value="tag.Kotelezo"
+                                                 Label="Kötelező" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="12" md="2">
+                                    <MudTextField @bind-Value="tag.Megjegyzes"
+                                                  Label="Megjegyzés" />
+                                </MudItem>
+                                <MudItem xs="12" md="1" Class="d-flex align-center">
+                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                   Color="Color.Error" Size="Size.Small"
+                                                   OnClick="() => TagTorles(tag)" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                }
+
+                <!-- Új tag hozzáadása -->
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                               OnClick="UjTagHozzaadasa">
+                        Vizsgálat hozzáadása
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _dialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="MentesAsync" Color="Color.Primary"
+                   Variant="Variant.Filled" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<MeresCsoport> _lista = new();
+    private List<MeresTipus> _meresTipusok = new();
+    private string _kereses = "";
+    private bool _betoltes = true;
+    private bool _dialogNyitva = false;
+    private bool _mentes = false;
+    private MeresCsoport? _szerkesztesAlatt;
+
+    private IEnumerable<MeresCsoport> _szurtLista =>
+        _lista.Where(c => string.IsNullOrWhiteSpace(_kereses) ||
+            c.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+            (c.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _meresTipusok = await MeresTipusService.GetAllAsync();
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _lista = await MeresCsoportService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjMegnyitasa()
+    {
+        _szerkesztesAlatt = new MeresCsoport();
+        _dialogNyitva = true;
+    }
+
+    private void SzerkesztesMegnyitasa(MeresCsoport csoport)
+    {
+        // Deep copy, hogy a Cancel ne módosítsa az eredetit
+        _szerkesztesAlatt = new MeresCsoport
+        {
+            Id = csoport.Id,
+            Nev = csoport.Nev,
+            Leiras = csoport.Leiras,
+            FoMeresTipusId = csoport.FoMeresTipusId,
+            Aktiv = csoport.Aktiv,
+            Tagok = csoport.Tagok.Select(t => new MeresCsoportTag
+            {
+                Id = t.Id,
+                MeresTipusId = t.MeresTipusId,
+                Kotelezo = t.Kotelezo,
+                Sorrend = t.Sorrend,
+                Megjegyzes = t.Megjegyzes
+            }).ToList()
+        };
+        _dialogNyitva = true;
+    }
+
+    private void UjTagHozzaadasa()
+    {
+        if (_szerkesztesAlatt is null) return;
+        var kovetkezoSorrend = _szerkesztesAlatt.Tagok.Count > 0
+            ? _szerkesztesAlatt.Tagok.Max(t => t.Sorrend) + 1
+            : 1;
+        _szerkesztesAlatt.Tagok.Add(new MeresCsoportTag
+        {
+            MeresTipusId = _meresTipusok.FirstOrDefault()?.Id ?? 0,
+            Kotelezo = true,
+            Sorrend = kovetkezoSorrend
+        });
+    }
+
+    private void TagTorles(MeresCsoportTag tag)
+    {
+        _szerkesztesAlatt?.Tagok.Remove(tag);
+    }
+
+    private async Task MentesAsync()
+    {
+        if (_szerkesztesAlatt is null) return;
+        if (string.IsNullOrWhiteSpace(_szerkesztesAlatt.Nev))
+        {
+            Snackbar.Add("A csoport neve kötelező!", Severity.Warning);
+            return;
+        }
+        if (_szerkesztesAlatt.Tagok.Any(t => t.MeresTipusId == 0))
+        {
+            Snackbar.Add("Minden vizsgálatnál válassz méréstípust!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            if (_szerkesztesAlatt.Id == 0)
+                await MeresCsoportService.CreateAsync(_szerkesztesAlatt);
+            else
+                await MeresCsoportService.UpdateAsync(_szerkesztesAlatt);
+
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            _dialogNyitva = false;
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task TorlesMegerosites(MeresCsoport csoport)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törli a(z) \"{csoport.Nev}\" csoportot?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await MeresCsoportService.DeleteAsync(csoport.Id);
+                Snackbar.Add("Törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

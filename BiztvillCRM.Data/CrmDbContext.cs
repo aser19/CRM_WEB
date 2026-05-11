@@ -30,6 +30,8 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // --- Hitelesítések ---
     public DbSet<Hatosag> Hatosagok { get; set; }
     public DbSet<Hitelesites> Hitelesitesek { get; set; }
+    public DbSet<HitelesitesCsoport> HitelesitesCsoportok { get; set; }
+    public DbSet<HitelesitesCsoportTag> HitelesitesCsoportTagok { get; set; }
 
     // --- Kötelező hitelesítések ---
     public DbSet<KotelezoHitelesites> KotelezoHitelesitesek { get; set; }
@@ -90,6 +92,10 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
 
     // --- Lekérdezési tokenek ---
     public DbSet<UgyfelLekerdezesiToken> UgyfelLekerdezesiTokenek { get; set; }
+
+    // --- Mérési csoportok ---
+    public DbSet<MeresCsoport> MeresCsoportok { get; set; }
+    public DbSet<MeresCsoportTag> MeresCsoportTagok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -581,6 +587,38 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.Ignore(e => e.MaxHurokimpedancia);     // számított, nem tárolt
         });
 
+                // --- MeresCsoport ---
+        modelBuilder.Entity<MeresCsoport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Leiras).HasMaxLength(500);
+
+            entity.HasOne(e => e.FoMeresTipus)
+                .WithMany()
+                .HasForeignKey(e => e.FoMeresTipusId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- MeresCsoportTag ---
+        modelBuilder.Entity<MeresCsoportTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(500);
+
+            entity.HasOne(e => e.MeresCsoport)
+                .WithMany(c => c.Tagok)
+                .HasForeignKey(e => e.MeresCsoportId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MeresTipus)
+                .WithMany()
+                .HasForeignKey(e => e.MeresTipusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.MeresCsoportId, e.MeresTipusId }).IsUnique();
+        });
+
         // Seed adatok
         modelBuilder.Entity<TularamvedelemTipus>().HasData(
             new TularamvedelemTipus 
@@ -609,5 +647,37 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
                 Letrehozva = new DateTime(2024, 1, 1) 
             }
         );
+
+        // --- HitelesitesCsoport ---
+        modelBuilder.Entity<HitelesitesCsoport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Leiras).HasMaxLength(500);
+
+            entity.HasOne(e => e.FoEszkozTipus)
+                .WithMany()
+                .HasForeignKey(e => e.FoEszkozTipusId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- HitelesitesCsoportTag ---
+        modelBuilder.Entity<HitelesitesCsoportTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Megjegyzes).HasMaxLength(500);
+
+            entity.HasOne(e => e.HitelesitesCsoport)
+                .WithMany(c => c.Tagok)
+                .HasForeignKey(e => e.HitelesitesCsoportId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.EszkozTipus)
+                .WithMany()
+                .HasForeignKey(e => e.EszkozTipusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.HitelesitesCsoportId, e.EszkozTipusId }).IsUnique();
+        });
     }
 }
