@@ -44,6 +44,10 @@ public class HvmAdatok
     public string MuszerGyariSzam { get; set; } = "";
     public DateTime? MuszerKalibralasDatum { get; set; }
 
+    // Műszer – legördülőből kiválasztva
+    public int? MuszerEszkozId { get; set; }
+    public string MuszerKalibralasStr { get; set; } = "";  // szöveges kalibrálás dátum
+
     // === MÉRÉSI ADATOK (2–N. oldal) – egymérés mintájára ===
     public List<MeresiPontSor> MeresiPontok { get; set; } = new();
 }

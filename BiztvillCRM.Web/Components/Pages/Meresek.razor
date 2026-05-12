@@ -545,13 +545,15 @@
 
         if (m.Tipus == "AVK")
         {
-            // Nincs előzetes létrehozás – az AvkSzerkeszto mentéskor hozza létre
             Navigation.NavigateTo($"/avk-szerkeszto/{m.Id}");
             return;
         }
 
-        // Jövőbeli típusok helye:
-        // if (m.Tipus == "HVM") { Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}"); return; }
+        if (m.Tipus == "HVM")
+        {
+            Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}");
+            return;
+        }
 
         if (m.MellekletMeresId.HasValue)
         {

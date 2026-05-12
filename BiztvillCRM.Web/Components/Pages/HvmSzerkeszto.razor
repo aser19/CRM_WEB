@@ -5,6 +5,8 @@
 @using BiztvillCRM.Services
 @inject IMellekletJegyzokonyvService MellekletService
 @inject IMeresService MeresService
+@inject IEszkozService EszkozService
+@inject IKalibracioService KalibracioService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -52,24 +54,12 @@ else
                               Variant="Variant.Outlined"
                               HelperText="pl. BVP-MNB-0210" />
             </MudItem>
-            <MudItem xs="12" md="2">
-                <MudTextField @bind-Value="_adatok.Lapszam"
-                              Label="Lapszám"
-                              Variant="Variant.Outlined"
-                              HelperText="pl. 1" />
-            </MudItem>
-            <MudItem xs="12" md="2">
-                <MudNumericField T="int" @bind-Value="_adatok.OsszesLap"
-                                 Label="Összes lap"
-                                 Variant="Variant.Outlined"
-                                 Min="1" />
-            </MudItem>
+            @* Lapszám és Összes lap ELTÁVOLÍTVA – automatikusan generálódik *@
 
             <MudItem xs="12" md="8">
                 <MudTextField @bind-Value="_adatok.MeresHelye"
                               Label="A mérés helye"
-                              Variant="Variant.Outlined"
-                              HelperText="pl. Magyar Nemzeti Bank, Bp., Szabadság tér 9." />
+                              Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" md="4">
                 <MudDatePicker @bind-Date="_meresIdeje"
@@ -78,71 +68,39 @@ else
                                DateFormat="yyyy.MM.dd" />
             </MudItem>
 
-            @* Felelős mérést végző *@
-            <MudItem xs="12">
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle2" Class="mb-1">Felelős mérést végző</MudText>
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.FelelosNev"
-                              Label="Név"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.FelelosVegzettseg"
-                              Label="Végzettség"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.FelelosBizonyitvany"
-                              Label="Vizsgabizonyítvány száma"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-
-            @* Segítő *@
-            <MudItem xs="12">
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle2" Class="mb-1">Segítő</MudText>
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.SegitoNev"
-                              Label="Név"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.SegitoVegzettseg"
-                              Label="Végzettség"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.SegitoBizonyitvany"
-                              Label="Vizsgabizonyítvány száma"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-
             @* Műszer adatok *@
             <MudItem xs="12">
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.subtitle2" Class="mb-1">Műszer adatok</MudText>
             </MudItem>
             <MudItem xs="12" md="4">
+                <MudSelect T="int?"
+                           Value="@_kivalasztottMuszerEszkozId"
+                           ValueChanged="@(async (int? id) => await OnMuszerValtozasAsync(id))"
+                           Label="Műszer"
+                           Variant="Variant.Outlined"
+                           Clearable="true">
+                    <MudSelectItem T="int?" Value="null">-- Válassz műszert --</MudSelectItem>
+                    @foreach (var m in _muszerek)
+                    {
+                        <MudSelectItem T="int?" Value="@m.Id">
+                            @m.Nev @(string.IsNullOrEmpty(m.Tipus) ? "" : $"({m.Tipus})")
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
                 <MudTextField @bind-Value="_adatok.MuszerTipus"
-                              Label="Típus"
+                              Label="Típus / Gyári szám"
                               Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_adatok.MuszerGyariSzam"
-                              Label="Gyári szám"
-                              Variant="Variant.Outlined" />
-            </MudItem>
-            <MudItem xs="12" md="4">
-                <MudDatePicker @bind-Date="_muszerKalibralas"
-                               Label="Kalibrálva"
-                               Variant="Variant.Outlined"
-                               DateFormat="yyyy.MM.dd" />
+                <MudTextField @bind-Value="_adatok.MuszerKalibralasStr"
+                              Label="Kalibrálva"
+                              Variant="Variant.Outlined"
+                              Placeholder="yyyy.MM.dd" />
             </MudItem>
 
-            @* Készítés dátuma *@
             <MudItem xs="12" md="4">
                 <MudDatePicker @bind-Date="_keszitesDatum"
                                Label="Kelt (készítés dátuma)"
@@ -152,16 +110,11 @@ else
         </MudGrid>
     </MudPaper>
 
-    @* === 2–N. OLDAL: MÉRÉSI ADATOK (egymérés mintájára) === *@
-    <MudPaper Class="pa-4 mb-4" Elevation="2">
-        <MudText Typo="Typo.subtitle1" Class="mb-3">
-            <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
-            Mérési adatok
-        </MudText>
-
-        <MeresiPontTabla @bind-Sorok="_adatok.MeresiPontok"
-                         HalozatTipus="TN" />
-    </MudPaper>
+    @* === 2–N. OLDAL: MÉRÉSI ADATOK === *@
+    <MeresiPontLista MeresiPontok="_adatok.MeresiPontok"
+                     RendszerTipus="@(_foAdatok.MeresiRendszerTipus ?? "TN")"
+                     OnChange="StateHasChanged"
+                     EgyszeruMod="true" />
 
     @* === GOMBOK === *@
     <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mb-4">
@@ -183,10 +136,10 @@ else
 
     private MellekletJegyzokonyv? _melleklet;
     private HvmAdatok _adatok = new();
+    private JegyzokonyvAdatok _foAdatok = new();   // ← főjgyk-ból betöltött, csak olvasható
     private bool _betoltes = true;
     private bool _feldolgozas = false;
 
-    // DatePicker two-way binding segédek
     private DateTime? _meresIdeje
     {
         get => _adatok.MeresIdeje;
@@ -203,20 +156,53 @@ else
         set => _adatok.KeszitesDatum = value ?? DateTime.Today;
     }
 
+    private List<Eszkoz> _muszerek = new();
+    private int? _kivalasztottMuszerEszkozId;
+
     protected override async Task OnInitializedAsync()
     {
+        // Műszerek betöltése
+        var osszes = await EszkozService.GetAllAsync();
+        _muszerek = osszes.Where(e => e.Kategoria?.Contains("műszer", StringComparison.OrdinalIgnoreCase) == true
+                                   || e.Kategoria?.Contains("mérő", StringComparison.OrdinalIgnoreCase) == true).ToList();
+        if (!_muszerek.Any()) _muszerek = osszes; // ha nincs szűrés, mutasson mindent
+
         _melleklet = await MellekletService.GetByIdAsync(MellekletId);
         if (_melleklet != null)
         {
+            var foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+            if (foMeres != null && !string.IsNullOrWhiteSpace(foMeres.JegyzokonyvAdatokJson))
+            {
+                _foAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    foMeres.JegyzokonyvAdatokJson) ?? new JegyzokonyvAdatok();
+            }
+
             if (!string.IsNullOrWhiteSpace(_melleklet.AdatokJson))
             {
                 _adatok = System.Text.Json.JsonSerializer.Deserialize<HvmAdatok>(_melleklet.AdatokJson)
                           ?? new HvmAdatok();
+                _kivalasztottMuszerEszkozId = _adatok.MuszerEszkozId;
+                if (foMeres != null && _adatok.MeresIdeje == DateTime.Today)
+                    _adatok.MeresIdeje = foMeres.Datum;
             }
             else
             {
-                // Alapértelmezett munkaszám a melléklet számából
                 _adatok.Munkaszam = _melleklet.Szam;
+                if (foMeres != null)
+                {
+                    _adatok.MeresIdeje = foMeres.Datum;
+                    _adatok.KeszitesDatum = foMeres.Datum;
+
+                    // Főjgyk első műszerének előtöltése
+                    var elsoMuszer = _foAdatok.Muszerek?.FirstOrDefault();
+                    if (elsoMuszer != null)
+                    {
+                        _adatok.MuszerTipus = $"{elsoMuszer.Tipus} {elsoMuszer.GyariSzam}".Trim();
+                        _adatok.MuszerKalibralasStr = elsoMuszer.Kalibralas;
+                        _adatok.MuszerEszkozId = elsoMuszer.EszkozId;
+                        _kivalasztottMuszerEszkozId = elsoMuszer.EszkozId;
+                    }
+                }
             }
         }
         _betoltes = false;
@@ -248,5 +234,28 @@ else
             Navigation.NavigateTo($"/jegyzokonyv/{_melleklet.MeresId}");
         else
             Navigation.NavigateTo("/meresek");
+    }
+
+    private async Task OnMuszerValtozasAsync(int? eszkozId)
+    {
+        _kivalasztottMuszerEszkozId = eszkozId;
+        _adatok.MuszerEszkozId = eszkozId;
+
+        if (eszkozId.HasValue)
+        {
+            var muszer = _muszerek.FirstOrDefault(m => m.Id == eszkozId.Value);
+            if (muszer != null)
+            {
+                var kalibraciok = await KalibracioService.GetByEszkozIdAsync(eszkozId.Value);
+                var utolso = kalibraciok.FirstOrDefault();
+                _adatok.MuszerTipus = $"{muszer.Nev} {muszer.GyariSzam}".Trim();
+                _adatok.MuszerKalibralasStr = utolso?.Datum.ToString("yyyy.MM.dd") ?? "";
+            }
+        }
+        else
+        {
+            _adatok.MuszerTipus = "";
+            _adatok.MuszerKalibralasStr = "";
+        }
     }
 }
