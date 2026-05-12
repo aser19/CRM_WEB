@@ -89,6 +89,8 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
 builder.Services.AddScoped<IKotelezoHitelesitesService, KotelezoHitelesitesService>();
+builder.Services.AddHttpClient<INavAdoszamService, NavAdoszamService>();    //Nav adószám lekérdezés
+builder.Services.AddScoped<AktualisCegService>();
 
 // --- Munkavédelem szolgáltatások ---
 builder.Services.AddScoped<IMunkavedelmiOktatasService, MunkavedelmiOktatasService>();
@@ -347,7 +349,6 @@ static async Task AdminFelhasznaloLetrehozasa(CrmDbContext db, UserManager<Felha
             Email = "admin@biztovill.hu",
             EmailConfirmed = true,
             Nev = "Rendszergazda",
-            CegId = ceg.Id,
             Aktiv = true,
             Letrehozva = DateTime.Now
         };
@@ -356,10 +357,18 @@ static async Task AdminFelhasznaloLetrehozasa(CrmDbContext db, UserManager<Felha
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(admin, FelhasznaloSzerepkor.Admin.ToString());
+
+            // Cég hozzárendelése a kapcsolótáblán keresztül
+            db.FelhasznaloCegek.Add(new FelhasznaloCeg
+            {
+                FelhasznaloId = admin.Id,
+                CegId = ceg.Id,
+                Hozzaadva = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
         }
     }
 }
-
 // === OCR szolgáltatás - Singleton, mert a DocumentAnalysisClient újrafelhasználható ===
 var ocrEndpoint = builder.Configuration["AzureDocumentIntelligence:Endpoint"] ?? "";
 var ocrApiKey = builder.Configuration["AzureDocumentIntelligence:ApiKey"] ?? "";

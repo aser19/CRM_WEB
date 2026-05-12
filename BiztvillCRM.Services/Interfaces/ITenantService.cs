@@ -16,4 +16,7 @@ public interface ITenantService
 
     /// <summary>Ellenőrzi, hogy a felhasználónak van-e adott szerepköre.</summary>
     bool IsInRole(FelhasznaloSzerepkor role);
+
+    /// <summary>Az összes cég ID-ja, amelyhez a felhasználó hozzá van rendelve.</summary>
+    Task<List<int>> GetElerhhetoCegIdsAsync();
 }

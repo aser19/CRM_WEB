@@ -49,13 +49,14 @@
 
         if (user == null || !user.Identity?.IsAuthenticated == true)
         {
-            // Ha a felhasználó nincs bejelentkezve, és nem a bejelentkezési oldalra navigál
-            if (!args.Path.Contains("bejelentkezes", StringComparison.OrdinalIgnoreCase))
+            var publicPaths = new[] { "bejelentkezes", "lekerdezes" };
+
+            bool isPublic = publicPaths.Any(p =>
+                args.Path.Contains(p, StringComparison.OrdinalIgnoreCase));
+
+            if (!isPublic && !Navigation.Uri.Contains("/bejelentkezes"))
             {
-                if (!Navigation.Uri.Contains("/bejelentkezes"))
-                {
-                    Navigation.NavigateTo("/bejelentkezes", true);
-                }
+                Navigation.NavigateTo("/bejelentkezes", true);
             }
         }
     }

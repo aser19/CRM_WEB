@@ -217,8 +217,19 @@
                     }
                 </MudItem>
                 
+                @* === MEGLÉVŐ ADÓSZÁM MEZŐ === *@
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_szerkesztesAlatt.Adoszam" Label="Adószám" />
+                    <MudTextField @bind-Value="_szerkesztesAlatt.Adoszam"
+                                  Label="Adószám"
+                                  Placeholder="12345678-1-23"
+                                  Immediate="true" />
+                </MudItem>
+
+                @* === ÚJ: NAV LEKÉRDEZŐ GOMB az adószám mező mellé === *@
+                <MudItem xs="12" md="6" Class="d-flex align-end">
+                    <NavAdoszamLekerdezo Adoszam="@_szerkesztesAlatt.Adoszam"
+                                         CegId="@_kivalasztottCegId"
+                                         OnAdatokAtvetele="NavAdatokBetoltese" />
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Email" Label="Email" InputType="InputType.Email" />
@@ -721,5 +732,18 @@
     {
         var url = $"/lekerdezes?token={token}";
         NavManager.NavigateTo(url, forceLoad: true);
+    }
+
+    private void NavAdatokBetoltese(NavAdoszamEredmeny adat)
+    {
+        if (_szerkesztesAlatt is null) return;
+
+        if (!string.IsNullOrWhiteSpace(adat.CegNev))
+            _szerkesztesAlatt.Nev = adat.CegNev;
+
+        if (!string.IsNullOrWhiteSpace(adat.FormattaltCim))
+            _szerkesztesAlatt.Cim = adat.FormattaltCim;
+
+        StateHasChanged();
     }
 }

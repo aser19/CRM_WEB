@@ -19,8 +19,6 @@ public class HitelesitesService : IHitelesitesService
 
     public async Task<List<Hitelesites>> GetAllAsync()
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        
         var query = _context.Hitelesitesek
             .Include(h => h.Ugyfel)
             .Include(h => h.Telephely)
@@ -28,10 +26,10 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Hatosag)
             .AsQueryable();
 
-        // Ha nem admin, csak a saját cég ügyfeleinek hitelesítéseit látja
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(h => h.Ugyfel != null && h.Ugyfel.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(h => h.Ugyfel != null && cegIds.Contains(h.Ugyfel.CegId));
         }
 
         return await query.OrderByDescending(h => h.Datum).ToListAsync();
@@ -39,8 +37,6 @@ public class HitelesitesService : IHitelesitesService
 
     public async Task<Hitelesites?> GetByIdAsync(int id)
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        
         var query = _context.Hitelesitesek
             .Include(h => h.Ugyfel)
             .Include(h => h.Telephely)
@@ -48,10 +44,10 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Hatosag)
             .AsQueryable();
 
-        // Ha nem admin, csak a saját cég ügyfeleinek hitelesítéseit érheti el
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(h => h.Ugyfel != null && h.Ugyfel.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(h => h.Ugyfel != null && cegIds.Contains(h.Ugyfel.CegId));
         }
 
         return await query.FirstOrDefaultAsync(h => h.Id == id);

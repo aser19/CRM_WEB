@@ -3137,7 +3137,12 @@
         }
 
         // Jövőbeli típusok helye:
-        // if (m.Tipus == "HVM") { Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}"); return; }
+        // A meglévő MellekletMegnyitas metóduson belül, az AVK blokk UTÁN:
+        if (m.Tipus == "HVM")
+        {
+            Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}");
+            return;
+        }
 
         // Alapértelmezett: ha van melléklet-mérés, a főwizardba navigálunk
         if (m.MellekletMeresId.HasValue)

@@ -63,17 +63,23 @@ public class CegService : ICegService
             await UgyfelekTevekenysegDowngradeAsync(context, ceg.Id, eltavolitottCimkek);
         }
 
-        existing.Nev = ceg.Nev;
-        existing.Adoszam = ceg.Adoszam;
-        existing.Cim = ceg.Cim;
-        existing.Email = ceg.Email;
-        existing.Telefon = ceg.Telefon;
-        existing.Weboldal = ceg.Weboldal;
-        existing.Tevekenyseg = ceg.Tevekenyseg;
-        existing.AktivModulok = ceg.AktivModulok;
-        existing.Aktiv = ceg.Aktiv;
-        existing.MatricaElotag = ceg.MatricaElotag;  // <-- EZ HIÁNYZOTT!
-        existing.Modositva = DateTime.Now;
+        existing.Nev             = ceg.Nev;
+        existing.Adoszam         = ceg.Adoszam;
+        existing.Cim             = ceg.Cim;
+        existing.Email           = ceg.Email;
+        existing.Telefon         = ceg.Telefon;
+        existing.Weboldal        = ceg.Weboldal;
+        existing.Tevekenyseg     = ceg.Tevekenyseg;
+        existing.AktivModulok    = ceg.AktivModulok;
+        existing.Aktiv           = ceg.Aktiv;
+        existing.MatricaElotag   = ceg.MatricaElotag;
+        // NAV API mezők
+        existing.NavLoginName      = ceg.NavLoginName;
+        existing.NavPassword       = ceg.NavPassword;
+        existing.NavXmlSignKey     = ceg.NavXmlSignKey;
+        existing.NavTaxNumber      = ceg.NavTaxNumber;
+        existing.NavTesztKornyezet = ceg.NavTesztKornyezet;
+        existing.Modositva         = DateTime.Now;
 
         await context.SaveChangesAsync();
         return existing;

@@ -34,11 +34,25 @@
             <PropertyColumn Property="f => f.Nev" Title="Név" />
             <PropertyColumn Property="f => f.Email" Title="Email" />
             <PropertyColumn Property="f => f.Beosztas" Title="Beosztás" />
-            <TemplateColumn Title="Cég">
+            <TemplateColumn Title="Elsődleges cég">
                 <CellTemplate>
                     @context.Item.Ceg?.Nev
                 </CellTemplate>
             </TemplateColumn>
+            @if (_isAdmin)
+            {
+                <TemplateColumn Title="Összes cég">
+                    <CellTemplate>
+                        @{
+                            var cegek = _felhasznaloCegek.GetValueOrDefault(context.Item.Id, new());
+                        }
+                        @foreach (var fc in cegek)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mr-1">@fc.Ceg?.Nev</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            }
             <TemplateColumn Title="Szerepkör">
                 <CellTemplate>
                     @{
@@ -61,13 +75,19 @@
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
                 <CellTemplate>
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                   OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" Color="Color.Warning" OnClick="@(() => JelszoVisszaallitas(context.Item))" Title="Jelszó visszaállítás" />
-                    <MudIconButton Icon="@(context.Item.Aktiv ? Icons.Material.Filled.Block : Icons.Material.Filled.Check)" 
-                                   Size="Size.Small" 
-                                   Color="@(context.Item.Aktiv ? Color.Error : Color.Success)" 
-                                   OnClick="@(() => StatuszValtas(context.Item))" 
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                   OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" Title="Szerkesztés" />
+                    @if (_isAdmin)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Info"
+                                       OnClick="@(() => CegekMegnyitasa(context.Item))" Title="Cégek kezelése" />
+                    }
+                    <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" Color="Color.Warning"
+                                   OnClick="@(() => JelszoVisszaallitas(context.Item))" Title="Jelszó visszaállítás" />
+                    <MudIconButton Icon="@(context.Item.Aktiv ? Icons.Material.Filled.Block : Icons.Material.Filled.Check)"
+                                   Size="Size.Small"
+                                   Color="@(context.Item.Aktiv ? Color.Error : Color.Success)"
+                                   OnClick="@(() => StatuszValtas(context.Item))"
                                    Title="@(context.Item.Aktiv ? "Deaktiválás" : "Aktiválás")" />
                 </CellTemplate>
             </TemplateColumn>
@@ -75,11 +95,12 @@
     </MudDataGrid>
 </MudPaper>
 
-<!-- Új/Szerkesztés dialógus -->
+<!-- ============================== -->
+<!-- Felhasználó szerkesztés dialóg -->
+<!-- ============================== -->
 <MudDialog @bind-Visible="_dialogLatszik" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
     <TitleContent>
         <MudText Typo="Typo.h6">
-            <!-- Dialógus címe -->
             <MudIcon Icon="@(_ujFelhasznalo ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)" Class="mr-2" />
             @(_ujFelhasznalo ? "Új felhasználó" : "Felhasználó szerkesztése")
         </MudText>
@@ -88,27 +109,23 @@
         @if (_szerkesztettFelhasznalo != null)
         {
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Nev" Label="Teljes név" Required="true" Class="mb-3" />
-            
-            <!-- Felhasználónév (amivel beléphet) -->
-            <MudTextField @bind-Value="_felhasznaloNev" 
-                          Label="Felhasználónév (belépéshez)" 
-                          Required="true" 
+            <MudTextField @bind-Value="_felhasznaloNev"
+                          Label="Felhasználónév (belépéshez)"
+                          Required="true"
                           HelperText="@(_ujFelhasznalo ? "Ha üres, az email cím lesz a felhasználónév" : "Ezzel a névvel tud belépni")"
                           Class="mb-3" />
-            
-            <!-- Email mező -->
-            <MudTextField @bind-Value="_szerkesztettFelhasznalo.Email" 
-              Label="Email cím" 
-              InputType="InputType.Email" 
-              Required="true" 
-              Disabled="@(!_ujFelhasznalo && !_isAdmin)" 
-              Class="mb-3" />
+            <MudTextField @bind-Value="_szerkesztettFelhasznalo.Email"
+                          Label="Email cím"
+                          InputType="InputType.Email"
+                          Required="true"
+                          Disabled="@(!_ujFelhasznalo && !_isAdmin)"
+                          Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Beosztas" Label="Beosztás" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettFelhasznalo.Telefon" Label="Telefonszám" Class="mb-3" />
 
             @if (_isAdmin)
             {
-                <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Cég" Required="true" Class="mb-3">
+                <MudSelect T="int" @bind-Value="_kivalasztottCegId" Label="Elsődleges cég" Required="true" Class="mb-3">
                     @foreach (var ceg in _cegek)
                     {
                         <MudSelectItem Value="@ceg.Id">@ceg.Nev</MudSelectItem>
@@ -123,7 +140,6 @@
                 }
             </MudSelect>
 
-            <!-- Jelszó mező -->
             @if (_ujFelhasznalo)
             {
                 <MudTextField @bind-Value="_ujJelszo" Label="Jelszó" InputType="InputType.Password" Required="true" HelperText="Minimum 8 karakter" Class="mb-3" />
@@ -135,10 +151,46 @@
     <DialogActions>
         <MudButton OnClick="DialogBezarasa" Color="Color.Default">Mégsem</MudButton>
         <MudButton OnClick="MentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
-            @if (_mentes)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            }
+            @if (_mentes) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Mentés
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- ============================== -->
+<!-- Cégek kezelése dialóg          -->
+<!-- ============================== -->
+<MudDialog @bind-Visible="_cegDialogLatszik" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />
+            Cégek kezelése – @_cegDialogFelhasznalo?.Nev
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3 mud-text-secondary">
+            Válaszd ki, mely cégekhez férjen hozzá a felhasználó (az elsődleges cégen felül).
+        </MudText>
+
+        @foreach (var ceg in _cegek)
+        {
+            var fc = _cegDialogKivalasztott.FirstOrDefault(x => x.CegId == ceg.Id);
+            var checked_ = fc != null;
+            var isPrimary = ceg.Id == (_cegDialogFelhasznalo?.CegId ?? 0);
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-1">
+                <MudCheckBox T="bool" Value="@(checked_ || isPrimary)"
+                             Disabled="@isPrimary"
+                             ValueChanged="@((v) => CegKivalasztasValtozas(ceg.Id, v))"
+                             Color="Color.Primary" />
+                <MudText>@ceg.Nev @(isPrimary ? "(elsődleges)" : "")</MudText>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _cegDialogLatszik = false" Color="Color.Default">Mégsem</MudButton>
+        <MudButton OnClick="CegekMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">
+            @if (_mentes) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
             Mentés
         </MudButton>
     </DialogActions>
@@ -147,6 +199,7 @@
 @code {
     private List<Felhasznalo> _felhasznalok = new();
     private Dictionary<string, string> _szerepkorok = new();
+    private Dictionary<string, List<FelhasznaloCeg>> _felhasznaloCegek = new();
     private List<Ceg> _cegek = new();
     private List<string> _elerheroSzerepkorok = new();
     private string _kereses = string.Empty;
@@ -154,12 +207,17 @@
     private bool _dialogLatszik;
     private bool _mentes;
     private bool _isAdmin;
-    private bool _ujFelhasznalo;  // ÚJ FLAG
+    private bool _ujFelhasznalo;
     private Felhasznalo? _szerkesztettFelhasznalo;
     private string _kivalasztottSzerepkor = string.Empty;
     private int _kivalasztottCegId;
     private string _ujJelszo = string.Empty;
-    private string _felhasznaloNev = string.Empty; // ÚJ
+    private string _felhasznaloNev = string.Empty;
+
+    // Cégek dialóg
+    private bool _cegDialogLatszik;
+    private Felhasznalo? _cegDialogFelhasznalo;
+    private List<FelhasznaloCeg> _cegDialogKivalasztott = new();
 
     private IEnumerable<Felhasznalo> _szurtLista => string.IsNullOrWhiteSpace(_kereses)
         ? _felhasznalok
@@ -176,10 +234,8 @@
     private async Task BetoltesAsync()
     {
         _betoltes = true;
-
         var cegId = TenantService.GetCurrentCegId();
 
-        // Admin látja az összes felhasználót, CegAdmin csak a sajátját
         var query = Db.Users.Include(f => f.Ceg).AsQueryable();
 
         if (!_isAdmin)
@@ -195,7 +251,14 @@
         _felhasznalok = await query.OrderBy(f => f.Nev).ToListAsync();
         _cegek = await Db.Cegek.Where(c => c.Aktiv).OrderBy(c => c.Nev).ToListAsync();
 
-        // Szerepkörök betöltése
+        // FelhasznaloCegek betöltése
+        if (_isAdmin)
+        {
+            var kapcsolatok = await Db.FelhasznaloCegek.Include(fc => fc.Ceg).ToListAsync();
+            _felhasznaloCegek = kapcsolatok.GroupBy(fc => fc.FelhasznaloId)
+                                           .ToDictionary(g => g.Key, g => g.ToList());
+        }
+
         _szerepkorok.Clear();
         foreach (var user in _felhasznalok)
         {
@@ -206,20 +269,85 @@
         _betoltes = false;
     }
 
+    // --- Cégek dialóg ---
+
+    private void CegekMegnyitasa(Felhasznalo felhasznalo)
+    {
+        _cegDialogFelhasznalo = felhasznalo;
+        _cegDialogKivalasztott = _felhasznaloCegek.GetValueOrDefault(felhasznalo.Id, new()).ToList();
+        _cegDialogLatszik = true;
+    }
+
+    private void CegKivalasztasValtozas(int cegId, bool hozzaad)
+    {
+        if (hozzaad)
+        {
+            if (!_cegDialogKivalasztott.Any(fc => fc.CegId == cegId))
+            {
+                _cegDialogKivalasztott.Add(new FelhasznaloCeg
+                {
+                    FelhasznaloId = _cegDialogFelhasznalo!.Id,
+                    CegId = cegId,
+                    Ceg = _cegek.First(c => c.Id == cegId),
+                    Hozzaadva = DateTime.UtcNow
+                });
+            }
+        }
+        else
+        {
+            _cegDialogKivalasztott.RemoveAll(fc => fc.CegId == cegId);
+        }
+    }
+
+    private async Task CegekMentesAsync()
+    {
+        if (_cegDialogFelhasznalo == null) return;
+        _mentes = true;
+        try
+        {
+            var userId = _cegDialogFelhasznalo.Id;
+
+            // Meglévő kapcsolatok törlése
+            var regiek = Db.FelhasznaloCegek.Where(fc => fc.FelhasznaloId == userId);
+            Db.FelhasznaloCegek.RemoveRange(regiek);
+
+            // Új kapcsolatok mentése
+            foreach (var fc in _cegDialogKivalasztott)
+            {
+                Db.FelhasznaloCegek.Add(new FelhasznaloCeg
+                {
+                    FelhasznaloId = userId,
+                    CegId = fc.CegId,
+                    Hozzaadva = DateTime.UtcNow
+                });
+            }
+
+            await Db.SaveChangesAsync();
+            Snackbar.Add("Cégek sikeresen mentve!", Severity.Success);
+            _cegDialogLatszik = false;
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    // --- Felhasználó szerkesztés (változatlan) ---
+
     private void UjFelhasznaloMegnyitasa()
     {
         var cegId = _isAdmin ? (_cegek.FirstOrDefault()?.Id ?? 0) : TenantService.GetCurrentCegId();
-        _szerkesztettFelhasznalo = new Felhasznalo
-        {
-            CegId = cegId,
-            Aktiv = true,
-            Letrehozva = DateTime.Now
-        };
+        _szerkesztettFelhasznalo = new Felhasznalo { CegId = cegId, Aktiv = true, Letrehozva = DateTime.Now };
         _kivalasztottCegId = cegId;
         _kivalasztottSzerepkor = FelhasznaloSzerepkor.Felhasznalo.ToString();
         _ujJelszo = string.Empty;
-        _ujFelhasznalo = true;  // ÚJ
-        _felhasznaloNev = string.Empty; // ÚJ
+        _ujFelhasznalo = true;
+        _felhasznaloNev = string.Empty;
         _dialogLatszik = true;
     }
 
@@ -237,7 +365,7 @@
             Aktiv = felhasznalo.Aktiv
         };
         _kivalasztottCegId = felhasznalo.CegId;
-        _felhasznaloNev = felhasznalo.UserName ?? felhasznalo.Email ?? "";  // HIÁNYZOTT!
+        _felhasznaloNev = felhasznalo.UserName ?? felhasznalo.Email ?? "";
         var roles = await UserManager.GetRolesAsync(felhasznalo);
         _kivalasztottSzerepkor = roles.FirstOrDefault() ?? FelhasznaloSzerepkor.Felhasznalo.ToString();
         _ujFelhasznalo = false;
@@ -253,17 +381,14 @@
     private async Task MentesAsync()
     {
         if (_szerkesztettFelhasznalo == null) return;
-
         _mentes = true;
-
         try
         {
             if (_ujFelhasznalo)
             {
-                // Új felhasználó - ha nincs megadva felhasználónév, az email lesz
-                _szerkesztettFelhasznalo.UserName = string.IsNullOrWhiteSpace(_felhasznaloNev) 
-                    ? _szerkesztettFelhasznalo.Email 
-                    : _felhasznaloNev;  // JAVÍTVA!
+                _szerkesztettFelhasznalo.UserName = string.IsNullOrWhiteSpace(_felhasznaloNev)
+                    ? _szerkesztettFelhasznalo.Email
+                    : _felhasznaloNev;
                 _szerkesztettFelhasznalo.EmailConfirmed = true;
                 _szerkesztettFelhasznalo.CegId = _kivalasztottCegId;
 
@@ -271,6 +396,16 @@
                 if (result.Succeeded)
                 {
                     await UserManager.AddToRoleAsync(_szerkesztettFelhasznalo, _kivalasztottSzerepkor);
+
+                    // Automatikusan hozzáadja az elsődleges céget a kapcsolótáblához is
+                    Db.FelhasznaloCegek.Add(new FelhasznaloCeg
+                    {
+                        FelhasznaloId = _szerkesztettFelhasznalo.Id,
+                        CegId = _kivalasztottCegId,
+                        Hozzaadva = DateTime.UtcNow
+                    });
+                    await Db.SaveChangesAsync();
+
                     Snackbar.Add("Felhasználó sikeresen létrehozva!", Severity.Success);
                 }
                 else
@@ -281,7 +416,6 @@
             }
             else
             {
-                // Meglévő felhasználó módosítása
                 var user = await UserManager.FindByIdAsync(_szerkesztettFelhasznalo.Id);
                 if (user != null)
                 {
@@ -291,7 +425,6 @@
                     user.Aktiv = _szerkesztettFelhasznalo.Aktiv;
                     user.Modositva = DateTime.Now;
 
-                    // JAVÍTÁS: Felhasználónév módosítása
                     if (!string.IsNullOrWhiteSpace(_felhasznaloNev) && user.UserName != _felhasznaloNev)
                     {
                         var setUserNameResult = await UserManager.SetUserNameAsync(user, _felhasznaloNev);
@@ -302,14 +435,10 @@
                         }
                     }
 
-                    if (_isAdmin)
-                    {
-                        user.CegId = _kivalasztottCegId;
-                    }
+                    if (_isAdmin) user.CegId = _kivalasztottCegId;
 
                     await UserManager.UpdateAsync(user);
 
-                    // Szerepkör frissítése
                     var currentRoles = await UserManager.GetRolesAsync(user);
                     await UserManager.RemoveFromRolesAsync(user, currentRoles);
                     await UserManager.AddToRoleAsync(user, _kivalasztottSzerepkor);
@@ -342,15 +471,8 @@
         {
             var token = await UserManager.GeneratePasswordResetTokenAsync(felhasznalo);
             var resetResult = await UserManager.ResetPasswordAsync(felhasznalo, token, "Jelszo123!");
-
-            if (resetResult.Succeeded)
-            {
-                Snackbar.Add("Jelszó sikeresen visszaállítva: Jelszo123!", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add("Hiba a jelszó visszaállítása közben.", Severity.Error);
-            }
+            Snackbar.Add(resetResult.Succeeded ? "Jelszó sikeresen visszaállítva: Jelszo123!" : "Hiba a jelszó visszaállítása közben.",
+                         resetResult.Succeeded ? Severity.Success : Severity.Error);
         }
     }
 

@@ -19,7 +19,7 @@ public class MunkavedelmiOktatasService : IMunkavedelmiOktatasService
     public async Task<List<MunkavedelmiOktatas>> GetAllAsync(bool mindenCegre = false)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
+
         var query = context.MunkavedelmiOktatasok
             .Include(o => o.Ugyfel)
             .Include(o => o.Telephely)
@@ -29,43 +29,39 @@ public class MunkavedelmiOktatasService : IMunkavedelmiOktatasService
 
         if (!mindenCegre)
         {
-            var cegId = _tenantService.GetCurrentCegId();
-            query = query.Where(o => o.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(o => cegIds.Contains(o.CegId));
         }
 
-        return await query
-            .OrderByDescending(o => o.OktatasDatuma)
-            .ToListAsync();
+        return await query.OrderByDescending(o => o.OktatasDatuma).ToListAsync();
     }
 
     public async Task<MunkavedelmiOktatas?> GetByIdAsync(int id, bool mindenCegre = false)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
+
         var baseQuery = context.MunkavedelmiOktatasok
             .Include(o => o.Ugyfel)
             .Include(o => o.Telephely)
             .Include(o => o.Resztvevok);
 
         if (mindenCegre)
-        {
             return await baseQuery.FirstOrDefaultAsync(o => o.Id == id);
-        }
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        return await baseQuery.FirstOrDefaultAsync(o => o.Id == id && o.CegId == cegId);
+
+        var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+        return await baseQuery.FirstOrDefaultAsync(o => o.Id == id && cegIds.Contains(o.CegId));
     }
 
     public async Task<MunkavedelmiOktatas?> GetByIdWithResztvevokAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
+
+        var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
         return await context.MunkavedelmiOktatasok
             .Include(o => o.Ugyfel)
             .Include(o => o.Telephely)
             .Include(o => o.Resztvevok)
-            .FirstOrDefaultAsync(o => o.Id == id && o.CegId == cegId);
+            .FirstOrDefaultAsync(o => o.Id == id && cegIds.Contains(o.CegId));
     }
 
     public async Task<MunkavedelmiOktatas> CreateAsync(MunkavedelmiOktatas oktatas)

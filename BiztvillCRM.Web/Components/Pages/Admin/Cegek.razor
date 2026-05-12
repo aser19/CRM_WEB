@@ -173,6 +173,49 @@
                                  Color="Color.Info" />
                 </MudStack>
             </MudItem>
+
+            <!-- NAV API beállítások szekció -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudSync" Class="mr-1" />
+                    NAV Online Számla API beállítások
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                    A cég saját technikai felhasználója az OnlineSzámla portálról.
+                </MudText>
+
+                <MudTextField @bind-Value="_szerkesztettCeg.NavLoginName"
+                              Label="NAV Login név"
+                              Class="mb-2"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person" />
+
+                <MudTextField @bind-Value="_szerkesztettCeg.NavPassword"
+                              Label="NAV Jelszó"
+                              Class="mb-2"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Lock" />
+
+                <MudTextField @bind-Value="_szerkesztettCeg.NavXmlSignKey"
+                              Label="XML aláíró kulcs"
+                              Class="mb-2"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Key" />
+
+                <MudTextField @bind-Value="_szerkesztettCeg.NavTaxNumber"
+                              Label="NAV adószám (8 jegy)"
+                              Class="mb-2"
+                              MaxLength="8"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Tag" />
+
+                <MudSwitch @bind-Value="_szerkesztettCeg.NavTesztKornyezet"
+                           Label="@(_szerkesztettCeg.NavTesztKornyezet ? "Teszt környezet (api-test.onlineszamla.nav.gov.hu)" : "Éles környezet (api.onlineszamla.nav.gov.hu)")"
+                           Color="Color.Warning" />
+            </MudItem>
         }
     </DialogContent>
     <DialogActions>
@@ -263,13 +306,17 @@
             Aktiv = ceg.Aktiv,
             Tevekenyseg = ceg.Tevekenyseg,
             AktivModulok = ceg.AktivModulok,
-            MatricaElotag = ceg.MatricaElotag  // <-- HIÁNYZOTT!
+            MatricaElotag = ceg.MatricaElotag,
+            // NAV mezők
+            NavLoginName = ceg.NavLoginName,
+            NavPassword = ceg.NavPassword,
+            NavXmlSignKey = ceg.NavXmlSignKey,
+            NavTaxNumber = ceg.NavTaxNumber,
+            NavTesztKornyezet = ceg.NavTesztKornyezet
         };
         _ujCeg = false;
         _validacioMutatasa = false;
         _dialogLatszik = true;
-
-        // Eredeti tevékenység mentése
         _eredetiTevekenyseg = ceg.Tevekenyseg;
     }
 

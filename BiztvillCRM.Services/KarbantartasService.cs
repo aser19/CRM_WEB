@@ -19,7 +19,6 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<List<Karbantartas>> GetAllAsync()
     {
-        var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Karbantartasok
             .Include(k => k.Ugyfel)
             .Include(k => k.Telephely)
@@ -28,7 +27,8 @@ public class KarbantartasService : IKarbantartasService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(k => k.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(k => cegIds.Contains(k.CegId));
         }
 
         return await query.OrderByDescending(k => k.Datum).ToListAsync();
@@ -36,7 +36,6 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<Karbantartas?> GetByIdAsync(int id)
     {
-        var cegId = _tenantService.GetCurrentCegId();
         var query = _context.Karbantartasok
             .Include(k => k.Ugyfel)
             .Include(k => k.Telephely)
@@ -45,7 +44,8 @@ public class KarbantartasService : IKarbantartasService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(k => k.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(k => cegIds.Contains(k.CegId));
         }
 
         return await query.FirstOrDefaultAsync(k => k.Id == id);
@@ -53,13 +53,10 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<Karbantartas> CreateAsync(Karbantartas karbantartas)
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        karbantartas.CegId = cegId;
+        // Elsődleges cég kerül rá létrehozáskor
+        karbantartas.CegId = _tenantService.GetCurrentCegId();
         karbantartas.Letrehozva = DateTime.UtcNow;
-        
-        // Következő dátum automatikus számítása a típus alapján
         await SzamolKovetkezoDatumAsync(karbantartas);
-        
         _context.Karbantartasok.Add(karbantartas);
         await _context.SaveChangesAsync();
         return karbantartas;
@@ -67,13 +64,14 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<Karbantartas> UpdateAsync(Karbantartas karbantartas)
     {
-        var cegId = _tenantService.GetCurrentCegId();
         var existing = await _context.Karbantartasok.FirstOrDefaultAsync(k => k.Id == karbantartas.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(existing.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága.");
         }
 
         existing.UgyfelId = karbantartas.UgyfelId;
@@ -85,29 +83,25 @@ public class KarbantartasService : IKarbantartasService
         existing.Elvegzo = karbantartas.Elvegzo;
         existing.Elvegezve = karbantartas.Elvegezve;
         existing.Modositva = DateTime.UtcNow;
-
-        // Következő dátum automatikus számítása a típus alapján
         await SzamolKovetkezoDatumAsync(existing);
-
         await _context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
-        var cegId = _tenantService.GetCurrentCegId();
         var karbantartas = await _context.Karbantartasok.FirstOrDefaultAsync(k => k.Id == id);
+        if (karbantartas is null) return;
 
-        if (karbantartas is not null)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && karbantartas.CegId != cegId)
-            {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(karbantartas.CegId))
                 throw new UnauthorizedAccessException("Nincs jogosultsága.");
-            }
-
-            _context.Karbantartasok.Remove(karbantartas);
-            await _context.SaveChangesAsync();
         }
+
+        _context.Karbantartasok.Remove(karbantartas);
+        await _context.SaveChangesAsync();
     }
 
     private async Task SzamolKovetkezoDatumAsync(Karbantartas karbantartas)

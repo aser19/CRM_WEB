@@ -97,6 +97,9 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<MeresCsoport> MeresCsoportok { get; set; }
     public DbSet<MeresCsoportTag> MeresCsoportTagok { get; set; }
 
+    // --- Felhasználó-Cég kapcsolatok ---
+    public DbSet<FelhasznaloCeg> FelhasznaloCegek { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -119,7 +122,24 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Beosztas).HasMaxLength(100);
             entity.Property(e => e.Telefon).HasMaxLength(50);
-            entity.HasOne(e => e.Ceg).WithMany(c => c.Felhasznalok).HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Ceg)
+                  .WithMany(c => c.Felhasznalok)
+                  .HasForeignKey(e => e.CegId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // --- FelhasznaloCeg (many-to-many extra cégek) ---
+        modelBuilder.Entity<FelhasznaloCeg>(entity =>
+        {
+            entity.HasKey(fc => new { fc.FelhasznaloId, fc.CegId });
+
+            entity.HasOne(fc => fc.Felhasznalo)
+                  .WithMany(f => f.Cegek)
+                  .HasForeignKey(fc => fc.FelhasznaloId);
+
+            entity.HasOne(fc => fc.Ceg)
+                  .WithMany(c => c.FelhasznaloCegek)
+                  .HasForeignKey(fc => fc.CegId);
         });
 
         // --- Ugyfel ---
@@ -678,6 +698,20 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.HitelesitesCsoportId, e.EszkozTipusId }).IsUnique();
+        });
+
+        // --- FelhasznaloCeg (many-to-many) ---
+        modelBuilder.Entity<FelhasznaloCeg>(entity =>
+        {
+            entity.HasKey(fc => new { fc.FelhasznaloId, fc.CegId });
+
+            entity.HasOne(fc => fc.Felhasznalo)
+                  .WithMany(f => f.Cegek)
+                  .HasForeignKey(fc => fc.FelhasznaloId);
+
+            entity.HasOne(fc => fc.Ceg)
+                  .WithMany(c => c.FelhasznaloCegek)
+                  .HasForeignKey(fc => fc.CegId);
         });
     }
 }

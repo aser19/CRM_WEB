@@ -1,0 +1,94 @@
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject INavAdoszamService NavService
+
+<MudStack Spacing="1">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudTooltip Text="Adatok automatikus kitöltése a NAV nyilvántartásból">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Info"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.CloudDownload"
+                       OnClick="NavLekerdezes"
+                       Disabled="@(_betoltes || string.IsNullOrWhiteSpace(Adoszam))">
+                @(_betoltes ? "Lekérdezés..." : "NAV lekérdezés")
+            </MudButton>
+        </MudTooltip>
+
+        @if (_betoltes)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+        }
+    </MudStack>
+
+    @if (_hiba != null)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-1">@_hiba</MudAlert>
+    }
+
+    @if (_eredmeny?.Sikeres == true)
+    {
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mt-1"
+                  Icon="@Icons.Material.Filled.Verified">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2"><b>@_eredmeny.CegNev</b></MudText>
+                @if (!string.IsNullOrWhiteSpace(_eredmeny.FormattaltCim))
+                {
+                    <MudText Typo="Typo.caption">@_eredmeny.FormattaltCim</MudText>
+                }
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.ContentPaste"
+                           OnClick="AdatokAtvetele"
+                           Class="mt-1 pa-0"
+                           Style="justify-content:flex-start">
+                    Adatok átvétele az űrlapba
+                </MudButton>
+            </MudStack>
+        </MudAlert>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public string? Adoszam { get; set; }
+    [Parameter, EditorRequired] public int CegId { get; set; }
+
+    /// <summary>Tüzel, ha a felhasználó az "Adatok átvétele" gombra kattint.</summary>
+    [Parameter] public EventCallback<NavAdoszamEredmeny> OnAdatokAtvetele { get; set; }
+
+    private bool _betoltes;
+    private string? _hiba;
+    private NavAdoszamEredmeny? _eredmeny;
+
+    private async Task NavLekerdezes()
+    {
+        _hiba     = null;
+        _eredmeny = null;
+        _betoltes = true;
+
+        try
+        {
+            _eredmeny = await NavService.LekerdezesByAdoszamAsync(Adoszam!, CegId);
+            if (!_eredmeny.Sikeres)
+            {
+                _hiba     = _eredmeny.HibaSzoveg;
+                _eredmeny = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _hiba = $"Hiba: {ex.Message}";
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+
+    private async Task AdatokAtvetele()
+    {
+        if (_eredmeny is not null)
+            await OnAdatokAtvetele.InvokeAsync(_eredmeny);
+    }
+}

@@ -1,0 +1,252 @@
+@page "/hvm-szerkeszto/{MellekletId:int}"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Services
+@inject IMellekletJegyzokonyvService MellekletService
+@inject IMeresService MeresService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Hibavédelmi mérési jegyzőkönyv</PageTitle>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-8" />
+}
+else if (_melleklet == null)
+{
+    <MudAlert Severity="Severity.Error">A melléklet nem található.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
+        Hibavédelmi mérési jegyzőkönyv —
+        <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-1">
+            @_melleklet.Szam
+        </MudChip>
+    </MudText>
+
+    @* === 1. OLDAL: FEJLAP === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Article" Size="Size.Small" Class="mr-1" />
+            1. oldal – Fejlap (melléklet)
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect T="string" @bind-Value="_adatok.JelentesTipus"
+                           Label="Jelentés típusa"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("Használatba vételt megelőző")">Használatba vételt megelőző</MudSelectItem>
+                    <MudSelectItem Value="@("Időszakos felülvizsgálat")">Időszakos felülvizsgálat</MudSelectItem>
+                    <MudSelectItem Value="@("Rendkívüli felülvizsgálat")">Rendkívüli felülvizsgálat</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.Munkaszam"
+                              Label="Munkaszám"
+                              Variant="Variant.Outlined"
+                              HelperText="pl. BVP-MNB-0210" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_adatok.Lapszam"
+                              Label="Lapszám"
+                              Variant="Variant.Outlined"
+                              HelperText="pl. 1" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudNumericField T="int" @bind-Value="_adatok.OsszesLap"
+                                 Label="Összes lap"
+                                 Variant="Variant.Outlined"
+                                 Min="1" />
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <MudTextField @bind-Value="_adatok.MeresHelye"
+                              Label="A mérés helye"
+                              Variant="Variant.Outlined"
+                              HelperText="pl. Magyar Nemzeti Bank, Bp., Szabadság tér 9." />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDatePicker @bind-Date="_meresIdeje"
+                               Label="Mérés ideje"
+                               Variant="Variant.Outlined"
+                               DateFormat="yyyy.MM.dd" />
+            </MudItem>
+
+            @* Felelős mérést végző *@
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Felelős mérést végző</MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.FelelosNev"
+                              Label="Név"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.FelelosVegzettseg"
+                              Label="Végzettség"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.FelelosBizonyitvany"
+                              Label="Vizsgabizonyítvány száma"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            @* Segítő *@
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Segítő</MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.SegitoNev"
+                              Label="Név"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.SegitoVegzettseg"
+                              Label="Végzettség"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.SegitoBizonyitvany"
+                              Label="Vizsgabizonyítvány száma"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            @* Műszer adatok *@
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Műszer adatok</MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.MuszerTipus"
+                              Label="Típus"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_adatok.MuszerGyariSzam"
+                              Label="Gyári szám"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDatePicker @bind-Date="_muszerKalibralas"
+                               Label="Kalibrálva"
+                               Variant="Variant.Outlined"
+                               DateFormat="yyyy.MM.dd" />
+            </MudItem>
+
+            @* Készítés dátuma *@
+            <MudItem xs="12" md="4">
+                <MudDatePicker @bind-Date="_keszitesDatum"
+                               Label="Kelt (készítés dátuma)"
+                               Variant="Variant.Outlined"
+                               DateFormat="yyyy.MM.dd" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* === 2–N. OLDAL: MÉRÉSI ADATOK (egymérés mintájára) === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
+            Mérési adatok
+        </MudText>
+
+        <MeresiPontTabla @bind-Sorok="_adatok.MeresiPontok"
+                         HalozatTipus="TN" />
+    </MudPaper>
+
+    @* === GOMBOK === *@
+    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mb-4">
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="Vissza">Vissza</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="MentesEsBezarAsync"
+                   Disabled="_feldolgozas">
+            @(_feldolgozas ? "Mentés..." : "Mentés és bezár")
+        </MudButton>
+    </MudStack>
+}
+
+@code {
+    [Parameter] public int MellekletId { get; set; }
+
+    private MellekletJegyzokonyv? _melleklet;
+    private HvmAdatok _adatok = new();
+    private bool _betoltes = true;
+    private bool _feldolgozas = false;
+
+    // DatePicker two-way binding segédek
+    private DateTime? _meresIdeje
+    {
+        get => _adatok.MeresIdeje;
+        set => _adatok.MeresIdeje = value ?? DateTime.Today;
+    }
+    private DateTime? _muszerKalibralas
+    {
+        get => _adatok.MuszerKalibralasDatum;
+        set => _adatok.MuszerKalibralasDatum = value;
+    }
+    private DateTime? _keszitesDatum
+    {
+        get => _adatok.KeszitesDatum;
+        set => _adatok.KeszitesDatum = value ?? DateTime.Today;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _melleklet = await MellekletService.GetByIdAsync(MellekletId);
+        if (_melleklet != null)
+        {
+            if (!string.IsNullOrWhiteSpace(_melleklet.AdatokJson))
+            {
+                _adatok = System.Text.Json.JsonSerializer.Deserialize<HvmAdatok>(_melleklet.AdatokJson)
+                          ?? new HvmAdatok();
+            }
+            else
+            {
+                // Alapértelmezett munkaszám a melléklet számából
+                _adatok.Munkaszam = _melleklet.Szam;
+            }
+        }
+        _betoltes = false;
+    }
+
+    private async Task MentesEsBezarAsync()
+    {
+        _feldolgozas = true;
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_adatok);
+            await MellekletService.MentAdatokAsync(MellekletId, json, kesz: false);
+            Snackbar.Add("Mentve!", Severity.Success);
+            Vissza();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private void Vissza()
+    {
+        if (_melleklet != null)
+            Navigation.NavigateTo($"/jegyzokonyv/{_melleklet.MeresId}");
+        else
+            Navigation.NavigateTo("/meresek");
+    }
+}

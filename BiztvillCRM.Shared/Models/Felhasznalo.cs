@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BiztvillCRM.Shared.Models;
 
@@ -11,12 +12,17 @@ public class Felhasznalo : IdentityUser
 
     public string Nev { get; set; } = string.Empty;
     public string? Beosztas { get; set; }
-    
-    public string? Telefon { get; set; }  // 'new' eltávolítva
-    
+    public string? Telefon { get; set; }
     public bool Aktiv { get; set; } = true;
 
-    // Céghez tartozás (tenant)
+    /// <summary>Elsődleges / alapértelmezett cég (visszafelé kompatibilitás).</summary>
     public int CegId { get; set; }
     public Ceg Ceg { get; set; } = null!;
+
+    /// <summary>Összes kezelt cég (many-to-many).</summary>
+    public List<FelhasznaloCeg> Cegek { get; set; } = new();
+
+    /// <summary>Aktív/kiválasztott cég session-szinten.</summary>
+    [NotMapped]
+    public int? AktualisCegId { get; set; }
 }

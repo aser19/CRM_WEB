@@ -1,4 +1,4 @@
-    using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using BiztvillCRM.Shared.Enums;
@@ -31,5 +31,13 @@ public class Ceg
 
     // Navigációs property-k
     public List<Felhasznalo> Felhasznalok { get; set; } = new();
-    public List<Ugyfel> Ugyfelek { get; set; } = new();
+    public List<FelhasznaloCeg> FelhasznaloCegek { get; set; } = new();
+    public List<Ugyfel> Ugyfelek { get; set; } = new();  // ← ezt add vissza!
+
+    /// <summary>NAV Online Számla API - technikai felhasználó beállítások (cégenkénti)</summary>
+    public string? NavLoginName { get; set; }
+    public string? NavPassword { get; set; }      // titkosítva tárolva
+    public string? NavXmlSignKey { get; set; }    // titkosítva tárolva
+    public string? NavTaxNumber { get; set; }     // 8 jegyű adószám
+    public bool NavTesztKornyezet { get; set; } = true; // false = éles
 }

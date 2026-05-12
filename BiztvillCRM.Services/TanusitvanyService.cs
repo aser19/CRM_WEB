@@ -19,14 +19,12 @@ public class TanusitvanyService : ITanusitvanyService
 
     public async Task<List<Tanusitvany>> GetAllAsync()
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Tanusitvanyok
-            .Include(t => t.Ugyfel)
-            .AsQueryable();
+        var query = _context.Tanusitvanyok.Include(t => t.Ugyfel).AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(t => t.Ugyfel != null && cegIds.Contains(t.Ugyfel.CegId));
         }
 
         return await query.OrderBy(t => t.Nev).ToListAsync();
@@ -34,14 +32,12 @@ public class TanusitvanyService : ITanusitvanyService
 
     public async Task<Tanusitvany?> GetByIdAsync(int id)
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        var query = _context.Tanusitvanyok
-            .Include(t => t.Ugyfel)
-            .AsQueryable();
+        var query = _context.Tanusitvanyok.Include(t => t.Ugyfel).AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(t => t.Ugyfel!.CegId == cegId); // ✅ Javítva
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(t => t.Ugyfel != null && cegIds.Contains(t.Ugyfel.CegId));
         }
 
         return await query.FirstOrDefaultAsync(t => t.Id == id);
@@ -49,12 +45,13 @@ public class TanusitvanyService : ITanusitvanyService
 
     public async Task<Tanusitvany> CreateAsync(Tanusitvany tanusitvany)
     {
-        var cegId = _tenantService.GetCurrentCegId();
         var ugyfel = await _context.Ugyfelek.FindAsync(tanusitvany.UgyfelId);
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága tanúsítvány létrehozásához ennél az ügyfélnél.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (ugyfel == null || !cegIds.Contains(ugyfel.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága tanúsítvány létrehozásához ennél az ügyfélnél.");
         }
 
         tanusitvany.Letrehozva = DateTime.UtcNow;
@@ -65,15 +62,14 @@ public class TanusitvanyService : ITanusitvanyService
 
     public async Task<Tanusitvany> UpdateAsync(Tanusitvany tanusitvany)
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        var existing = await _context.Tanusitvanyok
-            .Include(t => t.Ugyfel)
-            .FirstOrDefaultAsync(t => t.Id == tanusitvany.Id)
+        var existing = await _context.Tanusitvanyok.Include(t => t.Ugyfel).FirstOrDefaultAsync(t => t.Id == tanusitvany.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId) // ✅ Javítva
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága a tanúsítvány módosításához.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(existing.Ugyfel!.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága a tanúsítvány módosításához.");
         }
 
         existing.Nev = tanusitvany.Nev;
@@ -83,27 +79,23 @@ public class TanusitvanyService : ITanusitvanyService
         existing.UgyfelId = tanusitvany.UgyfelId;
         existing.Megjegyzes = tanusitvany.Megjegyzes;
         existing.Modositva = DateTime.UtcNow;
-
         await _context.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
-        var cegId = _tenantService.GetCurrentCegId();
-        var tanusitvany = await _context.Tanusitvanyok
-            .Include(t => t.Ugyfel)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var tanusitvany = await _context.Tanusitvanyok.Include(t => t.Ugyfel).FirstOrDefaultAsync(t => t.Id == id);
+        if (tanusitvany is null) return;
 
-        if (tanusitvany is not null)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && tanusitvany.Ugyfel!.CegId != cegId) // ✅ Javítva
-            {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(tanusitvany.Ugyfel!.CegId))
                 throw new UnauthorizedAccessException("Nincs jogosultsága a tanúsítvány törléséhez.");
-            }
-
-            _context.Tanusitvanyok.Remove(tanusitvany);
-            await _context.SaveChangesAsync();
         }
+
+        _context.Tanusitvanyok.Remove(tanusitvany);
+        await _context.SaveChangesAsync();
     }
 }

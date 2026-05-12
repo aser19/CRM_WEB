@@ -20,9 +20,7 @@ public class UgyfelService : IUgyfelService
     public async Task<List<Ugyfel>> GetAllAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        
+
         if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
             return await context.Ugyfelek
@@ -32,8 +30,9 @@ public class UgyfelService : IUgyfelService
                 .ToListAsync();
         }
 
+        var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
         return await context.Ugyfelek
-            .Where(u => u.CegId == cegId)
+            .Where(u => cegIds.Contains(u.CegId))
             .Include(u => u.Telephelyek)
             .OrderBy(u => u.Nev)
             .ToListAsync();
@@ -42,15 +41,13 @@ public class UgyfelService : IUgyfelService
     public async Task<Ugyfel?> GetByIdAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        var query = context.Ugyfelek
-            .Include(u => u.Telephelyek)
-            .AsQueryable();
+
+        var query = context.Ugyfelek.Include(u => u.Telephelyek).AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(u => u.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(u => cegIds.Contains(u.CegId));
         }
 
         return await query.FirstOrDefaultAsync(u => u.Id == id);
@@ -81,15 +78,15 @@ public class UgyfelService : IUgyfelService
     public async Task<Ugyfel> UpdateAsync(Ugyfel ugyfel)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        var existing = await context.Ugyfelek
-            .FirstOrDefaultAsync(u => u.Id == ugyfel.Id)
+
+        var existing = await context.Ugyfelek.FirstOrDefaultAsync(u => u.Id == ugyfel.Id)
             ?? throw new InvalidOperationException("Ügyfél nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél módosításához.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(existing.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél módosításához.");
         }
 
         existing.Nev = ugyfel.Nev;
@@ -103,9 +100,7 @@ public class UgyfelService : IUgyfelService
         existing.Modositva = DateTime.UtcNow;
 
         if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel.CegId > 0)
-        {
             existing.CegId = ugyfel.CegId;
-        }
 
         await context.SaveChangesAsync();
         return existing;
@@ -114,20 +109,19 @@ public class UgyfelService : IUgyfelService
     public async Task DeleteAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        var ugyfel = await context.Ugyfelek.FindAsync(id);
-        
-        if (ugyfel is not null)
-        {
-            if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel.CegId != cegId)
-            {
-                throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél törléséhez.");
-            }
 
-            context.Ugyfelek.Remove(ugyfel);
-            await context.SaveChangesAsync();
+        var ugyfel = await context.Ugyfelek.FindAsync(id);
+        if (ugyfel is null) return;
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(ugyfel.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél törléséhez.");
         }
+
+        context.Ugyfelek.Remove(ugyfel);
+        await context.SaveChangesAsync();
     }
 
     public async Task<KapcsolodoAdatok> GetKapcsolodoAdatokAsync(int ugyfelId)
@@ -163,15 +157,15 @@ public class UgyfelService : IUgyfelService
     public async Task DeleteWithRelatedDataAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
-        var ugyfel = await context.Ugyfelek.FindAsync(id);
 
+        var ugyfel = await context.Ugyfelek.FindAsync(id);
         if (ugyfel is null) return;
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél törléséhez.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(ugyfel.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága az ügyfél törléséhez.");
         }
 
         // 1. Mérések törlése
@@ -187,10 +181,8 @@ public class UgyfelService : IUgyfelService
             .Include(o => o.Resztvevok)
             .Where(o => o.UgyfelId == id)
             .ToListAsync();
-        foreach (var oktatas in oktatasok)
-        {
-            context.MunkavedelmiOktatasResztvevok.RemoveRange(oktatas.Resztvevok);
-        }
+        foreach (var o in oktatasok)
+            context.MunkavedelmiOktatasResztvevok.RemoveRange(o.Resztvevok);
         context.MunkavedelmiOktatasok.RemoveRange(oktatasok);
 
         // 4. Tanúsítványok törlése

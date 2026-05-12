@@ -21,10 +21,7 @@ public class MeresService : IMeresService
     public async Task<List<Meres>> GetAllAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
 
-        // Melléklet-mérések ID-jei (ezeket kizárjuk a főlistából)
         var mellekletMeresIds = await context.MellekletJegyzokonyvek
             .Where(m => m.MellekletMeresId.HasValue)
             .Select(m => m.MellekletMeresId!.Value)
@@ -39,7 +36,8 @@ public class MeresService : IMeresService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(m => m.Ugyfel!.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(m => m.Ugyfel != null && cegIds.Contains(m.Ugyfel.CegId));
         }
 
         return await query.OrderByDescending(m => m.Datum).ToListAsync();
@@ -48,8 +46,7 @@ public class MeresService : IMeresService
     public async Task<Meres?> GetByIdAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
+
         var query = context.Meresek
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
@@ -58,7 +55,8 @@ public class MeresService : IMeresService
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            query = query.Where(m => m.Ugyfel!.CegId == cegId);
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(m => m.Ugyfel != null && cegIds.Contains(m.Ugyfel.CegId));
         }
 
         return await query.FirstOrDefaultAsync(m => m.Id == id);
@@ -67,26 +65,25 @@ public class MeresService : IMeresService
     public async Task<Meres> CreateAsync(Meres meres)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
+
         var ugyfel = await context.Ugyfelek.FirstOrDefaultAsync(u => u.Id == meres.UgyfelId);
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel?.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága mérés létrehozásához ennél az ügyfélnél.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (ugyfel == null || !cegIds.Contains(ugyfel.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága mérés létrehozásához ennél az ügyfélnél.");
         }
 
         var telephely = await context.Telephelyek.FirstOrDefaultAsync(t => t.Id == meres.TelephelyId);
         if (telephely?.UgyfelId != meres.UgyfelId)
-        {
             throw new InvalidOperationException("A telephely nem tartozik a kiválasztott ügyfélhez.");
-        }
 
         meres.Ugyfel = null!;
         meres.Telephely = null!;
         meres.MeresTipus = null!;
         meres.Letrehozva = DateTime.UtcNow;
-        
+
         context.Meresek.Add(meres);
         await context.SaveChangesAsync();
         return meres;
@@ -95,16 +92,17 @@ public class MeresService : IMeresService
     public async Task<Meres> UpdateAsync(Meres meres)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
+
         var existing = await context.Meresek
             .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == meres.Id)
             ?? throw new InvalidOperationException("Nem található.");
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && existing.Ugyfel!.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága a mérés módosításához.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(existing.Ugyfel!.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága a mérés módosításához.");
         }
 
         existing.UgyfelId = meres.UgyfelId;
@@ -112,8 +110,8 @@ public class MeresService : IMeresService
         existing.MeresTipusId = meres.MeresTipusId;
         existing.Datum = meres.Datum;
         existing.KovetkezoDatum = meres.KovetkezoDatum;
-        existing.Eredmeny = meres.Eredmeny;           // <-- JegyzokonyvSzam helyett
-        existing.MeresStatusz = meres.MeresStatusz;   // <-- Ez is hiányzott
+        existing.Eredmeny = meres.Eredmeny;
+        existing.MeresStatusz = meres.MeresStatusz;
         existing.Megjegyzes = meres.Megjegyzes;
         existing.Modositva = DateTime.UtcNow;
 
@@ -124,20 +122,20 @@ public class MeresService : IMeresService
     public async Task DeleteAsync(int id)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
-        var cegId = _tenantService.GetCurrentCegId();
+
         var meres = await context.Meresek
             .Include(m => m.Ugyfel)
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (meres is null) return;
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && meres.Ugyfel!.CegId != cegId)
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
-            throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(meres.Ugyfel!.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága a mérés törléséhez.");
         }
 
-        // 1. Ha ez a mérés egy melléklet-mérés volt, nullázzuk a hivatkozást
         var mellekletHivatkozas = await context.MellekletJegyzokonyvek
             .Where(m => m.MellekletMeresId == id)
             .ToListAsync();
@@ -147,15 +145,12 @@ public class MeresService : IMeresService
             m.Modositva = DateTime.UtcNow;
         }
 
-        // 2. Ha ez a főmérés – töröljük a hozzá tartozó melléklet-jgyk rekordokat
         var mellekletek = await context.MellekletJegyzokonyvek
             .Where(m => m.MeresId == id)
             .ToListAsync();
         context.MellekletJegyzokonyvek.RemoveRange(mellekletek);
 
-        // 3. Magát a mérést töröljük
         context.Meresek.Remove(meres);
-
         await context.SaveChangesAsync();
     }
 
