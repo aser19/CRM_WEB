@@ -11,6 +11,12 @@ public class CsoportTagLejaratReszlet
     public DateTime? LejaratDatum { get; set; }
     public string? Megjegyzes { get; set; }
 
+    /// <summary>
+    /// Ha true, ez a vizsgálat ennél a konkrét eszköznél nem alkalmazható
+    /// (pl. nincs lyukadásjelző szimpla falú, kármentős tartálynál).
+    /// </summary>
+    public bool NemAlkalmazhato { get; set; } = false;
+
     [System.Text.Json.Serialization.JsonIgnore]
     public DateTime? LejaratDatumNullable
     {

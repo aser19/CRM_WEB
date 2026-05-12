@@ -199,26 +199,38 @@
                                                     </HeaderContent>
                                                     <RowTemplate>
                                                         @{
-                                                            var tagErvenyes = tagContext.LejaratDatum == null || tagContext.LejaratDatum.Value >= DateTime.Today;
-                                                            var hamarosan = tagContext.LejaratDatum.HasValue &&
+                                                            var nemAlk = tagContext.NemAlkalmazhato;
+                                                            var tagErvenyes = !nemAlk && (tagContext.LejaratDatum == null || tagContext.LejaratDatum.Value >= DateTime.Today);
+                                                            var hamarosan = !nemAlk && tagContext.LejaratDatum.HasValue &&
                                                                             tagContext.LejaratDatum.Value >= DateTime.Today &&
                                                                             tagContext.LejaratDatum.Value <= DateTime.Today.AddMonths(3);
                                                         }
-                                                        <MudTd>@tagContext.EszkozTipusNev</MudTd>
-                                                        <MudTd>
-                                                            <MudText Color="@(!tagErvenyes ? Color.Error : hamarosan ? Color.Warning : Color.Success)">
-                                                                @(tagContext.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")
+                                                        <MudTd Style="@(nemAlk ? "opacity:0.5" : "")">
+                                                            <MudText Style="@(nemAlk ? "text-decoration:line-through" : "")">
+                                                                @tagContext.EszkozTipusNev
                                                             </MudText>
                                                         </MudTd>
                                                         <MudTd>
+                                                            @if (nemAlk)
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Color="@(!tagErvenyes ? Color.Error : hamarosan ? Color.Warning : Color.Success)">
+                                                                    @(tagContext.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")
+                                                                </MudText>
+                                                            }
+                                                        </MudTd>
+                                                        <MudTd>
                                                             <MudChip T="string" Size="Size.Small"
-                                                                     Color="@(!tagErvenyes ? Color.Error : hamarosan ? Color.Warning : Color.Success)">
-                                                                @(!tagErvenyes ? "Lejárt" : hamarosan ? "Hamarosan lejár" : "Érvényes")
+                                                                     Color="@(nemAlk ? Color.Default : !tagErvenyes ? Color.Error : hamarosan ? Color.Warning : Color.Success)">
+                                                                @(nemAlk ? "N/A" : !tagErvenyes ? "Lejárt" : hamarosan ? "Hamarosan" : "Érvényes")
                                                             </MudChip>
                                                         </MudTd>
                                                         <MudTd>
                                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                                @(tagContext.Megjegyzes ?? "–")
+                                                                @(nemAlk ? "Nem alkalmazható ennél az eszköznél" : tagContext.Megjegyzes ?? "–")
                                                             </MudText>
                                                         </MudTd>
                                                     </RowTemplate>

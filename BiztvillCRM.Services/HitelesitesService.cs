@@ -106,9 +106,13 @@ public class HitelesitesService : IHitelesitesService
 
     /// <summary>
     /// Automatikusan kiszámolja a lejárat dátumát az eszköztípus hitelesítési időtartama alapján.
+    /// Csak akkor számolja, ha nincs már megadott lejárati dátum (manuális felülírás védelme).
     /// </summary>
     private async Task SzamolLejaratDatumAsync(Hitelesites hitelesites)
     {
+        // Ha már van lejárati dátum (manuálisan állította be a felhasználó), nem írjuk felül
+        if (hitelesites.LejaratDatum.HasValue) return;
+
         var eszkozTipus = await _context.EszkozTipusok.FindAsync(hitelesites.EszkozTipusId);
         if (eszkozTipus != null && eszkozTipus.HitelesitesiIdotartamHonap > 0)
         {

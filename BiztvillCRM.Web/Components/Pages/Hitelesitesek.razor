@@ -155,22 +155,31 @@
 
                                     @foreach (var sor in _csoportTagSorok)
                                     {
-                                        <MudPaper Outlined="true" Class="pa-2 mb-2">
+                                        <MudPaper Outlined="true" Class="pa-2 mb-2"
+                                                  Style="@(sor.NemAlkalmazhato ? "opacity:0.5; background: var(--mud-palette-background-grey)" : "")">
                                             <MudGrid Spacing="2" AlignItems="AlignItems.Center">
                                                 <!-- Vizsgálat neve -->
                                                 <MudItem xs="12" md="4">
                                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                        <MudIcon Icon="@(sor.Tag.Kotelezo ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                                        <MudIcon Icon="@(sor.Tag.Kotelezo
+                                                                                                                                                         ? Icons.Material.Filled.Lock
+                                                                                                                                                     : Icons.Material.Filled.LockOpen)"
                                                                  Size="Size.Small"
-                                                                 Color="@(sor.Tag.Kotelezo ? Color.Warning : Color.Default)" />
+                                                                 Color="@(sor.NemAlkalmazhato ? Color.Default : sor.Tag.Kotelezo ? Color.Warning : Color.Default)" />
                                                         <div>
-                                                            <MudText Typo="Typo.body2"><b>@sor.EszkozTipusNev</b></MudText>
+                                                            <MudText Typo="Typo.body2"
+                                                                     Style="@(sor.NemAlkalmazhato ? "text-decoration:line-through; color:gray" : "")">
+                                                                <b>@sor.EszkozTipusNev</b>
+                                                            </MudText>
                                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                                 @sor.EszkozTipusHonap hónap
-                                                                @if (sor.Tag.Kotelezo)
+                                                                @if (sor.Tag.Kotelezo && !sor.NemAlkalmazhato)
                                                                 {
-                                                                    <MudChip T="string" Size="Size.Small"
-                                                                             Color="Color.Warning" Class="ml-1">Kötelező</MudChip>
+                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-1">Kötelező</MudChip>
+                                                                }
+                                                                @if (sor.NemAlkalmazhato)
+                                                                {
+                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-1">Nem alkalmazható</MudChip>
                                                                 }
                                                             </MudText>
                                                         </div>
@@ -178,36 +187,45 @@
                                                 </MudItem>
 
                                                 <!-- Auto lejárat -->
-                                                <MudItem xs="12" md="3">
-                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Auto lejárat</MudText>
-                                                    <MudText Typo="Typo.body2">
-                                                        @(sor.AutoLejaratDatum?.ToString("yyyy.MM.dd") ?? "–")
-                                                    </MudText>
+                                                <MudItem xs="12" md="2">
+                                                    @if (!sor.NemAlkalmazhato)
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Auto lejárat</MudText>
+                                                        <MudText Typo="Typo.body2">@(sor.AutoLejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</MudText>
+                                                    }
                                                 </MudItem>
 
-                                                <!-- Egyedi dátum toggle + picker -->
-                                                <MudItem xs="12" md="5">
-                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                        <MudSwitch @bind-Value="sor.EgyediDatumHasznalata"
-                                                                   Color="Color.Primary"
-                                                                   Label="Eltérő dátum"
-                                                                   Size="Size.Small" />
-                                                        @if (sor.EgyediDatumHasznalata)
-                                                        {
-                                                            <MudDatePicker @bind-Date="sor.EgyediLejaratDatum"
-                                                                           Label="Egyedi lejárat"
-                                                                           DateFormat="yyyy.MM.dd"
-                                                                           Editable="true"
-                                                                           Margin="Margin.Dense"
-                                                                           Style="max-width:160px;" />
-                                                        }
-                                                    </MudStack>
-                                                    @if (!string.IsNullOrEmpty(sor.Tag.Megjegyzes))
+                                                <!-- Eltérő dátum -->
+                                                <MudItem xs="12" md="4">
+                                                    @if (!sor.NemAlkalmazhato)
                                                     {
-                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                            @sor.Tag.Megjegyzes
-                                                        </MudText>
+                                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                            <MudSwitch @bind-Value="sor.EgyediDatumHasznalata"
+                                                                       Color="Color.Primary"
+                                                                       Label="Eltérő dátum"
+                                                                       Size="Size.Small" />
+                                                            @if (sor.EgyediDatumHasznalata)
+                                                            {
+                                                                <MudDatePicker @bind-Date="sor.EgyediLejaratDatum"
+                                                                               Label="Egyedi lejárat"
+                                                                               DateFormat="yyyy.MM.dd"
+                                                                               Editable="true"
+                                                                               Margin="Margin.Dense"
+                                                                               Style="max-width:160px;" />
+                                                            }
+                                                        </MudStack>
                                                     }
+                                                </MudItem>
+
+                                                <!-- Nem alkalmazható toggle -->
+                                                <MudItem xs="12" md="2">
+                                                    <MudTooltip Text="Ennél az eszköznél ez a vizsgálat nem alkalmazható (pl. nincs lyukadásjelző)">
+                                                        <MudSwitch @bind-Value="sor.NemAlkalmazhato"
+                                                                   Color="Color.Error"
+                                                                   Label="N/A"
+                                                                   Size="Size.Small"
+                                                                   ThumbIcon="@Icons.Material.Filled.Block" />
+                                                    </MudTooltip>
                                                 </MudItem>
                                             </MudGrid>
                                         </MudPaper>
@@ -244,10 +262,22 @@
                     </MudItem>
                 }
                 <MudItem xs="12" md="6">
-                    <MudDatePicker Date="_datum" DateChanged="OnDatumValtozas" Label="Dátum *" Editable="true" DateFormat="yyyy.MM.dd" />
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudDatePicker @bind-Date="_lejaratDatum" Label="Általános lejárat" Editable="true" DateFormat="yyyy.MM.dd" />
+                    <MudStack Spacing="0">
+                        <MudDatePicker Date="_lejaratDatum"
+                                       DateChanged="OnLejaratDatumValtozas"
+                                       Label="@(_manualisLejaratDatum ? "Lejárat (manuális) *" : "Általános lejárat (auto)")"
+                                       Editable="true"
+                                       DateFormat="yyyy.MM.dd" />
+                        @if (_manualisLejaratDatum)
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text"
+                                       Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.Autorenew"
+                                       OnClick="AutoLejaratVisszaallitas">
+                                Visszaállítás auto módba
+                            </MudButton>
+                        }
+                    </MudStack>
                 </MudItem>
                 
                 <!-- Eredmény -->
@@ -539,6 +569,7 @@
         SzamoljLejaratot();
         FrissitsCsoportTagSorokat();
         _dialogNyitva = true;
+        _manualisLejaratDatum = false;
     }
 
     private void SzerkesztesMegnyitasa(Hitelesites item) 
@@ -558,8 +589,9 @@
             EszkozAzonosito = item.EszkozAzonosito  // ← itt helyes
         };
         _kivalasztottUgyfelId = item.UgyfelId;
-        _datum = item.Datum; 
+        _datum = item.Datum;
         _lejaratDatum = item.LejaratDatum;
+        _manualisLejaratDatum = item.LejaratDatum.HasValue; // ← ha volt mentett dátum, manuális
         
         // ÚJ: Egyedi lejáratok betöltése
         _aktualisEgyediLejaratok = item.EgyediLejaratokLista.ToList();
@@ -583,6 +615,7 @@
         if (_szerkesztesAlatt != null)
         {
             _szerkesztesAlatt.EszkozTipusId = ujEszkozTipusId;
+            _manualisLejaratDatum = false; // típus váltásakor visszaáll auto módba
             SzamoljLejaratot();
             FrissitsCsoportTagSorokat();
         }
@@ -622,8 +655,9 @@
                     EszkozTipusNev = eszkozTipus?.Nev ?? "–",
                     EszkozTipusHonap = eszkozTipus?.HitelesitesiIdotartamHonap ?? 0,
                     AutoLejaratDatum = autoLejarat,
-                    EgyediDatumHasznalata = mentett != null,
-                    EgyediLejaratDatum = mentett?.LejaratDatum ?? autoLejarat
+                    EgyediDatumHasznalata = mentett != null && !mentett.NemAlkalmazhato,
+                    EgyediLejaratDatum = mentett?.LejaratDatum ?? autoLejarat,
+                    NemAlkalmazhato = mentett?.NemAlkalmazhato ?? false  // ← ÚJ
                 };
             })
             .ToList();
@@ -632,11 +666,13 @@
     private void OnDatumValtozas(DateTime? ujDatum)
     {
         _datum = ujDatum;
-        SzamoljLejaratot();
+        if (!_manualisLejaratDatum)
+            SzamoljLejaratot();
     }
 
     private void SzamoljLejaratot()
     {
+        if (_manualisLejaratDatum) return; // ← manuális esetén nem nyúl hozzá
         if (_szerkesztesAlatt == null || _datum == null || _szerkesztesAlatt.EszkozTipusId == 0)
             return;
 
@@ -673,6 +709,7 @@
         _aktualisEgyediLejaratok.Clear(); // ÚJ
         _aktivCsoport = null;
         _csoportTagSorok.Clear();
+        _manualisLejaratDatum = false;
     }
 
     private async Task MentesAsync()
@@ -713,12 +750,13 @@
         
         // Csoporttag lejáratok mentése (csak az egyedi dátummal rendelkezőkét)
         _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
-            .Where(s => s.EgyediDatumHasznalata && s.EgyediLejaratDatum.HasValue)
+            .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato)  // ← mentjük a N/A-t is
             .Select(s => new CsoportTagLejaratReszlet
             {
                 EszkozTipusId = s.Tag.EszkozTipusId,
                 EszkozTipusNev = s.EszkozTipusNev,
-                LejaratDatum = s.EgyediLejaratDatum
+                LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
+                NemAlkalmazhato = s.NemAlkalmazhato
             })
             .ToList();
         
@@ -905,5 +943,20 @@
         public DateTime? AutoLejaratDatum { get; set; }
         public bool EgyediDatumHasznalata { get; set; }
         public DateTime? EgyediLejaratDatum { get; set; }
+        public bool NemAlkalmazhato { get; set; }  // ← ÚJ
+    }
+
+    private bool _manualisLejaratDatum = false; // ha true, nem számolja újra auto
+
+    private void OnLejaratDatumValtozas(DateTime? ujDatum)
+    {
+        _lejaratDatum = ujDatum;
+        _manualisLejaratDatum = true; // ha a felhasználó szerkeszti, manuális módba vált
+    }
+
+    private void AutoLejaratVisszaallitas()
+    {
+        _manualisLejaratDatum = false;
+        SzamoljLejaratot(); // újraszámolja az auto értéket
     }
 }
