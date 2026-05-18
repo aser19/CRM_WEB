@@ -11,7 +11,8 @@ public class JegyzokonyvImportAdatok
     public string? KapcsolatTarto { get; set; }
     public string? VizsgalatHelye { get; set; }
     public List<HordozhatoEszkozImport> Eszkozok { get; set; } = new();
-    public List<AvkSor> AvkSorok { get; set; } = new();  // ← visszaállítva a valódi AvkSor-ra
+    public List<AvkSor> AvkSorok { get; set; } = new();
+    public List<MeresiPontSor> MeresiPontok { get; set; } = new();  // ← ÚJ: HVM táblázathoz
 }
 
 public class HordozhatoEszkozImport

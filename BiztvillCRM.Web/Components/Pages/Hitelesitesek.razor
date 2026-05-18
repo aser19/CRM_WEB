@@ -14,6 +14,7 @@
 @inject IEmailKuldoService EmailKuldoService
 @inject IHitelesitesCsoportService HitelesitesCsoportService
 @inject IHitelesitesCsoportService HitelesitesCsoportService
+@inject ICegService CegService
 
 <PageTitle>Hitelesítések</PageTitle>
 
@@ -32,20 +33,39 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új hitelesítés</MudButton>
     </MudStack>
 
-    <MudDataGrid T="Hitelesites" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+       <MudDataGrid T="Hitelesites" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
-            <TemplateColumn Title="Ügyfél">
-                <CellTemplate>@(context.Item.Ugyfel?.Nev ?? "-")</CellTemplate>
+            <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(h => h.Ugyfel?.Nev ?? "")">
+                <CellTemplate>
+                    <div>
+                        <div>@(context.Item.Ugyfel?.Nev ?? "-")</div>
+                        @if (_elerhetoCegek.Count > 1 && context.Item.Ugyfel != null)
+                        {
+                            var cegId = context.Item.Ugyfel.CegId;
+                            var szin = GetCegSzin(cegId);
+                            var rovidites = GetCegRovidites(cegId);
+                            var cegNev = GetCegNev(cegId);
+                            <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Label="true">
+                                    @rovidites
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </div>
+                </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Telephely">
+            <TemplateColumn Title="Telephely" Sortable="true" SortBy="@(h => h.Telephely?.Nev ?? "")">
                 <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Eszköztípus">
+            <TemplateColumn Title="Eszköztípus" Sortable="true" SortBy="@(h => h.EszkozTipus?.Nev ?? "")">
                 <CellTemplate>@(context.Item.EszkozTipus?.Nev ?? "-")</CellTemplate>
             </TemplateColumn>
-            <PropertyColumn Property="h => h.Darabszam" Title="Darab" />
-            <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" />
-            <TemplateColumn Title="Lejárat">
+            <PropertyColumn Property="h => h.Darabszam" Title="Darab" Sortable="true" />
+            <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" Sortable="true" />
+            <TemplateColumn Title="Lejárat" Sortable="true" SortBy="@(h => h.LejaratDatum ?? DateTime.MaxValue)">
                 <CellTemplate>
                     <div>
                         @if (context.Item.LejaratDatum.HasValue)
@@ -58,10 +78,31 @@
                                 @context.Item.EgyediLejaratokLista.Count egyedi
                             </MudChip>
                         }
+                        @{
+                            var egyediKozbenso = context.Item.CsoportTagLejaratokLista
+                                .Where(t => !t.NemAlkalmazhato && t.LejaratDatum.HasValue)
+                                .ToList();
+                        }
+                        @if (egyediKozbenso.Any())
+                        {
+                            <MudTooltip>
+                                <TooltipContent>
+                                    @foreach (var tag in egyediKozbenso)
+                                    {
+                                        <div>@tag.EszkozTipusNev: @tag.LejaratDatum!.Value.ToString("yyyy.MM.dd")</div>
+                                    }
+                                </TooltipContent>
+                                <ChildContent>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Icon="@Icons.Material.Filled.CalendarMonth" Class="mt-1">
+                                        @egyediKozbenso.Count közbenső eltér
+                                    </MudChip>
+                                </ChildContent>
+                            </MudTooltip>
+                        }
                     </div>
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Státusz">
+            <TemplateColumn Title="Státusz" Sortable="true" SortBy="@(h => (int)h.HitelesitesStatusz)">
                 <CellTemplate>
                     @switch (context.Item.HitelesitesStatusz)
                     {
@@ -91,7 +132,7 @@
                     </MudStack>
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Eszközazonosító" Sortable="true">
+            <TemplateColumn Title="Eszközazonosító" Sortable="true" SortBy="@(h => h.EszkozAzonosito ?? "")">
                 <CellTemplate>
                     @if (!string.IsNullOrEmpty(context.Item.EszkozAzonosito))
                     {
@@ -141,111 +182,112 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_szerkesztesAlatt.EszkozTipusId" ValueChanged="OnEszkozTipusValtozas" Label="Eszköztípus *" Required="true">
-                        @if (_aktivCsoport is not null)
-                        {
-                            <MudItem xs="12">
-                                <MudPaper Outlined="true" Class="pa-3 mt-1" Style="border-color: var(--mud-palette-info);">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.AccountTree"
-                                                 Color="Color.Info" Size="Size.Small" />
-                                        <MudText Typo="Typo.subtitle2" Color="Color.Info">
-                                            @_aktivCsoport.Nev – közbenső vizsgálatok
-                                        </MudText>
-                                    </MudStack>
-
-                                    @foreach (var sor in _csoportTagSorok)
-                                    {
-                                        <MudPaper Outlined="true" Class="pa-2 mb-2"
-                                                  Style="@(sor.NemAlkalmazhato ? "opacity:0.5; background: var(--mud-palette-background-grey)" : "")">
-                                            <MudGrid Spacing="2" AlignItems="AlignItems.Center">
-                                                <!-- Vizsgálat neve -->
-                                                <MudItem xs="12" md="4">
-                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                        <MudIcon Icon="@(sor.Tag.Kotelezo
-                                                                                                                                                         ? Icons.Material.Filled.Lock
-                                                                                                                                                     : Icons.Material.Filled.LockOpen)"
-                                                                 Size="Size.Small"
-                                                                 Color="@(sor.NemAlkalmazhato ? Color.Default : sor.Tag.Kotelezo ? Color.Warning : Color.Default)" />
-                                                        <div>
-                                                            <MudText Typo="Typo.body2"
-                                                                     Style="@(sor.NemAlkalmazhato ? "text-decoration:line-through; color:gray" : "")">
-                                                                <b>@sor.EszkozTipusNev</b>
-                                                            </MudText>
-                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                                @sor.EszkozTipusHonap hónap
-                                                                @if (sor.Tag.Kotelezo && !sor.NemAlkalmazhato)
-                                                                {
-                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-1">Kötelező</MudChip>
-                                                                }
-                                                                @if (sor.NemAlkalmazhato)
-                                                                {
-                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-1">Nem alkalmazható</MudChip>
-                                                                }
-                                                            </MudText>
-                                                        </div>
-                                                    </MudStack>
-                                                </MudItem>
-
-                                                <!-- Auto lejárat -->
-                                                <MudItem xs="12" md="2">
-                                                    @if (!sor.NemAlkalmazhato)
-                                                    {
-                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Auto lejárat</MudText>
-                                                        <MudText Typo="Typo.body2">@(sor.AutoLejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</MudText>
-                                                    }
-                                                </MudItem>
-
-                                                <!-- Eltérő dátum -->
-                                                <MudItem xs="12" md="4">
-                                                    @if (!sor.NemAlkalmazhato)
-                                                    {
-                                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                                            <MudSwitch @bind-Value="sor.EgyediDatumHasznalata"
-                                                                       Color="Color.Primary"
-                                                                       Label="Eltérő dátum"
-                                                                       Size="Size.Small" />
-                                                            @if (sor.EgyediDatumHasznalata)
-                                                            {
-                                                                <MudDatePicker @bind-Date="sor.EgyediLejaratDatum"
-                                                                               Label="Egyedi lejárat"
-                                                                               DateFormat="yyyy.MM.dd"
-                                                                               Editable="true"
-                                                                               Margin="Margin.Dense"
-                                                                               Style="max-width:160px;" />
-                                                            }
-                                                        </MudStack>
-                                                    }
-                                                </MudItem>
-
-                                                <!-- Nem alkalmazható toggle -->
-                                                <MudItem xs="12" md="2">
-                                                    <MudTooltip Text="Ennél az eszköznél ez a vizsgálat nem alkalmazható (pl. nincs lyukadásjelző)">
-                                                        <MudSwitch @bind-Value="sor.NemAlkalmazhato"
-                                                                   Color="Color.Error"
-                                                                   Label="N/A"
-                                                                   Size="Size.Small"
-                                                                   ThumbIcon="@Icons.Material.Filled.Block" />
-                                                    </MudTooltip>
-                                                </MudItem>
-                                            </MudGrid>
-                                        </MudPaper>
-                                    }
-
-                                    @if (!string.IsNullOrEmpty(_aktivCsoport.Leiras))
-                                    {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                                            @_aktivCsoport.Leiras
-                                        </MudText>
-                                    }
-                                </MudPaper>
-                            </MudItem>
-                        }
                         @foreach (var t in _eszkozTipusok)
                         {
                             <MudSelectItem Value="@t.Id">@t.Nev (@(t.HitelesitesiIdotartamHonap / 12) év)</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
+
+                @* === Közbenső vizsgálatok – a MudSelect-en KÍVÜL! === *@
+                @if (_aktivCsoport is not null)
+                {
+                    <MudItem xs="12">
+                        <MudPaper Outlined="true" Class="pa-3 mt-1" Style="border-color: var(--mud-palette-info);">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountTree"
+                                         Color="Color.Info" Size="Size.Small" />
+                                <MudText Typo="Typo.subtitle2" Color="Color.Info">
+                                    @_aktivCsoport.Nev – közbenső vizsgálatok
+                                </MudText>
+                            </MudStack>
+
+                            @foreach (var sor in _csoportTagSorok)
+                            {
+                                <MudPaper Outlined="true" Class="pa-2 mb-2"
+                                          Style="@(sor.NemAlkalmazhato ? "opacity:0.5; background: var(--mud-palette-background-grey)" : "")">
+                                    <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                                        <!-- Vizsgálat neve -->
+                                        <MudItem xs="12" md="4">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@(sor.Tag.Kotelezo ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                                                 Size="Size.Small"
+                                                                 Color="@(sor.NemAlkalmazhato ? Color.Default : sor.Tag.Kotelezo ? Color.Warning : Color.Default)" />
+                                                <div>
+                                                    <MudText Typo="Typo.body2"
+                                                             Style="@(sor.NemAlkalmazhato ? "text-decoration:line-through; color:gray" : null)">
+                                                        <b>@sor.EszkozTipusNev</b>
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                        @sor.EszkozTipusHonap hónap
+                                                        @if (sor.Tag.Kotelezo && !sor.NemAlkalmazhato)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-1">Kötelező</MudChip>
+                                                        }
+                                                        @if (sor.NemAlkalmazhato)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-1">Nem alkalmazható</MudChip>
+                                                        }
+                                                    </MudText>
+                                                </div>
+                                            </MudStack>
+                                        </MudItem>
+
+                                        <!-- Auto lejárat -->
+                                        <MudItem xs="12" md="2">
+                                            @if (!sor.NemAlkalmazhato)
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Auto lejárat</MudText>
+                                                <MudText Typo="Typo.body2">@(sor.AutoLejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</MudText>
+                                            }
+                                        </MudItem>
+
+                                        <!-- Eltérő dátum -->
+                                        <MudItem xs="12" md="4">
+                                            @if (!sor.NemAlkalmazhato)
+                                            {
+                                                <MudSwitch @bind-Value="sor.EgyediDatumHasznalata"
+                                                           Color="Color.Primary"
+                                                           Label="Eltérő dátum"
+                                                           Size="Size.Small" />
+                                                @if (sor.EgyediDatumHasznalata)
+                                                {
+                                                    <MudTextField T="string"
+                                                                  Value="@(sor.EgyediLejaratDatum?.ToString("yyyy-MM-dd") ?? "")"
+                                                                  ValueChanged="@((string v) => {
+                                                                      sor.EgyediLejaratDatum = DateTime.TryParse(v, out var d) ? d : sor.EgyediLejaratDatum;
+                                                                  })"
+                                                                  Label="Egyedi lejárat"
+                                                                  InputType="InputType.Date"
+                                                                  Margin="Margin.Dense"
+                                                                  Style="max-width:175px;" />
+                                                }
+                                            }
+                                        </MudItem>
+
+                                        <!-- Nem alkalmazható toggle -->
+                                        <MudItem xs="12" md="2">
+                                            <MudTooltip Text="Ennél az eszköznél ez a vizsgálat nem alkalmazható (pl. nincs lyukadásjelző)">
+                                                <MudSwitch @bind-Value="sor.NemAlkalmazhato"
+                                                           Color="Color.Error"
+                                                           Label="N/A"
+                                                           Size="Size.Small"
+                                                           ThumbIcon="@Icons.Material.Filled.Block" />
+                                            </MudTooltip>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+
+                            @if (!string.IsNullOrEmpty(_aktivCsoport.Leiras))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                    @_aktivCsoport.Leiras
+                                </MudText>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                }
                 <MudItem xs="12" md="6">
                     <MudNumericField T="int" @bind-Value="_szerkesztesAlatt.Darabszam" Label="Darabszám" Min="1" Max="999" />
                 </MudItem>
@@ -492,6 +534,36 @@
     private DateTime? _datum, _lejaratDatum;
     private int? _kivalasztottUgyfelId;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+    // A meglévő mezők után (~510. sor után) add hozzá:
+    private List<Ceg> _elerhetoCegek = new();
+
+    private static readonly string[] _cegSzinek = new[]
+    {
+        "#1976D2", // kék   – főcég (1. pozíció)
+        "#F57C00", // narancs
+        "#388E3C", // zöld
+        "#7B1FA2", // lila
+        "#C62828", // sötétpiros
+        "#00838F", // cián
+    };
+
+    private string GetCegSzin(int cegId)
+    {
+        if (_elerhetoCegek.Count <= 1) return "";
+        var index = _elerhetoCegek.FindIndex(c => c.Id == cegId);
+        return _cegSzinek[Math.Max(0, index) % _cegSzinek.Length];
+    }
+
+    private string GetCegRovidites(int cegId)
+    {
+        var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == cegId);
+        if (ceg == null) return "?";
+        return ceg.MatricaElotag
+            ?? new string(ceg.Nev.Where(char.IsLetterOrDigit).Take(3).ToArray()).ToUpper();
+    }
+
+    private string GetCegNev(int cegId)
+        => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
 
     // ÚJ: Egyedi lejáratok kezeléséhez
     private List<HitelesitesReszlet> _aktualisEgyediLejaratok = new();
@@ -542,6 +614,18 @@
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _csoportok = await HitelesitesCsoportService.GetAllAsync();
+
+        // Multi-tenant cég badge betöltés
+        var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+        if (elerhhetoCegIds.Count > 1)
+        {
+            var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+            _elerhetoCegek = osszesCeg
+                .Where(c => elerhhetoCegIds.Contains(c.Id))
+                .OrderBy(c => c.Id == _cegId ? 0 : 1)
+                .ThenBy(c => c.Nev)
+                .ToList();
+        }
     }
 
     private async Task BetoltesAsync() 

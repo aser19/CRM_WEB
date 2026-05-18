@@ -48,6 +48,15 @@ public class HvmAdatok
     public int? MuszerEszkozId { get; set; }
     public string MuszerKalibralasStr { get; set; } = "";  // szöveges kalibrálás dátum
 
+    // Régi egyszeres mezők HELYETT dinamikus lista (főjgyk mintájára):
+    public List<MuszerSor> Muszerek { get; set; } = new();
+
+    // Régi mezők – visszafelé kompatibilitáshoz megtarthatók, de a UI már a listát használja:
+    // public string MuszerTipus ...
+    // public string MuszerGyariSzam ...
+    // public string MuszerKalibralasStr ...
+    // public int? MuszerEszkozId ...
+
     // === MÉRÉSI ADATOK (2–N. oldal) – egymérés mintájára ===
     public List<MeresiPontSor> MeresiPontok { get; set; } = new();
 }

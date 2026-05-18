@@ -42,6 +42,9 @@ public class MeresiPontSor
     /// <summary>Kiegészítő megjegyzés</summary>
     public string Megjegyzes { get; set; } = "";
 
+    /// <summary>Helyiség neve (csoportosításhoz)</summary>
+    public string HelyisegNev { get; set; } = "";
+
     // ============================================================
     // Számított property-k (Zs ≤ U0 * α / Ia)
     // ============================================================

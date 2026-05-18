@@ -1,9 +1,12 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Services
 @using MudBlazor
 @inject IErintesvedelmiModOsztalyService ModOsztalyService
 @inject ITularamvedelemTipusService TularamvedelemService
 @inject IJSRuntime JS
+@inject IJegyzokonyvOcrService OcrService
+@inject ISnackbar Snackbar
 
 <MudPaper Class="pa-4 mt-4">
     @if (!EgyszeruMod)
@@ -33,101 +36,114 @@
 
     @if (MeresiPontok.Any())
     {
-        <MudTable Items="@MeresiPontok" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-3">
-            <HeaderContent>
-                <MudTh Style="width: 80px;">Sorszám</MudTh>
-                <MudTh Style="width: 250px;">Mérési pont helye</MudTh>
-                <MudTh Style="width: 130px;">MÓD / OSZTÁLY</MudTh>
-                <MudTh Style="width: 150px;">Túláramv. Helye</MudTh>
-                <MudTh Style="width: 180px;">Túláramv. Típusa</MudTh>
-                <MudTh Style="width: 80px;">ÁVK</MudTh>
-                <MudTh Style="width: 100px;">PEΩ foly.</MudTh>
-                <MudTh Style="width: 120px;">ÉRTÉK [Ω]</MudTh>
-                <MudTh Style="width: 140px;">Minősítés</MudTh>
-                <MudTh Style="width: 60px;"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Sorszám">
-                    <MudText><strong>@context.Sorszam.</strong></MudText>
-                </MudTd>
-                <MudTd DataLabel="Mérési pont">
-                    <MudTextField @bind-Value="context.MeresiPontHelye"
-                                  Variant="Variant.Text"
-                                  Margin="Margin.Dense"
-                                  Lines="2"
-                                  Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24a" />
-                </MudTd>
-                <MudTd DataLabel="MÓD / OSZTÁLY">
-                    <MudSelect @bind-Value="context.Modszer"
-                               Variant="Variant.Text"
-                               Margin="Margin.Dense"
-                               Dense="true">
-                        <MudSelectItem Value="@("")">-- Válassz --</MudSelectItem>
-                        @foreach (var modOsztaly in _modOsztalyok)
-                        {
-                            <MudSelectItem Value="@modOsztaly.Nev">@modOsztaly.Nev</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudTd>
-                <MudTd DataLabel="Túláramv. Helye">
-                    <MudAutocomplete T="string"
-                                     @bind-Value="context.TularamvedelemHelye"
-                                     SearchFunc="@SearchTularamvedelemHelye"
-                                     Variant="Variant.Text"
-                                     Margin="Margin.Dense"
-                                     Placeholder="E3Ω"
-                                     Clearable="true"
-                                     ResetValueOnEmptyText="false"
-                                     CoerceText="true"
-                                     CoerceValue="false" />
-                </MudTd>
-                <MudTd DataLabel="Túláramv. Típusa">
-                    <MudAutocomplete T="string"
-                                     Value="@context.TularamvedelemTipusa"
-                                     ValueChanged="@((string val) => OnTularamvedelemTipusaChanged(context, val))"
-                                     SearchFunc="@SearchTularamvedelemTipusa"
-                                     Variant="Variant.Text"
-                                     Margin="Margin.Dense"
-                                     Placeholder="TDK-C16"
-                                     Clearable="true"
-                                     ResetValueOnEmptyText="false"
-                                     CoerceText="true"
-                                     CoerceValue="false" />
-                </MudTd>
-                <MudTd DataLabel="ÁVK">
-                    <MudCheckBox @bind-Value="context.AVKCsatolva"
-                                 Color="Color.Success"
-                                 Dense="true" />
-                </MudTd>
-                <MudTd DataLabel="PEΩ foly.">
-                    <MudTextField @bind-Value="context.PEFolytOhm"
-                                  Variant="Variant.Text"
-                                  Margin="Margin.Dense"
-                                  Placeholder="0.35Ω" />
-                </MudTd>
-                <MudTd DataLabel="ÉRTÉK [Ω]">
-                    <MudNumericField Value="@context.MertHurokimpedancia"
-                                     ValueChanged="@((decimal? val) => OnHurokimpedanciaChanged(context, val))"
-                                     Variant="Variant.Text"
-                                     Margin="Margin.Dense"
-                                     Min="0"
-                                     Step="0.01m"
-                                     Placeholder="2.5" />
-                </MudTd>
-                <MudTd DataLabel="Minősítés">
-                    <MudChip T="string"
-                             Text="@context.Minosites"
-                             Size="Size.Small"
-                             Color="@(context.Minosites == "MEGFELELT" ? Color.Success : Color.Error)" />
-                </MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Color="Color.Error"
-                                   Size="Size.Small"
-                                   OnClick="() => TorolMeresiPont(context)" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+        @foreach (var helyisegCsoport in MeresiPontok
+            .GroupBy(p => string.IsNullOrWhiteSpace(p.HelyisegNev) ? "(Helyiség nélkül)" : p.HelyisegNev)
+            .OrderBy(g => g.Key))
+        {
+            @* Helyiség fejléc *@
+            <MudPaper Class="pa-2 mb-1 mt-3" Style="background:#f5f5f5;" Elevation="0">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Room" Size="Size.Small" Color="Color.Primary" />
+                    <MudText Typo="Typo.subtitle2"><b>@helyisegCsoport.Key</b> – @helyisegCsoport.Count() mérési pont</MudText>
+                </MudStack>
+            </MudPaper>
+
+            <MudTable Items="@helyisegCsoport.ToList()" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-2">
+                <HeaderContent>
+                    <MudTh Style="width: 80px;">Sorszám</MudTh>
+                    <MudTh Style="width: 250px;">Mérési pont helye</MudTh>
+                    <MudTh Style="width: 130px;">MÓD / OSZTÁLY</MudTh>
+                    <MudTh Style="width: 150px;">Túláramv. Helye</MudTh>
+                    <MudTh Style="width: 180px;">Túláramv. Típusa</MudTh>
+                    <MudTh Style="width: 80px;">ÁVK</MudTh>
+                    <MudTh Style="width: 100px;">PEΩ foly.</MudTh>
+                    <MudTh Style="width: 120px;">ÉRTÉK [Ω]</MudTh>
+                    <MudTh Style="width: 140px;">Minősítés</MudTh>
+                    <MudTh Style="width: 60px;"></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Sorszám">
+                        <MudText><strong>@context.Sorszam.</strong></MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Mérési pont">
+                        <MudTextField @bind-Value="context.MeresiPontHelye"
+                                      Variant="Variant.Text"
+                                      Margin="Margin.Dense"
+                                      Lines="2"
+                                      Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24a" />
+                    </MudTd>
+                    <MudTd DataLabel="MÓD / OSZTÁLY">
+                        <MudSelect @bind-Value="context.Modszer"
+                                   Variant="Variant.Text"
+                                   Margin="Margin.Dense"
+                                   Dense="true">
+                            <MudSelectItem Value="@("")">-- Válassz --</MudSelectItem>
+                            @foreach (var modOsztaly in _modOsztalyok)
+                            {
+                                <MudSelectItem Value="@modOsztaly.Nev">@modOsztaly.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudTd>
+                    <MudTd DataLabel="Túláramv. Helye">
+                        <MudAutocomplete T="string"
+                                         @bind-Value="context.TularamvedelemHelye"
+                                         SearchFunc="@SearchTularamvedelemHelye"
+                                         Variant="Variant.Text"
+                                         Margin="Margin.Dense"
+                                         Placeholder="EO3"
+                                         Clearable="true"
+                                         ResetValueOnEmptyText="false"
+                                         CoerceText="true"
+                                         CoerceValue="false" />
+                    </MudTd>
+                    <MudTd DataLabel="Túláramv. Típusa">
+                        <MudAutocomplete T="string"
+                                         Value="@context.TularamvedelemTipusa"
+                                         ValueChanged="@((string val) => OnTularamvedelemTipusaChanged(context, val))"
+                                         SearchFunc="@SearchTularamvedelemTipusa"
+                                         Variant="Variant.Text"
+                                         Margin="Margin.Dense"
+                                         Placeholder="TDK-C16"
+                                         Clearable="true"
+                                         ResetValueOnEmptyText="false"
+                                         CoerceText="true"
+                                         CoerceValue="false" />
+                    </MudTd>
+                    <MudTd DataLabel="ÁVK">
+                        <MudCheckBox @bind-Value="context.AVKCsatolva"
+                                     Color="Color.Success"
+                                     Dense="true" />
+                    </MudTd>
+                    <MudTd DataLabel="PEΩ foly.">
+                        <MudTextField @bind-Value="context.PEFolytOhm"
+                                      Variant="Variant.Text"
+                                      Margin="Margin.Dense"
+                                      Placeholder="0.35Ω" />
+                    </MudTd>
+                    <MudTd DataLabel="ÉRTÉK [Ω]">
+                        <MudNumericField Value="@context.MertHurokimpedancia"
+                                         ValueChanged="@((decimal? val) => OnHurokimpedanciaChanged(context, val))"
+                                         Variant="Variant.Text"
+                                         Margin="Margin.Dense"
+                                         Min="0"
+                                         Step="0.01m"
+                                         Placeholder="2.5" />
+                    </MudTd>
+                    <MudTd DataLabel="Minősítés">
+                        <MudChip T="string"
+                                 Text="@context.Minosites"
+                                 Size="Size.Small"
+                                 Color="@(context.Minosites == "MEGFELELT" ? Color.Success : Color.Error)" />
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       OnClick="() => TorolMeresiPont(context)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
     }
     else
     {
@@ -159,9 +175,98 @@
             Összesen: <strong>@MeresiPontok.Count</strong> mérési pont
         </MudText>
     }
+
+    @* === HELYISÉG VÁLASZTÓ === *@
+    <MudGrid Class="mb-3">
+        <MudItem xs="12" md="4">
+            <MudAutocomplete T="string"
+                             @bind-Value="_aktualisHelyisegNev"
+                             Label="Aktív helyiség"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             SearchFunc="@HelyisegKereses"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             Clearable="true"
+                             Placeholder="Válassz vagy írd be..."
+                             ResetValueOnEmptyText="false"
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.Room" />
+        </MudItem>
+        <MudItem xs="12" md="8" Class="d-flex align-center">
+            @if (!string.IsNullOrEmpty(_aktualisHelyisegNev))
+            {
+                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Room">
+                    Új sorok ide kerülnek: <b>@_aktualisHelyisegNev</b>
+                </MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                    Nincs helyiség kiválasztva
+                </MudChip>
+            }
+        </MudItem>
+    </MudGrid>
+
+    @* Gyors helyiség váltó gombok *@
+    @{
+        var hasznaltHelyisegek = MeresiPontok
+            .Where(p => !string.IsNullOrWhiteSpace(p.HelyisegNev))
+            .Select(p => p.HelyisegNev)
+            .Distinct()
+            .ToList();
+    }
+    @if (hasznaltHelyisegek.Any())
+    {
+        <MudStack Row="true" Spacing="1" Class="mb-3 flex-wrap">
+            <MudText Typo="Typo.caption" Class="mr-2 align-self-center">Gyors váltás:</MudText>
+            @foreach (var hely in hasznaltHelyisegek)
+            {
+                <MudButton Size="Size.Small"
+                           Variant="@(_aktualisHelyisegNev == hely ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           OnClick="@(() => _aktualisHelyisegNev = hely)">
+                    @hely (@MeresiPontok.Count(p => p.HelyisegNev == hely) db)
+                </MudButton>
+            }
+            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => _aktualisHelyisegNev = "")">
+                Új helyiség
+            </MudButton>
+        </MudStack>
+    }
+
+    @* === OCR IMPORT === *@
+    <MudDivider Class="my-3" />
+    <MudText Typo="Typo.subtitle2" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Size="Size.Small" Class="mr-1" />
+        Mérési táblázat importálása (PDF / kép)
+    </MudText>
+
+    @if (_ocrFeldolgozas)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">OCR feldolgozás folyamatban...</MudText>
+    }
+
+    <MudFileUpload T="IBrowserFile"
+                   FilesChanged="OcrImportAsync"
+                   Accept=".pdf,.jpg,.jpeg,.png"
+                   Disabled="_ocrFeldolgozas">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.Upload"
+                       Disabled="_ocrFeldolgozas">
+                @(_ocrFeldolgozas ? "Feldolgozás..." : "Fájl feltöltése és felismerés")
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
 </MudPaper>
 
-@code {
+    @code {
     [Parameter] public List<MeresiPontSor> MeresiPontok { get; set; } = new();
     [Parameter] public string RendszerTipus { get; set; } = "TN";
     [Parameter] public EventCallback<string> RendszerTipusChanged { get; set; }
@@ -171,6 +276,7 @@
 
     private string _lokalisRendszerTipus = "TN";
     private string _elozoRendszerTipus = "";
+    private string _aktualisHelyisegNev = "";
 
     protected override void OnParametersSet()
     {
@@ -215,7 +321,7 @@
     {
         if (string.IsNullOrWhiteSpace(value))
             return _tularamvedelemHelyek;
-        
+
         return _tularamvedelemHelyek
             .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase))
             .OrderBy(h => h);
@@ -225,7 +331,7 @@
     {
         if (string.IsNullOrWhiteSpace(value))
             return _tularamvedelemTipusok.Select(t => t.Nev);
-        
+
         return _tularamvedelemTipusok
             .Where(t => t.Nev.Contains(value, StringComparison.OrdinalIgnoreCase))
             .Select(t => t.Nev)
@@ -254,7 +360,7 @@
             );
             pont.ErtekOhm = pont.MertHurokimpedancia.Value.ToString("F2");
         }
-        
+
         await OnChange.InvokeAsync();
         StateHasChanged();
     }
@@ -262,16 +368,17 @@
     private void UjMeresiPont()
     {
         var ujSorszam = MeresiPontok.Count + 1;
-        var alapModszer = _modOsztalyok.FirstOrDefault()?.Nev ?? "I/0Ω";
-        
+        var alapModszer = _modOsztalyok.FirstOrDefault()?.Nev ?? "I/1";
+
         MeresiPontok.Add(new MeresiPontSor
         {
             Sorszam = ujSorszam,
             Modszer = alapModszer,
             AVKCsatolva = false,
-            Minosites = "MEGFELELT"
+            Minosites = "MEGFELELT",
+            HelyisegNev = _aktualisHelyisegNev   // ← ÚJ
         });
-        
+
         _ = OnChange.InvokeAsync();
     }
 
@@ -286,12 +393,88 @@
     private async Task TorolMeresiPont(MeresiPontSor pont)
     {
         MeresiPontok.Remove(pont);
-        
+
         for (int i = 0; i < MeresiPontok.Count; i++)
         {
             MeresiPontok[i].Sorszam = i + 1;
         }
-        
+
         await OnChange.InvokeAsync();
+    }
+
+    private async Task<IEnumerable<string>> HelyisegKereses(string value, CancellationToken token)
+    {
+        var result = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(value))
+            return result;
+
+        result = _tularamvedelemHelyek
+            .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(h => h)
+            .ToList();
+
+        return result;
+    }
+
+    private bool _ocrFeldolgozas = false;
+
+    private async Task OcrImportAsync(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        _ocrFeldolgozas = true;
+        StateHasChanged();
+
+        try
+        {
+            // Fájl tartalmát előre kimentjük byte[]-ba
+            byte[] fileBytes;
+            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
+            using (var ms = new MemoryStream())
+            {
+                await stream.CopyToAsync(ms);
+                fileBytes = ms.ToArray();
+            }
+
+            // Új, friss MemoryStream-et adunk a service-nek
+            using var buffer = new MemoryStream(fileBytes);
+            var importAdatok = await OcrService.FeldolgozAsync(buffer, file.Name, "HVM");
+
+            if (importAdatok.MeresiPontok.Any())
+            {
+                int sorszam = MeresiPontok.Count + 1;
+                foreach (var pont in importAdatok.MeresiPontok)
+                {
+                    pont.Sorszam = sorszam++;
+                    pont.HelyisegNev = _aktualisHelyisegNev;
+                    MeresiPontok.Add(pont);
+                }
+                await OnChange.InvokeAsync();
+                StateHasChanged();
+                Snackbar.Add($"{importAdatok.MeresiPontok.Count} mérési pont importálva!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Nem sikerült mérési pontokat felismerni.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"OCR hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ocrFeldolgozas = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleOcrResult(string ocrResult)
+    {
+        // TODO: Implementáld az OCR eredményének feldolgozását
+        // Például: új mérési pontok létrehozása az OCR-ből kinyert adatok alapján
+
+        await Task.CompletedTask;
     }
 }

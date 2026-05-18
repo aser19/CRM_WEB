@@ -6,6 +6,8 @@
 @inject IUgyfelService UgyfelService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ITenantService TenantService
+@inject ICegService CegService
 
 <PageTitle>Telephelyek</PageTitle>
 
@@ -22,7 +24,27 @@
     <MudDataGrid T="Telephely" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
             <PropertyColumn Property="t => t.Nev" Title="Név" />
-            <PropertyColumn Property="t => t.Ugyfel!.Nev" Title="Ügyfél" />
+            <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(t => t.Ugyfel?.Nev ?? "")">
+                <CellTemplate>
+                    <div>
+                        <div>@(context.Item.Ugyfel?.Nev ?? "-")</div>
+                        @if (_elerhetoCegek.Count > 1 && context.Item.Ugyfel != null)
+                        {
+                            var szin = GetCegSzin(context.Item.Ugyfel.CegId);
+                            var rovidites = GetCegRovidites(context.Item.Ugyfel.CegId);
+                            var cegNev = GetCegNev(context.Item.Ugyfel.CegId);
+                            <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Label="true">
+                                    @rovidites
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="t => t.Cim" Title="Cím" />
             <PropertyColumn Property="t => t.Kapcsolattarto" Title="Kapcsolattartó" />
             <PropertyColumn Property="t => t.Telefon" Title="Telefon" />
@@ -86,7 +108,48 @@
         : _lista.Where(t => (t.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
                             (t.Cim?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    protected override async Task OnInitializedAsync() { await BetoltesAsync(); _ugyfelek = await UgyfelService.GetAllAsync(); }
+    private List<Ceg> _elerhetoCegek = new();
+
+    private static readonly string[] _cegSzinek =
+    [
+        "#1976D2", "#F57C00", "#388E3C", "#7B1FA2", "#C62828", "#00838F",
+    ];
+
+    private string GetCegSzin(int cegId)
+    {
+        if (_elerhetoCegek.Count <= 1) return "";
+        var index = _elerhetoCegek.FindIndex(c => c.Id == cegId);
+        return _cegSzinek[Math.Max(0, index) % _cegSzinek.Length];
+    }
+
+    private string GetCegRovidites(int cegId)
+    {
+        var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == cegId);
+        if (ceg == null) return "?";
+        return ceg.MatricaElotag
+            ?? new string(ceg.Nev.Where(char.IsLetterOrDigit).Take(3).ToArray()).ToUpper();
+    }
+
+    private string GetCegNev(int cegId)
+        => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+        _ugyfelek = await UgyfelService.GetAllAsync();
+
+        // Multi-tenant cég badge betöltés
+        var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+        if (elerhhetoCegIds.Count > 1)
+        {
+            var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+            _elerhetoCegek = osszesCeg
+                .Where(c => elerhhetoCegIds.Contains(c.Id))
+                .OrderBy(c => c.Id == TenantService.GetCurrentCegId() ? 0 : 1)
+                .ThenBy(c => c.Nev)
+                .ToList();
+        }
+    }
 
     private async Task BetoltesAsync() { _betoltes = true; _lista = await TelephelyService.GetAllAsync(); _betoltes = false; }
 

@@ -44,7 +44,27 @@
                  Striped="true"
                  Loading="_betoltes">
         <Columns>
-            <PropertyColumn Property="u => u.Nev" Title="Név" />
+            <TemplateColumn Title="Név" Sortable="true" SortBy="@(u => u.Nev ?? "")">
+                <CellTemplate>
+                    <div>
+                        <div>@(context.Item.Nev ?? "-")</div>
+                        @if (_elerhetoCegek.Count > 1)
+                        {
+                            var szin = GetCegSzin(context.Item.CegId);
+                            var rovidites = GetCegRovidites(context.Item.CegId);
+                            var cegNev = GetCegNev(context.Item.CegId);
+                            <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Label="true">
+                                    @rovidites
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="u => u.Adoszam" Title="Adószám" />
             <PropertyColumn Property="u => u.UgyfelTipus" Title="Típus" />
             <TemplateColumn Title="Tevékenység">
@@ -390,6 +410,31 @@
         CloseButton = true
     };
 
+    private List<Ceg> _elerhetoCegek = new();
+
+    private static readonly string[] _cegSzinek =
+    [
+        "#1976D2", "#F57C00", "#388E3C", "#7B1FA2", "#C62828", "#00838F",
+    ];
+
+    private string GetCegSzin(int cegId)
+    {
+        if (_elerhetoCegek.Count <= 1) return "";
+        var index = _elerhetoCegek.FindIndex(c => c.Id == cegId);
+        return _cegSzinek[Math.Max(0, index) % _cegSzinek.Length];
+    }
+
+    private string GetCegRovidites(int cegId)
+    {
+        var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == cegId);
+        if (ceg == null) return "?";
+        return ceg.MatricaElotag
+            ?? new string(ceg.Nev.Where(char.IsLetterOrDigit).Take(3).ToArray()).ToUpper();
+    }
+
+    private string GetCegNev(int cegId)
+        => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
+
     private IEnumerable<Ugyfel> _szurtUgyfelek =>
         string.IsNullOrWhiteSpace(_kereses)
             ? _ugyfelek
@@ -410,6 +455,17 @@
             // Nem admin: saját cég betöltése
             var cegId = TenantService.GetCurrentCegId();
             _sajatCeg = await CegService.GetByIdAsync(cegId);
+        }
+        // Multi-tenant cég badge betöltés
+        var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+        if (elerhhetoCegIds.Count > 1)
+        {
+            var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+            _elerhetoCegek = osszesCeg
+                .Where(c => elerhhetoCegIds.Contains(c.Id))
+                .OrderBy(c => c.Id == TenantService.GetCurrentCegId() ? 0 : 1)
+                .ThenBy(c => c.Nev)
+                .ToList();
         }
         await BetoltesAsync();
     }

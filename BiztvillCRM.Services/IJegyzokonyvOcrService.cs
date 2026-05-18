@@ -48,10 +48,10 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
     {
         var importAdatok = new JegyzokonyvImportAdatok();
 
-        // Bemásoljuk a teljes tartalmat egy saját MemoryStream-be,
-        // amit bármikor újra lehet olvasni
-        var buffer = new MemoryStream();
-        await fileStream.CopyToAsync(buffer);
+        // Teljes tartalom byte[]-ba mentve – így bármikor új stream készíthető
+        var ms = new MemoryStream();
+        await fileStream.CopyToAsync(ms);
+        var fileBytes = ms.ToArray();
 
         try
         {
@@ -67,9 +67,9 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             {
                 _logger.LogInformation("📋 OCR model használata: {ModelId}", modelId);
 
-                buffer.Position = 0;
+                using var buffer1 = new MemoryStream(fileBytes);
                 var operation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed, modelId, buffer);
+                    WaitUntil.Completed, modelId, buffer1);
 
                 result = operation.Value;
             }
@@ -78,9 +78,10 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 _logger.LogWarning("⚠️ Custom model '{ModelId}' nem található, fallback: {FallbackModel}",
                     modelId, _defaultFallbackModel);
 
-                buffer.Position = 0;
+                // Friss stream a fallback híváshoz
+                using var buffer2 = new MemoryStream(fileBytes);
                 var operation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed, _defaultFallbackModel, buffer);
+                    WaitUntil.Completed, _defaultFallbackModel, buffer2);
 
                 result = operation.Value;
                 _logger.LogInformation("✅ Fallback model sikeresen használva");
@@ -95,9 +96,9 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
                 _logger.LogWarning("⚠️ Kevés táblázat ({TableCount}), újrapróbálás prebuilt-layout-tal",
                     result.Tables.Count);
 
-                buffer.Position = 0;
+                using var bufferRetry = new MemoryStream(fileBytes);
                 var retryOperation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Completed, "prebuilt-layout", buffer);
+                    WaitUntil.Completed, "prebuilt-layout", bufferRetry);
 
                 result = retryOperation.Value;
                 _logger.LogInformation("📋 Újrapróbálás után: {TableCount} táblázat", result.Tables.Count);
@@ -110,12 +111,17 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             {
                 _logger.LogInformation("🔍 Táblázatok feldolgozása...");
 
-                // AVK modelnél először AVK-specifikus feldolgozás
                 if (modelId == "AVK")
                 {
                     var avkSikerult = FeldolgozAvkTablazat(result.Tables, importAdatok);
                     if (!avkSikerult)
                         FeldolgozEszkozTablazat(result.Tables, importAdatok);
+                }
+                else if (modelId == "HVM")
+                {
+                    var hvmSikerult = FeldolgozMeresiPontTablazat(result.Tables, importAdatok);
+                    if (!hvmSikerult)
+                        _logger.LogWarning("⚠️ Nem sikerült HVM táblázatot felismerni.");
                 }
                 else
                 {
@@ -136,7 +142,7 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
         }
         finally
         {
-            await buffer.DisposeAsync();
+            await ms.DisposeAsync();
         }
     }
 
@@ -890,6 +896,96 @@ public class JegyzokonyvOcrService : IJegyzokonyvOcrService
             return adatok.AvkSorok.Any();
         }
         return false;
+    }
+
+    private bool FeldolgozMeresiPontTablazat(IReadOnlyList<DocumentTable> tables, JegyzokonyvImportAdatok adatok)
+    {
+        foreach (var table in tables)
+        {
+            var fejlecSor = table.Cells
+                .Where(c => c.RowIndex == 0)
+                .OrderBy(c => c.ColumnIndex)
+                .Select(c => c.Content?.Trim().ToLowerInvariant() ?? "")
+                .ToList();
+
+            // HVM mérési pont táblázat felismerése: tartalmaz "mérési pont" vagy "hurokimpedancia" vagy "túláramvédelem" fejlécet
+            bool isHvmTabla = fejlecSor.Any(h =>
+                h.Contains("mérési pont") || h.Contains("meresi pont") ||
+                h.Contains("hurokimpedancia") || h.Contains("hurok") ||
+                h.Contains("túláramvédelem") || h.Contains("tularamvedelem") ||
+                h.Contains("pe foly") || h.Contains("pefoly"));
+
+            if (!isHvmTabla)
+                continue;
+
+            _logger.LogInformation("✅ HVM mérési pont táblázat felismerve ({OszlopSzam} oszlop, {SorSzam} sor)",
+                table.ColumnCount, table.RowCount);
+
+            // Fejléc oszlopok indexének meghatározása
+            int colHely = -1, colModszer = -1, colTularamHely = -1, colTularamTipus = -1;
+            int colPeFoly = -1, colErtek = -1, colMinosites = -1, colMegjegyzes = -1;
+
+            for (int i = 0; i < fejlecSor.Count; i++)
+            {
+                var h = fejlecSor[i];
+                if (h.Contains("mérési pont") || h.Contains("meresi pont") || h.Contains("hely") && colHely < 0) colHely = i;
+                else if (h.Contains("módszer") || h.Contains("modszer") || h == "m" || h.Contains("mérési módszer")) colModszer = i;
+                else if ((h.Contains("helye") || h.Contains("táblaszám")) && colTularamHely < 0) colTularamHely = i;
+                else if (h.Contains("típus") || h.Contains("tipus") || h.Contains("karak")) colTularamTipus = i;
+                else if (h.Contains("pe foly") || h.Contains("pefoly") || h.Contains("védővezetők")) colPeFoly = i;
+                else if (h.Contains("érték") || h.Contains("ertek") || h.Contains("hurok") || h.Contains("zs")) colErtek = i;
+                else if (h.Contains("minős") || h.Contains("minős") || h.Contains("eredm")) colMinosites = i;
+                else if (h.Contains("megjegyz")) colMegjegyzes = i;
+            }
+
+            // Ha nincs egyértelmű hely-oszlop, próbáljuk az első oszlopot
+            if (colHely < 0) colHely = 0;
+
+            int sorszam = 1;
+            for (int rowIdx = 1; rowIdx < table.RowCount; rowIdx++)
+            {
+                var cellak = table.Cells
+                    .Where(c => c.RowIndex == rowIdx)
+                    .OrderBy(c => c.ColumnIndex)
+                    .ToList();
+
+                if (!cellak.Any()) continue;
+
+                string Cella(int col) => col >= 0
+                    ? cellak.FirstOrDefault(c => c.ColumnIndex == col)?.Content?.Trim() ?? ""
+                    : "";
+
+                var hely = Cella(colHely);
+                if (string.IsNullOrWhiteSpace(hely)) continue;
+
+                var sor = new MeresiPontSor
+                {
+                    Sorszam           = sorszam++,
+                    MeresiPontHelye   = hely,
+                    Modszer           = Cella(colModszer),
+                    TularamvedelemHelye  = Cella(colTularamHely),
+                    TularamvedelemTipusa = Cella(colTularamTipus),
+                    PEFolytOhm        = Cella(colPeFoly),
+                    ErtekOhm          = Cella(colErtek),
+                    Minosites         = string.IsNullOrWhiteSpace(Cella(colMinosites)) ? "MEGFELELT" : Cella(colMinosites),
+                    Megjegyzes        = Cella(colMegjegyzes),
+                };
+
+                // Hurokimpedancia numerikus parse
+                if (decimal.TryParse(sor.ErtekOhm.Replace(",", "."),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var zsVal))
+                {
+                    sor.MertHurokimpedancia = zsVal;
+                }
+
+                adatok.MeresiPontok.Add(sor);
+                _logger.LogInformation("  ✅ Mérési pont: {Hely} | Zs={Ertek} | {Min}",
+                    sor.MeresiPontHelye, sor.ErtekOhm, sor.Minosites);
+            }
+        }
+
+        return adatok.MeresiPontok.Any();
     }
 }
 
