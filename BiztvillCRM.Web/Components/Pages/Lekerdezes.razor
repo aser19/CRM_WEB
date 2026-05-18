@@ -162,7 +162,33 @@
                                     </MudTd>
                                     <MudTd>@context.Darabszam</MudTd>
                                     <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
-                                    <MudTd>@(context.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</MudTd>
+                                    <MudTd>
+                                        <div>@(context.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</div>
+                                        @if (context.EgyediLejaratok.Any())
+                                        {
+                                            <MudTooltip Placement="Placement.Left">
+                                                <TooltipContent>
+                                                    @foreach (var r in context.EgyediLejaratok)
+                                                    {
+                                                        <div>@r.EszkozNev: @r.LejaratDatum.ToString("yyyy.MM.dd")
+                                                             @if (!string.IsNullOrEmpty(r.Megjegyzes))
+                                                             {
+                                                                 <span> (@r.Megjegyzes)</span>
+                                                             }
+                                                         </div>
+                                                    }
+                                                </TooltipContent>
+                                                <ChildContent>
+                                                    <MudChip T="string" Size="Size.Small"
+                                                             Color="Color.Warning"
+                                                             Icon="@Icons.Material.Filled.Warning"
+                                                             Class="mt-1">
+                                                        @context.EgyediLejaratok.Count egyedi lejárat
+                                                    </MudChip>
+                                                </ChildContent>
+                                            </MudTooltip>
+                                        }
+                                    </MudTd>
                                     <MudTd>
                                         <MudChip T="string" Size="Size.Small"
                                                  Color="@(ervenyes ? Color.Success : Color.Error)">

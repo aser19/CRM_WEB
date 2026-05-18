@@ -126,7 +126,8 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                             Darabszam = h.Darabszam,
                             Datum = h.Datum,
                             LejaratDatum = h.LejaratDatum,
-                            KozbensoVizsgalatok = kozbensoVizsgalatok
+                            KozbensoVizsgalatok = kozbensoVizsgalatok,
+                            EgyediLejaratok = h.EgyediLejaratokLista
                         };
                     }).ToList(),
                 Karbantartasok = karbantartasok

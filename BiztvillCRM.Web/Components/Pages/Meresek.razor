@@ -315,13 +315,35 @@
     private HashSet<int> _meresIdsWithMelleklet = new();
 
     // CSERE — a 264-267. sorokat cseréld le erre:
-    private IEnumerable<Meres> _szurtLista =>
-        _lista
-        .Where(m => !_mellekletMeresIds.Contains(m.Id))
-        .Where(m => string.IsNullOrWhiteSpace(_kereses) ||
-            (m.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (m.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (m.Eredmeny?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IEnumerable<Meres> _szurtLista
+    {
+        get
+        {
+            var ma = DateTime.Today;
+            var hatarNap = ma.AddDays(60);
+
+            IEnumerable<Meres> lista = _lista.Where(m => !_mellekletMeresIds.Contains(m.Id));
+
+            if (_szuroParam == "lejaro")
+                lista = lista.Where(m => m.KovetkezoDatum.HasValue
+                    && m.KovetkezoDatum.Value > ma
+                    && m.KovetkezoDatum.Value <= hatarNap);
+            else if (_szuroParam == "lejart")
+                lista = lista.Where(m => m.KovetkezoDatum.HasValue
+                    && m.KovetkezoDatum.Value < ma);
+
+            if (!string.IsNullOrWhiteSpace(_kereses))
+                lista = lista.Where(m =>
+                    (m.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (m.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (m.Eredmeny?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+            return lista;
+        }
+    }
+
+    [SupplyParameterFromQuery(Name = "szuro")]
+    private string? _szuroParam { get; set; }
 
     // OnInitializedAsync-ban, BetoltesAsync után:
     protected override async Task OnInitializedAsync()

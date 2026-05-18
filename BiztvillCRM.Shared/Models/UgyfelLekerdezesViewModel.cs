@@ -36,6 +36,9 @@ public class HitelesitesOsszefoglalo
 
     /// <summary>Ha van hitelesítési csoport rendelve, itt jönnek a közbenső vizsgálatok</summary>
     public List<CsoportTagLejaratReszlet> KozbensoVizsgalatok { get; set; } = new();
+
+    /// <summary>Ha egyes eszközöknek eltérő lejáratuk van (pl. javítás után), itt jönnek</summary>
+    public List<HitelesitesReszlet> EgyediLejaratok { get; set; } = new();
 }
 
 public class KarbantartasOsszefoglalo

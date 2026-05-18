@@ -587,11 +587,34 @@
         ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value) 
         : Enumerable.Empty<Telephely>();
 
-    private IEnumerable<Hitelesites> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
-        : _lista.Where(h => 
-            (h.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (h.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+    private IEnumerable<Hitelesites> _szurtLista
+    {
+        get
+        {
+            var ma = DateTime.Today;
+            var hatarNap = ma.AddDays(_lejaroDays);
+
+            IEnumerable<Hitelesites> lista = _lista;
+
+            // URL szűrő
+            if (_szuroParam == "lejaro")
+                lista = lista.Where(h => h.LejaratDatum.HasValue
+                    && h.LejaratDatum.Value > ma
+                    && h.LejaratDatum.Value <= hatarNap);
+            else if (_szuroParam == "lejart")
+                lista = lista.Where(h => h.LejaratDatum.HasValue
+                    && h.LejaratDatum.Value < ma);
+
+            // Szöveges keresés
+            if (!string.IsNullOrWhiteSpace(_kereses))
+                lista = lista.Where(h =>
+                    (h.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (h.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+            return lista;
+        }
+    }
 
     // Hitelesítési csoport
     private List<HitelesitesCsoport> _csoportok = new();
@@ -603,6 +626,11 @@
             c.FoEszkozTipusId == _szerkesztesAlatt.EszkozTipusId ||
             c.Tagok.Any(t => t.EszkozTipusId == _szerkesztesAlatt.EszkozTipusId));
     private List<CsoportTagSor> _csoportTagSorok = new();
+
+    [SupplyParameterFromQuery(Name = "szuro")]
+    private string? _szuroParam { get; set; }
+
+    private static readonly int _lejaroDays = 60;
 
     protected override async Task OnInitializedAsync()
     {

@@ -14,6 +14,7 @@
 @inject IModulJogosultsagService ModulService
 @inject NavigationManager Navigation
 @inject IMellekletJegyzokonyvService MellekletJegyzokonyvService
+@inject IKarbantartasService KarbantartasService
 
 <PageTitle>Dashboard - Biztovill CRM</PageTitle>
 
@@ -71,7 +72,7 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (30 nap)</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (60 nap)</MudText>
                             <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.VillanosMeres).LejaroMeresekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
@@ -144,7 +145,7 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (30 nap)</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (60 nap)</MudText>
                             <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.Benzinkuttechnika).LejaroHitelesitesekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
@@ -212,7 +213,7 @@ else
                 </MudPaper>
             </MudItem>
 
-            <!-- Lejáró oktatások (30 nap) -->
+            <!-- Lejáró oktatások (60 nap) -->
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Class="@GetStatCardClass(_munkavedelemStat.LejaroOktatasokSzama, true)" 
                           Elevation="2" 
@@ -220,7 +221,7 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (30 nap)</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (60 nap)</MudText>
                             <MudText Typo="Typo.h5">@_munkavedelemStat.LejaroOktatasokSzama</MudText>
                         </MudStack>
                         <MudSpacer />
@@ -251,129 +252,145 @@ else
     @* Hamarosan lejáró elemek - dinamikusan modulok alapján *@
     <MudGrid Class="mt-4">
         @{
-            var lejaroBoxCount = (_hasModulMeresek ? 1 : 0) + (_hasModulHitelesitesek ? 1 : 0) + (_hasModulMunkavedelem ? 1 : 0);
+            var lejaroBoxCount = (_hasModulMeresek ? 1 : 0) + (_hasModulHitelesitesek ? 1 : 0) + (_hasModulMunkavedelem ? 1 : 0) + (_hasModulKarbantartasok ? 1 : 0);
             var boxSize = lejaroBoxCount switch
             {
                 1 => 12,
                 2 => 6,
-                _ => 4
+                3 => 4,
+                _ => 3
             };
         }
 
         @if (_hasModulMeresek)
         {
             <MudItem xs="12" md="@boxSize">
-                <MudPaper Class="pa-4 stat-card" Elevation="2" @onclick="@(() => NavigateTo("/meresek?szuro=lejaro"))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Color="Color.Primary" Class="mr-2" />
-                        <MudText Typo="Typo.h6">Hamarosan lejáró mérések</MudText>
-                        <MudSpacer />
-                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">@_lejaroMeresek.Count db</MudChip>
-                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
-                    </MudStack>
+                <div class="lejaro-card-wrapper">
+                    <MudPaper Class="pa-4 stat-card lejaro-card" Elevation="2"
+                              @onclick="@(() => NavigateTo("/meresek?szuro=lejaro"))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Color="Color.Primary" Class="mr-2" />
+                            <MudText Typo="Typo.h6">Hamarosan lejáró mérések</MudText>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@_lejaroMeresek.Count db</MudChip>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
+                        </MudStack>
+                    </MudPaper>
                     @if (_lejaroMeresek.Any())
                     {
-                        <MudList T="Meres" Clickable="true" Dense="true">
-                            @foreach (var meres in _lejaroMeresek.Take(5))
+                        <div class="lejaro-popup mud-paper mud-elevation-8 pa-2">
+                            @foreach (var meres in _lejaroMeresek.Take(8))
                             {
-                                <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning"
-                                             OnClick="@(() => NavigateToMeres(meres.Id))">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Style="width:100%">
-                                        <MudText Typo="Typo.body2">@meres.Ugyfel?.Nev</MudText>
-                                        <MudSpacer />
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">
-                                            @meres.KovetkezoDatum?.ToString("MM.dd")
-                                        </MudChip>
-                                    </MudStack>
-                                </MudListItem>
+                                <div class="lejaro-popup-sor" @onclick="@(() => NavigateToMeres(meres.Id))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" Class="mr-1" />
+                                    <span class="lejaro-popup-nev">@meres.Ugyfel?.Nev</span>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-auto">
+                                        @meres.KovetkezoDatum?.ToString("MM.dd")
+                                    </MudChip>
+                                </div>
                             }
-                        </MudList>
+                        </div>
                     }
-                    else
-                    {
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                            Még nincsenek adatok.
-                        </MudAlert>
-                    }
-                </MudPaper>
+                </div>
             </MudItem>
         }
 
         @if (_hasModulHitelesitesek)
         {
             <MudItem xs="12" md="@boxSize">
-                <MudPaper Class="pa-4 stat-card" Elevation="2" @onclick="@(() => NavigateTo("/hitelesitesek?szuro=lejaro"))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" Color="Color.Secondary" Class="mr-2" />
-                        <MudText Typo="Typo.h6">Hamarosan lejáró hitelesítések</MudText>
-                        <MudSpacer />
-                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@_lejaroHitelesitesek.Count db</MudChip>
-                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
-                    </MudStack>
+                <div class="lejaro-card-wrapper">
+                    <MudPaper Class="pa-4 stat-card lejaro-card" Elevation="2"
+                              @onclick="@(() => NavigateTo("/hitelesitesek?szuro=lejaro"))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" Color="Color.Secondary" Class="mr-2" />
+                            <MudText Typo="Typo.h6">Hamarosan lejáró hitelesítések</MudText>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@_lejaroHitelesitesek.Count db</MudChip>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
+                        </MudStack>
+                    </MudPaper>
                     @if (_lejaroHitelesitesek.Any())
                     {
-                        <MudList T="Hitelesites" Clickable="true" Dense="true">
-                            @foreach (var hitelesites in _lejaroHitelesitesek.Take(5))
+                        <div class="lejaro-popup mud-paper mud-elevation-8 pa-2">
+                            @foreach (var h in _lejaroHitelesitesek.Take(8))
                             {
-                                <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning"
-                                             OnClick="@(() => NavigateToHitelesites(hitelesites.Id))">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Style="width:100%">
-                                        <MudText Typo="Typo.body2">@hitelesites.EszkozTipus?.Nev (@hitelesites.Darabszam db)</MudText>
-                                        <MudSpacer />
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">
-                                            @hitelesites.LejaratDatum?.ToString("MM.dd")
-                                        </MudChip>
-                                    </MudStack>
-                                </MudListItem>
+                                <div class="lejaro-popup-sor" @onclick="@(() => NavigateToHitelesites(h.Id))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" Class="mr-1" />
+                                    <span class="lejaro-popup-nev">@h.EszkozTipus?.Nev (@h.Darabszam db)</span>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-auto">
+                                        @h.LejaratDatum?.ToString("MM.dd")
+                                    </MudChip>
+                                </div>
                             }
-                        </MudList>
+                        </div>
                     }
-                    else
-                    {
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                            Még nincsenek adatok.
-                        </MudAlert>
-                    }
-                </MudPaper>
+                </div>
             </MudItem>
         }
 
         @if (_hasModulMunkavedelem)
         {
             <MudItem xs="12" md="@boxSize">
-                <MudPaper Class="pa-4 stat-card" Elevation="2" @onclick="@(() => NavigateTo("/munkavedelmi-oktatasok?szuro=lejaro"))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Color="Color.Tertiary" Class="mr-2" />
-                        <MudText Typo="Typo.h6">Hamarosan lejáró oktatások</MudText>
-                        <MudSpacer />
-                        <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">@_lejaroOktatasok.Count db</MudChip>
-                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
-                    </MudStack>
+                <div class="lejaro-card-wrapper">
+                    <MudPaper Class="pa-4 stat-card lejaro-card" Elevation="2"
+                              @onclick="@(() => NavigateTo("/munkavedelmi-oktatasok?szuro=lejaro"))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Color="Color.Tertiary" Class="mr-2" />
+                            <MudText Typo="Typo.h6">Hamarosan lejáró oktatások</MudText>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">@_lejaroOktatasok.Count db</MudChip>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
+                        </MudStack>
+                    </MudPaper>
                     @if (_lejaroOktatasok.Any())
                     {
-                        <MudList T="MunkavedelmiOktatas" Clickable="true" Dense="true">
-                            @foreach (var oktatas in _lejaroOktatasok.Take(5))
+                        <div class="lejaro-popup mud-paper mud-elevation-8 pa-2">
+                            @foreach (var o in _lejaroOktatasok.Take(8))
                             {
-                                <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning"
-                                             OnClick="@(() => NavigateToOktatas(oktatas.Id))">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Style="width:100%">
-                                        <MudText Typo="Typo.body2">@oktatas.Megnevezes - @oktatas.Ugyfel?.Nev</MudText>
-                                        <MudSpacer />
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">
-                                            @oktatas.KovetkezoOktatas?.ToString("MM.dd")
-                                        </MudChip>
-                                    </MudStack>
-                                </MudListItem>
+                                <div class="lejaro-popup-sor" @onclick="@(() => NavigateToOktatas(o.Id))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" Class="mr-1" />
+                                    <span class="lejaro-popup-nev">@o.Megnevezes – @o.Ugyfel?.Nev</span>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-auto">
+                                        @o.KovetkezoOktatas?.ToString("MM.dd")
+                                    </MudChip>
+                                </div>
                             }
-                        </MudList>
+                        </div>
                     }
-                    else
+                </div>
+            </MudItem>
+        }
+
+        @if (_hasModulKarbantartasok)
+        {
+            <MudItem xs="12" md="@boxSize">
+                <div class="lejaro-card-wrapper">
+                    <MudPaper Class="pa-4 stat-card lejaro-card" Elevation="2"
+                              @onclick="@(() => NavigateTo("/karbantartasok?szuro=lejaro"))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Build" Color="Color.Info" Class="mr-2" />
+                            <MudText Typo="Typo.h6">Hamarosan esedékes karbantartások</MudText>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@_lejaroKarbantartasok.Count db</MudChip>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
+                        </MudStack>
+                    </MudPaper>
+                    @if (_lejaroKarbantartasok.Any())
                     {
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                            Még nincsenek adatok.
-                        </MudAlert>
+                        <div class="lejaro-popup mud-paper mud-elevation-8 pa-2">
+                            @foreach (var k in _lejaroKarbantartasok.Take(8))
+                            {
+                                <div class="lejaro-popup-sor">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" Class="mr-1" />
+                                    <span class="lejaro-popup-nev">@k.Ugyfel?.Nev – @k.KarbantartasTipus?.Nev</span>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-auto">
+                                        @k.KovetkezoDatum?.ToString("MM.dd")
+                                    </MudChip>
+                                </div>
+                            }
+                        </div>
                     }
-                </MudPaper>
+                </div>
             </MudItem>
         }
     </MudGrid>
@@ -408,6 +425,54 @@ else
     .stat-card-danger {
         border-left-color: var(--mud-palette-error);
         background: linear-gradient(to right, rgba(244, 67, 54, 0.05), transparent);
+    }
+
+    /* Lejáró kártya – hover popup */
+    .lejaro-card-wrapper {
+        position: relative;
+    }
+
+    .lejaro-card {
+        position: relative;
+        z-index: 1;
+    }
+
+    .lejaro-popup {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        border-radius: 8px;
+        background: var(--mud-palette-surface);
+        min-width: 100%;
+    }
+
+    .lejaro-card-wrapper:hover .lejaro-popup {
+        display: block;
+    }
+
+    .lejaro-popup-sor {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        gap: 4px;
+        transition: background 0.15s;
+    }
+
+    .lejaro-popup-sor:hover {
+        background: var(--mud-palette-action-hover);
+    }
+
+    .lejaro-popup-nev {
+        font-size: 0.85rem;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
 
@@ -444,6 +509,7 @@ else
         _hasModulMeresek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Meresek);
         _hasModulHitelesitesek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Hitelesitesek);
         _hasModulMunkavedelem = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Munkavedelem);
+        _hasModulKarbantartasok = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Karbantartasok);
     }
 
     private async Task LoadDashboardDataAsync()
@@ -463,7 +529,7 @@ else
             _aktivTevekenysegek.Add(TevekenysegTipus.Munkavédelem);
 
         var ma = DateTime.Today;
-        var harmincNapMulva = ma.AddDays(30);
+        var harmincNapMulva = ma.AddDays(60);
 
         // Adatok betöltése modulok alapján
         var ugyfelek = await UgyfelService.GetAllAsync();
@@ -542,6 +608,20 @@ else
                 .ToList();
         }
 
+        if (_hasModulKarbantartasok)
+        {
+            var karbantartasok = await KarbantartasService.GetAllAsync();
+            _karbantartasokOsszesen = karbantartasok.Count;
+            _lejaroKarbantartasokSzama = karbantartasok.Count(k =>
+                k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value > ma && k.KovetkezoDatum.Value <= harmincNapMulva);
+            _lejartKarbantartasokSzama = karbantartasok.Count(k =>
+                k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value < ma);
+            _lejaroKarbantartasok = karbantartasok
+                .Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value > ma && k.KovetkezoDatum.Value <= harmincNapMulva)
+                .OrderBy(k => k.KovetkezoDatum)
+                .ToList();
+        }
+
         _betoltes = false;
     }
 
@@ -583,4 +663,9 @@ else
         public int LejaroOktatasokSzama { get; set; }
         public int LejartOktatasokSzama { get; set; }
     }
+    private bool _hasModulKarbantartasok;
+    private List<Karbantartas> _lejaroKarbantartasok = new();
+    private int _karbantartasokOsszesen;
+    private int _lejaroKarbantartasokSzama;
+    private int _lejartKarbantartasokSzama;
 }
