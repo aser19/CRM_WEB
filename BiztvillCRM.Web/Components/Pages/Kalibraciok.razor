@@ -6,6 +6,8 @@
 @inject IEszkozService EszkozService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ITenantService TenantService
+@inject ICegService CegService
 
 <PageTitle>Kalibrációk</PageTitle>
 
@@ -21,11 +23,32 @@
 
     <MudDataGrid T="Kalibracio" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
-            <TemplateColumn Title="Eszköz">
-                <CellTemplate>@(context.Item.Eszkoz?.Nev ?? "-")</CellTemplate>
+            <TemplateColumn Title="Eszköz" Sortable="true" SortBy="@(k => k.Eszkoz?.Nev ?? "")">
+                <CellTemplate>
+                    <div>
+                        <div>@(context.Item.Eszkoz?.Nev ?? "-")</div>
+                        @if (_elerhetoCegek.Count > 1 && context.Item.Eszkoz?.Ugyfel != null)
+                        {
+                            var cegId = context.Item.Eszkoz.Ugyfel.CegId;
+                            var szin = GetCegSzin(cegId);
+                            var rovidites = GetCegRovidites(cegId);
+                            var cegNev = GetCegNev(cegId);
+                            <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Label="true">
+                                    @rovidites
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </div>
+                </CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
-            <PropertyColumn Property="k => k.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
+            <PropertyColumn Property="k => k.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd"
+                SortBy="@(k => k.KovetkezoDatum ?? DateTime.MaxValue)"
+                InitialDirection="SortDirection.Ascending" />
             <PropertyColumn Property="k => k.Bizonyitvany" Title="Bizonyítvány" />
             <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
             <TemplateColumn Title="Sikeres">
@@ -81,6 +104,8 @@
     private Kalibracio? _szerkesztesAlatt;
     private DateTime? _datum, _kovetkezoDatum;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+    private List<Ceg> _elerhetoCegek = new();
+    private int _cegId;
 
     private IEnumerable<Kalibracio> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
         : _lista.Where(k => (k.Eszkoz?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -90,6 +115,19 @@
     {
         try
         {
+            _cegId = TenantService.GetCurrentCegId();
+
+            var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+            if (elerhhetoCegIds.Count > 1)
+            {
+                var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+                _elerhetoCegek = osszesCeg
+                    .Where(c => elerhhetoCegIds.Contains(c.Id))
+                    .OrderBy(c => c.Id == _cegId ? 0 : 1)
+                    .ThenBy(c => c.Nev)
+                    .ToList();
+            }
+
             _eszkozok = await EszkozService.GetAllAsync();
             await BetoltesAsync();
         }
@@ -145,4 +183,27 @@
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         }
     }
+    // Cég badge – multi-tenant
+
+    private static readonly string[] _cegSzinek =
+    [
+        "#1976D2", "#F57C00", "#388E3C", "#7B1FA2", "#C62828", "#00838F",
+    ];
+
+    private string GetCegSzin(int cegId)
+    {
+        var index = _elerhetoCegek.FindIndex(c => c.Id == cegId);
+        return _cegSzinek[Math.Max(0, index) % _cegSzinek.Length];
+    }
+
+    private string GetCegRovidites(int cegId)
+    {
+        var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == cegId);
+        if (ceg == null) return "?";
+        return ceg.MatricaElotag
+            ?? new string(ceg.Nev.Where(char.IsLetterOrDigit).Take(3).ToArray()).ToUpper();
+    }
+
+    private string GetCegNev(int cegId)
+        => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
 }

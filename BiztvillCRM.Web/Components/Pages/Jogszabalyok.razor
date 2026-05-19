@@ -54,7 +54,7 @@
             </TemplateColumn>
             <PropertyColumn Property="j => j.Szam" Title="Szám" />
             <PropertyColumn Property="j => j.Cim" Title="Cím" />
-            <TemplateColumn Title="Terület">
+            <TemplateColumn Title="Terület" Sortable="true" SortBy="@(j => (int)j.Terulet)">
                 <CellTemplate>
                     <MudStack Row="true" Spacing="1">
                         @if (context.Item.Terulet.HasFlag(TevekenysegTipus.VillanosMeres))
@@ -73,7 +73,7 @@
                 </CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="j => j.HatalyosKezdet" Title="Hatályos (kezdet)" Format="yyyy.MM.dd" />
-            <TemplateColumn Title="Hatályos (vége)">
+            <TemplateColumn Title="Hatályos (vége)" Sortable="true" SortBy="@(j => j.HatalyosVege ?? DateTime.MaxValue)">
                 <CellTemplate>
                     @if (context.Item.HatalyosVege.HasValue)
                     {
@@ -86,7 +86,7 @@
                 </CellTemplate>
             </TemplateColumn>
             <!-- ÚJ: Megjegyzés oszlop -->
-            <TemplateColumn Title="Megj.">
+            <TemplateColumn Title="Megj." Sortable="true" SortBy="@(j => string.IsNullOrWhiteSpace(j.Megjegyzes) ? 1 : 0)">
                 <CellTemplate>
                     @if (!string.IsNullOrWhiteSpace(context.Item.Megjegyzes))
                     {
