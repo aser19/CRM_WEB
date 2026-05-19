@@ -24,9 +24,21 @@
 <MudText Typo="Typo.h4" Class="mb-4">Mérések</MudText>
 
 <MudPaper Class="pa-4">
-    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
         <MudTextField @bind-Value="_kereses" Label="Keresés (ügyfél, telephely, eredmény)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSelect T="string" @bind-Value="_datumSzuro" Label="Dátumszűrő" Clearable="true"
+                   Style="max-width:220px;" AdornmentIcon="@Icons.Material.Filled.DateRange" Adornment="Adornment.Start"
+                   Dense="true">
+            <MudSelectItem Value="@("k30")">Következő 30 nap</MudSelectItem>
+            <MudSelectItem Value="@("k90")">Következő 90 nap</MudSelectItem>
+            <MudSelectItem Value="@("k180")">Következő 180 nap</MudSelectItem>
+            <MudSelectItem Value="@("kiden")">Következő – Idén</MudSelectItem>
+            <MudSelectItem Value="@("pm30")">± 30 nap</MudSelectItem>
+            <MudSelectItem Value="@("pm90")">± 90 nap</MudSelectItem>
+            <MudSelectItem Value="@("pm180")">± 180 nap</MudSelectItem>
+            <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
+        </MudSelect>
         <MudSpacer />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új mérés</MudButton>
     </MudStack>
@@ -314,7 +326,8 @@
     private HashSet<int> _mellekletMeresIds = new();
     private HashSet<int> _meresIdsWithMelleklet = new();
 
-    // CSERE — a 264-267. sorokat cseréld le erre:
+    private string? _datumSzuro;
+
     private IEnumerable<Meres> _szurtLista
     {
         get
@@ -331,6 +344,20 @@
             else if (_szuroParam == "lejart")
                 lista = lista.Where(m => m.KovetkezoDatum.HasValue
                     && m.KovetkezoDatum.Value < ma);
+
+            // Dátumintervallum szűrő
+            lista = _datumSzuro switch
+            {
+                "k30" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma && m.KovetkezoDatum.Value <= ma.AddDays(30)),
+                "k90" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma && m.KovetkezoDatum.Value <= ma.AddDays(90)),
+                "k180" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma && m.KovetkezoDatum.Value <= ma.AddDays(180)),
+                "kiden" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma && m.KovetkezoDatum.Value.Year == ma.Year),
+                "pm30" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma.AddDays(-30) && m.KovetkezoDatum.Value <= ma.AddDays(30)),
+                "pm90" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma.AddDays(-90) && m.KovetkezoDatum.Value <= ma.AddDays(90)),
+                "pm180" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value >= ma.AddDays(-180) && m.KovetkezoDatum.Value <= ma.AddDays(180)),
+                "iden" => lista.Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum.Value.Year == ma.Year),
+                _ => lista
+            };
 
             if (!string.IsNullOrWhiteSpace(_kereses))
                 lista = lista.Where(m =>
