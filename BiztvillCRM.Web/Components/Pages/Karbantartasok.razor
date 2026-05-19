@@ -14,9 +14,21 @@
 <MudText Typo="Typo.h4" Class="mb-4">Karbantartások</MudText>
 
 <MudPaper Class="pa-4">
-    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
         <MudTextField @bind-Value="_kereses" Label="Keresés (ügyfél, telephely, típus)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSelect T="string" @bind-Value="_datumSzuro" Label="Dátumszűrő" Clearable="true"
+                   Style="max-width:220px;" AdornmentIcon="@Icons.Material.Filled.DateRange" Adornment="Adornment.Start"
+                   Dense="true">
+            <MudSelectItem Value="@("k30")">Következő 30 nap</MudSelectItem>
+            <MudSelectItem Value="@("k90")">Következő 90 nap</MudSelectItem>
+            <MudSelectItem Value="@("k180")">Következő 180 nap</MudSelectItem>
+            <MudSelectItem Value="@("kiden")">Következő – Idén</MudSelectItem>
+            <MudSelectItem Value="@("pm30")">± 30 nap</MudSelectItem>
+            <MudSelectItem Value="@("pm90")">± 90 nap</MudSelectItem>
+            <MudSelectItem Value="@("pm180")">± 180 nap</MudSelectItem>
+            <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
+        </MudSelect>
         <MudSpacer />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új karbantartás</MudButton>
     </MudStack>
@@ -27,7 +39,8 @@
             <PropertyColumn Property="k => k.Telephely!.Nev" Title="Telephely" />
             <PropertyColumn Property="k => k.KarbantartasTipus!.Nev" Title="Típus" />
             <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
-            <TemplateColumn Title="Következő">
+            <TemplateColumn Title="Következő" Sortable="true" SortBy="@(k => k.KovetkezoDatum ?? DateTime.MaxValue)"
+                            InitialDirection="SortDirection.Ascending">
                 <CellTemplate>
                     @if (context.Item.KovetkezoDatum.HasValue)
                     {
@@ -139,10 +152,39 @@
     private DateTime? _datum, _kovetkezoDatum;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
-    private IEnumerable<Karbantartas> _szurtLista => string.IsNullOrWhiteSpace(_kereses) ? _lista
-        : _lista.Where(k => (k.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (k.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (k.KarbantartasTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+    private string? _datumSzuro;
+
+    private IEnumerable<Karbantartas> _szurtLista
+    {
+        get
+        {
+            var ma = DateTime.Today;
+            IEnumerable<Karbantartas> lista = _lista;
+
+            // Dátumintervallum szűrő
+            lista = _datumSzuro switch
+            {
+                "k30"   => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma && k.KovetkezoDatum.Value <= ma.AddDays(30)),
+                "k90"   => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma && k.KovetkezoDatum.Value <= ma.AddDays(90)),
+                "k180"  => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma && k.KovetkezoDatum.Value <= ma.AddDays(180)),
+                "kiden" => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma && k.KovetkezoDatum.Value.Year == ma.Year),
+                "pm30"  => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma.AddDays(-30) && k.KovetkezoDatum.Value <= ma.AddDays(30)),
+                "pm90"  => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma.AddDays(-90) && k.KovetkezoDatum.Value <= ma.AddDays(90)),
+                "pm180" => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value >= ma.AddDays(-180) && k.KovetkezoDatum.Value <= ma.AddDays(180)),
+                "iden"  => lista.Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value.Year == ma.Year),
+                _       => lista
+            };
+
+            // Szöveges keresés
+            if (!string.IsNullOrWhiteSpace(_kereses))
+                lista = lista.Where(k =>
+                    (k.Ugyfel?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (k.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (k.KarbantartasTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+            return lista;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
