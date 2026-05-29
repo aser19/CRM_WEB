@@ -192,6 +192,7 @@ builder.Services.AddAuthorizationCore(options =>
 builder.Services.AddScoped<IAuthorizationHandler, BiztvillCRM.Web.Authorization.ModulAuthorizationHandler>();
 
 builder.Services.AddScoped<INyilvanosLekerdezesService, NyilvanosLekerdezesService>();
+builder.Services.AddScoped<IVizsgalatiSablonService, VizsgalatiSablonService>();
 
 var app = builder.Build();
 

@@ -10,7 +10,7 @@
 @inject ITelephelyService TelephelyService
 @inject IMeresTipusService MeresTipusService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
-@inject IJegyzokonyvJogosultsagService JuegosultsagService
+@inject IJegyzokonyvJogosultsagService JogosultsagService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -23,6 +23,9 @@
 @inject IMatricaValidatorService MatricaValidator
 @inject IJegyzokonyvOcrService OcrService
 @inject IMellekletJegyzokonyvService MellekletService
+@inject IJegyzokonyvSablonService JegyzokonyvSablonService
+@inject ISablonService SablonService
+@inject IVizsgalatiSablonService VizsgalatiSablonService
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -51,7 +54,22 @@
                         }
                     </MudSelect>
                 </MudItem>
-                
+                @if (_vizsgalatiKategoriak.Count > 0)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_kivalasztottKategoria"
+                                   Label="Vizsgálati sablon"
+                                   Variant="Variant.Outlined"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   Clearable="true"
+                                   HelperText="Sablon kiválasztásával az értékek automatikusan kitöltődnek">
+                            @foreach (var kat in _vizsgalatiKategoriak)
+                            {
+                                <MudSelectItem Value="@kat">@kat</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *"
                                ValueChanged="OnUgyfelValtozas" Variant="Variant.Outlined"
@@ -345,11 +363,22 @@
                                       Disabled="@(!vanKitoltve)" />
                     </MudItem>
                     <MudItem xs="12" md="4">
+                        @{
+                            var kalLejart = IsKalibracioLejart(aktualisMuszer);
+                        }
                         <MudTextField Value="@(aktualisMuszer?.Kalibralas ?? "")"
                                       Label="Utolsó kalibráció"
                                       Variant="Variant.Outlined"
                                       ReadOnly="true"
-                                      Disabled="@(!vanKitoltve)" />
+                                      Disabled="@(!vanKitoltve)"
+                                      Style="@(kalLejart ? "background-color:#fff3e0;" : "")" />
+                        @if (kalLejart && vanKitoltve)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning" Style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Warning" />
+                                A kalibráció 2 évnél régebbi!
+                            </MudText>
+                        }
                     </MudItem>
                 }
                 @* === HORDOZHATÓ TÍPUSNÁL: JÁRMŰADATOK ÉS ESZKÖZLISTA === *@
@@ -677,7 +706,7 @@
                     }
                 }
 
-                @* === KÖVETKEZŐ FELÜLVIZSGÁLAT DÁTUMA === *@
+                               @* === KÖVETKEZŐ FELÜLVIZSGÁLAT DÁTUMA === *@
                 @if (IsIdoszakosVBFTipus())
                 {
                     <MudItem xs="12" Class="mt-4">
@@ -689,14 +718,32 @@
                             Következő felülvizsgálat határideje
                         </MudText>
                     </MudItem>
-                    <MudItem xs="12" md="6" Class="d-flex align-center">
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1">
-                            <strong>Számított határidő:</strong>
-                            @{
-                                var evek = _adatok.HataridoTipus is "307" or "308" ? 6 : 3;
-                            }
-                            @GetSzamitottDatum(evek)
+
+//                    @{
+//                        var evek = _adatok.HataridoTipus is "307" or "308" ? 6 : 3;
+//                        var szamitottDatum = GetSzamitottDatum(evek);
+//                    }
+
+                    <MudItem xs="12" md="5">
+                        <MudDatePicker Date="_adatok.KovetkezoFelulvizsgalatDatum"
+                                       DateChanged="@((DateTime? d) => _adatok.KovetkezoFelulvizsgalatDatum = d)"
+                                       Label="Határidő (manuálisan felülírható)"
+                                       Variant="Variant.Outlined"
+                                       DateFormat="yyyy.MM.dd"
+                                       Clearable="true"
+                                       HelperText="@($"Javasolt: {SzamitottDatum}")" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4" Class="d-flex align-center gap-2">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1" Style="margin:0;">
+                            <strong>Számított határidő:</strong> @SzamitottDatum
                         </MudAlert>
+                        <MudTooltip Text="Visszaállítás a számított értékre">
+                            <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => VisszaallitSzamitottDatumra(SzamitottDatum))" />
+                        </MudTooltip>
                     </MudItem>
                 }
 
@@ -1050,6 +1097,7 @@
             </MudText>
 
             <MudGrid>
+
                 @* === RÖGZÍTETT VILLAMOS BERENDEZÉS SZERKEZETEI === *@
                 <MudItem xs="12">
                     <MudText Typo="Typo.subtitle1" Class="mb-2">
@@ -1745,6 +1793,8 @@
     private int _kivalasztottTelephelyId;
     private DateTime? _vizsgalatDatum = DateTime.Today;
     private bool _feldolgozas;
+    private List<string> _vizsgalatiKategoriak = [];
+    private string _kivalasztottKategoria = string.Empty;
 
     private JegyzokonyvAdatok _adatok = new();
 
@@ -1809,6 +1859,7 @@
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
         _muszerek = await EszkozService.GetAllAsync();
         _osszesTipus = _tipusok;
+        _sablonok = await SablonService.GetAllAsync();
 
         await BetoltCegAdatokAsync();
 
@@ -1832,6 +1883,10 @@
         _kivalasztottTipusId = tipusId;
         var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
         _kivalasztottTipusNev = tipus?.Nev;
+        _vizsgalatiKategoriak = tipusId > 0
+        ? await VizsgalatiSablonService.GetKategoriak(tipusId)
+            : [];
+            _kivalasztottKategoria = string.Empty;
 
         // ✅ JAVÍTÁS: Töröljük a munkaszámot, hogy újragenerálódjon az új prefix-szel
         _adatok.JegyzokonyvSzam = "";
@@ -1848,24 +1903,34 @@
         }
 
         if (tipusId > 0)
-            _jogosultFelulvizsgalok = await JuegosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
+            _jogosultFelulvizsgalok = await JogosultsagService.GetJogosultFelulvizsgalokAsync(tipusId);
         else
             _jogosultFelulvizsgalok = _osszFelulvizsgalo;
 
         // OnTipusValtozas metódusba, a végére:
-    if (tipusId > 0)
-    {
-        var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipusId);
-        _adatok.KijeloltJogszabalyok = hozzaRendeltek.Select(x => new KijeloltJogszabaly
-        {
-            JogszabalyId  = x.JogszabalyId,
-            Szam          = x.Jogszabaly?.Szam ?? "",
-            Cim           = x.Jogszabaly?.Cim ?? "",
-            Kivalasztva   = true,
-            IsSzabvany    = x.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany // ÚJ
-        }).ToList();
+         if (tipusId > 0)
+            await BetoltSablonTetelek(tipusId);
+
+        // Sablon automatikus előválasztása a típus alapján
+        _vizsgalatiSablonok = tipusId > 0
+        ? await VizsgalatiSablonService.GetByMeresTipusIdAsync(tipusId)
+        : [];
+        _kivalasztottVizsgalatiSablonId = null;
     }
-    }
+
+//    if (tipusId > 0)
+//    {
+//        var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipusId);
+//        _adatok.KijeloltJogszabalyok = hozzaRendeltek.Select(x => new KijeloltJogszabaly
+//        {
+//            JogszabalyId  = x.JogszabalyId,
+//            Szam          = x.Jogszabaly?.Szam ?? "",
+//            Cim           = x.Jogszabaly?.Cim ?? "",
+//            Kivalasztva   = true,
+//            IsSzabvany    = x.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany // ÚJ
+//        }).ToList();
+//    }
+//    }
 
     private void OnUgyfelValtozas(int ugyfelId)
     {
@@ -2097,7 +2162,7 @@
             StateHasChanged();
 
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
-            var sablonId = tipus?.SablonId ?? "VBF_KIF_MINTA";
+            var sablonId = _kivalasztottSablonId;
 
             int meresId;
             if (!MeresId.HasValue || MeresId == 0)
@@ -3192,10 +3257,10 @@
         }
     }
 
-    // Mező a @code blokkban – a tényleges meresId tárolásához
     private int _aktualMeresId => MeresId ?? _ujonnanMentettMeresId ?? 0;
     private int? _ujonnanMentettMeresId;
     /// <summary>Igaz, ha a kiválasztott típus egy melléklet-specifikus workflow (AVK, HVM, stb.).</summary>
+
     private bool IsMellekletTipus()
     {
         return !string.IsNullOrEmpty(GetAktualisTipusKod());
@@ -3206,4 +3271,93 @@
     {
         return _osszesTipus.FirstOrDefault(t => t.Id == _kivalasztottTipusId)?.MellekletTipusKod;
     }
+
+    /// <summary>Igaz, ha a műszer utolsó kalibrációja több mint 2 éves (vagy nincs megadva).</summary>
+    private bool IsKalibracioLejart(MuszerSor? sor)
+    {
+        if (sor == null || string.IsNullOrWhiteSpace(sor.Tipus)) return false;
+        if (string.IsNullOrWhiteSpace(sor.Kalibralas)) return true; // nincs kalibráció → figyelmeztetés
+
+        // Formátumok: "yyyy.MM.dd" vagy "yyyy-MM-dd"
+        if (DateTime.TryParseExact(sor.Kalibralas.Trim(),
+                new[] { "yyyy.MM.dd", "yyyy-MM-dd", "yyyy. MM. dd." },
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var kalDatum))
+        {
+            return kalDatum < DateTime.Today.AddYears(-2);
+        }
+
+        return false; // nem tudtuk parse-olni → ne riasszunk
+    }
+
+    // Sablon tételek oldalanként
+    private Dictionary<int, List<JegyzokonyvSablonTetel>> _sablonTetelek = new();
+
+    private bool VanSablon(int oldalSzam) =>
+        _sablonTetelek.TryGetValue(oldalSzam, out var lista) && lista.Count > 0;
+
+    private string GetSablonErtek(int oldalSzam, int tetelId)
+    {
+        var kulcs = $"{oldalSzam}_{tetelId}";
+        return _adatok.SablonErtekek.TryGetValue(kulcs, out var v) ? v : "";
+    }
+
+    private void SetSablonErtek(int oldalSzam, int tetelId, string ertek)
+    {
+        var kulcs = $"{oldalSzam}_{tetelId}";
+        _adatok.SablonErtekek[kulcs] = ertek;
+    }
+
+    private string GetSablonMegjegyzes(int oldalSzam, int tetelId)
+    {
+        var kulcs = $"{oldalSzam}_{tetelId}_M";
+        return _adatok.SablonMegjegyzesek.TryGetValue(kulcs, out var v) ? v : "";
+    }
+
+    private void SetSablonMegjegyzes(int oldalSzam, int tetelId, string ertek)
+    {
+        var kulcs = $"{oldalSzam}_{tetelId}_M";
+        _adatok.SablonMegjegyzesek[kulcs] = ertek;
+    }
+
+    private async Task BetoltSablonTetelek(int meresTipusId)
+    {
+        _sablonTetelek.Clear();
+        // Az 5–7. oldalak lehetséges sablon oldalak
+        foreach (var oldal in new[] { 5, 6, 7 })
+        {
+            var tetelek = await JegyzokonyvSablonService.GetTetelek(meresTipusId, oldal);
+            if (tetelek.Count > 0)
+                _sablonTetelek[oldal] = tetelek;
+        }
+        // Alapértékek előtöltése (csak ha az adott kulcs még nincs kitöltve)
+        foreach (var (oldal, tetelek) in _sablonTetelek)
+        {
+            foreach (var t in tetelek)
+            {
+                var kulcs = $"{oldal}_{t.Id}";
+                if (!_adatok.SablonErtekek.ContainsKey(kulcs))
+                    _adatok.SablonErtekek[kulcs] = t.AlapertelmezettErtek;
+            }
+        }
+    }
+
+    private void VisszaallitSzamitottDatumra(string szamitottDatum)
+    {
+        if (DateTime.TryParseExact(szamitottDatum, "yyyy.MM.dd",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d))
+        {
+            _adatok.KovetkezoFelulvizsgalatDatum = d;
+        }
+    }
+
+    private string SzamitottDatum => GetSzamitottDatum(_adatok?.HataridoTipus is "307" or "308" ? 6 : 3);
+
+    // Sablon változók
+    private List<JegyzokonyvSablon> _sablonok = [];
+    private string _kivalasztottSablonId = "VBF_KIF_MINTA";
+    private List<VizsgalatiSablon> _vizsgalatiSablonok = [];
+    private int? _kivalasztottVizsgalatiSablonId;
+
 }

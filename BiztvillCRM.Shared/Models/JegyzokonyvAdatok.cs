@@ -351,6 +351,11 @@ public class JegyzokonyvAdatok
     // === AVK MELLÉKLET – ÁRAMVÉDŐ KAPCSOLÓK ===
     public List<AvkSor> AvkSorok { get; set; } = new();
 
+    /// <summary>Dinamikus sablon tételek értékei: kulcs = "oldalSzam_tetelId", érték = kiválasztott érték</summary>
+    public Dictionary<string, string> SablonErtekek { get; set; } = new();
+
+    /// <summary>Dinamikus sablon megjegyzések: kulcs = "oldalSzam_tetelId_M"</summary>
+    public Dictionary<string, string> SablonMegjegyzesek { get; set; } = new();
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly
@@ -367,5 +372,3 @@ public class AramkorSor
     public string HelyisegNev { get; set; } = "";
     public string Leiras { get; set; } = "";
 }
-
-

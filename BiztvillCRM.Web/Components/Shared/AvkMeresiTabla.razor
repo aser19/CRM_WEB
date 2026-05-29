@@ -126,13 +126,24 @@
                     </MudText>
                 </td>
 
-                @* t1× – csak egész ms, no tizedes *@
+                @* t1× *@
                 <td class="mud-table-cell" style="@(IsT1Tullepve(sor) ? "background:#fff3f3" : "")">
-                    <MudTextField Value="@sor.T1x"
-                                  ValueChanged="@((string v) => { sor.T1x = CsakEgesz(v); AutoEredmeny(sor); })"
-                                  Variant="Variant.Text"
-                                  Placeholder="ms"
-                                  Immediate="true" />
+                    @if (sor.IsNegyPolus)
+                    {
+                        <MudStack Spacing="1">
+                            <MudTextField Value="@sor.T1xL1" ValueChanged="@((string v) => { sor.T1xL1 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L1 ms" Immediate="true" Label="L1" />
+                            <MudTextField Value="@sor.T1xL2" ValueChanged="@((string v) => { sor.T1xL2 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L2 ms" Immediate="true" Label="L2" />
+                            <MudTextField Value="@sor.T1xL3" ValueChanged="@((string v) => { sor.T1xL3 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L3 ms" Immediate="true" Label="L3" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudTextField Value="@sor.T1x" ValueChanged="@((string v) => { sor.T1x = CsakEgesz(v); AutoEredmeny(sor); })"
+                                      Variant="Variant.Text" Placeholder="ms" Immediate="true" />
+                    }
                     @if (IsT1Tullepve(sor))
                     {
                         <MudText Typo="Typo.caption" Color="Color.Error">
@@ -141,13 +152,24 @@
                     }
                 </td>
 
-                @* t5× – csak egész ms, no tizedes *@
+                @* t5× *@
                 <td class="mud-table-cell" style="@(IsT5Tullepve(sor) ? "background:#fff3f3" : "")">
-                    <MudTextField Value="@sor.T5x"
-                                  ValueChanged="@((string v) => { sor.T5x = CsakEgesz(v); AutoEredmeny(sor); })"
-                                  Variant="Variant.Text"
-                                  Placeholder="ms"
-                                  Immediate="true" />
+                    @if (sor.IsNegyPolus)
+                    {
+                        <MudStack Spacing="1">
+                            <MudTextField Value="@sor.T5xL1" ValueChanged="@((string v) => { sor.T5xL1 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L1 ms" Immediate="true" Label="L1" />
+                            <MudTextField Value="@sor.T5xL2" ValueChanged="@((string v) => { sor.T5xL2 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L2 ms" Immediate="true" Label="L2" />
+                            <MudTextField Value="@sor.T5xL3" ValueChanged="@((string v) => { sor.T5xL3 = CsakEgesz(v); AutoEredmeny(sor); })"
+                                          Variant="Variant.Text" Placeholder="L3 ms" Immediate="true" Label="L3" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudTextField Value="@sor.T5x" ValueChanged="@((string v) => { sor.T5x = CsakEgesz(v); AutoEredmeny(sor); })"
+                                      Variant="Variant.Text" Placeholder="ms" Immediate="true" />
+                    }
                     @if (IsT5Tullepve(sor))
                     {
                         <MudText Typo="Typo.caption" Color="Color.Error">
