@@ -3,69 +3,138 @@
 @attribute [Authorize(Roles = "Admin,CegAdmin")]
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject IJegyzokonyvSablonService SablonService
 @inject IMeresTipusService MeresTipusService
+@inject ITenantService TenantService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
 <PageTitle>Jegyzőkönyv sablon tételek - Biztovill CRM</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Jegyzőkönyv sablon tételek</MudText>
+<MudText Typo="Typo.h4" Class="mb-2">Jegyzőkönyv sablon tételek</MudText>
+
+@if (!_isAdmin)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-3" Icon="@Icons.Material.Filled.Info">
+        Az <strong>Admin sablonok</strong> csak megtekinthetők. Módosításhoz klónozd a saját sablonodba!
+    </MudAlert>
+}
 
 <MudPaper Class="pa-4 mb-4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Wrap="Wrap.Wrap">
         <MudSelect T="int?" Label="Mérés típus szűrő"
                    Value="_szurtMeresTipusId"
                    ValueChanged="@(async (int? v) => { _szurtMeresTipusId = v; await LoadTetelek(); })"
-                   Clearable="true" Style="max-width:300px" AnchorOrigin="Origin.BottomLeft">
+                   Clearable="true" Style="max-width:280px" AnchorOrigin="Origin.BottomLeft">
             @foreach (var mt in _meresTipusok)
             {
                 <MudSelectItem T="int?" Value="@((int?)mt.Id)">@mt.Nev</MudSelectItem>
             }
         </MudSelect>
+
+        @if (!_isAdmin)
+        {
+            <MudSwitch T="bool" @bind-Value="_csakSajatSablon"
+                       Label="Csak saját sablonjaim"
+                       Color="Color.Primary"
+                       CheckedChanged="@(async (bool _) => await LoadTetelek())" />
+        }
+
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="UjTetelMegnyitas">
-            Új tétel
-        </MudButton>
+
+        @if (_isAdmin)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="UjTetelMegnyitas">
+                Új admin tétel
+            </MudButton>
+        }
+        else
+        {
+            <MudTooltip Text="Az összes admin tételt lemásolja a saját sablonodba">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.ContentCopy"
+                           Disabled="@(_szurtMeresTipusId is null)"
+                           OnClick="TeljesSablonKlonozasa">
+                    Sablon klónozása saját névre
+                </MudButton>
+            </MudTooltip>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="UjTetelMegnyitas">
+                Új saját tétel
+            </MudButton>
+        }
     </MudStack>
 </MudPaper>
 
 <MudDataGrid T="JegyzokonyvSablonTetel" Items="_tetelek" Hover="true" Striped="true"
-             Loading="_betoltes" SortMode="SortMode.Multiple" Filterable="true">
+             Loading="_betoltes" SortMode="SortMode.Multiple" Filterable="true" Dense="true">
     <Columns>
+        <TemplateColumn Title="Típus" Sortable="false" Filterable="false" HeaderStyle="width:90px">
+            <CellTemplate>
+                @if (context.Item.AdminSablon)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info"
+                             Icon="@Icons.Material.Filled.Lock" Style="font-size:10px">
+                        Admin
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success"
+                             Icon="@Icons.Material.Filled.Business" Style="font-size:10px">
+                        Saját
+                    </MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
         <PropertyColumn Property="t => t.MeresTipus!.Nev" Title="Mérés típus" />
-        <PropertyColumn Property="t => t.OldalSzam" Title="Oldal" />
+        <PropertyColumn Property="t => t.OldalSzam" Title="Oldal" HeaderStyle="width:60px" />
         <PropertyColumn Property="t => t.Kategoria" Title="Kategória" />
-        <PropertyColumn Property="t => t.Sorrend" Title="Sor." />
+        <PropertyColumn Property="t => t.Sorrend" Title="Sor." HeaderStyle="width:55px" />
         <PropertyColumn Property="t => t.Felirat" Title="Felirat" />
         <PropertyColumn Property="t => t.LehetsegesErtekek" Title="Értékek" />
         <PropertyColumn Property="t => t.AlapertelmezettErtek" Title="Alapért." />
-        <TemplateColumn Title="Megjegyzés mező">
+        <TemplateColumn Title="Megj." Sortable="false" Filterable="false" HeaderStyle="width:60px">
             <CellTemplate>
-                <MudIcon Icon="@(context.Item.VanMegjegyzesMezo
-                    ? Icons.Material.Filled.CheckCircle
-                    : Icons.Material.Filled.Cancel)"
-                    Color="@(context.Item.VanMegjegyzesMezo ? Color.Success : Color.Default)" />
+                <MudIcon Icon="@(context.Item.VanMegjegyzesMezo ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                         Color="@(context.Item.VanMegjegyzesMezo ? Color.Success : Color.Default)"
+                         Size="Size.Small" />
             </CellTemplate>
         </TemplateColumn>
-        <TemplateColumn Title="Aktív">
+        <TemplateColumn Title="Aktív" Sortable="false" Filterable="false" HeaderStyle="width:60px">
             <CellTemplate>
-                <MudIcon Icon="@(context.Item.Aktiv
-                    ? Icons.Material.Filled.CheckCircle
-                    : Icons.Material.Filled.Cancel)"
-                    Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                         Color="@(context.Item.Aktiv ? Color.Success : Color.Error)"
+                         Size="Size.Small" />
             </CellTemplate>
         </TemplateColumn>
-        <TemplateColumn Title="Műveletek" Sortable="false" Filterable="false">
+        <TemplateColumn Title="Műveletek" Sortable="false" Filterable="false" HeaderStyle="width:130px">
             <CellTemplate>
-                <MudStack Row="true">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                                   Size="Size.Small" OnClick="@(() => SzerkesztesTetel(context.Item))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                   Size="Size.Small" OnClick="@(() => TorlesTetel(context.Item))" />
+                <MudStack Row="true" Spacing="0">
+                    @if (context.Item.AdminSablon && !_isAdmin)
+                    {
+                        @* CegAdmin: csak klónozhat admin sablonból *@
+                        <MudTooltip Text="Klónozás saját sablonba">
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Color="Color.Warning" Size="Size.Small"
+                                           OnClick="@(() => EgyTetelKlonozasa(context.Item))" />
+                        </MudTooltip>
+                    }
+                    else if (!context.Item.AdminSablon || _isAdmin)
+                    {
+                        @* Saját tételt mindenki szerkesztheti; admin sablont csak Admin *@
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Primary" Size="Size.Small"
+                                       OnClick="@(() => SzerkesztesTetel(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error" Size="Size.Small"
+                                       OnClick="@(() => TorlesTetel(context.Item))" />
+                    }
                 </MudStack>
             </CellTemplate>
         </TemplateColumn>
@@ -73,9 +142,24 @@
 </MudDataGrid>
 
 @* Szerkesztő dialog *@
-<MudDialog @bind-Visible="_dialogNyitva" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+<MudDialog @bind-Visible="_dialogNyitva"
+           Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
     <TitleContent>
-        <MudText Typo="Typo.h6">@(_szerkesztettTetel?.Id == 0 ? "Új tétel" : "Tétel szerkesztése")</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@(_szerkesztettTetel?.AdminSablon == true ? Icons.Material.Filled.Lock : Icons.Material.Filled.Business)"
+                     Color="@(_szerkesztettTetel?.AdminSablon == true ? Color.Info : Color.Success)" />
+            <MudText Typo="Typo.h6">
+                @(_szerkesztettTetel?.Id == 0 ? "Új tétel" : "Tétel szerkesztése")
+                @if (_szerkesztettTetel?.AdminSablon == true)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">Admin sablon</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">Saját sablon</MudChip>
+                }
+            </MudText>
+        </MudStack>
     </TitleContent>
     <DialogContent>
         @if (_szerkesztettTetel is not null)
@@ -95,8 +179,7 @@
                                      Min="1" Max="20" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="3">
-                    <MudNumericField T="int" Label="Sorrend" @bind-Value="_szerkesztettTetel.Sorrend"
-                                     Min="1" />
+                    <MudNumericField T="int" Label="Sorrend" @bind-Value="_szerkesztettTetel.Sorrend" Min="1" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField Label="Kategória" @bind-Value="_szerkesztettTetel.Kategoria"
@@ -122,8 +205,7 @@
                                  Label="Legyen megjegyzés mező" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudCheckBox T="bool" @bind-Value="_szerkesztettTetel.Aktiv"
-                                 Label="Aktív" />
+                    <MudCheckBox T="bool" @bind-Value="_szerkesztettTetel.Aktiv" Label="Aktív" />
                 </MudItem>
             </MudGrid>
         }
@@ -140,10 +222,15 @@
     private int? _szurtMeresTipusId;
     private bool _betoltes = true;
     private bool _dialogNyitva;
+    private bool _csakSajatSablon;
     private JegyzokonyvSablonTetel? _szerkesztettTetel;
+    private bool _isAdmin;
+    private int _aktualisCegId;
 
     protected override async Task OnInitializedAsync()
     {
+        _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _aktualisCegId = TenantService.GetCurrentCegId();
         _meresTipusok = await MeresTipusService.GetAllAsync();
         await LoadTetelek();
     }
@@ -151,7 +238,32 @@
     private async Task LoadTetelek()
     {
         _betoltes = true;
-        _tetelek = await SablonService.GetOsszesTetelek(_szurtMeresTipusId);
+
+        if (_isAdmin)
+        {
+            // Admin: csak admin sablon (CegId == null)
+            _tetelek = await SablonService.GetOsszesTetelek(
+                meresTipusId: _szurtMeresTipusId,
+                cegId: null,
+                adminSablonokIs: true);
+        }
+        else if (_csakSajatSablon)
+        {
+            // CegAdmin: csak saját
+            _tetelek = await SablonService.GetOsszesTetelek(
+                meresTipusId: _szurtMeresTipusId,
+                cegId: _aktualisCegId,
+                adminSablonokIs: false);
+        }
+        else
+        {
+            // CegAdmin: admin + saját
+            _tetelek = await SablonService.GetOsszesTetelek(
+                meresTipusId: _szurtMeresTipusId,
+                cegId: _aktualisCegId,
+                adminSablonokIs: true);
+        }
+
         _betoltes = false;
     }
 
@@ -160,6 +272,7 @@
         _szerkesztettTetel = new JegyzokonyvSablonTetel
         {
             MeresTipusId = _szurtMeresTipusId ?? (_meresTipusok.FirstOrDefault()?.Id ?? 0),
+            CegId = _isAdmin ? null : _aktualisCegId, // Admin → admin sablon, CegAdmin → saját
             OldalSzam = 5,
             Sorrend = (_tetelek.MaxBy(t => t.Sorrend)?.Sorrend ?? 0) + 1,
             LehetsegesErtekek = "MF;NMF;NA",
@@ -172,10 +285,10 @@
 
     private void SzerkesztesTetel(JegyzokonyvSablonTetel tetel)
     {
-        // Másolat szerkesztésre, hogy cancel esetén ne változzon
         _szerkesztettTetel = new JegyzokonyvSablonTetel
         {
             Id = tetel.Id,
+            CegId = tetel.CegId,
             MeresTipusId = tetel.MeresTipusId,
             OldalSzam = tetel.OldalSzam,
             Kategoria = tetel.Kategoria,
@@ -187,6 +300,43 @@
             Aktiv = tetel.Aktiv
         };
         _dialogNyitva = true;
+    }
+
+    private async Task EgyTetelKlonozasa(JegyzokonyvSablonTetel tetel)
+    {
+        try
+        {
+            await SablonService.EgyTetelKlonozasa(tetel.Id, _aktualisCegId);
+            Snackbar.Add($"Tétel klónozva a saját sablonodba!", Severity.Success);
+            await LoadTetelek();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TeljesSablonKlonozasa()
+    {
+        if (_szurtMeresTipusId is null) return;
+
+        var confirm = await DialogService.ShowMessageBox(
+            "Sablon klónozása",
+            $"Az összes admin tételt lemásolja a saját sablonodba. Folytatod?",
+            yesText: "Igen, klónozom", cancelText: "Mégse");
+
+        if (confirm != true) return;
+
+        try
+        {
+            var ujak = await SablonService.KlonozasCegnek(_szurtMeresTipusId.Value, _aktualisCegId);
+            Snackbar.Add($"{ujak.Count} tétel sikeresen klónozva!", Severity.Success);
+            await LoadTetelek();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task Mentés()

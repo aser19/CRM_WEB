@@ -13,6 +13,13 @@ public class JegyzokonyvSablonTetel
     public int MeresTipusId { get; set; }
     public MeresTipus? MeresTipus { get; set; }
 
+    /// <summary>
+    /// NULL = globális admin sablon (csak Admin role módosíthatja, mindenki látja).
+    /// Kitöltve = az adott cég saját sablona (csak ők látják és módosítják).
+    /// </summary>
+    public int? CegId { get; set; }
+    public Ceg? Ceg { get; set; }
+
     /// <summary>Melyik wizard-oldalon jelenik meg (pl. 5, 6, 7).</summary>
     public int OldalSzam { get; set; }
 
@@ -41,7 +48,10 @@ public class JegyzokonyvSablonTetel
     /// <summary>Aktív-e (inaktív tételek nem jelennek meg a formban).</summary>
     public bool Aktiv { get; set; } = true;
 
-    // -- Számított property --
+    // -- Számított propertyk --
     public List<string> ErtekLista =>
         LehetsegesErtekek.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+    /// <summary>True ha globális admin sablon (nem cég-specifikus).</summary>
+    public bool AdminSablon => CegId is null;
 }

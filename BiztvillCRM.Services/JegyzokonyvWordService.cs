@@ -151,9 +151,15 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["HIBAVED_JKV"] = formAdatok?.HibavedelmiJkv ?? "",
             ["AVK_JEGYZOKONYV"] = formAdatok?.AvkJegyzokonyv ?? "",
             ["SZIGELL_JGYK"] = formAdatok?.SzigetelesiJkv ?? "",
-            ["VV_N_JGYK"] = formAdatok?.VillamJkv ?? "",
-            ["VV_NN_JGYK"] = formAdatok?.VillamNemJkv ?? "",
-            ["Melleklet_db"] = formAdatok?.MellekletekSzama ?? "",
+            ["VV_N_JGYK"] = !string.IsNullOrEmpty(formAdatok?.VillamJkv) ? formAdatok.VillamJkv : " ",
+            ["VV_NN_JGYK"] = !string.IsNullOrEmpty(formAdatok?.VillamNemJkv) ? formAdatok.VillamNemJkv : " ",
+            ["Melleklet_db"] = new[] {
+                formAdatok?.MellekletHibavedelem ?? false,
+                formAdatok?.MellekletAvk ?? false,
+                formAdatok?.MellekletSzigeteles ?? false,
+                formAdatok?.MellekletVillam ?? false,
+                formAdatok?.MellekletVillamNem ?? false
+            }.Count(x => x).ToString(),
             ["MEGJEGYZES"] = formAdatok?.Megjegyzes ?? "",
 
             // Eredmény checkbox-ok
@@ -183,12 +189,12 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             // 6 éves csoport (307, 308, 3081, 309)
             ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "🗷",
             ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
-            ["309"] = formAdatok?.HataridoTipus == "308" ? (formAdatok.HataridoEgyeb ?? "") : "",
-            ["3091"] = formAdatok?.HataridoTipus == "309" ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["309"] = formAdatok?.HataridoTipus == "309" ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["3091"] = formAdatok?.HataridoTipus == "309" ? (formAdatok.HataridoEgyeb ?? " ") : " ",
             ["312"] = (formAdatok?.HataridoTipus is "307" or "308" or "309")            
                 ? $"a kiadási dátumtól számított 6 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 6)}-ig kell elvégezni." : "",
 
-            ["313_MEGJEGYZES"] = formAdatok?.MINOSITO_MEGJEGYZES ?? "",
+            ["313_MEGJEGYZES"] = !string.IsNullOrEmpty(formAdatok?.MINOSITO_MEGJEGYZES) ? formAdatok.MINOSITO_MEGJEGYZES : " ",
 
             // === HORDOZHATÓ KÉSZÜLÉK SPECIFIKUS ===
             ["ugyfel_nev"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
@@ -203,13 +209,11 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["dolgozo_frsz_kombinalt"] = GetDolgozoFrszKombinalt(formAdatok?.DolgozoNeve, formAdatok?.ForgalmiRendszam),
 
             ["forgalmi_rendszam"] = formAdatok?.ForgalmiRendszam ?? "",
-            
-            ["kovetkezo_felulvizsgalat"] = formAdatok?.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") 
-                ?? meres?.KovetkezoDatum?.ToString("yyyy.MM.dd") 
-                ?? DateTime.Today.AddYears(1).ToString("yyyy.MM.dd"),
-            ["kov_felulviz_datum"] = formAdatok?.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd") 
-                ?? DateTime.Today.AddYears(1).ToString("yyyy.MM.dd"),
-                
+
+            ["kovetkezo_felulvizsgalat"] = formAdatok?.KovetkezoFelulvizsgalatDatum?.ToString("yyyy.MM.dd")
+                ?? meres?.KovetkezoDatum?.ToString("yyyy.MM.dd")
+                ?? GetSzamitottDatumStatic(meres?.Datum, formAdatok?.HataridoTipus is "307" or "308" or "309" ? 6 : 3),
+
             ["megrendelo"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
             ["telephely"] = formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? "",
             ["felulvizsgalat_ideje"] = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
@@ -323,13 +327,26 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             // 6 éves csoport (307, 308, 3081, 309)
             ["307"] = formAdatok?.HataridoTipus == "307" ? "☑" : "🗷",
             ["308"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
-            ["309"] = formAdatok?.HataridoTipus == "308" ? "☑" : "🗷",
-            ["3091"] = formAdatok?.HataridoTipus == "309"
-    ? (formAdatok.HataridoEgyeb ?? "") : "",
+            ["309"] = formAdatok?.HataridoTipus == "309" ? "☑" : "🗷",
+            ["3091"] = formAdatok?.HataridoTipus == "309" ? (formAdatok.HataridoEgyeb ?? " ") : " ",
             ["312"] = (formAdatok?.HataridoTipus is "307" or "308" or "309")
     ? $"a kiadási dátumtól számított 6 éven belül, legkésőbb: {GetSzamitottDatumStatic(meres?.Datum, 6)}-ig kell elvégezni." : "",
             ["313"] = GetSzamitottDatumStatic(meres?.Datum, 6),
-            ["313_MEGJEGYZES"] = formAdatok?.MinositoIratMegjegyzes ?? "",
+            ["313_MEGJEGYZES"] = !string.IsNullOrEmpty(formAdatok?.MinositoIratMegjegyzes) ? formAdatok.MinositoIratMegjegyzes : " ",
+
+            // Mellékletek
+            ["HIBAVED_JKV"] = formAdatok?.HibavedelmiJkv ?? " ",
+            ["AVK_JEGYZOKONYV"] = formAdatok?.AvkJegyzokonyv ?? " ",
+            ["SZIGELL_JGYK"] = formAdatok?.SzigetelesiJkv ?? " ",
+            ["VV_N_JGYK"] = !string.IsNullOrEmpty(formAdatok?.VillamJkv) ? formAdatok.VillamJkv : " ",
+            ["VV_NN_JGYK"] = !string.IsNullOrEmpty(formAdatok?.VillamNemJkv) ? formAdatok.VillamNemJkv : " ",
+            ["Melleklet_db"] = new[] {
+                formAdatok?.MellekletHibavedelem ?? false,
+                formAdatok?.MellekletAvk ?? false,
+                formAdatok?.MellekletSzigeteles ?? false,
+                formAdatok?.MellekletVillam ?? false,
+                formAdatok?.MellekletVillamNem ?? false
+            }.Count(x => x).ToString(),
 
             // === 4. OLDAL – VILLAMOS BERENDEZÉS ADATAI ===
             ["401"] = formAdatok?.NevlegesFeszultsegTipus == "1fazis" ? "230 V" : "3×230 V / 400 V",
