@@ -24,4 +24,7 @@ public interface IJegyzokonyvSablonService
     /// <summary>Tömeges import (pl. OCR-ből érkező tételek).</summary>
     Task<List<JegyzokonyvSablonTetel>> ImportAlakAsync(int meresTipusId, int oldalSzam,
         string kategoria, List<string> feliratok, string ertekek = "MF;NMF;NA");
+
+    Task SablonAlapertelmezettekFrissiteseAsync(
+        Dictionary<int, string> tetelIdErtekMap, int? cegId);
 }

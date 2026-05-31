@@ -25,12 +25,13 @@ public class MeresTipus
     [MaxLength(100)]
     public string? OcrModelId { get; set; }
 
-    /// <summary>
-    /// Melléklet típus kód – megmondja, hogy ez a méréstípus melyik melléklet-típushoz tartozik.
-    /// Lehetséges értékek: HV (hibavédelmi), AVK (érintésvédelmi kvalitatív), SZ (szigetelési), VV (villámvédelmi), VV_N (villámvédelmi nem szükséges)
-    /// </summary>
     [MaxLength(20)]
     public string? MellekletTipusKod { get; set; }
+
+    /// <summary>
+    /// Főmérés = önálló sablont kaphat. Ha false, csak kiegészítő jegyzőkönyv (pl. Hurokimpedancia).
+    /// </summary>
+    public bool FoMeres { get; set; } = true;
 
     public bool Aktiv { get; set; } = true;
     

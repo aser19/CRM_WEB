@@ -13,6 +13,9 @@ public class VizsgalatiSablon
     public int MeresTipusId { get; set; }
     public MeresTipus? MeresTipus { get; set; }
 
+    public int? CegId { get; set; }
+    public Ceg? Ceg { get; set; }
+
     [MaxLength(200)]
     public string Nev { get; set; } = string.Empty;
 
@@ -21,5 +24,9 @@ public class VizsgalatiSablon
 
     public bool Aktiv { get; set; } = true;
 
+    public string? AdatokJson { get; set; }
+
     public List<VizsgalatiSablonTetelErtek> TetelErtekek { get; set; } = [];
+
+    public bool AdminSablon => CegId is null;
 }

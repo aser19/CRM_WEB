@@ -112,6 +112,13 @@
         {
             <MudNavLink Href="/beallitasok/email" Icon="@Icons.Material.Filled.Email">Email beállítások</MudNavLink>
         }
+        @* CegAdmin is elérheti a saját sablonjait *@
+        @if (_isCegAdmin)
+        {
+            <MudNavLink Href="/admin/jegyozokonyv-sablon" Icon="@Icons.Material.Filled.Description">
+                Jegyzőkönyv sablonok
+            </MudNavLink>
+        }
     </MudNavGroup>
 
     <!-- Admin - csak admin felhasználóknak -->
@@ -139,6 +146,7 @@
 
 @code {
     private bool _isAdmin;
+    private bool _isCegAdmin; // ÚJ: Cégadmin felhasználó ellenőrzése
     private string? _nyitottMenu;
     private ModulJogosultsag _aktivModulok;
     private bool _adminExpanded = false; // ÚJ: Admin menü állapota
@@ -146,6 +154,7 @@
     protected override void OnInitialized()
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
+        _isCegAdmin = !_isAdmin && TenantService.IsInRole(FelhasznaloSzerepkor.CegAdmin); // ← új
     }
 
     protected override async Task OnInitializedAsync()

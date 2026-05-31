@@ -166,4 +166,28 @@ public class JegyzokonyvSablonService(CrmDbContext context) : IJegyzokonyvSablon
         await context.SaveChangesAsync();
         return eredmeny;
     }
+
+    /// <summary>
+    /// Sablon módban kitöltött értékek (tetelId → érték dictionary)
+    /// visszamentése az AlapertelmezettErtek mezőkbe.
+    /// </summary>
+    public async Task SablonAlapertelmezettekFrissiteseAsync(
+        Dictionary<int, string> tetelIdErtekMap, int? cegId)
+    {
+        var ids = tetelIdErtekMap.Keys.ToList();
+        var tetelek = await context.JegyzokonyvSablonTetelek
+            .Where(t => ids.Contains(t.Id) && t.CegId == cegId)
+            .ToListAsync();
+
+        foreach (var tetel in tetelek)
+        {
+            if (tetelIdErtekMap.TryGetValue(tetel.Id, out var ujErtek)
+                && tetel.ErtekLista.Contains(ujErtek))
+            {
+                tetel.AlapertelmezettErtek = ujErtek;
+                tetel.Modositva = DateTime.UtcNow;
+            }
+        }
+        await context.SaveChangesAsync();
+    }
 }
