@@ -8,6 +8,8 @@
 @inject ITelephelyService TelephelyService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ITenantService TenantService
+@inject ICegService CegService
 
 <PageTitle>Karbantartások</PageTitle>
 
@@ -35,7 +37,28 @@
 
     <MudDataGrid T="Karbantartas" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
-            <PropertyColumn Property="k => k.Ugyfel!.Nev" Title="Ügyfél" />
+            <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(k => k.Ugyfel?.Nev ?? "")">
+                <CellTemplate>
+                    <div>
+                        <div>@(context.Item.Ugyfel?.Nev ?? "-")</div>
+                        @if (_elerhetoCegek.Count > 1 && context.Item.Ugyfel != null)
+                        {
+                            var cegId = context.Item.Ugyfel.CegId;
+                            var szin = GetCegSzin(cegId);
+                            var rovidites = GetCegRovidites(cegId);
+                            var cegNev = GetCegNev(cegId);
+                            <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Label="true">
+                                    @rovidites
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="k => k.Telephely!.Nev" Title="Telephely" />
             <PropertyColumn Property="k => k.KarbantartasTipus!.Nev" Title="Típus" />
             <PropertyColumn Property="k => k.Datum" Title="Dátum" Format="yyyy.MM.dd" />
@@ -154,6 +177,36 @@
 
     private string? _datumSzuro;
 
+    private List<Ceg> _elerhetoCegek = new();
+
+    private static readonly string[] _cegSzinek = new[]
+    {
+        "#1976D2", // kék   – főcég
+        "#F57C00", // narancs
+        "#388E3C", // zöld
+        "#7B1FA2", // lila
+        "#C62828", // sötétpiros
+        "#00838F", // cián
+    };
+
+    private string GetCegSzin(int cegId)
+    {
+        if (_elerhetoCegek.Count <= 1) return "";
+        var index = _elerhetoCegek.FindIndex(c => c.Id == cegId);
+        return _cegSzinek[Math.Max(0, index) % _cegSzinek.Length];
+    }
+
+    private string GetCegRovidites(int cegId)
+    {
+        var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == cegId);
+        if (ceg == null) return "?";
+        return ceg.MatricaElotag
+            ?? new string(ceg.Nev.Where(char.IsLetterOrDigit).Take(3).ToArray()).ToUpper();
+    }
+
+    private string GetCegNev(int cegId)
+        => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
+
     private IEnumerable<Karbantartas> _szurtLista
     {
         get
@@ -192,6 +245,19 @@
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _tipusok = await KarbantartasTipusService.GetActiveAsync();
+
+        // Multi-tenant cég badge betöltés
+        var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+        if (elerhhetoCegIds.Count > 1)
+        {
+            var cegId = TenantService.GetCurrentCegId();
+            var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+            _elerhetoCegek = osszesCeg
+                .Where(c => elerhhetoCegIds.Contains(c.Id))
+                .OrderBy(c => c.Id == cegId ? 0 : 1)
+                .ThenBy(c => c.Nev)
+                .ToList();
+        }
     }
 
     private async Task BetoltesAsync() { _betoltes = true; _lista = await KarbantartasService.GetAllAsync(); _betoltes = false; }

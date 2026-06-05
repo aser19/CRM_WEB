@@ -74,4 +74,36 @@ public static class AvkHatarertekService
 
         return ok ? "MF" : "NMF";
     }
+
+    /// <summary>
+    /// Eredményszámítás az adott sor névleges IΔn értékével mint határral.
+    /// Ha az IDn meg van adva (pl. 300 mA), akkor azt használja az IEC 30 mA helyett.
+    /// </summary>
+    public static string SzamitEredmenyNevlegesAlapjan(
+        string? halozatTipus, string? avkTipusKod,
+        string? idnNevlegesSzoveg,
+        string? idnMertSzoveg, string? t1xSzoveg, string? t5xSzoveg)
+    {
+        var hatar = GetHatarertekek(halozatTipus, avkTipusKod);
+        var cult  = System.Globalization.CultureInfo.InvariantCulture;
+        var style = System.Globalization.NumberStyles.Any;
+
+        // Ha van névleges IΔn érték, azt használjuk határként (pl. 300 mA)
+        decimal maxIdn = hatar.MaxIDnMa;
+        if (decimal.TryParse(idnNevlegesSzoveg, style, cult, out var nevleges) && nevleges > 0)
+            maxIdn = nevleges;
+
+        bool ok = true;
+
+        if (decimal.TryParse(idnMertSzoveg, style, cult, out var idnMert))
+            if (idnMert > maxIdn) ok = false;
+
+        if (decimal.TryParse(t1xSzoveg, style, cult, out var t1x))
+            if (t1x > hatar.MaxT1x_s) ok = false;
+
+        if (decimal.TryParse(t5xSzoveg, style, cult, out var t5x))
+            if (t5x > hatar.MaxT5x_s) ok = false;
+
+        return ok ? "MF" : "NMF";
+    }
 }

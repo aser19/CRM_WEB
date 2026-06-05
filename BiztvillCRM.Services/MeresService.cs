@@ -176,4 +176,34 @@ public class MeresService : IMeresService
             await context.SaveChangesAsync();
         }
     }
+
+    public async Task StatuszFrissitesAsync(int meresId, MeresStatusz statusz, string? eredmeny)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres != null)
+        {
+            meres.MeresStatusz = statusz;
+            meres.Eredmeny = eredmeny;
+            meres.Modositva = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task MentesJegyzokonyvAdatokkalEsStatuszAsync(
+        int meresId, JegyzokonyvAdatok adatok, MeresStatusz statusz, string? eredmeny)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres != null)
+        {
+            meres.JegyzokonyvAdatokJson = JsonSerializer.Serialize(adatok);
+            meres.MeresStatusz = statusz;
+            meres.Eredmeny = eredmeny;
+            meres.Modositva = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+    }
 }

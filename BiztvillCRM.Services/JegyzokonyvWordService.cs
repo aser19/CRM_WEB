@@ -122,9 +122,9 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["VIZSG_UZEMI_KISERO"] = formAdatok?.UzemiKisero ?? "",
             ["VIZSG_KAPCSOLAT_TARTO"] = formAdatok?.KapcsolatTarto ?? meres?.Telephely?.Kapcsolattarto ?? "",
             ["VIZSG_IDOTARTAM"] = formAdatok?.VizsgalatIdotartama ?? "",
-            
+
             // === FELELŐS FELÜLVIZSGÁLÓ ===
-            ["FELULVIZSGALO"] = formAdatok?.FelulvizsgaloNev ?? "",
+            ["FELULVIZSGALO"] = " " + (formAdatok?.FelulvizsgaloNev ?? ""),
             ["FELULVIZSGALO_BIZONYITVANY"] = formAdatok?.FelulvizsgaloBizonyitvany ?? "",
             ["FELULVIZSGALO_MEGUJITO_KEPZES"] = formAdatok?.FelulvizsgaloKepzes ?? "",
             
@@ -215,7 +215,7 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 ?? GetSzamitottDatumStatic(meres?.Datum, formAdatok?.HataridoTipus is "307" or "308" or "309" ? 6 : 3),
 
             ["megrendelo"] = formAdatok?.Megrendelo ?? meres?.Ugyfel?.Nev ?? "",
-            ["telephely"] = formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? "",
+            ["telephely"] = " " + (formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? ""),
             ["felulvizsgalat_ideje"] = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
 
             // === MŰSZEREK (DINAMIKUS) ===
@@ -229,13 +229,27 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
             ["muszer_gysz3"] = kitoltottMuszerek.ElementAtOrDefault(2)?.GyariSzam ?? "",
             ["kalib3"] = kitoltottMuszerek.ElementAtOrDefault(2)?.Kalibralas ?? "",
 
-            // Dinamikus műszerlista
+            // === ÚJ: ÖSSZEFŰZÖTT MŰSZER LISTÁK (sima cellában is működik) ===
+            ["muszer_tipus_lista"] = string.Join(" / ", kitoltottMuszerek
+                .Select((m, i) => kitoltottMuszerek.Count > 1
+                    ? $"{i + 1}. {m.Tipus}"
+                    : m.Tipus)),
+            ["muszer_gysz_lista"] = string.Join(" / ", kitoltottMuszerek
+                .Select((m, i) => kitoltottMuszerek.Count > 1
+                    ? $"{i + 1}. {m.GyariSzam}"
+                    : m.GyariSzam)),
+            ["muszer_kalib_lista"] = string.Join(" / ", kitoltottMuszerek
+                .Select((m, i) => kitoltottMuszerek.Count > 1
+                    ? $"{i + 1}. {m.Kalibralas}"
+                    : m.Kalibralas)),
+
+            // Dinamikus műszerlista (tábla-loop kontextushoz)
             ["muszerek"] = kitoltottMuszerek.Select((m, i) => (object)new Dictionary<string, object>
             {
                 ["muszer_sorszam"] = (i + 1).ToString(),
-                ["muszer_tipus"]   = m.Tipus ?? "",
-                ["muszer_gysz"]    = m.GyariSzam ?? "",
-                ["muszer_kalib"]   = m.Kalibralas ?? "",
+                ["muszer_tipus"] = m.Tipus ?? "",
+                ["muszer_gysz"] = m.GyariSzam ?? "",
+                ["muszer_kalib"] = m.Kalibralas ?? "",
             }).ToList(),
 
             // Van-e műszer feltételek
@@ -280,7 +294,8 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 tularamvedelem_tipusa = mp.TularamvedelemTipusa ?? "",
                 avk                   = mp.AVKCsatolva ? "✓" : "✗",
                 avk_szin              = mp.AVKCsatolva ? "zöld" : "piros",
-                pe_folyt              = mp.PEFolytOhm?.ToString() ?? "",
+                pe_folyt = mp.PEFolytMegfelelt ? "✓" : "✗",
+                pe_folyt_szin = mp.PEFolytMegfelelt ? "zöld" : "piros",
                 ertek_ohm             = mp.MertHurokimpedancia?.ToString("F2") ?? mp.ErtekOhm?.ToString() ?? "",
                 Minosites             = mp.Minosites ?? "",
                 mp_megjegyzes         = mp.Megjegyzes ?? ""
@@ -296,21 +311,26 @@ public class JegyzokonyvWordService : IJegyzokonyvWordService
                 avk_helye           = s.Helye ?? "",
                 avk_in_a            = s.In ?? "",
                 avk_idn_ma          = s.IDn ?? "",
-                avk_idn_mert_ma     = s.IDnMert ?? "",
+                avk_idn_mert_ma     = s.IDnMertWord,  // ← volt: s.IDnMert (4 pólusnál üres!)
                 avk_un_v            = s.Un ?? "",
                 avk_polusszam       = s.Polusszam ?? "",
-                avk_t1x_ms          = s.T1xWord,   // ← összesített, L1/L2/L3 ha 4 pólus
-                avk_t5x_ms          = s.T5xWord,   // ← összesített, L1/L2/L3 ha 4 pólus
+                avk_t1x_ms          = s.T1xWord,
+                avk_t5x_ms          = s.T5xWord,
                 avk_eredmeny        = s.Eredmeny ?? "",
                 avk_megfelelt_x     = s.Eredmeny == "MF" ? "☑" : "🗷",
                 avk_nmf_x           = s.Eredmeny == "NMF" ? "☑" : "🗷",
+                avk_mp              = s.MukodesProba ? "✓" : "✗",
+                avk_szv             = s.Szemrevetelez ? "✓" : "✗",
             }).ToList(),
             ["avk_sorok_db"]       = avkSorok.Count.ToString(),
             ["avk_mf_db"]          = avkSorok.Count(s => s.Eredmeny == "MF").ToString(),
             ["avk_nmf_db"]         = avkSorok.Count(s => s.Eredmeny == "NMF").ToString(),
             ["avk_jkv_szam"]       = formAdatok?.JegyzokonyvSzam ?? "",
-            ["avk_vizsgalat_helye"] = formAdatok?.VizsgalatHelye ?? "",
+            ["avk_vizsgalat_helye"] = " " + (formAdatok?.VizsgalatHelye ?? meres?.Telephely?.Cim ?? ""),
             ["avk_datum"]          = meres?.Datum.ToString("yyyy.MM.dd") ?? DateTime.Today.ToString("yyyy.MM.dd"),
+            ["avk_sorok_db"] = avkSorok.Count.ToString(),
+            ["van_avk"] = avkSorok.Any() ? "true" : "",   // ← ÚJ
+            ["avk_mf_db"] = avkSorok.Count(s => s.Eredmeny == "MF").ToString(),
 
             // 3 éves csoport (301-305, 310, 311)
             ["301"] = formAdatok?.KovetkezoFelulvizsgalatTipus == "50kW" ? "☑" : "🗷",

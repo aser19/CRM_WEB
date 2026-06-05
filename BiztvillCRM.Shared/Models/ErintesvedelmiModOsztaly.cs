@@ -21,4 +21,10 @@ public class ErintesvedelmiModOsztaly
     public int Sorrend { get; set; }
 
     public DateTime Letrehozva { get; set; } = DateTime.Now;
+
+    /// <summary>Lehet-e ÁVK csatolva ehhez a módhoz/osztályhoz</summary>
+    public bool VanAvk { get; set; } = true;
+
+    /// <summary>Lehet-e PE folytonosság ehhez a módhoz/osztályhoz</summary>
+    public bool VanPeFolyt { get; set; } = true;
 }

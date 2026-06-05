@@ -35,36 +35,40 @@ else
             <MudTh>Sorrend</MudTh>
             <MudTh>Mód/osztály</MudTh>
             <MudTh>Leírás</MudTh>
+            <MudTh Style="text-align:center">ÁVK<br/>lehetséges</MudTh>
+            <MudTh Style="text-align:center">PE foly.<br/>lehetséges</MudTh>
             <MudTh>Aktív</MudTh>
             <MudTh>Műveletek</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Sorrend">
-                <MudNumericField @bind-Value="context.Sorrend" Min="0" Max="999" 
+                <MudNumericField @bind-Value="context.Sorrend" Min="0" Max="999"
                                  Variant="Variant.Text" Margin="Margin.Dense" Style="max-width: 80px;" />
             </MudTd>
             <MudTd DataLabel="Mód/osztály">
-                <MudTextField @bind-Value="context.Nev" Variant="Variant.Text" 
-                              Margin="Margin.Dense" Required="true" 
-                              Placeholder="pl. I/0Ω" />
+                <MudTextField @bind-Value="context.Nev" Variant="Variant.Text"
+                              Margin="Margin.Dense" Required="true" Placeholder="pl. I/0Ω" />
             </MudTd>
             <MudTd DataLabel="Leírás">
-                <MudTextField @bind-Value="context.Leiras" Variant="Variant.Text" 
-                              Margin="Margin.Dense" />
+                <MudTextField @bind-Value="context.Leiras" Variant="Variant.Text" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd DataLabel="ÁVK lehetséges" Style="text-align:center">
+                <MudCheckBox @bind-Value="context.VanAvk" Color="Color.Primary" Dense="true"
+                             Title="Ha bejelölt: ehhez a módhoz lehet ÁVK" />
+            </MudTd>
+            <MudTd DataLabel="PE foly. lehetséges" Style="text-align:center">
+                <MudCheckBox @bind-Value="context.VanPeFolyt" Color="Color.Primary" Dense="true"
+                             Title="Ha bejelölt: ehhez a módhoz lehet PE folytonosság" />
             </MudTd>
             <MudTd DataLabel="Aktív">
                 <MudSwitch @bind-Value="context.Aktiv" Color="Color.Success" />
             </MudTd>
             <MudTd>
                 <MudStack Row="true" Spacing="1">
-                    <MudIconButton Icon="@Icons.Material.Filled.Save" 
-                                   Color="Color.Success" 
-                                   Size="Size.Small" 
-                                   OnClick="() => MentesAsync(context)" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                   Color="Color.Error" 
-                                   Size="Size.Small" 
-                                   OnClick="() => TorlesMegerositesAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Success"
+                                   Size="Size.Small" OnClick="() => MentesAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   Size="Size.Small" OnClick="() => TorlesMegerositesAsync(context)" />
                 </MudStack>
             </MudTd>
         </RowTemplate>

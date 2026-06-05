@@ -1,0 +1,346 @@
+@page "/egy-meres-szerkesztő/{MeresId:int}"
+@page "/egy-meres-szerkeszto/{MeresId:int}"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Shared.Enums
+@inject IMeresService MeresService
+@inject IMunkaszamService MunkaszamService
+@inject ITenantService TenantService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJegyzokonyvWordService WordService
+@inject IJSRuntime JS
+
+<PageTitle>"Egy mérés" szerkesztő</PageTitle>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-8" />
+}
+else if (_meres == null)
+{
+    <MudAlert Severity="Severity.Error">A mérés nem található (ID: @MeresId).</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
+        "Egymérés" szerkesztő
+        <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-2">
+            #@MeresId
+        </MudChip>
+        @if (!string.IsNullOrEmpty(_adatok.JegyzokonyvSzam))
+        {
+            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="ml-1"
+                     Icon="@Icons.Material.Filled.Tag">
+                @_adatok.JegyzokonyvSzam
+            </MudChip>
+        }
+    </MudText>
+
+    @* === FEJLÉC – csak olvasható === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+            Alapadatok (csak olvasható)
+        </MudText>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudTextField Value="@_adatok.JegyzokonyvSzam"
+                              Label="Jegyzőkönyv száma" ReadOnly="true"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Tag" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField Value="@(_meres.Ugyfel?.Nev ?? "-")"
+                              Label="Ügyfél" ReadOnly="true" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField Value="@(_meres.Telephely?.Cim ?? "-")"
+                              Label="Telephely" ReadOnly="true" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField Value="@(_meres.Datum.ToString("yyyy.MM.dd"))"
+                              Label="Mérés dátuma" ReadOnly="true" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* === MÉRÉSI PONT LISTA KOMPONENS === *@
+    <MeresiPontLista MeresiPontok="@_adatok.MeresiPontok"
+                     RendszerTipus="@_adatok.MeresiRendszerTipus"
+                     RendszerTipusChanged="@((string v) => _adatok.MeresiRendszerTipus = v)"
+                     AvkSorok="@_adatok.AvkSorok"
+                     EgyMeresMod="true"
+                     OnChange="@StateHasChanged"
+                     Cim="Mérési pontok – Hurokimpedancia"
+                     EgyszeruMod="false" />
+
+    @* === GLOBÁLIS ÖSSZEGZÉS === *@
+    @if (_adatok.MeresiPontok.Any())
+    {
+        var osszes = _adatok.MeresiPontok.Count;
+        var nemFelelt = _adatok.MeresiPontok.Count(s => s.Minosites == "NEM FELELT MEG");
+        <MudPaper Class="pa-3 mt-2 mb-4" Elevation="1" Style="border-left: 4px solid #1976d2;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                <MudText Typo="Typo.subtitle2">Összesítés:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">@osszes mérési pont</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Success">@(osszes - nemFelelt) megfelelt</MudChip>
+                @if (nemFelelt > 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Error">@nemFelelt nem felelt meg</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success">✓ Minden mérés megfelelt</MudChip>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+
+    @* === MENTÉS / VISSZA === *@
+    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mb-8">
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="Vissza">Vissza</MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Secondary"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   OnClick="MentesEsLetoltesAsync"
+                   Disabled="_feldolgozas">
+            @(_feldolgozas ? "..." : "Mentés + Word")
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="MentesAsync"
+                   Disabled="_feldolgozas">
+            @(_feldolgozas ? "Mentés..." : "Mentés")
+        </MudButton>
+    </MudStack>
+}
+
+@code {
+    [Parameter] public int MeresId { get; set; }
+
+    private Meres? _meres;
+    private JegyzokonyvAdatok _adatok = new();
+    private bool _betoltes = true;
+    private bool _feldolgozas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _meres = await MeresService.GetByIdAsync(MeresId);
+
+        if (_meres != null)
+        {
+            if (!string.IsNullOrWhiteSpace(_meres.JegyzokonyvAdatokJson))
+            {
+                _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    _meres.JegyzokonyvAdatokJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                ) ?? new JegyzokonyvAdatok();
+            }
+
+            // Ha még nincs jegyzőkönyv szám → generálunk egyet
+            if (string.IsNullOrWhiteSpace(_adatok.JegyzokonyvSzam))
+            {
+                var cegId = TenantService.GetCurrentCegId();
+                var munkaszam = await MunkaszamService.GeneralKovetkezoMunkaszamAsync(
+                    cegId, _meres.MeresTipusId);
+                _adatok.JegyzokonyvSzam = munkaszam;
+                _adatok.Munkaszam = munkaszam;
+
+                // Azonnal vissza is mentjük, hogy ne generáljon újat frissítéskor
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(MeresId, _adatok);
+            }
+        }
+
+        _betoltes = false;
+    }
+
+    private async Task StatuszFrissitesAMeresAdatokAlapjanAsync()
+    {
+        var vanPont = _adatok.MeresiPontok.Any();
+        var statusz = vanPont ? MeresStatusz.Elvegezve : MeresStatusz.Folyamatban;
+
+        // Mérési pontok között van-e nem megfelelt?
+        var vanNemMegfeleltPont = _adatok.MeresiPontok.Any(p => p.Minosites == "NEM FELELT MEG");
+
+        // ÁVK sorok között van-e NMF?
+        var vanNemMegfeleltAvk = _adatok.AvkSorok?.Any(s => s.Eredmeny == "NMF") == true;
+
+        // PE folytonosság: tiltott módnál be van-e pipálva (hibás állapot)?
+        // → ezt a ValidacioOk() már blokkolta, de ha mégis átjut, számoljon NMF-nek
+
+        var vanNemMegfelelt = vanNemMegfeleltPont || vanNemMegfeleltAvk;
+
+        var eredmeny = vanPont
+            ? (vanNemMegfelelt ? "NEM FELELT MEG" : "MEGFELELT")
+            : null;
+
+        await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+            MeresId, _adatok, statusz, eredmeny);
+
+        if (_meres != null)
+        {
+            _meres.MeresStatusz = statusz;
+            _meres.Eredmeny = eredmeny;
+        }
+
+        if (vanPont)
+        {
+            Snackbar.Add(
+                $"Státusz: Elvégezve | Eredmény: {eredmeny}",
+                vanNemMegfelelt ? Severity.Warning : Severity.Success);
+        }
+    }
+
+    private async Task MentesAsync()
+    {
+        try
+        {
+            if (!ValidacioOk())
+                return;
+
+            _feldolgozas = true;
+            StateHasChanged();
+
+            await StatuszFrissitesAMeresAdatokAlapjanAsync();
+            Snackbar.Add("Mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a mentés során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+            StateHasChanged(); // ← UI mindig felébred
+        }
+    }
+
+    private async Task MentesEsLetoltesAsync()
+    {
+        try
+        {
+            if (!ValidacioOk())
+                return;
+
+            _feldolgozas = true;
+            StateHasChanged();
+
+            await StatuszFrissitesAMeresAdatokAlapjanAsync();
+            Snackbar.Add("Mentve!", Severity.Success);
+
+            var sablonId = _meres?.MeresTipus?.SablonId;
+            if (string.IsNullOrWhiteSpace(sablonId))
+            {
+                Snackbar.Add("Nincs Word sablon azonosító megadva.", Severity.Warning);
+                return;
+            }
+
+            byte[] wordBytes;
+            try { wordBytes = await WordService.GeneralasAsync(MeresId, _adatok, sablonId); }
+            catch (ArgumentException ex)
+            {
+                Snackbar.Add($"A '{sablonId}.docx' sablon nem található: {ex.Message}", Severity.Error);
+                return;
+            }
+
+            var fajlNev = $"{sablonId}_{_adatok.JegyzokonyvSzam?.Replace("/", "-") ?? MeresId.ToString()}.docx";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                wordBytes);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+            StateHasChanged(); // ← UI mindig felébred
+        }
+    }
+
+    /// <summary>
+    /// A mérési pontok minősítése alapján automatikusan frissíti a mérés státuszát:
+    /// - Ha van legalább 1 pont → Elvegezve
+    /// - Ha minden MEGFELELT → Eredmény: "MEGFELELT"
+    /// - Ha bármelyik NEM FELELT MEG → Eredmény: "NEM FELELT MEG"
+    /// - Ha nincs pont → marad Folyamatban
+    /// </summary>
+//    private async Task StatuszFrissitesAMeresAdatokAlapjanAsync()
+//    {
+//        var vanPont = _adatok.MeresiPontok.Any();
+//        var statusz = vanPont ? MeresStatusz.Elvegezve : MeresStatusz.Folyamatban;
+//        var vanNemMegfelelt = _adatok.MeresiPontok.Any(p => p.Minosites == "NEM FELELT MEG");
+//        var eredmeny = vanPont
+//            ? (vanNemMegfelelt ? "NEM FELELT MEG" : "MEGFELELT")
+//            : null;
+//
+//        // Egyetlen DB hívásban menti a JSON-t ÉS a státuszt
+//        await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+//            MeresId, _adatok, statusz, eredmeny);
+//
+//        if (_meres != null)
+//        {
+//            _meres.MeresStatusz = statusz;
+//            _meres.Eredmeny = eredmeny;
+//        }
+//
+//        if (vanPont)
+//        {
+//            Snackbar.Add(
+//                $"Státusz: Elvégezve | Eredmény: {eredmeny}",
+//                vanNemMegfelelt ? Severity.Warning : Severity.Success);
+//        }
+//    }
+
+    private void Vissza() => Navigation.NavigateTo("/meresek");
+
+    private bool ValidacioOk()
+    {
+        var hibak = new List<string>();
+
+        // 1. Kitöltetlen mérési pontok
+        foreach (var p in _adatok.MeresiPontok.Where(p => !p.TeljeskituoltE))
+        {
+            var hianyzok = string.Join(", ", p.HianyzoPontok());
+            hibak.Add($"{p.Sorszam}. mérési pont – hiányzik: {hianyzok}");
+        }
+
+        // 2. ÁVK kipipálva de üres
+        var avkKipipalt = _adatok.MeresiPontok.Where(p => p.AVKCsatolva).ToList();
+        if (avkKipipalt.Any())
+        {
+            var avkSorok = _adatok.AvkSorok ?? [];
+            if (!avkSorok.Any())
+            {
+                hibak.Add($"{avkKipipalt.Count} mérési pontnál ÁVK kipipálva, de az ÁVK táblázat üres!");
+            }
+            else
+            {
+                foreach (var (s, i) in avkSorok.Select((s, i) => (s, i)).Where(x => !x.s.TeljeskitoltottE))
+                    hibak.Add($"ÁVK {i + 1}. sor hiányos – típus vagy mért IΔn hiányzik!");
+            }
+        }
+
+        if (hibak.Any())
+        {
+            // Egyetlen snackbar az összes hibával
+            var uzenet = string.Join("\n", hibak.Select(h => $"⚠️ {h}"));
+            Snackbar.Add(uzenet, Severity.Error, o =>
+            {
+                o.VisibleStateDuration = 8000;
+                o.ShowCloseIcon = true;
+            });
+            return false;
+        }
+
+        return true;
+    }
+}

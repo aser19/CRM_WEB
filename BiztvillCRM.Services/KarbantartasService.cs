@@ -53,8 +53,11 @@ public class KarbantartasService : IKarbantartasService
 
     public async Task<Karbantartas> CreateAsync(Karbantartas karbantartas)
     {
-        // Elsődleges cég kerül rá létrehozáskor
-        karbantartas.CegId = _tenantService.GetCurrentCegId();
+        // CegId az ügyfél alapján kerül meghatározásra, nem a bejelentkezett felhasználó elsődleges cége alapján
+        var ugyfel = await _context.Ugyfelek.FindAsync(karbantartas.UgyfelId)
+            ?? throw new InvalidOperationException("Az ügyfél nem található.");
+
+        karbantartas.CegId = ugyfel.CegId;
         karbantartas.Letrehozva = DateTime.UtcNow;
         await SzamolKovetkezoDatumAsync(karbantartas);
         _context.Karbantartasok.Add(karbantartas);

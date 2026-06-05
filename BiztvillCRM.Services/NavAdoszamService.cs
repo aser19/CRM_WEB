@@ -6,8 +6,7 @@ using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto.Digests;
 
 namespace BiztvillCRM.Services;
 
@@ -112,7 +111,14 @@ public class NavAdoszamService : INavAdoszamService
 
         try
         {
-            var content   = new StringContent(xml, Encoding.UTF8, "application/xml");
+            // UTF8Encoding(false) = BOM nélkül! Ez az alapértelmezett Encoding.UTF8-tól eltér
+            var content  = new StringContent(xml, new UTF8Encoding(false), "application/xml");
+            
+            // Accept header hozzáadása – Naturasoft valószínűleg ezt is küldi
+            _http.DefaultRequestHeaders.Accept.Clear();
+            _http.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/xml"));
+
             var response  = await _http.PostAsync(url, content);
             var xmlValasz = await response.Content.ReadAsStringAsync();
 
@@ -134,26 +140,40 @@ public class NavAdoszamService : INavAdoszamService
     {
         try
         {
-            XNamespace api = "http://schemas.nav.gov.hu/OSA/3.0/api";
+            XNamespace api    = "http://schemas.nav.gov.hu/OSA/3.0/api";
+            XNamespace common = "http://schemas.nav.gov.hu/NTCA/1.0/common";
+
             var doc  = XDocument.Parse(responseXml);
             var root = doc.Root;
 
-            var funcCode = root?.Descendants(api + "funcCode").FirstOrDefault()?.Value;
+            // funcCode a common névtérben van!
+            var funcCode = root?.Descendants(common + "funcCode").FirstOrDefault()?.Value;
+
             if (funcCode != "OK")
             {
-                // Összes hibaüzenet összegyűjtése
-                var uzeneteket = root?.Descendants(api + "notification")
-                    .Select(n => $"[{n.Element(api + "notificationCode")?.Value}] {n.Element(api + "notificationText")?.Value}")
+                // Hibaüzenetek szintén common névtérben
+                var uzeneteket = root?.Descendants(common + "notification")
+                    .Select(n => $"[{n.Element(common + "notificationCode")?.Value}] {n.Element(common + "notificationText")?.Value}")
                     .ToList();
+
+                // Ha nem volt common notification, próbáljuk api alatt is
+                if (uzeneteket?.Any() != true)
+                {
+                    uzeneteket = root?.Descendants(api + "notification")
+                        .Select(n => $"[{n.Element(api + "notificationCode")?.Value}] {n.Element(api + "notificationText")?.Value}")
+                        .ToList();
+                }
 
                 var msg = uzeneteket?.Any() == true
                     ? string.Join(" | ", uzeneteket)
-                    : root?.Descendants(api + "message").FirstOrDefault()?.Value
+                    : root?.Descendants(common + "message").FirstOrDefault()?.Value
+                      ?? root?.Descendants(api + "message").FirstOrDefault()?.Value
                       ?? $"NAV hiba (funcCode: {funcCode ?? "?"})";
 
                 return Hiba(msg);
             }
 
+            // taxpayerData az api névtérben van
             var taxpayer = root?.Descendants(api + "taxpayerData").FirstOrDefault();
             if (taxpayer is null)
                 return Hiba("Az adószám nem található a NAV rendszerben.");
@@ -185,12 +205,23 @@ public class NavAdoszamService : INavAdoszamService
     private static string Sha512Hex(string input)
     {
         var bytes = SHA512.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes); // UPPERCASE
+        return Convert.ToHexString(bytes).ToLowerInvariant(); // NAV: kisbetű kötelező!
     }
 
     private static string Sha3_512Hex(string input)
     {
-        var bytes = SHA3_512.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes); // UPPERCASE
+        if (SHA3_512.IsSupported)
+        {
+            var bytes = SHA3_512.HashData(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(bytes).ToLowerInvariant(); // NAV: kisbetű kötelező!
+        }
+
+        // BouncyCastle fallback (Linux/Azure)
+        var digest = new Sha3Digest(512);
+        var inputBytes = Encoding.UTF8.GetBytes(input);
+        digest.BlockUpdate(inputBytes, 0, inputBytes.Length);
+        var result = new byte[digest.GetDigestSize()];
+        digest.DoFinal(result, 0);
+        return Convert.ToHexString(result).ToLowerInvariant(); // NAV: kisbetű kötelező!
     }
 }

@@ -39,21 +39,39 @@
     @* === 1. LÉPÉS: KIVÁLASZTÁS === *@
     <MudStep Title="Kiválasztás" Icon="@Icons.Material.Filled.ListAlt">
         <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h6" Class="mb-4">Jegyzőkönyv típusa és ügyfél</MudText>
-            
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="int" Value="_kivalasztottTipusId" Label="Jegyzőkönyv típusa *"
-                               ValueChanged="OnTipusValtozas"
-                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
-                               ToStringFunc="@(id => _tipusok.FirstOrDefault(t => t.Id == id)?.Nev ?? "-- Válassz --")">
-                        <MudSelectItem Value="0">-- Válassz típust --</MudSelectItem>
-                        @foreach (var tipus in _tipusok)
-                        {
-                            <MudSelectItem Value="@tipus.Id">@tipus.Nev</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h6">Jegyzőkönyv típusa és ügyfél</MudText>
+            <MudTooltip Text="@(_mutatAlmereseketIs ? "Almérések elrejtése" : "Almérések megjelenítése")">
+                <MudChip T="string"
+                         Icon="@(_mutatAlmereseketIs ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                         Color="@(_mutatAlmereseketIs ? Color.Warning : Color.Default)"
+                         OnClick="@(() => _mutatAlmereseketIs = !_mutatAlmereseketIs)"
+                         Variant="Variant.Outlined"
+                         Size="Size.Small">
+                    Almérések
+                </MudChip>
+            </MudTooltip>
+        </MudStack>
+        
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudSelect T="int" Value="_kivalasztottTipusId" Label="Jegyzőkönyv típusa *"
+                           ValueChanged="OnTipusValtozas"
+                           Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
+                           ToStringFunc="@(id => _osszesTipus.FirstOrDefault(t => t.Id == id)?.Nev ?? "-- Válassz --")">
+                    <MudSelectItem Value="0">-- Válassz típust --</MudSelectItem>
+                    @foreach (var tipus in SzurtTipusok)
+                    {
+                        <MudSelectItem Value="@tipus.Id">
+                            @tipus.Nev
+                            @if (!tipus.FoMeres)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">melléklet</MudChip>
+                            }
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
                 @if (_vizsgalatiKategoriak.Count > 0)
                 {
                     <MudItem xs="12" md="6">
@@ -416,6 +434,52 @@
                             Tovább az időszakos VBF szerkesztőhöz
                         </MudButton>
                     }
+                    else if (IsEgyMeresTipus())
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2EgyMeresTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a mérés kitöltéséhez
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2ValidalasEsTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a 3. oldal kitöltéséhez
+                        </MudButton>
+                    }
+                </MudItem>
+                <MudItem xs="12" Class="mt-4">
+                    @if (GetAktualisTipusKod() == "AVK")
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2AvkTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az AVK adatok kitöltéséhez
+                        </MudButton>
+                    }
+                    else if (IsHordozhatoTipus())
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2HordozhatoTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a hordozható eszközök vizsgálatához
+                        </MudButton>
+                    }
+                    else if (IsIdoszakosVBFTipus())
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2IdoszakosVbfTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az időszakos VBF szerkesztőhöz
+                        </MudButton>
+                    }
+                    else if (IsEgyMeresTipus())
+                    {
+                        @* Egymérés: nincs 3. oldal, csak a mérés kitöltése – a fenti gomb elegendő *@
+                    }
                     else
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -583,11 +647,20 @@
     private MudStepper? _stepper;
     private int _activeStep = 0; // ÚJ: step index követése
 
+    // A meglévő változók mellé (586. sor környéke)
     private List<MeresTipus> _tipusok = [];
+    private List<MeresTipus> _osszesTipus = [];
+    private bool _mutatAlmereseketIs = false;  // ← ÚJ
+
+    // Szűrt lista property
+    // A meglévő SzurtTipusok property helyett (609-610. sor)
+    private IEnumerable<MeresTipus> SzurtTipusok =>
+        _mutatAlmereseketIs
+            ? _osszesTipus
+            : _osszesTipus.Where(t => t.FoMeres && string.IsNullOrEmpty(t.MellekletTipusKod));
     private List<Ugyfel> _ugyfelek = [];
     private List<Telephely> _telephelyek = [];
     private List<Telephely> _szurtTelephelyek = [];
-    private List<MeresTipus> _osszesTipus = [];
 
     private int _kivalasztottTipusId;
     private string? _kivalasztottTipusNev;
@@ -623,12 +696,14 @@
     
     protected override async Task OnInitializedAsync()
     {
-        _tipusok = await MeresTipusService.GetAllAsync();
+        _osszesTipus = await MeresTipusService.GetAllAsync();
+        _tipusok = _osszesTipus.Where(t => t.FoMeres).ToList();  // ← csak főmérések    
+//        _tipusok = await MeresTipusService.GetAllAsync();
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
         _muszerek = await EszkozService.GetAllAsync();
-        _osszesTipus = _tipusok;
+//        _osszesTipus = _tipusok;
         _sablonok = await SablonService.GetAllAsync();
 
         await BetoltCegAdatokAsync();
@@ -651,8 +726,9 @@
     private async Task OnTipusValtozas(int tipusId)
     {
         _kivalasztottTipusId = tipusId;
-        var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
+        var tipus = _osszesTipus.FirstOrDefault(t => t.Id == tipusId); // ← _tipusok → _osszesTipus
         _kivalasztottTipusNev = tipus?.Nev;
+        // ... többi kód változatlan
         _vizsgalatiKategoriak = tipusId > 0
         ? await VizsgalatiSablonService.GetKategoriak(tipusId)
             : [];
@@ -1277,8 +1353,8 @@
 
                 _adatok.Muszerek[index] = new MuszerSor
                 {
-                    EszkozId = eszkozId,    // ← ÚJ
-                    Tipus = muszer.Nev ?? "",
+                    EszkozId = eszkozId,
+                    Tipus = muszer.Tipus ?? muszer.Nev ?? "",  // ← Típus mező, fallback: Nev
                     GyariSzam = muszer.GyariSzam ?? "",
                     Kalibralas = utolsoKalibracio?.Datum.ToString("yyyy.MM.dd") ?? ""
                 };
@@ -1427,16 +1503,28 @@
         }
     }
 
+    private bool IsEgyMeresTipus()
+    {
+        var tipus = _osszesTipus.FirstOrDefault(t => t.Id == _kivalasztottTipusId);
+        return tipus?.SablonId == "EGY_MERES"
+            || (_kivalasztottTipusNev?.Contains("Egy mérés", StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
     private bool IsMeresTipus()
     {
         if (string.IsNullOrEmpty(_kivalasztottTipusNev)) return false;
-        return _kivalasztottTipusNev.Contains("Mérési pont", StringComparison.OrdinalIgnoreCase) ||
-               _kivalasztottTipusNev.Contains("Mérés", StringComparison.OrdinalIgnoreCase);
+        return _kivalasztottTipusNev.Contains("Mérési pont", StringComparison.OrdinalIgnoreCase)
+            || _kivalasztottTipusId == 5;
     }
 
     private bool IsIdoszakosVBFTipus()
     {
-        return !IsHordozhatoTipus() && _kivalasztottTipusId != 5 && _kivalasztottTipusId > 0;
+        if (_kivalasztottTipusId == 0) return false;
+        if (IsHordozhatoTipus()) return false;
+        if (_kivalasztottTipusId == 5) return false;
+        if (IsEgyMeresTipus()) return false;
+        if (IsMellekletTipus()) return false;
+        return true;
     }
 
     private void OnVegsoMinositesValtozas(string minosites)
@@ -1564,7 +1652,7 @@
         }
     }
 
-        private async Task Lepes2IdoszakosVbfTovabbAsync()
+    private async Task Lepes2IdoszakosVbfTovabbAsync()
     {
         if (_kivalasztottFelulvizsgaloId == null)
         {
@@ -1612,6 +1700,59 @@
             }
 
             Navigation.NavigateTo($"/idoszakos-vbf/{meresId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private async Task Lepes2EgyMeresTovabbAsync()
+    {
+        if (_kivalasztottFelulvizsgaloId == null)
+        {
+            Snackbar.Add("Válassz felelős felülvizsgálót!", Severity.Warning);
+            return;
+        }
+
+        _feldolgozas = true;
+        StateHasChanged();
+        try
+        {
+            int meresId;
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    meresId = _ujonnanMentettMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+                }
+                else
+                {
+                    var ujMeres = await MeresService.CreateAsync(new Meres
+                    {
+                        UgyfelId = _kivalasztottUgyfelId,
+                        TelephelyId = _kivalasztottTelephelyId,
+                        MeresTipusId = _kivalasztottTipusId,
+                        Datum = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    });
+                    meresId = ujMeres.Id;
+                    _ujonnanMentettMeresId = meresId;
+                }
+            }
+            else
+            {
+                meresId = MeresId.Value;
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+            }
+
+            Navigation.NavigateTo($"/egy-meres-szerkeszto/{meresId}");
         }
         catch (Exception ex)
         {
@@ -1677,13 +1818,13 @@
     private string GetSablonMegjegyzes(int oldalSzam, int tetelId)
     {
         var kulcs = $"{oldalSzam}_{tetelId}_M";
-        return _adatok.SablonMegjegyzesek.TryGetValue(kulcs, out var v) ? v : "";
+        return _adatok.SablonMegjegyzések.TryGetValue(kulcs, out var v) ? v : "";
     }
 
     private void SetSablonMegjegyzes(int oldalSzam, int tetelId, string ertek)
     {
         var kulcs = $"{oldalSzam}_{tetelId}_M";
-        _adatok.SablonMegjegyzesek[kulcs] = ertek;
+        _adatok.SablonMegjegyzések[kulcs] = ertek;
     }
 
     private async Task BetoltSablonTetelek(int meresTipusId)

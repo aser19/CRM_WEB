@@ -3,6 +3,10 @@ namespace BiztvillCRM.Shared.Models;
 public class JegyzokonyvAdatok
 {
     public string JegyzokonyvSzam { get; set; } = "";
+    
+    /// <summary>Hányszor lett a lezárt jegyzőkönyv újra szerkesztve és mentve.</summary>
+    public int ModositasokSzama { get; set; } = 0;
+
     public string CegNev { get; set; } = "";
     public string CegCim { get; set; } = "";
     public string CegWeb { get; set; } = "";
@@ -355,7 +359,7 @@ public class JegyzokonyvAdatok
     public Dictionary<string, string> SablonErtekek { get; set; } = new();
 
     /// <summary>Dinamikus sablon megjegyzések: kulcs = "oldalSzam_tetelId_M"</summary>
-    public Dictionary<string, string> SablonMegjegyzesek { get; set; } = new();
+    public Dictionary<string, string> SablonMegjegyzések { get; set; } = new();
 } // <-- JegyzokonyvAdatok osztály lezárása
 
 public class KijeloltJogszabaly

@@ -56,7 +56,7 @@
                     <MudTh Style="width: 150px;">Túláramv. Helye</MudTh>
                     <MudTh Style="width: 180px;">Túláramv. Típusa</MudTh>
                     <MudTh Style="width: 80px;">ÁVK</MudTh>
-                    <MudTh Style="width: 100px;">PEΩ foly.</MudTh>
+                    <MudTh Style="width: 100px;">PE foly.</MudTh>
                     <MudTh Style="width: 120px;">ÉRTÉK [Ω]</MudTh>
                     <MudTh Style="width: 140px;">Minősítés</MudTh>
                     <MudTh Style="width: 60px;"></MudTh>
@@ -70,10 +70,12 @@
                                       Variant="Variant.Text"
                                       Margin="Margin.Dense"
                                       Lines="2"
-                                      Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24a" />
+                                      Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24" />
                     </MudTd>
                     <MudTd DataLabel="MÓD / OSZTÁLY">
-                        <MudSelect @bind-Value="context.Modszer"
+                        <MudSelect T="string"
+                                   Value="@context.Modszer"
+                                   ValueChanged="@((string val) => OnModszerChanged(context, val))"
                                    Variant="Variant.Text"
                                    Margin="Margin.Dense"
                                    Dense="true">
@@ -86,7 +88,8 @@
                     </MudTd>
                     <MudTd DataLabel="Túláramv. Helye">
                         <MudAutocomplete T="string"
-                                         @bind-Value="context.TularamvedelemHelye"
+                                         Value="@context.TularamvedelemHelye"
+                                         ValueChanged="@((string val) => OnTularamvedelemHelyeChanged(context, val))"
                                          SearchFunc="@SearchTularamvedelemHelye"
                                          Variant="Variant.Text"
                                          Margin="Margin.Dense"
@@ -94,7 +97,7 @@
                                          Clearable="true"
                                          ResetValueOnEmptyText="false"
                                          CoerceText="true"
-                                         CoerceValue="false" />
+                                         CoerceValue="true" />
                     </MudTd>
                     <MudTd DataLabel="Túláramv. Típusa">
                         <MudAutocomplete T="string"
@@ -110,15 +113,45 @@
                                          CoerceValue="false" />
                     </MudTd>
                     <MudTd DataLabel="ÁVK">
-                        <MudCheckBox @bind-Value="context.AVKCsatolva"
-                                     Color="Color.Success"
-                                     Dense="true" />
+                        @{
+                            var avkMod = _modOsztalyok.FirstOrDefault(m => m.Nev == context.Modszer);
+                            var avkTiltott = avkMod != null && !avkMod.VanAvk;
+                        }
+                        <MudTooltip Text="@(avkTiltott ? $"'{context.Modszer}' módhoz nem lehetséges ÁVK!" : "ÁVK csatolva")">
+                            <MudCheckBox @bind-Value="context.AVKCsatolva"
+                                         Color="@(avkTiltott ? Color.Error : Color.Success)"
+                                         Disabled="@avkTiltott"
+                                         Dense="true" />
+                        </MudTooltip>
+                        @if (avkTiltott)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Block"
+                                     Color="Color.Error" Size="Size.Small"
+                                     Title="@($"'{context.Modszer}' módhoz nem lehetséges ÁVK")" />
+                        }
                     </MudTd>
+
                     <MudTd DataLabel="PEΩ foly.">
-                        <MudTextField @bind-Value="context.PEFolytOhm"
-                                      Variant="Variant.Text"
-                                      Margin="Margin.Dense"
-                                      Placeholder="0.35Ω" />
+                        @{
+                            var peMod = _modOsztalyok.FirstOrDefault(m => m.Nev == context.Modszer);
+                            var peTiltott = peMod != null && !peMod.VanPeFolyt;
+                        }
+                        <MudTooltip Text="@(peTiltott && context.PEFolytMegfelelt
+                            ? $"⚠️ '{context.Modszer}' módhoz nem lehetséges PE – automatikusan NEM FELELT MEG!"
+                            : peTiltott
+                                ? $"'{context.Modszer}' módhoz PE nem releváns"
+                                : "PE folytonosság megfelelt")">
+                            <MudCheckBox Value="@context.PEFolytMegfelelt"
+                                         ValueChanged="@((bool val) => OnPeFolytChanged(context, val, peTiltott))"
+                                         Color="@(peTiltott && context.PEFolytMegfelelt ? Color.Error : Color.Success)"
+                                         Dense="true" />
+                        </MudTooltip>
+                        @if (peTiltott && context.PEFolytMegfelelt)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Warning"
+                                     Color="Color.Error" Size="Size.Small"
+                                     Title="Figyelem: PE nem lehetséges ennél a módnál!" />
+                        }
                     </MudTd>
                     <MudTd DataLabel="ÉRTÉK [Ω]">
                         <MudNumericField Value="@context.MertHurokimpedancia"
@@ -130,10 +163,17 @@
                                          Placeholder="2.5" />
                     </MudTd>
                     <MudTd DataLabel="Minősítés">
+                        @{
+                            var chipPeMod = _modOsztalyok.FirstOrDefault(m => m.Nev == context.Modszer);
+                            var chipPeTiltott = chipPeMod != null && !chipPeMod.VanPeFolyt;
+                            var chipMinosites = (chipPeTiltott && context.PEFolytMegfelelt)
+                                ? "NEM FELELT MEG"
+                                : context.Minosites;
+                        }
                         <MudChip T="string"
-                                 Text="@context.Minosites"
+                                 Text="@chipMinosites"
                                  Size="Size.Small"
-                                 Color="@(context.Minosites == "MEGFELELT" ? Color.Success : Color.Error)" />
+                                 Color="@(chipMinosites == "MEGFELELT" ? Color.Success : Color.Error)" />
                     </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -156,13 +196,13 @@
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="UjMeresiPont">
+                   OnClick="@UjMeresiPont">
             Új mérési pont
         </MudButton>
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Secondary"
                    StartIcon="@Icons.Material.Filled.ContentCopy"
-                   OnClick="TobbMeresiPont">
+                   OnClick="@TobbMeresiPont">
             10 mérési pont hozzáadása
         </MudButton>
     </MudStack>
@@ -264,6 +304,29 @@
             </MudButton>
         </ActivatorContent>
     </MudFileUpload>
+
+    @* === ÁVK ÖSSZESÍTŐ (csak EgyMeresMod=true esetén, ha van kipipált ÁVK sor) === *@
+    @{
+        var avkJeloltPontok = MeresiPontok.Where(p => p.AVKCsatolva).ToList();
+    }
+    @if (EgyMeresMod && avkJeloltPontok.Any() && AvkSorok != null)
+    {
+        <MudDivider Class="my-4" />
+        <MudPaper Class="pa-4" Elevation="2" Style="border-left: 4px solid #1976d2;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">ÁVK mérési adatok</MudText>
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                    @avkJeloltPontok.Count sor kipipálva
+                </MudChip>
+            </MudStack>
+
+            <AvkMeresiTabla @bind-Sorok="AvkSorok"
+                            HalozatTipus="@_lokalisRendszerTipus"
+                            MaxSorok="@avkJeloltPontok.Count" />
+        </MudPaper>
+    }
+
 </MudPaper>
 
     @code {
@@ -273,6 +336,11 @@
     [Parameter] public EventCallback OnChange { get; set; }
     [Parameter] public string Cim { get; set; } = "📊 Mérési pontok táblázat (3. oldal)";
     [Parameter] public bool EgyszeruMod { get; set; } = false;
+    [Parameter] public bool EgyMeresMod { get; set; } = false;
+
+    // === PARAMÉTER – az @code blokk [Parameter] listájához ===
+    [Parameter] public List<AvkSor>? AvkSorok { get; set; }
+    [Parameter] public EventCallback<List<AvkSor>> AvkSorokChanged { get; set; }
 
     private string _lokalisRendszerTipus = "TN";
     private string _elozoRendszerTipus = "";
@@ -287,6 +355,41 @@
         }
     }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        if (RendszerTipus != _elozoRendszerTipus)
+        {
+            _lokalisRendszerTipus = RendszerTipus;
+            _elozoRendszerTipus = RendszerTipus;
+        }
+
+        // Betöltés után korrigáljuk a tárolt minősítéseket
+        if (_modOsztalyok.Any())
+            await KorrigalMinositeseket();
+    }
+
+    private async Task KorrigalMinositeseket()
+    {
+        foreach (var pont in MeresiPontok)
+        {
+            var mod = _modOsztalyok.FirstOrDefault(m => m.Nev == pont.Modszer);
+            bool peTiltott = mod != null && !mod.VanPeFolyt;
+
+            if (peTiltott && pont.PEFolytMegfelelt)
+            {
+                // PE tiltott + be van pipálva → mindenképp NEM FELELT MEG
+                pont.Minosites = "NEM FELELT MEG";
+            }
+            else if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
+            {
+                // Hurokimpedancia alapú újraszámítás
+                pont.Minosites = await TularamvedelemService.SzamolMinositestAsync(
+                    pont.TularamvedelemTipusa,
+                    pont.MertHurokimpedancia.Value);
+            }
+        }
+    }
+
     private async Task OnRendszerTipusValtozas(string ertek)
     {
         _lokalisRendszerTipus = ertek;
@@ -295,7 +398,6 @@
 
     private List<ErintesvedelmiModOsztaly> _modOsztalyok = [];
     private List<TularamvedelemTipus> _tularamvedelemTipusok = [];
-    private HashSet<string> _tularamvedelemHelyek = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -306,25 +408,31 @@
 
     private async Task BetoltLokalisMemoriat()
     {
-        try
-        {
-            var lokalisAdatok = await JS.InvokeAsync<string[]>("localStorage.getItem", "tularamvedelemHelyek");
-            if (lokalisAdatok != null)
-            {
-                _tularamvedelemHelyek = lokalisAdatok.ToHashSet();
-            }
-        }
-        catch { }
+        // localStorage törlése egyszer – szemét értékek kiürítése
+        try { await JS.InvokeVoidAsync("localStorage.removeItem", "tularamvedelemHelyek"); } catch { }
     }
 
-    private async Task<IEnumerable<string>> SearchTularamvedelemHelye(string value, CancellationToken token)
+    private void OnTularamvedelemHelyeChanged(MeresiPontSor pont, string ujErtek)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            return _tularamvedelemHelyek;
+        pont.TularamvedelemHelye = ujErtek;
+        // Nincs localStorage mentés – csak az aktuális form soraiból javaslunk
+    }
 
-        return _tularamvedelemHelyek
-            .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase))
+    private Task<IEnumerable<string>> SearchTularamvedelemHelye(string value, CancellationToken token)
+    {
+        // Csak a TÖBBI sorban már szereplő értékek jelennek meg javaslatként
+        var hasznaltHelyek = MeresiPontok
+            .Where(p => !string.IsNullOrWhiteSpace(p.TularamvedelemHelye))
+            .Select(p => p.TularamvedelemHelye.Trim())
+            .Distinct()
             .OrderBy(h => h);
+
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult<IEnumerable<string>>(hasznaltHelyek);
+
+        // Contains – nem csak startsWith, így "O3" is megtalálja "EO3"-t
+        return Task.FromResult<IEnumerable<string>>(hasznaltHelyek
+            .Where(h => h.Contains(value.Trim(), StringComparison.OrdinalIgnoreCase)));
     }
 
     private async Task<IEnumerable<string>> SearchTularamvedelemTipusa(string value, CancellationToken token)
@@ -355,17 +463,21 @@
         if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
         {
             pont.Minosites = await TularamvedelemService.SzamolMinositestAsync(
-                pont.TularamvedelemTipusa, 
-                pont.MertHurokimpedancia.Value
-            );
+                pont.TularamvedelemTipusa,
+                pont.MertHurokimpedancia.Value);
             pont.ErtekOhm = pont.MertHurokimpedancia.Value.ToString("F2");
+        }
+        else
+        {
+            // Ha törölték az értéket → alaphelyzetbe
+            pont.Minosites = "MEGFELELT";
         }
 
         await OnChange.InvokeAsync();
         StateHasChanged();
     }
 
-    private void UjMeresiPont()
+    private async Task UjMeresiPont()
     {
         var ujSorszam = MeresiPontok.Count + 1;
         var alapModszer = _modOsztalyok.FirstOrDefault()?.Nev ?? "I/1";
@@ -376,18 +488,32 @@
             Modszer = alapModszer,
             AVKCsatolva = false,
             Minosites = "MEGFELELT",
-            HelyisegNev = _aktualisHelyisegNev   // ← ÚJ
+            HelyisegNev = _aktualisHelyisegNev
         });
 
-        _ = OnChange.InvokeAsync();
+        await OnChange.InvokeAsync();
+        StateHasChanged();
     }
 
-    private void TobbMeresiPont()
+    private async Task TobbMeresiPont()
     {
         for (int i = 0; i < 10; i++)
         {
-            UjMeresiPont();
+            var ujSorszam = MeresiPontok.Count + 1;
+            var alapModszer = _modOsztalyok.FirstOrDefault()?.Nev ?? "I/1";
+
+            MeresiPontok.Add(new MeresiPontSor
+            {
+                Sorszam = ujSorszam,
+                Modszer = alapModszer,
+                AVKCsatolva = false,
+                Minosites = "MEGFELELT",
+                HelyisegNev = _aktualisHelyisegNev
+            });
         }
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
     }
 
     private async Task TorolMeresiPont(MeresiPontSor pont)
@@ -404,17 +530,18 @@
 
     private async Task<IEnumerable<string>> HelyisegKereses(string value, CancellationToken token)
     {
-        var result = new List<string>();
+        // Helyiség neveket a már meglévő mérési pontokból ajánljuk
+        var helyisegek = MeresiPontok
+            .Where(p => !string.IsNullOrWhiteSpace(p.HelyisegNev))
+            .Select(p => p.HelyisegNev.Trim())
+            .Distinct()
+            .OrderBy(h => h);
 
         if (string.IsNullOrWhiteSpace(value))
-            return result;
+            return helyisegek;
 
-        result = _tularamvedelemHelyek
-            .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(h => h)
-            .ToList();
-
-        return result;
+        return helyisegek
+            .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool _ocrFeldolgozas = false;
@@ -476,5 +603,45 @@
         // Például: új mérési pontok létrehozása az OCR-ből kinyert adatok alapján
 
         await Task.CompletedTask;
+    }
+
+    private async Task OnModszerChanged(MeresiPontSor pont, string ujModszer)
+    {
+        pont.Modszer = ujModszer;
+
+        var modOsztaly = _modOsztalyok.FirstOrDefault(m => m.Nev == ujModszer);
+        if (modOsztaly != null)
+        {
+            if (!modOsztaly.VanAvk)
+                pont.AVKCsatolva = false;
+            if (!modOsztaly.VanPeFolyt)
+                pont.PEFolytMegfelelt = false;
+        }
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task OnPeFolytChanged(MeresiPontSor pont, bool ujErtek, bool peTiltott)
+    {
+        pont.PEFolytMegfelelt = ujErtek;
+
+        // Ha tiltott módnál mégis be van pipálva → automatikus NEM FELELT MEG
+        if (peTiltott && ujErtek)
+        {
+            pont.Minosites = "NEM FELELT MEG";
+            Snackbar.Add(
+                $"⚠️ '{pont.Modszer}' módhoz PE folytonosság nem lehetséges – minősítés: NEM FELELT MEG",
+                Severity.Warning);
+        }
+        else
+        {
+            // Normál esetben újraszámoljuk a minősítést
+            await SzamolMinositest(pont);
+            return;
+        }
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
     }
 }

@@ -99,13 +99,35 @@
                     </MudText>
                 </td>
 
-                @* IΔn mért – vessző→pont konverzió *@
+                @* IΔn mért – egyfázis: 1 mező, háromfázis: L1/L2/L3 *@
                 <td class="mud-table-cell" style="@(IsIdnTullepve(sor) ? "background:#fff3f3" : "")">
-                    <MudTextField Value="@sor.IDnMert"
-                                  ValueChanged="@((string v) => { sor.IDnMert = NormalizalTizedes(v); AutoEredmeny(sor); })"
-                                  Variant="Variant.Text"
-                                  Placeholder="mért"
-                                  Immediate="true" />
+                    @if (sor.IsNegyPolus)
+                    {
+                        <MudStack Spacing="1">
+                            <MudNumericField T="decimal?"
+                                             Value="@(decimal.TryParse(sor.IDnMertL1, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var l1) ? l1 : null)"
+                                             ValueChanged="@((decimal? val) => { sor.IDnMertL1 = val?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""; AutoEredmeny(sor); })"
+                                             Variant="Variant.Text" Placeholder="L1" Immediate="true" Label="L1" Min="0m" />
+                            <MudNumericField T="decimal?"
+                                             Value="@(decimal.TryParse(sor.IDnMertL2, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var l2) ? l2 : null)"
+                                             ValueChanged="@((decimal? val) => { sor.IDnMertL2 = val?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""; AutoEredmeny(sor); })"
+                                             Variant="Variant.Text" Placeholder="L2" Immediate="true" Label="L2" Min="0m" />
+                            <MudNumericField T="decimal?"
+                                             Value="@(decimal.TryParse(sor.IDnMertL3, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var l3) ? l3 : null)"
+                                             ValueChanged="@((decimal? val) => { sor.IDnMertL3 = val?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""; AutoEredmeny(sor); })"
+                                             Variant="Variant.Text" Placeholder="L3" Immediate="true" Label="L3" Min="0m" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudNumericField T="decimal?"
+                                         Value="@(decimal.TryParse(sor.IDnMert, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var mv) ? mv : null)"
+                                         ValueChanged="@((decimal? val) => { sor.IDnMert = val?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""; AutoEredmeny(sor); })"
+                                         Variant="Variant.Text"
+                                         Placeholder="mA"
+                                         Immediate="true"
+                                         Min="0m" />
+                    }
                     @if (IsIdnTullepve(sor))
                     {
                         <MudText Typo="Typo.caption" Color="Color.Error">
@@ -197,11 +219,24 @@
 </table>
 </div>
 
-<MudButton Variant="Variant.Outlined" Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Add"
-           Class="mt-2" OnClick="UjSorHozzaadas">
-    Új sor
-</MudButton>
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="UjSorHozzaadas"
+               Disabled="@(MaxSorok.HasValue && Sorok.Count >= MaxSorok.Value)">
+        Új sor
+    </MudButton>
+    @if (MaxSorok.HasValue)
+    {
+        <MudText Typo="Typo.caption" Color="@(Sorok.Count >= MaxSorok.Value ? Color.Error : Color.Secondary)">
+            @Sorok.Count / @MaxSorok sor
+            @if (Sorok.Count >= MaxSorok.Value)
+            {
+                <span> — limit elérve</span>
+            }
+        </MudText>
+    }
+</MudStack>
 
 @code {
     [Parameter, EditorRequired]
@@ -212,6 +247,13 @@
 
     [Parameter]
     public string? HalozatTipus { get; set; }
+
+    /// <summary>
+    /// Ha meg van adva, maximum ennyi sort lehet hozzáadni.
+    /// Az EgyMeresSzerkesztőből a kipipált ÁVK sorok száma adódik át.
+    /// </summary>
+    [Parameter]
+    public int? MaxSorok { get; set; }
 
     private List<AvkVedelemTipus> _tipusok = new();
     private int _dragSourceIndex = -1;
@@ -292,11 +334,27 @@
 
     // === INPUT NORMALIZÁLÁS ===
 
-    /// <summary>Vesszőt pontra cserél tizedes elválasztóként (IΔn mért mezőhöz).</summary>
+    /// <summary>Vesszőt pontra cserél, betűket és egyéb karaktereket kiszűr (IΔn mért mezőhöz).</summary>
     private static string NormalizalTizedes(string? v)
     {
         if (string.IsNullOrWhiteSpace(v)) return "";
-        return v.Replace(',', '.');
+
+        var normalized = v.Replace(',', '.');
+
+        // Csak számjegyek és legfeljebb egy tizedes pont engedett
+        var sb = new System.Text.StringBuilder();
+        bool hasDot = false;
+        foreach (var c in normalized)
+        {
+            if (char.IsDigit(c))
+                sb.Append(c);
+            else if (c == '.' && !hasDot)
+            {
+                sb.Append(c);
+                hasDot = true;
+            }
+        }
+        return sb.ToString();
     }
 
     /// <summary>Csak egész számot enged (t1×, t5× [ms] mezőkhöz). Tizedes és utána mindent levág.</summary>
@@ -315,10 +373,25 @@
     private bool IsIdnTullepve(AvkSor sor)
     {
         var hatar = AvkHatarertekService.GetHatarertekek(HalozatTipus, sor.TipusKod);
+        var cult  = System.Globalization.CultureInfo.InvariantCulture;
+        var style = System.Globalization.NumberStyles.Any;
+
+        // Névleges IDn alapján határérték
+        decimal maxIdn = hatar.MaxIDnMa;
+        if (decimal.TryParse(sor.IDn, style, cult, out var nevleges) && nevleges > 0)
+            maxIdn = nevleges;
+
+        if (sor.IsNegyPolus)
+        {
+            foreach (var ertek in new[] { sor.IDnMertL1, sor.IDnMertL2, sor.IDnMertL3 })
+                if (decimal.TryParse(ertek, style, cult, out var v) && v > maxIdn)
+                    return true;
+            return false;
+        }
+
         return !string.IsNullOrEmpty(sor.IDnMert) &&
-               decimal.TryParse(sor.IDnMert, System.Globalization.NumberStyles.Any,
-                   System.Globalization.CultureInfo.InvariantCulture, out var v) &&
-               v > hatar.MaxIDnMa;
+               decimal.TryParse(sor.IDnMert, style, cult, out var mv) &&
+               mv > maxIdn;
     }
 
     private bool IsT1Tullepve(AvkSor sor)
@@ -342,8 +415,30 @@
     // === AUTOMATIKUS EREDMÉNY ===
     private void AutoEredmeny(AvkSor sor)
     {
-        sor.Eredmeny = AvkHatarertekService.SzamitEredmeny(
-            HalozatTipus, sor.TipusKod, sor.IDnMert, sor.T1x, sor.T5x);
+        if (sor.IsNegyPolus)
+        {
+            var cult  = System.Globalization.CultureInfo.InvariantCulture;
+            var style = System.Globalization.NumberStyles.Any;
+            var maxIdn = new[] { sor.IDnMertL1, sor.IDnMertL2, sor.IDnMertL3 }
+                .Select(s => decimal.TryParse(s, style, cult, out var v) ? v : 0m)
+                .DefaultIfEmpty(0m).Max();
+            var maxT1x = new[] { sor.T1xL1, sor.T1xL2, sor.T1xL3 }
+                .Select(s => decimal.TryParse(s, style, cult, out var v) ? v : 0m)
+                .DefaultIfEmpty(0m).Max();
+            var maxT5x = new[] { sor.T5xL1, sor.T5xL2, sor.T5xL3 }
+                .Select(s => decimal.TryParse(s, style, cult, out var v) ? v : 0m)
+                .DefaultIfEmpty(0m).Max();
+
+            sor.Eredmeny = AvkHatarertekService.SzamitEredmenyNevlegesAlapjan(
+                HalozatTipus, sor.TipusKod, sor.IDn,
+                maxIdn.ToString(cult), maxT1x.ToString(cult), maxT5x.ToString(cult));
+        }
+        else
+        {
+            sor.Eredmeny = AvkHatarertekService.SzamitEredmenyNevlegesAlapjan(
+                HalozatTipus, sor.TipusKod, sor.IDn,
+                sor.IDnMert, sor.T1x, sor.T5x);
+        }
         StateHasChanged();
     }
 
@@ -380,6 +475,9 @@
     // === LISTA KEZELÉS ===
     private void UjSorHozzaadas()
     {
+        if (MaxSorok.HasValue && Sorok.Count >= MaxSorok.Value)
+            return;
+
         Sorok.Add(new AvkSor { Sorsz = Sorok.Count + 1 });
         SzamozasAktualizalas();
     }

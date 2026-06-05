@@ -938,13 +938,12 @@ else
 			_vbfMeresTipusId = meresTipusok
 				.FirstOrDefault(m => m.Nev.Contains("Időszakos VBF", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
 
-			// Meglévő sablon betöltése szerkesztéshez
 			if (SablonId is > 0)
 			{
 				var meglevo = await VizsgalatiSablonService.GetByIdAsync(SablonId.Value);
 				if (meglevo is not null)
 				{
-					_sablonNev = meglevo.Nev;        // ← ez töltődik be?
+					_sablonNev = meglevo.Nev;
 					_sablonLeiras = meglevo.Leiras ?? "";
 					if (!string.IsNullOrEmpty(meglevo.AdatokJson))
 					{
@@ -976,6 +975,59 @@ else
 			_betoltes = false;
 			return;
 		}
+
+		// Valódi mérés betöltési ág
+		try
+		{
+			if (MeresId is > 0)
+			{
+				_meres = await MeresService.GetByIdAsync(MeresId.Value);
+				if (_meres is not null && !string.IsNullOrEmpty(_meres.JegyzokonyvAdatokJson))
+				{
+					try
+					{
+						_adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+							_meres.JegyzokonyvAdatokJson,
+							new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+						) ?? new();
+					}
+					catch { _adatok = new(); }
+				}
+
+				// ✅ Ha van már mentett jegyzőkönyvszám → módosítás-jelölés hozzáadása
+				if (!string.IsNullOrWhiteSpace(_adatok.JegyzokonyvSzam))
+				{
+					_adatok.ModositasokSzama++;
+					_adatok.JegyzokonyvSzam = ModositasJelolessel(_adatok.JegyzokonyvSzam, _adatok.ModositasokSzama);
+				}
+
+				_mellekletek = await MellekletService.GetByMeresIdAsync(MeresId.Value);
+
+				_adatok.Aramkorok ??= new();
+				if (_adatok.Aramkorok.Count == 0) _adatok.Aramkorok.Add(new AramkorSor());
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Hiba a mérés betöltésekor: {ex.Message}", Severity.Error);
+		}
+		finally
+		{
+			_betoltes = false;
+		}
+	}
+
+	/// <summary>
+	/// Eltávolítja a meglévő /Mn jelölést (ha van), majd hozzáfűzi az újat.
+	/// Pl.: "VBF-2024-001" → "VBF-2024-001/M1"
+	///      "VBF-2024-001/M1" → "VBF-2024-001/M2"
+	/// </summary>
+
+	private static string ModositasJelolessel(string jegyzokonyvSzam, int modositasokSzama)
+	{
+		var alap = System.Text.RegularExpressions.Regex.Replace(
+			jegyzokonyvSzam, @"/M\d+$", "");
+		return $"{alap}/M{modositasokSzama}";
 	}
 
 
