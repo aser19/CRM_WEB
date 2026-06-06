@@ -363,13 +363,15 @@
             _elozoRendszerTipus = RendszerTipus;
         }
 
-        // Betöltés után korrigáljuk a tárolt minősítéseket
-        if (_modOsztalyok.Any())
-            await KorrigalMinositeseket();
+        if (_modOsztalyok.Any() && _tularamvedelemTipusok.Any())
+            KorrigalMinositeseket(); // ← már nem async!
     }
 
-    private async Task KorrigalMinositeseket()
+    // IN-MEMORY lookup, NEM DB hívás!
+    private void KorrigalMinositeseket()
     {
+        var cult = System.Globalization.CultureInfo.InvariantCulture;
+
         foreach (var pont in MeresiPontok)
         {
             var mod = _modOsztalyok.FirstOrDefault(m => m.Nev == pont.Modszer);
@@ -377,15 +379,20 @@
 
             if (peTiltott && pont.PEFolytMegfelelt)
             {
-                // PE tiltott + be van pipálva → mindenképp NEM FELELT MEG
                 pont.Minosites = "NEM FELELT MEG";
             }
             else if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
             {
-                // Hurokimpedancia alapú újraszámítás
-                pont.Minosites = await TularamvedelemService.SzamolMinositestAsync(
-                    pont.TularamvedelemTipusa,
-                    pont.MertHurokimpedancia.Value);
+                // In-memory számítás – NEM DB hívás!
+                var tipus = _tularamvedelemTipusok
+                    .FirstOrDefault(t => t.Nev.Equals(pont.TularamvedelemTipusa, StringComparison.OrdinalIgnoreCase));
+
+                if (tipus != null && tipus.MaxHurokimpedancia > 0)
+                {
+                    pont.Minosites = pont.MertHurokimpedancia.Value <= tipus.MaxHurokimpedancia
+                        ? "MEGFELELT"
+                        : "NEM FELELT MEG";
+                }
             }
         }
     }
