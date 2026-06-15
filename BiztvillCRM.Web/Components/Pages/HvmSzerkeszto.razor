@@ -230,7 +230,27 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_adatok);
-            await MellekletService.MentAdatokAsync(MellekletId, json, kesz: false);
+
+            // 1. Adatok mentése + "Kész" státusz beállítása
+            await MellekletService.MentAdatokAsync(MellekletId, json, kesz: true);
+
+            // 2. Linked Meres létrehozása, ha még nincs (download gomb feltétele)
+            _melleklet = await MellekletService.GetByIdAsync(MellekletId);
+            if (_melleklet != null && !_melleklet.MellekletMeresId.HasValue)
+            {
+                var foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+                if (foMeres != null)
+                {
+                    await MellekletService.MellekletMeresLetrehozAsync(
+                        MellekletId,
+                        foMeres.MeresTipusId,
+                        new BiztvillCRM.Shared.Models.JegyzokonyvAdatok
+                        {
+                            JegyzokonyvSzam = _melleklet.Szam
+                        });
+                }
+            }
+
             Snackbar.Add("Mentve!", Severity.Success);
             Vissza();
         }

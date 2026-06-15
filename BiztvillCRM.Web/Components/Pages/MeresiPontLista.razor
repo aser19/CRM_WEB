@@ -40,15 +40,24 @@
             .GroupBy(p => string.IsNullOrWhiteSpace(p.HelyisegNev) ? "(Helyiség nélkül)" : p.HelyisegNev)
             .OrderBy(g => g.Key))
         {
-            @* Helyiség fejléc *@
-            <MudPaper Class="pa-2 mb-1 mt-3" Style="background:#f5f5f5;" Elevation="0">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                    <MudIcon Icon="@Icons.Material.Filled.Room" Size="Size.Small" Color="Color.Primary" />
-                    <MudText Typo="Typo.subtitle2"><b>@helyisegCsoport.Key</b> – @helyisegCsoport.Count() mérési pont</MudText>
-                </MudStack>
-            </MudPaper>
+            @* Helyiség fejléc – csak nem-EgyMeresMod esetén *@
+            @if (!EgyMeresMod)
+            {
+                <MudPaper Class="pa-2 mb-1 mt-3" Style="background:#f5f5f5;" Elevation="0">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Room" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2"><b>@helyisegCsoport.Key</b> – @helyisegCsoport.Count() mérési pont</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
 
-            <MudTable Items="@helyisegCsoport.ToList()" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-2">
+            <MudTable Items="@helyisegCsoport.ToList()" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-2"
+                      GroupBy="@(EgyMeresMod ? _helyisegGroupDef : null)">
+                <GroupHeaderTemplate>
+                    <MudTh colspan="10" Style="text-align:left; font-weight:bold; padding: 6px 12px; background:#f5f5f5; font-size:0.95rem;">
+                        @context.Key
+                    </MudTh>
+                </GroupHeaderTemplate>
                 <HeaderContent>
                     <MudTh Style="width: 80px;">Sorszám</MudTh>
                     <MudTh Style="width: 250px;">Mérési pont helye</MudTh>
@@ -345,6 +354,15 @@
     private string _lokalisRendszerTipus = "TN";
     private string _elozoRendszerTipus = "";
     private string _aktualisHelyisegNev = "";
+
+    private readonly TableGroupDefinition<MeresiPontSor> _helyisegGroupDef = new()
+    {
+        GroupName = "Helyiség",
+        Indentation = false,
+        Expandable = false,
+        IsInitiallyExpanded = true,
+        Selector = (e) => string.IsNullOrWhiteSpace(e.HelyisegNev) ? "(Helyiség nélkül)" : e.HelyisegNev
+    };
 
     protected override void OnParametersSet()
     {

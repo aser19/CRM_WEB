@@ -691,10 +691,23 @@
     }
     private async Task MellekletWordLetoltes(MellekletJegyzokonyv melleklet)
     {
-        if (!melleklet.MellekletMeresId.HasValue) return;
+        // HVM: saját szerkesztőbe navigálás
+        if (melleklet.Tipus == "HVM")
+        {
+            _dialogNyitva = false;
+            Navigation.NavigateTo($"/hvm-szerkeszto/{melleklet.Id}");
+            return;
+        }
+
+        // Ha nincs még MellekletMeresId: a szerkesztőt kell előbb megnyitni (MEGNYITÁS gomb)
+        if (!melleklet.MellekletMeresId.HasValue)
+        {
+            Snackbar.Add("A Word letöltéshez először nyissa meg a melléklet szerkesztőjét (MEGNYITÁS gomb) és mentse el az adatokat!", Severity.Warning);
+            return;
+        }
+
         try
         {
-            // SablonId a MeresTipusból
             var mellekletTipus = _tipusok.FirstOrDefault(t => t.MellekletTipusKod == melleklet.Tipus);
             var sablonId = mellekletTipus?.SablonId;
             if (string.IsNullOrEmpty(sablonId))
@@ -727,6 +740,7 @@
         }
         catch (Exception ex) { Snackbar.Add($"Word letöltés hiba: {ex.Message}", Severity.Error); }
     }
+
     private bool IsOnalloAvk => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "AVK";
 
     private List<Ceg> _elerhetoCegek = new();
