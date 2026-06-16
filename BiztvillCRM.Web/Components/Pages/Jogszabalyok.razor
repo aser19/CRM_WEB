@@ -217,13 +217,7 @@
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Szám *" Required="true" /></MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
                 <MudItem xs="12">
-                    <MudText Typo="Typo.body2" Class="mb-2">Terület (több is kiválasztható)</MudText>
-                    <MudStack Row="true" Spacing="2">
-                        <MudCheckBox T="bool" Value="@_villamosMeres" ValueChanged="@((bool v) => TeruletValtozas(TevekenysegTipus.VillanosMeres, v))"
-                                     Label="Villamos biztonságtechnika" Color="Color.Warning" />
-                        <MudCheckBox T="bool" Value="@_benzinkuttechnika" ValueChanged="@((bool v) => TeruletValtozas(TevekenysegTipus.Benzinkuttechnika, v))"
-                                     Label="Benzinkúttechnika" Color="Color.Secondary" />
-                    </MudStack>
+                    <TevekenysegValaszto @bind-Value="_szerkesztesAlatt.Terulet" ShowValidation="false" />
                 </MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosKezdet" Label="Hatályos kezdete" /></MudItem>
@@ -297,21 +291,40 @@
 
                                 @if (_osszeTag.Count > 0)
                                 {
-                                    <!-- Tagek törlése -->
                                     <MudDivider />
-                                    <MudText Typo="Typo.subtitle2">Meglévő tagek törlése</MudText>
-                                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                                        @foreach (var tag in _osszeTag)
-                                        {
-                                            <MudChip T="string" Size="Size.Small"
-                                                     Style="@($"background-color:{tag.Szin};color:white;")"
-                                                     OnClose="@(() => TagTorlesAsync(tag))">
-                                                @tag.Nev
-                                            </MudChip>
-                                        }
-                                    </MudStack>
-                                    <MudText Typo="Typo.caption" Color="Color.Warning">
-                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" /> A törlés minden jogszabályból eltávolítja a taget!
+                                    <MudText Typo="Typo.subtitle2" Class="mb-2">Meglévő tagek kezelése</MudText>
+                                    @foreach (var tag in _osszeTag)
+                                    {
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                            <div style="@($"width:12px;height:12px;border-radius:50%;background:{tag.Szin};flex-shrink:0;display:inline-block;")"></div>
+                                            @if (_tagAtnevezesId == tag.Id)
+                                            {
+                                                <MudTextField @bind-Value="_tagAtnevezesNev" Immediate="true"
+                                                              Style="max-width:160px;" Margin="Margin.Dense" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Check"
+                                                               Size="Size.Small" Color="Color.Success"
+                                                               OnClick="TagAtnevezesAsync" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                                               Size="Size.Small" Color="Color.Default"
+                                                               OnClick="@(() => _tagAtnevezesId = null)" />
+                                            }
+                                            else
+                                            {
+                                                <MudText Typo="Typo.body2" Style="min-width:120px;">@tag.Nev</MudText>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                               Size="Size.Small" Color="Color.Primary"
+                                                               Title="Átnevezés"
+                                                               OnClick="@(() => TagAtnevezesKezdete(tag))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small" Color="Color.Error"
+                                                               Title="Törlés"
+                                                               OnClick="@(() => TagTorlesAsync(tag))" />
+                                            }
+                                        </MudStack>
+                                    }
+                                    <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                                        A törlés minden jogszabályból eltávolítja a taget!
                                     </MudText>
                                 }
                             </MudStack>
@@ -335,7 +348,8 @@
     private bool _isAdmin;
     private Jogszabaly? _szerkesztesAlatt;
     private DateTime? _hatalyosKezdet, _hatalyosVege;
-    private bool _villamosMeres, _benzinkuttechnika;
+    private int? _tagAtnevezesId;
+    private string _tagAtnevezesNev = string.Empty;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     // --- Tagek ---
@@ -408,8 +422,6 @@
         _szerkesztesAlatt = new Jogszabaly { Aktiv = true };
         _hatalyosKezdet = DateTime.Today;
         _hatalyosVege = null;
-        _villamosMeres = false;
-        _benzinkuttechnika = false;
         _kivalasztottTagIds = new List<int>();
         _ujTagNev = string.Empty;
         _dialogNyitva = true;
@@ -432,21 +444,31 @@
         };
         _hatalyosKezdet = item.HatalyosKezdet;
         _hatalyosVege = item.HatalyosVege;
-        _villamosMeres = item.Terulet.HasFlag(TevekenysegTipus.VillanosMeres);
-        _benzinkuttechnika = item.Terulet.HasFlag(TevekenysegTipus.Benzinkuttechnika);
         _kivalasztottTagIds = item.Tagek.Select(t => t.Id).ToList();
         _ujTagNev = string.Empty;
         _dialogNyitva = true;
     }
 
-    private void TeruletValtozas(TevekenysegTipus tipus, bool ertek)
+    private void TagAtnevezesKezdete(JogszabalyTag tag)
     {
-        if (_szerkesztesAlatt is null) return;
-        if (tipus == TevekenysegTipus.VillanosMeres) _villamosMeres = ertek;
-        if (tipus == TevekenysegTipus.Benzinkuttechnika) _benzinkuttechnika = ertek;
-        _szerkesztesAlatt.Terulet = TevekenysegTipus.Nincs;
-        if (_villamosMeres) _szerkesztesAlatt.Terulet |= TevekenysegTipus.VillanosMeres;
-        if (_benzinkuttechnika) _szerkesztesAlatt.Terulet |= TevekenysegTipus.Benzinkuttechnika;
+        _tagAtnevezesId = tag.Id;
+        _tagAtnevezesNev = tag.Nev;
+    }
+
+    private async Task TagAtnevezesAsync()
+    {
+        if (_tagAtnevezesId is null || string.IsNullOrWhiteSpace(_tagAtnevezesNev)) return;
+        var tag = _osszeTag.FirstOrDefault(t => t.Id == _tagAtnevezesId);
+        if (tag is null) return;
+        try
+        {
+            tag.Nev = _tagAtnevezesNev.Trim();
+            await JogszabalyService.UpdateTagAsync(tag);
+            _tagAtnevezesId = null;
+            _osszeTag = _osszeTag.OrderBy(t => t.Nev).ToList();
+            Snackbar.Add("Tag átnevezve!", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
     }
 
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }

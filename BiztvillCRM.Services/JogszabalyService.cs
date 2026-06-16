@@ -110,4 +110,13 @@ public class JogszabalyService : IJogszabalyService
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task UpdateTagAsync(JogszabalyTag tag)
+    {
+        var existing = await _context.JogszabalyTagek.FindAsync(tag.Id)
+            ?? throw new InvalidOperationException("Tag nem található.");
+        existing.Nev = tag.Nev;
+        existing.Szin = tag.Szin;
+        await _context.SaveChangesAsync();
+    }
 }

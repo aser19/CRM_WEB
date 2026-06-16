@@ -13,6 +13,7 @@ public interface IJogszabalyService
     // --- Tagek ---
     Task<List<JogszabalyTag>> GetAllTagekAsync();
     Task<JogszabalyTag> CreateTagAsync(JogszabalyTag tag);
+    Task UpdateTagAsync(JogszabalyTag tag);     // ÚJ
     Task DeleteTagAsync(int id);
     Task SetTagekAsync(int jogszabalyId, List<int> tagIds);
 }
