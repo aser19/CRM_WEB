@@ -193,6 +193,7 @@ builder.Services.AddScoped<IAuthorizationHandler, BiztvillCRM.Web.Authorization.
 
 builder.Services.AddScoped<INyilvanosLekerdezesService, NyilvanosLekerdezesService>();
 builder.Services.AddScoped<IVizsgalatiSablonService, VizsgalatiSablonService>();
+builder.Services.AddScoped<ILejaroOsszefoglaloService, LejaroOsszefoglaloService>();
 
 var app = builder.Build();
 
