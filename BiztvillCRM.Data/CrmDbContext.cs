@@ -46,7 +46,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // --- Jogszabályok ---
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
     public DbSet<MeresTipusJogszabaly> MeresTipusJogszabalyok { get; set; }
-
+    public DbSet<JogszabalyTag> JogszabalyTagek { get; set; }   // ÚJ
     // --- Képzés szabályok ---
     public DbSet<KepzesSzabaly> KepzesSzabalyok { get; set; }
     public DbSet<FelhasznaloErtesitesBeallitas> FelhasznaloErtesitesBeallitasok { get; set; }
@@ -312,7 +312,18 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.Property(e => e.Leiras).HasMaxLength(2000);
             entity.Property(e => e.Url).HasMaxLength(500);
             entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
-            // A Terulet automatikusan int-ként tárolódik (Flags enum)
+            // Many-to-many a tagekkel
+            entity.HasMany(e => e.Tagek)
+                  .WithMany()
+                  .UsingEntity(j => j.ToTable("JogszabalyTagKapcsolatok"));
+        });
+
+        // --- JogszabalyTag ---   ÚJ
+        modelBuilder.Entity<JogszabalyTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Szin).IsRequired().HasMaxLength(20);
         });
 
         // KepzesSzabaly konfigurálása

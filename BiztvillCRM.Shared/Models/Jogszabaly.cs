@@ -13,10 +13,10 @@ public class Jogszabaly
     public string Cim { get; set; } = string.Empty;
     public string? Leiras { get; set; }
     public JogszabalyTipus Tipus { get; set; } = JogszabalyTipus.Jogszabaly;
-    
+
     /// <summary>Tevékenységi terület(ek) - melyik szakterülethez tartozik.</summary>
     public TevekenysegTipus Terulet { get; set; } = TevekenysegTipus.Nincs;
-    
+
     public DateTime? HatalyosKezdet { get; set; }
     public DateTime? HatalyosVege { get; set; }
     public string? Url { get; set; }
@@ -25,4 +25,7 @@ public class Jogszabaly
 
     /// <summary>Jelenleg hatályos-e (nincs vége dátum vagy a vége a jövőben van)</summary>
     public bool JelenlegHatalyos => HatalyosVege == null || HatalyosVege > DateTime.Today;
+
+    /// <summary>Hozzárendelt tagek (many-to-many).</summary>
+    public List<JogszabalyTag> Tagek { get; set; } = new();
 }
