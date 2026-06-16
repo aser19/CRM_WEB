@@ -29,7 +29,7 @@
                 Ha a megadott email cím létezik a rendszerben, küldtünk egy jelszó-visszaállító emailt.
             </MudAlert>
             <MudButton Variant="Variant.Outlined" FullWidth="true"
-                       OnClick="@(() => NavigationManager.NavigateTo("/bejelentkezes"))">
+                       OnClick="NavigateToBejelentkezes">
                 Vissza a bejelentkezéshez
             </MudButton>
         }
@@ -86,36 +86,10 @@
             {
                 var token = await UserManager.GeneratePasswordResetTokenAsync(user);
                 var callbackUrl = NavigationManager.ToAbsoluteUri(
-                    $"/jelszo-visszaallitas?email={Uri.EscapeDataString(user.Email!)}" +
-                    $"&token={Uri.EscapeDataString(token)}");
+                    "/jelszo-visszaallitas?email=" + Uri.EscapeDataString(user.Email!) +
+                    "&token=" + Uri.EscapeDataString(token));
 
-                var szoveg = $"""
-                    <html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
-                    <h2 style="color:#1565C0;border-bottom:3px solid #1565C0;padding-bottom:8px;">
-                        🔐 Jelszó visszaállítás
-                    </h2>
-                    <p>Kedves <strong>{user.Nev}</strong>!</p>
-                    <p>Jelszó-visszaállítási kérelmet kaptunk ehhez az email fiókhoz.</p>
-                    <p>A jelszó visszaállításához kattintson az alábbi gombra:</p>
-                    <p style="text-align:center;margin:32px 0;">
-                        <a href="{callbackUrl}"
-                           style="background:#1565C0;color:#fff;padding:12px 28px;border-radius:6px;
-                                  text-decoration:none;font-weight:bold;font-size:16px;">
-                            Jelszó visszaállítása
-                        </a>
-                    </p>
-                    <p style="color:#555;">Ha a gomb nem működik, másolja be ezt a linket a böngészőbe:</p>
-                    <p style="word-break:break-all;color:#1565C0;font-size:13px;">{callbackUrl}</p>
-                    <p style="color:#888;font-size:12px;margin-top:16px;">
-                        Ha nem Ön kérte a jelszó visszaállítását, hagyja figyelmen kívül ezt az emailt.
-                        A link <strong>24 óráig</strong> érvényes.
-                    </p>
-                    <hr style="border:none;border-top:1px solid #ccc;margin:24px 0;"/>
-                    <p style="color:#aaa;font-size:11px;">
-                        Ez az értesítés automatikusan lett küldve a BiztvillCRM rendszerből.
-                    </p>
-                    </body></html>
-                    """;
+                var szoveg = EpitEmailSzoveg(user.Nev, callbackUrl.ToString());
 
                 await EmailKuldoService.KuldAsync(
                     user.Email!,
@@ -128,12 +102,35 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Hiba történt az email küldésekor: {ex.Message}", Severity.Error);
+            Snackbar.Add("Hiba történt az email küldésekor: " + ex.Message, Severity.Error);
         }
         finally
         {
             _betoltes = false;
         }
+    }
+
+    private static string EpitEmailSzoveg(string nev, string callbackUrl)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><body style=\"font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;\">");
+        sb.Append("<h2 style=\"color:#1565C0;border-bottom:3px solid #1565C0;padding-bottom:8px;\">&#128272; Jelszó visszaállítás</h2>");
+        sb.Append("<p>Kedves <strong>" + System.Net.WebUtility.HtmlEncode(nev) + "</strong>!</p>");
+        sb.Append("<p>Jelszó-visszaállítási kérelmet kaptunk ehhez az email fiókhoz.</p>");
+        sb.Append("<p>A jelszó visszaállításához kattintson az alábbi gombra:</p>");
+        sb.Append("<p style=\"text-align:center;margin:32px 0;\">");
+        sb.Append("<a href=\"" + callbackUrl + "\" style=\"background:#1565C0;color:#fff;padding:12px 28px;" +
+                  "border-radius:6px;text-decoration:none;font-weight:bold;font-size:16px;\">Jelszó visszaállítása</a>");
+        sb.Append("</p>");
+        sb.Append("<p style=\"color:#555;\">Ha a gomb nem működik, másolja be ezt a linket a böngészőbe:</p>");
+        sb.Append("<p style=\"word-break:break-all;color:#1565C0;font-size:13px;\">" + callbackUrl + "</p>");
+        sb.Append("<p style=\"color:#888;font-size:12px;margin-top:16px;\">");
+        sb.Append("Ha nem Ön kérte a visszaállítást, hagyja figyelmen kívül ezt az emailt. ");
+        sb.Append("A link <strong>24 óráig</strong> érvényes.</p>");
+        sb.Append("<hr style=\"border:none;border-top:1px solid #ccc;margin:24px 0;\"/>");
+        sb.Append("<p style=\"color:#aaa;font-size:11px;\">Ez az értesítés automatikusan lett küldve a BiztvillCRM rendszerből.</p>");
+        sb.Append("</body></html>");
+        return sb.ToString();
     }
 
     public class EmailModel
@@ -142,4 +139,10 @@
         [EmailAddress(ErrorMessage = "Érvénytelen email cím formátum")]
         public string Email { get; set; } = string.Empty;
     }
+
+    private void NavigateToBejelentkezes() =>
+    NavigationManager.NavigateTo("/bejelentkezes");
+
+    private void NavigateToElfelejtettJelszo() =>
+        NavigationManager.NavigateTo("/elfelejtett-jelszo");
 }
