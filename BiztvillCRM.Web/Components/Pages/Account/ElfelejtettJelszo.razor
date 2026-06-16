@@ -1,11 +1,15 @@
 @page "/elfelejtett-jelszo"
+@attribute [AllowAnonymous]
 @layout EmptyLayout
 @using System.ComponentModel.DataAnnotations
+@using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @inject UserManager<Felhasznalo> UserManager
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject IEmailKuldoService EmailKuldoService
 
 <PageTitle>Elfelejtett jelszó - Biztovill CRM</PageTitle>
 
@@ -24,7 +28,8 @@
             <MudAlert Severity="Severity.Success" Class="mb-4">
                 Ha a megadott email cím létezik a rendszerben, küldtünk egy jelszó-visszaállító emailt.
             </MudAlert>
-            <MudButton Variant="Variant.Outlined" FullWidth="true" OnClick="@(() => NavigationManager.NavigateTo("/bejelentkezes"))">
+            <MudButton Variant="Variant.Outlined" FullWidth="true"
+                       OnClick="@(() => NavigationManager.NavigateTo("/bejelentkezes"))">
                 Vissza a bejelentkezéshez
             </MudButton>
         }
@@ -40,6 +45,8 @@
                               AdornmentIcon="@Icons.Material.Filled.Email"
                               Class="mb-4"
                               Required="true" />
+
+                <ValidationMessage For="@(() => _model.Email)" />
 
                 <MudButton ButtonType="ButtonType.Submit"
                            Variant="Variant.Filled"
@@ -72,20 +79,56 @@
     private async Task KuldesAsync()
     {
         _betoltes = true;
-
         try
         {
             var user = await UserManager.FindByEmailAsync(_model.Email);
-            if (user != null && user.Aktiv)
+            if (user is not null && user.Aktiv)
             {
                 var token = await UserManager.GeneratePasswordResetTokenAsync(user);
-                // TODO: Email küldés implementálása
-                // var callbackUrl = NavigationManager.ToAbsoluteUri($"/jelszo-visszaallitas?email={user.Email}&token={Uri.EscapeDataString(token)}");
-                // await EmailService.SendPasswordResetAsync(user.Email, callbackUrl.ToString());
+                var callbackUrl = NavigationManager.ToAbsoluteUri(
+                    $"/jelszo-visszaallitas?email={Uri.EscapeDataString(user.Email!)}" +
+                    $"&token={Uri.EscapeDataString(token)}");
+
+                var szoveg = $"""
+                    <html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+                    <h2 style="color:#1565C0;border-bottom:3px solid #1565C0;padding-bottom:8px;">
+                        🔐 Jelszó visszaállítás
+                    </h2>
+                    <p>Kedves <strong>{user.Nev}</strong>!</p>
+                    <p>Jelszó-visszaállítási kérelmet kaptunk ehhez az email fiókhoz.</p>
+                    <p>A jelszó visszaállításához kattintson az alábbi gombra:</p>
+                    <p style="text-align:center;margin:32px 0;">
+                        <a href="{callbackUrl}"
+                           style="background:#1565C0;color:#fff;padding:12px 28px;border-radius:6px;
+                                  text-decoration:none;font-weight:bold;font-size:16px;">
+                            Jelszó visszaállítása
+                        </a>
+                    </p>
+                    <p style="color:#555;">Ha a gomb nem működik, másolja be ezt a linket a böngészőbe:</p>
+                    <p style="word-break:break-all;color:#1565C0;font-size:13px;">{callbackUrl}</p>
+                    <p style="color:#888;font-size:12px;margin-top:16px;">
+                        Ha nem Ön kérte a jelszó visszaállítását, hagyja figyelmen kívül ezt az emailt.
+                        A link <strong>24 óráig</strong> érvényes.
+                    </p>
+                    <hr style="border:none;border-top:1px solid #ccc;margin:24px 0;"/>
+                    <p style="color:#aaa;font-size:11px;">
+                        Ez az értesítés automatikusan lett küldve a BiztvillCRM rendszerből.
+                    </p>
+                    </body></html>
+                    """;
+
+                await EmailKuldoService.KuldAsync(
+                    user.Email!,
+                    "BiztvillCRM – Jelszó visszaállítás",
+                    szoveg);
             }
 
-            // Mindig siker üzenetet mutatunk (biztonsági okokból)
+            // Mindig sikert mutatunk – biztonsági okokból nem jelezzük, hogy az email létezik-e
             _elkuldve = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba történt az email küldésekor: {ex.Message}", Severity.Error);
         }
         finally
         {

@@ -11,17 +11,17 @@
         <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">Biztovill CRM</MudText>
         <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-4">Bejelentkezés</MudText>
 
-        <MudTextField @bind-Value="_email" Label="Email cím vagy felhasználó név" 
+        <MudTextField @bind-Value="_email" Label="Email cím vagy felhasználó név"
                       InputType="InputType.Email" Required="true" Class="mb-3"
                       OnKeyUp="@OnEnterPressed" />
-        
-        <MudTextField @bind-Value="_password" Label="Jelszó" 
+
+        <MudTextField @bind-Value="_password" Label="Jelszó"
                       InputType="InputType.Password" Required="true" Class="mb-4"
                       OnKeyUp="@OnEnterPressed" />
-        
+
         <MudCheckBox @bind-Value="_rememberMe" Label="Emlékezz rám" Color="Color.Primary" Class="mb-4" />
-        
-        <MudButton OnClick="BejelentkezesAsync" Variant="Variant.Filled" Color="Color.Primary" 
+
+        <MudButton OnClick="BejelentkezesAsync" Variant="Variant.Filled" Color="Color.Primary"
                    FullWidth="true" Disabled="_betoltes">
             @if (_betoltes)
             {
@@ -29,7 +29,13 @@
             }
             Bejelentkezés
         </MudButton>
-        
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2">
+            <MudLink Href="/elfelejtett-jelszo" Typo="Typo.caption" Color="Color.Primary">
+                Elfelejtett jelszó?
+            </MudLink>
+        </MudStack>
+
         @if (!string.IsNullOrEmpty(_hibaUzenet))
         {
             <MudAlert Severity="Severity.Error" Class="mt-4">@_hibaUzenet</MudAlert>
@@ -60,9 +66,7 @@
     private async Task OnEnterPressed(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-        {
             await BejelentkezesAsync();
-        }
     }
 
     private async Task BejelentkezesAsync()

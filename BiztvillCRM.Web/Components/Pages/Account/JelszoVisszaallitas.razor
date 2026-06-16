@@ -1,0 +1,149 @@
+@page "/jelszo-visszaallitas"
+@attribute [AllowAnonymous]
+@layout EmptyLayout
+@using System.ComponentModel.DataAnnotations
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<Felhasznalo> UserManager
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Jelszó visszaállítása - Biztovill CRM</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="min-height: 100vh;">
+	<MudPaper Class="pa-8" Elevation="4" Style="width: 100%; max-width: 450px;">
+		<MudStack AlignItems="AlignItems.Center" Class="mb-6">
+			<MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Large" Color="Color.Primary" />
+			<MudText Typo="Typo.h5">Jelszó visszaállítása</MudText>
+		</MudStack>
+
+		@if (_ervenytelen)
+		{
+			<MudAlert Severity="Severity.Error" Class="mb-4">
+				Érvénytelen vagy lejárt visszaállító link. Kérjen új jelszó-visszaállítást.
+			</MudAlert>
+			<MudButton Variant="Variant.Outlined" FullWidth="true"
+					   OnClick="@(() => NavigationManager.NavigateTo("/elfelejtett-jelszo"))">
+				Új link kérése
+			</MudButton>
+		}
+		else if (_sikeres)
+		{
+			<MudAlert Severity="Severity.Success" Class="mb-4">
+				A jelszó sikeresen megváltozott! Bejelentkezhet az új jelszavával.
+			</MudAlert>
+			<MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+					   OnClick="@(() => NavigationManager.NavigateTo("/bejelentkezes"))">
+				Bejelentkezés
+			</MudButton>
+		}
+		else
+		{
+			<EditForm Model="_model" OnValidSubmit="VisszaallitasAsync" FormName="reset-password">
+				<DataAnnotationsValidator />
+
+				<MudTextField @bind-Value="_model.UjJelszo"
+							  Label="Új jelszó"
+							  InputType="InputType.Password"
+							  Adornment="Adornment.Start"
+							  AdornmentIcon="@Icons.Material.Filled.Lock"
+							  Class="mb-3"
+							  Required="true" />
+				<ValidationMessage For="@(() => _model.UjJelszo)" />
+
+				<MudTextField @bind-Value="_model.JelszoMegerosites"
+							  Label="Jelszó megerősítése"
+							  InputType="InputType.Password"
+							  Adornment="Adornment.Start"
+							  AdornmentIcon="@Icons.Material.Filled.Lock"
+							  Class="mb-2"
+							  Required="true" />
+				<ValidationMessage For="@(() => _model.JelszoMegerosites)" />
+
+				<MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-4 d-block">
+					Legalább 8 karakter, tartalmazzon nagybetűt és számot.
+				</MudText>
+
+				<MudButton ButtonType="ButtonType.Submit"
+						   Variant="Variant.Filled"
+						   Color="Color.Primary"
+						   FullWidth="true"
+						   Size="Size.Large"
+						   Disabled="_betoltes">
+					@if (_betoltes)
+					{
+						<MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+					}
+					<span>Jelszó mentése</span>
+				</MudButton>
+			</EditForm>
+		}
+	</MudPaper>
+</MudContainer>
+
+@code {
+	[SupplyParameterFromQuery(Name = "email")]
+	public string? Email { get; set; }
+
+	[SupplyParameterFromQuery(Name = "token")]
+	public string? Token { get; set; }
+
+	private JelszoModel _model = new();
+	private bool _betoltes;
+	private bool _sikeres;
+	private bool _ervenytelen;
+
+	protected override void OnParametersSet()
+	{
+		if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Token))
+			_ervenytelen = true;
+	}
+
+	private async Task VisszaallitasAsync()
+	{
+		if (_ervenytelen) return;
+
+		_betoltes = true;
+		try
+		{
+			var user = await UserManager.FindByEmailAsync(Email!);
+			if (user is null || !user.Aktiv)
+			{
+				_ervenytelen = true;
+				return;
+			}
+
+			var eredmeny = await UserManager.ResetPasswordAsync(user, Token!, _model.UjJelszo);
+
+			if (eredmeny.Succeeded)
+			{
+				_sikeres = true;
+			}
+			else
+			{
+				var hibak = string.Join(" ", eredmeny.Errors.Select(e => e.Description));
+				Snackbar.Add($"Hiba: {hibak}", Severity.Error);
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Váratlan hiba: {ex.Message}", Severity.Error);
+		}
+		finally
+		{
+			_betoltes = false;
+		}
+	}
+
+	public class JelszoModel
+	{
+		[Required(ErrorMessage = "Az új jelszó megadása kötelező")]
+		[MinLength(8, ErrorMessage = "A jelszónak legalább 8 karakternek kell lennie")]
+		public string UjJelszo { get; set; } = string.Empty;
+
+		[Required(ErrorMessage = "A jelszó megerősítése kötelező")]
+		[Compare(nameof(UjJelszo), ErrorMessage = "A két jelszó nem egyezik meg")]
+		public string JelszoMegerosites { get; set; } = string.Empty;
+	}
+}
