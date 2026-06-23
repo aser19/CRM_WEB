@@ -31,7 +31,32 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
-            .Where(m => !mellekletMeresIds.Contains(m.Id))
+            .Where(m => !mellekletMeresIds.Contains(m.Id) && m.Aktiv) // Csak az aktívak
+            .AsQueryable();
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(m => m.Ugyfel != null && cegIds.Contains(m.Ugyfel.CegId));
+        }
+
+        return await query.OrderByDescending(m => m.Datum).ToListAsync();
+    }
+
+    public async Task<List<Meres>> GetInaktivakAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var mellekletMeresIds = await context.MellekletJegyzokonyvek
+            .Where(m => m.MellekletMeresId.HasValue)
+            .Select(m => m.MellekletMeresId!.Value)
+            .ToListAsync();
+
+        var query = context.Meresek
+            .Include(m => m.Ugyfel)
+            .Include(m => m.Telephely)
+            .Include(m => m.MeresTipus)
+            .Where(m => !mellekletMeresIds.Contains(m.Id) && !m.Aktiv) // Csak az inaktívak
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -202,6 +227,48 @@ public class MeresService : IMeresService
             meres.JegyzokonyvAdatokJson = JsonSerializer.Serialize(adatok);
             meres.MeresStatusz = statusz;
             meres.Eredmeny = eredmeny;
+            meres.Modositva = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<Meres?> EllenorizDuplikaciot(int ugyfelId, int telephelyId, int meresTipusId, DateTime ujMeresDatum)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var query = context.Meresek
+            .Include(m => m.Ugyfel)
+            .Include(m => m.Telephely)
+            .Include(m => m.MeresTipus)
+            .Where(m => m.UgyfelId == ugyfelId
+                        && m.TelephelyId == telephelyId
+                        && m.MeresTipusId == meresTipusId
+                        && m.Aktiv);
+
+        var regi = await query.FirstOrDefaultAsync();
+        if (regi == null) return null;
+
+        // Ellenőrizzük, hogy az új mérés 40 napon belül van-e a régihez képest
+        if (regi.KovetkezoDatum.HasValue)
+        {
+            var kulonbseg = Math.Abs((ujMeresDatum - regi.KovetkezoDatum.Value).TotalDays);
+            if (kulonbseg <= 40)
+            {
+                return regi;
+            }
+        }
+
+        return null;
+    }
+
+    public async Task InaktivvaTesz(int meresId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres != null)
+        {
+            meres.Aktiv = false;
             meres.Modositva = DateTime.UtcNow;
             await context.SaveChangesAsync();
         }

@@ -24,6 +24,12 @@ public class Meres
     // ✅ ÚJ: Jegyzőkönyv adatok JSON-ben
     public string? JegyzokonyvAdatokJson { get; set; }
 
+    /// <summary>
+    /// Aktív-e a mérés. Inaktív mérések nem jelennek meg az alapértelmezett listában,
+    /// de megmaradnak a History-ban.
+    /// </summary>
+    public bool Aktiv { get; set; } = true;
+
     // Navigációs propertyk
     public Ugyfel? Ugyfel { get; set; }
     public Telephely? Telephely { get; set; }

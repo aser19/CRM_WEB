@@ -47,6 +47,8 @@
                            Variant="@(_csoportositott ? Variant.Filled : Variant.Outlined)"
                            OnClick="@(() => _csoportositott = !_csoportositott)" />
         </MudTooltip>
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" 
+                   OnClick="InaktivakMegnyitasa" Class="mr-2">Inaktív mérések</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új mérés</MudButton>
     </MudStack>
 
@@ -405,6 +407,40 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Inaktív mérések</MudText></TitleContent>
+    <DialogContent>
+        @if (_inaktivBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!_inaktivLista.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nincs inaktív mérés.</MudAlert>
+        }
+        else
+        {
+            <MudDataGrid T="Meres" Items="_inaktivLista" Filterable="false" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="m => m.Ugyfel!.Nev" Title="Ügyfél" />
+                    <PropertyColumn Property="m => m.Telephely!.Nev" Title="Telephely" />
+                    <PropertyColumn Property="m => m.MeresTipus!.Nev" Title="Típus" />
+                    <TemplateColumn Title="Dátum">
+                        <CellTemplate>@context.Item.Datum.ToString("yyyy.MM.dd")</CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Következő mérés">
+                        <CellTemplate>@(context.Item.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "-")</CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="m => m.Eredmeny" Title="Eredmény" />
+                </Columns>
+            </MudDataGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Mérés szerkesztése" : "Új mérés")</MudText></TitleContent>
     <DialogContent>
@@ -578,6 +614,11 @@
     private bool _osszefoglaloMod = false;
     private bool _osszefoglaloToltes = false;
     private LejaroOsszefoglalo? _emailOsszefoglalo;
+
+    // Inaktív mérések
+    private bool _inaktivDialogNyitva = false;
+    private List<Meres> _inaktivLista = new();
+    private bool _inaktivBetoltes = false;
 
     // A meglévő _emailCimzett után (263. sor környékére) ADD HOZZÁ:
     private HashSet<int> _mellekletMeresIds = new();
@@ -786,6 +827,33 @@
 
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+
+        // Duplikáció ellenőrzése csak új mérés esetén (nem szerkesztésnél)
+        if (_szerkesztesAlatt.Id == 0)
+        {
+            var duplikalt = await MeresService.EllenorizDuplikaciot(
+                _szerkesztesAlatt.UgyfelId,
+                _szerkesztesAlatt.TelephelyId,
+                _szerkesztesAlatt.MeresTipusId,
+                _szerkesztesAlatt.Datum
+            );
+
+            if (duplikalt != null)
+            {
+                var valasz = await ShowMeresDuplikacioDialog(duplikalt);
+                if (valasz == "Mégsem")
+                {
+                    return; // Nem mentjük az új mérést
+                }
+                else if (valasz == "Igen")
+                {
+                    // Régi inaktívvá, új aktívként mentés
+                    await MeresService.InaktivvaTesz(duplikalt.Id);
+                }
+                // "Nem" esetén: régi változatlan marad, új mentésre kerül aktívként (alapértelmezett)
+            }
+        }
+
         _mentes = true;
         try
         {
@@ -1066,4 +1134,53 @@
 
     private string GetCegNev(int cegId)
         => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
+
+    private async Task InaktivakMegnyitasa()
+    {
+        _inaktivBetoltes = true;
+        _inaktivDialogNyitva = true;
+        try
+        {
+            _inaktivLista = await MeresService.GetInaktivakAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az inaktív mérések betöltésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _inaktivBetoltes = false;
+        }
+    }
+
+    private async Task<string> ShowMeresDuplikacioDialog(Meres regi)
+    {
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == regi.UgyfelId)?.Nev ?? "?";
+        var telephely = _telephelyek.FirstOrDefault(t => t.Id == regi.TelephelyId)?.Nev ?? "?";
+        var tipus = _tipusok.FirstOrDefault(t => t.Id == regi.MeresTipusId)?.Nev ?? "?";
+        var lejaratStr = regi.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "nincs megadva";
+
+        var parameters = new DialogParameters
+        {
+            ["Uzenet"] = $"Már létezik hasonló mérés:\n\n" +
+                         $"Ügyfél: {ugyfel}\n" +
+                         $"Telephely: {telephely}\n" +
+                         $"Típus: {tipus}\n" +
+                         $"Következő mérés dátuma: {lejaratStr}\n\n" +
+                         $"Szeretnéd a régit inaktívvá tenni?\n\n" +
+                         $"• Igen → Régi inaktív lesz, új aktív állapottal mentésre kerül\n" +
+                         $"• Nem → Régi változatlan marad, új aktív state-el kerül mentésre\n" +
+                         $"• Mégsem → Régi változatlan marad, új nem kerül mentésre"
+        };
+
+        var dialog = await DialogService.ShowAsync<MeresDuplikacioDialog>("Duplikált mérés", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            CloseButton = false
+        });
+
+        var result = await dialog.Result;
+        if (result.Canceled) return "Mégsem";
+        return result.Data?.ToString() ?? "Mégsem";
+    }
 }
