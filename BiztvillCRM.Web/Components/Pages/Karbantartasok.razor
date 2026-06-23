@@ -32,6 +32,7 @@
             <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
         </MudSelect>
         <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" OnClick="InaktivakMegnyitasa">Inaktív karbantartások</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új karbantartás</MudButton>
     </MudStack>
 
@@ -95,6 +96,40 @@
         <NoRecordsContent><MudText>Nincs megjeleníthető karbantartás.</MudText></NoRecordsContent>
     </MudDataGrid>
 </MudPaper>
+
+<MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Inaktív karbantartások</MudText></TitleContent>
+    <DialogContent>
+        @if (_inaktivBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!_inaktivLista.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nincs inaktív karbantartás.</MudAlert>
+        }
+        else
+        {
+            <MudDataGrid T="Karbantartas" Items="_inaktivLista" Filterable="false" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="k => k.Ugyfel!.Nev" Title="Ügyfél" />
+                    <PropertyColumn Property="k => k.Telephely!.Nev" Title="Telephely" />
+                    <PropertyColumn Property="k => k.KarbantartasTipus!.Nev" Title="Típus" />
+                    <TemplateColumn Title="Dátum">
+                        <CellTemplate>@context.Item.Datum.ToString("yyyy.MM.dd")</CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Következő">
+                        <CellTemplate>@(context.Item.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "Eseti")</CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
+                </Columns>
+            </MudDataGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
 
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Karbantartás szerkesztése" : "Új karbantartás")</MudText></TitleContent>
@@ -176,6 +211,11 @@
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     private string? _datumSzuro;
+
+    // Inaktív karbantartások
+    private bool _inaktivDialogNyitva = false;
+    private List<Karbantartas> _inaktivLista = new();
+    private bool _inaktivBetoltes = false;
 
     private List<Ceg> _elerhetoCegek = new();
 
@@ -354,9 +394,36 @@
         if (_szerkesztesAlatt.UgyfelId == 0) { Snackbar.Add("Az ügyfél kiválasztása kötelező!", Severity.Warning); return; }
         if (_szerkesztesAlatt.TelephelyId == 0) { Snackbar.Add("A telephely kiválasztása kötelező!", Severity.Warning); return; }
         if (_szerkesztesAlatt.KarbantartasTipusId == 0) { Snackbar.Add("A típus kiválasztása kötelező!", Severity.Warning); return; }
-        
+
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.KovetkezoDatum = _esetiTipus ? null : _kovetkezoDatum;
+
+        // Duplikáció ellenőrzése csak új karbantartás esetén (nem szerkesztésnél)
+        if (_szerkesztesAlatt.Id == 0)
+        {
+            var duplikalt = await KarbantartasService.EllenorizDuplikaciot(
+                _szerkesztesAlatt.UgyfelId,
+                _szerkesztesAlatt.TelephelyId,
+                _szerkesztesAlatt.KarbantartasTipusId,
+                _szerkesztesAlatt.Datum
+            );
+
+            if (duplikalt != null)
+            {
+                var valasz = await ShowKarbantartasDuplikacioDialog(duplikalt);
+                if (valasz == "Mégsem")
+                {
+                    return; // Nem mentjük az új karbantartást
+                }
+                else if (valasz == "Igen")
+                {
+                    // Régi inaktívvá, új aktívként mentés
+                    await KarbantartasService.InaktivvaTesz(duplikalt.Id);
+                }
+                // "Nem" esetén: régi változatlan marad, új mentésre kerül aktívként (alapértelmezett)
+            }
+        }
+
         _mentes = true;
         try
         {
@@ -375,5 +442,54 @@
             try { await KarbantartasService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         }
+    }
+
+    private async Task InaktivakMegnyitasa()
+    {
+        _inaktivBetoltes = true;
+        _inaktivDialogNyitva = true;
+        try
+        {
+            _inaktivLista = await KarbantartasService.GetInaktivakAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az inaktív karbantartások betöltésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _inaktivBetoltes = false;
+        }
+    }
+
+    private async Task<string> ShowKarbantartasDuplikacioDialog(Karbantartas regi)
+    {
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == regi.UgyfelId)?.Nev ?? "?";
+        var telephely = _telephelyek.FirstOrDefault(t => t.Id == regi.TelephelyId)?.Nev ?? "?";
+        var tipus = _tipusok.FirstOrDefault(t => t.Id == regi.KarbantartasTipusId)?.Nev ?? "?";
+        var lejaratStr = regi.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "nincs megadva";
+
+        var parameters = new DialogParameters
+        {
+            ["Uzenet"] = $"Már létezik hasonló karbantartás:\n\n" +
+                         $"Ügyfél: {ugyfel}\n" +
+                         $"Telephely: {telephely}\n" +
+                         $"Típus: {tipus}\n" +
+                         $"Következő karbantartás dátuma: {lejaratStr}\n\n" +
+                         $"Szeretnéd a régit inaktívvá tenni?\n\n" +
+                         $"• Igen → Régi inaktív lesz, új aktív állapottal mentésre kerül\n" +
+                         $"• Nem → Régi változatlan marad, új aktív state-el kerül mentésre\n" +
+                         $"• Mégsem → Régi változatlan marad, új nem kerül mentésre"
+        };
+
+        var dialog = await DialogService.ShowAsync<KarbantartasDuplikacioDialog>("Duplikált karbantartás", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            CloseButton = false
+        });
+
+        var result = await dialog.Result;
+        if (result.Canceled) return "Mégsem";
+        return result.Data?.ToString() ?? "Mégsem";
     }
 }

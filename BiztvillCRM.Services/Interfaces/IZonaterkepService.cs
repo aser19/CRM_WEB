@@ -9,4 +9,7 @@ public interface IZonaterkepService
     Task<Zonaterkep> CreateAsync(Zonaterkep zonaterkep);
     Task<Zonaterkep> UpdateAsync(Zonaterkep zonaterkep);
     Task DeleteAsync(int id);
+    Task<List<Zonaterkep>> GetInaktivakAsync();
+    Task<Zonaterkep?> EllenorizDuplikaciot(int ugyfelId, int? telephelyId, ZonaTipus zonaTipus, DateTime ujErvenyessegVege);
+    Task InaktivvaTesz(int zonaterkepId);
 }

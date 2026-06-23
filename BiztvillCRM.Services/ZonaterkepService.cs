@@ -75,4 +75,46 @@ public class ZonaterkepService : IZonaterkepService
         _context.Zonaterkepek.Remove(zonaterkep);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<Zonaterkep>> GetInaktivakAsync()
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+        return await _context.Zonaterkepek
+            .Include(z => z.Ugyfel)
+            .Include(z => z.Telephely)
+            .Where(z => z.CegId == cegId && !z.Aktiv)
+            .OrderBy(z => z.Megnevezes)
+            .ToListAsync();
+    }
+
+    public async Task<Zonaterkep?> EllenorizDuplikaciot(int ugyfelId, int? telephelyId, ZonaTipus zonaTipus, DateTime ujErvenyessegVege)
+    {
+        var cegId = _tenantService.GetCurrentCegId();
+
+        var query = _context.Zonaterkepek
+            .Include(z => z.Ugyfel)
+            .Include(z => z.Telephely)
+            .Where(z => z.Aktiv
+                        && z.CegId == cegId
+                        && z.UgyfelId == ugyfelId
+                        && z.TelephelyId == telephelyId
+                        && z.ZonaTipus == zonaTipus);
+
+        var regi = await query.FirstOrDefaultAsync();
+        if (regi == null || regi.ErvenyessegVege == null)
+            return null;
+
+        var kulonbseg = Math.Abs((ujErvenyessegVege - regi.ErvenyessegVege.Value).TotalDays);
+        return kulonbseg <= 40 ? regi : null;
+    }
+
+    public async Task InaktivvaTesz(int zonaterkepId)
+    {
+        var zonaterkep = await _context.Zonaterkepek.FindAsync(zonaterkepId);
+        if (zonaterkep != null)
+        {
+            zonaterkep.Aktiv = false;
+            await _context.SaveChangesAsync();
+        }
+    }
 }

@@ -23,6 +23,9 @@
         <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" OnClick="InaktivakMegnyitasa">
+            Inaktív zónatérképek
+        </MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
             Új zónatérkép
         </MudButton>
@@ -130,6 +133,41 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Inaktív zónatérképek</MudText></TitleContent>
+    <DialogContent>
+        @if (_inaktivBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!_inaktivLista.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nincs inaktív zónatérkép.</MudAlert>
+        }
+        else
+        {
+            <MudDataGrid T="Zonaterkep" Items="_inaktivLista" Filterable="false" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="z => z.Megnevezes" Title="Megnevezés" />
+                    <PropertyColumn Property="z => z.Ugyfel!.Nev" Title="Ügyfél" />
+                    <TemplateColumn Title="Telephely">
+                        <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Zóna típus">
+                        <CellTemplate>@GetZonaTipusNev(context.Item.ZonaTipus)</CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Érvényesség vége">
+                        <CellTemplate>@(context.Item.ErvenyessegVege?.ToString("yyyy.MM.dd") ?? "-")</CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
 <!-- Szerkesztő dialógus -->
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
     <TitleContent>
@@ -208,6 +246,11 @@
     private Zonaterkep? _emailZonaterkep;
     private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.ZonaterkepLejarat90Nap;
     private string _emailCimzett = "";
+
+    // Inaktív zónatérképek
+    private bool _inaktivDialogNyitva = false;
+    private List<Zonaterkep> _inaktivLista = new();
+    private bool _inaktivBetoltes = false;
 
     private IEnumerable<Telephely> _szurtTelephelyek =>
         _kivalasztottUgyfelId.HasValue
@@ -292,6 +335,32 @@
 
         _szerkesztesAlatt.ErvenyessegKezdete = _ervenyessegKezdete;
         _szerkesztesAlatt.ErvenyessegVege = _ervenyessegVege;
+
+        // Duplikáció ellenőrzése csak új zónatérkép esetén (nem szerkesztésnél)
+        if (_szerkesztesAlatt.Id == 0 && _ervenyessegVege.HasValue)
+        {
+            var duplikalt = await ZonaterkepService.EllenorizDuplikaciot(
+                _szerkesztesAlatt.UgyfelId,
+                _szerkesztesAlatt.TelephelyId,
+                _szerkesztesAlatt.ZonaTipus,
+                _ervenyessegVege.Value
+            );
+
+            if (duplikalt != null)
+            {
+                var valasz = await ShowZonaterkepDuplikacioDialog(duplikalt);
+                if (valasz == "Mégsem")
+                {
+                    return; // Nem mentjük az új zónatérképet
+                }
+                else if (valasz == "Igen")
+                {
+                    // Régi inaktívvá, új aktívként mentés
+                    await ZonaterkepService.InaktivvaTesz(duplikalt.Id);
+                }
+                // "Nem" esetén: régi változatlan marad, új mentésre kerül aktívként (alapértelmezett)
+            }
+        }
 
         try
         {
@@ -397,5 +466,56 @@
         {
             _emailKuldes = false;
         }
+    }
+
+    private async Task InaktivakMegnyitasa()
+    {
+        _inaktivBetoltes = true;
+        _inaktivDialogNyitva = true;
+        try
+        {
+            _inaktivLista = await ZonaterkepService.GetInaktivakAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az inaktív zónatérképek betöltésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _inaktivBetoltes = false;
+        }
+    }
+
+    private async Task<string> ShowZonaterkepDuplikacioDialog(Zonaterkep regi)
+    {
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == regi.UgyfelId)?.Nev ?? "?";
+        var telephely = regi.TelephelyId.HasValue
+            ? _telephelyek.FirstOrDefault(t => t.Id == regi.TelephelyId.Value)?.Nev ?? "?"
+            : "Nincs megadva";
+        var zonaTipus = GetZonaTipusNev(regi.ZonaTipus);
+        var ervenyessegVegeStr = regi.ErvenyessegVege?.ToString("yyyy.MM.dd") ?? "nincs megadva";
+
+        var parameters = new DialogParameters
+        {
+            ["Uzenet"] = $"Már létezik hasonló zónatérkép:\n\n" +
+                         $"Ügyfél: {ugyfel}\n" +
+                         $"Telephely: {telephely}\n" +
+                         $"Zóna típus: {zonaTipus}\n" +
+                         $"Érvényesség vége: {ervenyessegVegeStr}\n\n" +
+                         $"Szeretnéd a régit inaktívvá tenni?\n\n" +
+                         $"• Igen → Régi inaktív lesz, új aktív állapottal mentésre kerül\n" +
+                         $"• Nem → Régi változatlan marad, új aktív state-el kerül mentésre\n" +
+                         $"• Mégsem → Régi változatlan marad, új nem kerül mentésre"
+        };
+
+        var dialog = await DialogService.ShowAsync<ZonaterkepDuplikacioDialog>("Duplikált zónatérkép", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            CloseButton = false
+        });
+
+        var result = await dialog.Result;
+        if (result.Canceled) return "Mégsem";
+        return result.Data?.ToString() ?? "Mégsem";
     }
 }

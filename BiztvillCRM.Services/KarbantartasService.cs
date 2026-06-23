@@ -23,6 +23,7 @@ public class KarbantartasService : IKarbantartasService
             .Include(k => k.Ugyfel)
             .Include(k => k.Telephely)
             .Include(k => k.KarbantartasTipus)
+            .Where(k => k.Aktiv)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -120,6 +121,60 @@ public class KarbantartasService : IKarbantartasService
         {
             // Ismétlődő karbantartás - számoljuk a következő dátumot
             karbantartas.KovetkezoDatum = karbantartas.Datum.AddMonths(tipus.IsmetlodesHonap);
+        }
+    }
+
+    public async Task<List<Karbantartas>> GetInaktivakAsync()
+    {
+        var query = _context.Karbantartasok
+            .Include(k => k.Ugyfel)
+            .Include(k => k.Telephely)
+            .Include(k => k.KarbantartasTipus)
+            .Where(k => !k.Aktiv)
+            .AsQueryable();
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(k => cegIds.Contains(k.CegId));
+        }
+
+        return await query.OrderByDescending(k => k.Datum).ToListAsync();
+    }
+
+    public async Task<Karbantartas?> EllenorizDuplikaciot(int ugyfelId, int telephelyId, int karbantartasTipusId, DateTime ujDatum)
+    {
+        var cegIds = _tenantService.IsInRole(FelhasznaloSzerepkor.Admin)
+            ? null
+            : await _tenantService.GetElerhhetoCegIdsAsync();
+
+        var query = _context.Karbantartasok
+            .Include(k => k.Ugyfel)
+            .Include(k => k.Telephely)
+            .Include(k => k.KarbantartasTipus)
+            .Where(k => k.Aktiv
+                        && k.UgyfelId == ugyfelId
+                        && k.TelephelyId == telephelyId
+                        && k.KarbantartasTipusId == karbantartasTipusId);
+
+        if (cegIds != null)
+            query = query.Where(k => cegIds.Contains(k.CegId));
+
+        var regi = await query.FirstOrDefaultAsync();
+        if (regi == null || regi.KovetkezoDatum == null)
+            return null;
+
+        var kulonbseg = Math.Abs((ujDatum - regi.KovetkezoDatum.Value).TotalDays);
+        return kulonbseg <= 40 ? regi : null;
+    }
+
+    public async Task InaktivvaTesz(int karbantartasId)
+    {
+        var karbantartas = await _context.Karbantartasok.FindAsync(karbantartasId);
+        if (karbantartas != null)
+        {
+            karbantartas.Aktiv = false;
+            await _context.SaveChangesAsync();
         }
     }
 }

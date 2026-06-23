@@ -176,4 +176,55 @@ public class MunkavedelmiOktatasService : IMunkavedelmiOktatasService
 
         await context.SaveChangesAsync();
     }
+
+    public async Task<List<MunkavedelmiOktatas>> GetInaktivakAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var query = context.MunkavedelmiOktatasok
+            .Include(o => o.Ugyfel)
+            .Include(o => o.Telephely)
+            .Include(o => o.Resztvevok)
+            .Include(o => o.Ceg)
+            .Where(o => !o.Aktiv);
+
+        var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+        query = query.Where(o => cegIds.Contains(o.CegId));
+
+        return await query.OrderByDescending(o => o.OktatasDatuma).ToListAsync();
+    }
+
+    public async Task<MunkavedelmiOktatas?> EllenorizDuplikaciot(int ugyfelId, int? telephelyId, string megnevezes, DateTime ujDatum)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+
+        var query = context.MunkavedelmiOktatasok
+            .Include(o => o.Ugyfel)
+            .Include(o => o.Telephely)
+            .Where(o => o.Aktiv
+                        && o.UgyfelId == ugyfelId
+                        && o.TelephelyId == telephelyId
+                        && o.Megnevezes == megnevezes
+                        && cegIds.Contains(o.CegId));
+
+        var regi = await query.FirstOrDefaultAsync();
+        if (regi == null || regi.KovetkezoOktatas == null)
+            return null;
+
+        var kulonbseg = Math.Abs((ujDatum - regi.KovetkezoOktatas.Value).TotalDays);
+        return kulonbseg <= 40 ? regi : null;
+    }
+
+    public async Task InaktivvaTesz(int oktatasId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var oktatas = await context.MunkavedelmiOktatasok.FindAsync(oktatasId);
+        if (oktatas != null)
+        {
+            oktatas.Aktiv = false;
+            await context.SaveChangesAsync();
+        }
+    }
 }

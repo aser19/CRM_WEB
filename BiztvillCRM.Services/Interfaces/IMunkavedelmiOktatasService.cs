@@ -16,4 +16,9 @@ public interface IMunkavedelmiOktatasService
     Task<MunkavedelmiOktatasResztvevo> AddResztvevoAsync(int oktatasId, MunkavedelmiOktatasResztvevo resztvevo);
     Task RemoveResztvevoAsync(int resztvevoId);
     Task UpdateResztvevokAsync(int oktatasId, List<MunkavedelmiOktatasResztvevo> resztvevok);
+
+    // Duplikáció és inaktív kezelés
+    Task<List<MunkavedelmiOktatas>> GetInaktivakAsync();
+    Task<MunkavedelmiOktatas?> EllenorizDuplikaciot(int ugyfelId, int? telephelyId, string megnevezes, DateTime ujDatum);
+    Task InaktivvaTesz(int oktatasId);
 }

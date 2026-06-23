@@ -27,4 +27,5 @@ public class Karbantartas
     public string? Leiras { get; set; }
     public string? Elvegzo { get; set; }
     public bool Elvegezve { get; set; } = false;
+    public bool Aktiv { get; set; } = true;
 }

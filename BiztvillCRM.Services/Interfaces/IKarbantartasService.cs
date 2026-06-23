@@ -9,4 +9,7 @@ public interface IKarbantartasService
     Task<Karbantartas> CreateAsync(Karbantartas karbantartas);
     Task<Karbantartas> UpdateAsync(Karbantartas karbantartas);
     Task DeleteAsync(int id);
+    Task<List<Karbantartas>> GetInaktivakAsync();
+    Task<Karbantartas?> EllenorizDuplikaciot(int ugyfelId, int telephelyId, int karbantartasTipusId, DateTime ujDatum);
+    Task InaktivvaTesz(int karbantartasId);
 }

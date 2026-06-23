@@ -21,6 +21,9 @@
         <MudTextField @bind-Value="_kereses" Label="Keresés" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" OnClick="InaktivakMegnyitasa">
+            Inaktív oktatások
+        </MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">
             Új oktatás
         </MudButton>
@@ -117,6 +120,42 @@
                    Disabled="_emailKuldes" StartIcon="@Icons.Material.Filled.Send">
             @(_emailKuldes ? "Küldés..." : "Küldés")
         </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Inaktív munkavédelmi oktatások</MudText></TitleContent>
+    <DialogContent>
+        @if (_inaktivBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!_inaktivLista.Any())
+        {
+            <MudAlert Severity="Severity.Info">Nincs inaktív oktatás.</MudAlert>
+        }
+        else
+        {
+            <MudDataGrid T="MunkavedelmiOktatas" Items="_inaktivLista" Filterable="false" Hover="true" Striped="true" Dense="true">
+                <Columns>
+                    <PropertyColumn Property="o => o.Ugyfel!.Nev" Title="Ügyfél" />
+                    <TemplateColumn Title="Telephely">
+                        <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="o => o.Megnevezes" Title="Megnevezés" />
+                    <TemplateColumn Title="Oktatás dátuma">
+                        <CellTemplate>@context.Item.OktatasDatuma.ToString("yyyy.MM.dd")</CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Következő oktatás">
+                        <CellTemplate>@(context.Item.KovetkezoOktatas?.ToString("yyyy.MM.dd") ?? "-")</CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="o => o.OktatoNeve" Title="Oktató" />
+                </Columns>
+            </MudDataGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -308,6 +347,11 @@
     private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.MunkavedelmiOktatas90Nap;
     private string _emailCimzett = "";
 
+    // Inaktív oktatások
+    private bool _inaktivDialogNyitva = false;
+    private List<MunkavedelmiOktatas> _inaktivLista = new();
+    private bool _inaktivBetoltes = false;
+
     private IEnumerable<Telephely> _szurtTelephelyek =>
         _kivalasztottUgyfelId.HasValue
             ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value)
@@ -482,19 +526,45 @@
             return;
         }
 
-        _mentes = true;
         _szerkesztesAlatt.OktatasDatuma = _oktatasDatum.Value;
 
         // Automatikus megnevezés generálása
         var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId);
         _szerkesztesAlatt.Megnevezes = $"{ugyfel?.Nev} - {_oktatasDatum.Value:yyyy.MM.dd}";
 
+        // Duplikáció ellenőrzése csak új oktatás esetén (nem szerkesztésnél)
+        if (_szerkesztesAlatt.Id == 0)
+        {
+            var duplikalt = await OktatasService.EllenorizDuplikaciot(
+                _szerkesztesAlatt.UgyfelId,
+                _szerkesztesAlatt.TelephelyId,
+                _szerkesztesAlatt.Megnevezes,
+                _szerkesztesAlatt.OktatasDatuma
+            );
+
+            if (duplikalt != null)
+            {
+                var valasz = await ShowOktatasDuplikacioDialog(duplikalt);
+                if (valasz == "Mégsem")
+                {
+                    return; // Nem mentjük az új oktatást
+                }
+                else if (valasz == "Igen")
+                {
+                    // Régi inaktívvá, új aktívként mentés
+                    await OktatasService.InaktivvaTesz(duplikalt.Id);
+                }
+                // "Nem" esetén: régi változatlan marad, új mentésre kerül aktívként (alapértelmezett)
+            }
+        }
+
+        _mentes = true;
         try
         {
             if (_szerkesztesAlatt.Id > 0)
             {
                 await OktatasService.UpdateAsync(_szerkesztesAlatt);
-                
+
                 // Résztvevők frissítése - töröljük a régieket és hozzáadjuk az újakat
                 await OktatasService.UpdateResztvevokAsync(_szerkesztesAlatt.Id, 
                     kitoltottResztvevok.Select(r => new MunkavedelmiOktatasResztvevo
@@ -503,13 +573,13 @@
                         Nev = r.Nev,
                         Beosztas = r.Beosztas
                     }).ToList());
-                
+
                 Snackbar.Add("Oktatás módosítva.", Severity.Success);
             }
             else
             {
                 var ujOktatas = await OktatasService.CreateAsync(_szerkesztesAlatt);
-                
+
                 // Résztvevők hozzáadása
                 foreach (var resztvevo in kitoltottResztvevok)
                 {
@@ -519,7 +589,7 @@
                         Beosztas = resztvevo.Beosztas
                     });
                 }
-                
+
                 Snackbar.Add("Oktatás létrehozva.", Severity.Success);
             }
 
@@ -670,5 +740,55 @@
         public int Id { get; set; }
         public string Nev { get; set; } = string.Empty;
         public string? Beosztas { get; set; }
+    }
+
+    private async Task InaktivakMegnyitasa()
+    {
+        _inaktivBetoltes = true;
+        _inaktivDialogNyitva = true;
+        try
+        {
+            _inaktivLista = await OktatasService.GetInaktivakAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az inaktív oktatások betöltésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _inaktivBetoltes = false;
+        }
+    }
+
+    private async Task<string> ShowOktatasDuplikacioDialog(MunkavedelmiOktatas regi)
+    {
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == regi.UgyfelId)?.Nev ?? "?";
+        var telephely = regi.TelephelyId.HasValue
+            ? _telephelyek.FirstOrDefault(t => t.Id == regi.TelephelyId.Value)?.Nev ?? "?"
+            : "Nincs megadva";
+        var kovetkezoOktatStr = regi.KovetkezoOktatas?.ToString("yyyy.MM.dd") ?? "nincs megadva";
+
+        var parameters = new DialogParameters
+        {
+            ["Uzenet"] = $"Már létezik hasonló oktatás:\n\n" +
+                         $"Ügyfél: {ugyfel}\n" +
+                         $"Telephely: {telephely}\n" +
+                         $"Megnevezés: {regi.Megnevezes}\n" +
+                         $"Következő oktatás dátuma: {kovetkezoOktatStr}\n\n" +
+                         $"Szeretnéd a régit inaktívvá tenni?\n\n" +
+                         $"• Igen → Régi inaktív lesz, új aktív állapottal mentésre kerül\n" +
+                         $"• Nem → Régi változatlan marad, új aktív state-el kerül mentésre\n" +
+                         $"• Mégsem → Régi változatlan marad, új nem kerül mentésre"
+        };
+
+        var dialog = await DialogService.ShowAsync<MunkavedelmiOktatasDuplikacioDialog>("Duplikált oktatás", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            CloseButton = false
+        });
+
+        var result = await dialog.Result;
+        if (result.Canceled) return "Mégsem";
+        return result.Data?.ToString() ?? "Mégsem";
     }
 }
