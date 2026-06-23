@@ -24,6 +24,26 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
+            .Where(h => h.Aktiv) // Csak az aktívak
+            .AsQueryable();
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            query = query.Where(h => h.Ugyfel != null && cegIds.Contains(h.Ugyfel.CegId));
+        }
+
+        return await query.OrderByDescending(h => h.Datum).ToListAsync();
+    }
+
+    public async Task<List<Hitelesites>> GetInaktivakAsync()
+    {
+        var query = _context.Hitelesitesek
+            .Include(h => h.Ugyfel)
+            .Include(h => h.Telephely)
+            .Include(h => h.EszkozTipus)
+            .Include(h => h.Hatosag)
+            .Where(h => !h.Aktiv) // Csak az inaktívak
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -113,6 +133,48 @@ public class HitelesitesService : IHitelesitesService
         if (eszkozTipus != null && eszkozTipus.HitelesitesiIdotartamHonap > 0)
         {
             hitelesites.LejaratDatum = hitelesites.Datum.AddMonths(eszkozTipus.HitelesitesiIdotartamHonap);
+        }
+    }
+
+    public async Task<Hitelesites?> EllenorizDuplikaciot(int ugyfelId, int telephelyId, int eszkozTipusId, string? eszkozAzonosito, DateTime ujHitelesDatum)
+    {
+        var query = _context.Hitelesitesek
+            .Include(h => h.Ugyfel)
+            .Where(h => h.UgyfelId == ugyfelId
+                        && h.TelephelyId == telephelyId
+                        && h.EszkozTipusId == eszkozTipusId
+                        && h.Aktiv);
+
+        // EszkozAzonosito egyezés ellenőrzése (null is számít)
+        if (string.IsNullOrWhiteSpace(eszkozAzonosito))
+            query = query.Where(h => string.IsNullOrEmpty(h.EszkozAzonosito));
+        else
+            query = query.Where(h => h.EszkozAzonosito == eszkozAzonosito);
+
+        var regi = await query.FirstOrDefaultAsync();
+        if (regi == null) return null;
+
+        // Ellenőrizzük, hogy az új hitelesítés 40 napon belül van-e a régi lejáratához képest
+        if (regi.LejaratDatum.HasValue)
+        {
+            var kulonbseg = Math.Abs((ujHitelesDatum - regi.LejaratDatum.Value).TotalDays);
+            if (kulonbseg <= 40)
+            {
+                return regi;
+            }
+        }
+
+        return null;
+    }
+
+    public async Task InaktivvaTesz(int hitelesitesId)
+    {
+        var hitelesites = await _context.Hitelesitesek.FindAsync(hitelesitesId);
+        if (hitelesites != null)
+        {
+            hitelesites.Aktiv = false;
+            hitelesites.Modositva = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -82,4 +82,10 @@ public class Hitelesites
     /// </summary>
     [MaxLength(200)]
     public string? EszkozAzonosito { get; set; }
+
+    /// <summary>
+    /// Aktív-e a hitelesítés. Inaktív hitelesítések nem jelennek meg az alapértelmezett listában,
+    /// de megmaradnak aHistory-ban.
+    /// </summary>
+    public bool Aktiv { get; set; } = true;
 }

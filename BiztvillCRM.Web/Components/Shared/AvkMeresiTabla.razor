@@ -2,6 +2,7 @@
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Services
 @inject IAvkVedelemTipusService AvkTipusService
+@inject ISnackbar Snackbar
 
 <MudText Typo="Typo.subtitle1" Class="mb-2">
     <MudIcon Icon="@Icons.Material.Filled.ElectricalServices" Class="mr-1" />
@@ -70,16 +71,34 @@
                 </td>
 
                 <td class="mud-table-cell">
-                    <MudAutocomplete T="AvkVedelemTipus"
-                                     Value="@(_tipusok.FirstOrDefault(t => t.Id == sor.AvkTipusId))"
-                                     ValueChanged="@((AvkVedelemTipus t) => TipusValtoztatva(sor, t))"
-                                     SearchFunc="@KeresTipus"
-                                     ToStringFunc="@(t => t?.Nev ?? "")"
+                    <MudAutocomplete T="string"
+                                     Value="@sor.TipusNev"
+                                     ValueChanged="@((string nev) => AvkTipusTextChanged(sor, nev))"
+                                     SearchFunc="@KeresAvkTipusNevek"
                                      Variant="Variant.Text"
                                      Dense="true"
-                                     ResetValueOnEmptyText="true"
-                                     CoerceText="true"
-                                     Placeholder="Típus keresése..." />
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="false"
+                                     CoerceValue="false"
+                                     SelectValueOnTab="false"
+                                     DebounceInterval="300"
+                                     Placeholder="Típus keresése..."
+                                     OnBlur="@(() => AvkTipusBlur(sor))">
+                        <ItemTemplate Context="item">
+                            @if (!_tipusok.Any(t => t.Nev.Equals(item, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Success" Size="Size.Small" />
+                                    <MudText>@item</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">új</MudChip>
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudText>@item</MudText>
+                            }
+                        </ItemTemplate>
+                    </MudAutocomplete>
                 </td>
 
                 <td class="mud-table-cell">
@@ -238,6 +257,85 @@
     }
 </MudStack>
 
+@* === ÚJ ÁVK TÍPUS DIALOG === *@
+<MudDialog @bind-Visible="_ujAvkTipusDialogNyitva"
+           Options="@(new DialogOptions { CloseOnEscapeKey = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új ÁVK típus létrehozása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujAvkTipus is not null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Ez az ÁVK típus még nem szerepel a rendszerben. Add meg az adatokat!
+            </MudAlert>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujAvkTipus.Nev"
+                                  Label="Típus megnevezése *"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect @bind-Value="_ujAvkTipus.TipusKod"
+                               Label="Típuskód *"
+                               Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("AC")">AC</MudSelectItem>
+                        <MudSelectItem Value="@("A")">A</MudSelectItem>
+                        <MudSelectItem Value="@("B")">B</MudSelectItem>
+                        <MudSelectItem Value="@("F")">F</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujAvkTipus.In"
+                                     Label="In (névleges áram) *"
+                                     Min="0m" Max="1000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="A" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujAvkTipus.IDn"
+                                     Label="IΔn (kioldóáram) *"
+                                     Min="0m" Max="10000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="mA" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujAvkTipus.Un"
+                                     Label="Un (feszültség) *"
+                                     Min="0m" Max="1000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="V" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujAvkTipus.Polusszam"
+                                     Label="Pólusszám *"
+                                     Min="1" Max="4"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujAvkTipus.Leiras"
+                                  Label="Megjegyzés"
+                                  Lines="2"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjAvkTipusDialogBezarasa">Mégsem</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UjAvkTipusMentese">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     [Parameter, EditorRequired]
     public List<AvkSor> Sorok { get; set; } = new();
@@ -258,6 +356,7 @@
     private List<AvkVedelemTipus> _tipusok = new();
     private int _dragSourceIndex = -1;
     private int _dragOverIndex = -1;
+    private Dictionary<AvkSor, System.Threading.CancellationTokenSource> _avkTipusTimers = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -443,33 +542,77 @@
     }
 
     // === TÍPUS KERESÉS ===
-    private Task<IEnumerable<AvkVedelemTipus>> KeresTipus(string szoveg, CancellationToken ct)
+    private Task<IEnumerable<string>> KeresAvkTipusNevek(string szoveg, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(szoveg))
-            return Task.FromResult(_tipusok.AsEnumerable());
-        return Task.FromResult(
-            _tipusok.Where(t => t.Nev.Contains(szoveg, StringComparison.OrdinalIgnoreCase)));
+            return Task.FromResult(_tipusok.Select(t => t.Nev));
+
+        var talalatok = _tipusok
+            .Where(t => t.Nev.Contains(szoveg, StringComparison.OrdinalIgnoreCase))
+            .Select(t => t.Nev)
+            .ToList();
+
+        // Ha a keresett érték pontosan NEM található a listában, hozzáadjuk
+        if (!string.IsNullOrWhiteSpace(szoveg) && 
+            !talalatok.Any(t => t.Equals(szoveg, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Az aktuális gépelt szöveget is hozzáadjuk, hogy ne tűnjön el
+            talalatok.Insert(0, szoveg);
+        }
+
+        return Task.FromResult<IEnumerable<string>>(talalatok);
     }
 
-    private void TipusValtoztatva(AvkSor sor, AvkVedelemTipus? tipus)
+    private async void AvkTipusTextChanged(AvkSor sor, string tipusNev)
     {
-        if (tipus is not null)
-        {
-            sor.AvkTipusId = tipus.Id;
-            sor.TipusNev   = tipus.Nev;
-            sor.TipusKod   = tipus.TipusKod;
-            sor.In         = tipus.In.ToString("0.#");
-            sor.IDn        = tipus.IDn.ToString("0.#");
-            sor.Un         = tipus.Un.ToString("0.#");
-            sor.Polusszam  = tipus.Polusszam.ToString();
-        }
-        else
+        sor.TipusNev = tipusNev;
+
+        if (string.IsNullOrWhiteSpace(tipusNev))
         {
             sor.AvkTipusId = null;
-            sor.TipusNev = sor.TipusKod = "";
+            sor.TipusKod = "";
             sor.In = sor.IDn = sor.Un = sor.Polusszam = "";
+            AutoEredmeny(sor);
+            return;
         }
+
+        // Keresés létező típusok között
+        var talalat = _tipusok.FirstOrDefault(t => 
+            t.Nev.Equals(tipusNev, StringComparison.OrdinalIgnoreCase));
+
+        if (talalat != null)
+        {
+            // Létező típus - kitöltjük az adatokat
+            sor.AvkTipusId = talalat.Id;
+            sor.TipusKod   = talalat.TipusKod;
+            sor.In         = talalat.In.ToString("0.#");
+            sor.IDn        = talalat.IDn.ToString("0.#");
+            sor.Un         = talalat.Un.ToString("0.#");
+            sor.Polusszam  = talalat.Polusszam.ToString();
+        }
+
         AutoEredmeny(sor);
+
+        // NEM indítunk időzítőt - csak az OnBlur-ben ellenőrzünk
+    }
+
+    private async void AvkTipusBlur(AvkSor sor)
+    {
+        // Várunk, hogy a ValueChanged biztosan lefusson
+        await Task.Delay(200);
+
+        var tipusNev = sor.TipusNev;
+
+        if (!string.IsNullOrWhiteSpace(tipusNev))
+        {
+            var letezik = _tipusok.Any(t => 
+                t.Nev.Equals(tipusNev, StringComparison.OrdinalIgnoreCase));
+
+            if (!letezik)
+            {
+                await UjAvkTipusDialogMegnyitasa(tipusNev);
+            }
+        }
     }
 
     // === LISTA KEZELÉS ===
@@ -493,5 +636,74 @@
         for (int i = 0; i < Sorok.Count; i++)
             Sorok[i].Sorsz = i + 1;
         StateHasChanged();
+    }
+
+    // === ÚJ ÁVK TÍPUS DIALOG ===
+    private bool _ujAvkTipusDialogNyitva = false;
+    private AvkVedelemTipus? _ujAvkTipus;
+
+    private async Task UjAvkTipusDialogMegnyitasa(string tipusNev)
+    {
+        _ujAvkTipus = new AvkVedelemTipus
+        {
+            Nev = tipusNev,
+            TipusKod = "AC",
+            In = KiolvasNevlegesAramot(tipusNev),
+            IDn = KiolvasIDn(tipusNev),
+            Un = 230,
+            Polusszam = 2,
+            Aktiv = true,
+            FelulvizsgalasraVar = true,
+            Leiras = "Mérés során automatikusan létrehozott típus"
+        };
+        _ujAvkTipusDialogNyitva = true;
+        StateHasChanged();
+    }
+
+    private void UjAvkTipusDialogBezarasa()
+    {
+        _ujAvkTipusDialogNyitva = false;
+        _ujAvkTipus = null;
+    }
+
+    private async Task UjAvkTipusMentese()
+    {
+        if (_ujAvkTipus is null || string.IsNullOrWhiteSpace(_ujAvkTipus.Nev))
+        {
+            Snackbar.Add("A típus megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await AvkTipusService.MentesAsync(_ujAvkTipus);
+            _tipusok.Add(_ujAvkTipus);
+            Snackbar.Add($"'{_ujAvkTipus.Nev}' ÁVK típus létrehozva - felülvizsgálatra vár!", Severity.Success);
+            UjAvkTipusDialogBezarasa();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static decimal KiolvasNevlegesAramot(string tipusNev)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(tipusNev, @"[AaBbCcDd]?(\d+(?:\.\d+)?)");
+        return match.Success && decimal.TryParse(match.Groups[1].Value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var aram) ? aram : 25m;
+    }
+
+    private static decimal KiolvasIDn(string tipusNev)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(tipusNev, @"[/\-_](\d+(?:\.\d+)?)\s*(?:mA)?");
+        if (match.Success && decimal.TryParse(match.Groups[1].Value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var idn))
+        {
+            return idn < 1 ? idn * 1000 : idn;
+        }
+        return 30m;
     }
 }

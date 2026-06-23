@@ -27,6 +27,60 @@ public class AvkVedelemTipusService : IAvkVedelemTipusService
         return await db.AvkVedelemTipusok.FindAsync(id);
     }
 
+    public async Task<AvkVedelemTipus?> GetByNevAsync(string nev)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.AvkVedelemTipusok.FirstOrDefaultAsync(t => t.Nev == nev);
+    }
+
+    public async Task<AvkVedelemTipus> GetOrCreateAsync(string tipusNev)
+    {
+        if (string.IsNullOrWhiteSpace(tipusNev))
+            throw new ArgumentException("A típus neve nem lehet üres!", nameof(tipusNev));
+
+        var meglevo = await GetByNevAsync(tipusNev);
+        if (meglevo != null) return meglevo;
+
+        var ujTipus = new AvkVedelemTipus
+        {
+            Nev = tipusNev,
+            TipusKod = "AC",
+            In = KiolvasNevlegesAramot(tipusNev),
+            IDn = KiolvasIDn(tipusNev),
+            Un = 230,
+            Polusszam = 2,
+            Aktiv = true,
+            FelulvizsgalasraVar = true,
+            Leiras = "Automatikusan létrehozott típus - felülvizsgálatra vár",
+            Letrehozva = DateTime.Now
+        };
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        db.AvkVedelemTipusok.Add(ujTipus);
+        await db.SaveChangesAsync();
+        return ujTipus;
+    }
+
+    private static decimal KiolvasNevlegesAramot(string tipusNev)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(tipusNev, @"[AaBbCcDd]?(\d+(?:\.\d+)?)");
+        return match.Success && decimal.TryParse(match.Groups[1].Value, 
+            System.Globalization.NumberStyles.Any, 
+            System.Globalization.CultureInfo.InvariantCulture, out var aram) ? aram : 25m;
+    }
+
+    private static decimal KiolvasIDn(string tipusNev)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(tipusNev, @"[/\-_](\d+(?:\.\d+)?)\s*(?:mA)?");
+        if (match.Success && decimal.TryParse(match.Groups[1].Value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var idn))
+        {
+            return idn < 1 ? idn * 1000 : idn; // 0.03 → 30mA
+        }
+        return 30m;
+    }
+
     public async Task MentesAsync(AvkVedelemTipus tipus)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

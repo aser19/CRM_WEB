@@ -20,6 +20,9 @@ public class TularamvedelemTipus
     /// <summary>Aktív-e</summary>
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>Felülvizsgálatra vár - automatikusan létrehozott eszköz, amit még nem ellenőrzött az admin</summary>
+    public bool FelulvizsgalasraVar { get; set; } = false;
+
     public DateTime Letrehozva { get; set; } = DateTime.Now;
 
     /// <summary>

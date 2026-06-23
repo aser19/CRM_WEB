@@ -50,6 +50,9 @@
                        OnClick="EszkozTipusokMegnyitasa" Class="mr-2">Eszköztípusok</MudButton>
         }
 
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" 
+                   OnClick="InaktivakMegnyitasa" Class="mr-2">Inaktív hitelesítések</MudButton>
+
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új hitelesítés</MudButton>
     </MudStack>
 
@@ -774,6 +777,68 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Inaktív hitelesítések dialógus -->
+<MudDialog @bind-Visible="_inaktivDialogNyitva" Options="new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseButton = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Archive" Class="mr-2" />
+            Inaktív hitelesítések
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudDataGrid T="Hitelesites" Items="_inaktivLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_inaktivBetoltes">
+            <Columns>
+                <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(h => h.Ugyfel?.Nev ?? "")">
+                    <CellTemplate>
+                        <div>
+                            <div>@(context.Item.Ugyfel?.Nev ?? "-")</div>
+                            @if (_elerhetoCegek.Count > 1 && context.Item.Ugyfel != null)
+                            {
+                                var cegId = context.Item.Ugyfel.CegId;
+                                var szin = GetCegSzin(cegId);
+                                var rovidites = GetCegRovidites(cegId);
+                                var cegNev = GetCegNev(cegId);
+                                <MudTooltip Text="@cegNev" Placement="Placement.Right">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                             Label="true">
+                                        @rovidites
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Telephely" Sortable="true" SortBy="@(h => h.Telephely?.Nev ?? "")">
+                    <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Eszköztípus" Sortable="true" SortBy="@(h => h.EszkozTipus?.Nev ?? "")">
+                    <CellTemplate>@(context.Item.EszkozTipus?.Nev ?? "-")</CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="h => h.Darabszam" Title="Darab" Sortable="true" />
+                <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" Sortable="true" />
+                <TemplateColumn Title="Lejárat" Sortable="true" SortBy="@(h => h.LejaratDatum ?? DateTime.MaxValue)">
+                    <CellTemplate>
+                        @if (context.Item.LejaratDatum.HasValue)
+                        {
+                            <div>@context.Item.LejaratDatum.Value.ToString("yyyy.MM.dd")</div>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Állapot" Sortable="true" SortBy="@(h => h.Aktiv)">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Inaktív</MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Hitelesites> _lista = new();
     private List<EszkozTipus> _eszkozTipusok = new();
@@ -838,6 +903,11 @@
     private Hitelesites? _emailHitelesites;
     private EmailErtesitesTipus _kivalasztottEmailTipus = EmailErtesitesTipus.HitelesitesLejarat90Nap;
     private string _emailCimzett = "";
+
+    // Inaktív hitelesítések
+    private bool _inaktivDialogNyitva = false;
+    private List<Hitelesites> _inaktivLista = new();
+    private bool _inaktivBetoltes = false;
 
     private IEnumerable<Telephely> _szurtTelephelyek => _kivalasztottUgyfelId.HasValue 
         ? _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId.Value) 
@@ -951,10 +1021,18 @@ private bool _eszkozAzonositoDuplikalva =>
         _betoltes = false; 
     }
 
+    private async Task InaktivakMegnyitasa()
+    {
+        _inaktivBetoltes = true;
+        _inaktivLista = await HitelesitesService.GetInaktivakAsync();
+        _inaktivBetoltes = false;
+        _inaktivDialogNyitva = true;
+    }
+
     private void UjMegnyitasa()
     {
         var elsoTipus = _eszkozTipusok.FirstOrDefault();
-        
+
         _szerkesztesAlatt = new Hitelesites
         {
             Darabszam = 1,
@@ -965,11 +1043,12 @@ private bool _eszkozAzonositoDuplikalva =>
         _datum = DateTime.Today;
         _lejaratDatum = null;
         _aktualisEgyediLejaratok = new List<HitelesitesReszlet>();
-        
+
         SzamoljLejaratot();
         FrissitsCsoportTagSorokat();
         _dialogNyitva = true;
         _manualisLejaratDatum = false;
+        _masolasbol = false; // ← Új hitelesítés, NEM másolat
     }
 
     private void SzerkesztesMegnyitasa(Hitelesites item) 
@@ -992,11 +1071,12 @@ private bool _eszkozAzonositoDuplikalva =>
         _datum = item.Datum;
         _lejaratDatum = item.LejaratDatum;
         _manualisLejaratDatum = item.LejaratDatum.HasValue; // ← ha volt mentett dátum, manuális
-        
+
         // ÚJ: Egyedi lejáratok betöltése
         _aktualisEgyediLejaratok = item.EgyediLejaratokLista.ToList();
         FrissitsCsoportTagSorokat();
-        _dialogNyitva = true; 
+        _dialogNyitva = true;
+        _masolasbol = false; // ← Szerkesztés, NEM másolat
     }
 
     private void MasolasMegnyitasa(Hitelesites item)
@@ -1162,16 +1242,16 @@ private bool _eszkozAzonositoDuplikalva =>
             Snackbar.Add("Az eszköztípus kiválasztása kötelező!", Severity.Warning); 
             return; 
         }
-        
+
         // ÚJ: Egyedi lejáratok validálása
         if (_aktualisEgyediLejaratok.Any(r => string.IsNullOrWhiteSpace(r.EszkozNev)))
         {
             Snackbar.Add("Minden egyedi eszköz nevének megadása kötelező!", Severity.Warning);
             return;
         }
-        
-        // Duplikált eszközazonosító blokkolása másolásnál / új rekordnál
-        if (_szerkesztesAlatt.Id == 0 && _eszkozAzonositoDuplikalva)
+
+        // Duplikált eszközazonosító blokkolása ÚJ hitelesítésnél (de másolásnál NEM!)
+        if (_szerkesztesAlatt.Id == 0 && !_masolasbol && _eszkozAzonositoDuplikalva)
         {
             var azonositoSzoveg = string.IsNullOrWhiteSpace(_szerkesztesAlatt.EszkozAzonosito)
                 ? "üres eszközazonosítóval"
@@ -1183,12 +1263,52 @@ private bool _eszkozAzonositoDuplikalva =>
             return;
         }
 
+        // ÚJ: Duplikáció ellenőrzés (új hitelesítésnél ÉS másolásnál is!)
+        if (_szerkesztesAlatt.Id == 0)
+        {
+            var regiHitelesites = await HitelesitesService.EllenorizDuplikaciot(
+                _szerkesztesAlatt.UgyfelId.Value,
+                _szerkesztesAlatt.TelephelyId.Value,
+                _szerkesztesAlatt.EszkozTipusId,
+                _szerkesztesAlatt.EszkozAzonosito,
+                _datum.Value
+            );
+
+            if (regiHitelesites != null)
+            {
+                var eszkozInfo = string.IsNullOrWhiteSpace(_szerkesztesAlatt.EszkozAzonosito)
+                    ? ""
+                    : $" (Eszköz: {_szerkesztesAlatt.EszkozAzonosito})";
+                var lejaratInfo = regiHitelesites.LejaratDatum.HasValue
+                    ? $", lejárat: {regiHitelesites.LejaratDatum.Value:yyyy.MM.dd}"
+                    : "";
+                var uzenet = $"Már létezik hasonló hitelesítés: {regiHitelesites.Ugyfel?.Nev} / {regiHitelesites.Telephely?.Nev} / {regiHitelesites.EszkozTipus?.Nev}{eszkozInfo}, dátum: {regiHitelesites.Datum:yyyy.MM.dd}{lejaratInfo}. Mit szeretne tenni?";
+
+                var valasz = await ShowDuplikacioDialog(uzenet);
+                if (valasz == "Mégsem")
+                {
+                    return; // Nem mentünk semmit, régi változatlan marad
+                }
+                else if (valasz == "Igen")
+                {
+                    // Régi inaktív, új aktív
+                    await HitelesitesService.InaktivvaTesz(regiHitelesites.Id);
+                    _szerkesztesAlatt.Aktiv = true;
+                }
+                else // "Nem"
+                {
+                    // Régi változatlan marad, új aktív állapottal mentésre kerül
+                    _szerkesztesAlatt.Aktiv = true;
+                }
+            }
+        }
+
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.LejaratDatum = _lejaratDatum;
-        
+
         // ÚJ: Egyedi lejáratok mentése
         _szerkesztesAlatt.EgyediLejaratokLista = _aktualisEgyediLejaratok;
-        
+
         // Csoporttag lejáratok mentése (csak az egyedi dátummal rendelkezőkét)
         _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
             .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato)  // ← mentjük a N/A-t is
@@ -1200,14 +1320,14 @@ private bool _eszkozAzonositoDuplikalva =>
                 NemAlkalmazhato = s.NemAlkalmazhato
             })
             .ToList();
-        
+
         // Automatikus lejárt státusz
         if (_lejaratDatum.HasValue && _lejaratDatum.Value.Date < DateTime.Today && 
             _szerkesztesAlatt.HitelesitesStatusz == HitelesitesStatusz.Sikeres)
         {
             _szerkesztesAlatt.HitelesitesStatusz = HitelesitesStatusz.Lejart;
         }
-        
+
         _mentes = true;
         try
         {
@@ -1215,7 +1335,7 @@ private bool _eszkozAzonositoDuplikalva =>
                 await HitelesitesService.CreateAsync(_szerkesztesAlatt);
             else 
                 await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
-            
+
             Snackbar.Add("Sikeres mentés!", Severity.Success); 
             DialogBezarasa(); 
             await BetoltesAsync();
@@ -1399,6 +1519,20 @@ private bool _eszkozAzonositoDuplikalva =>
     {
         _manualisLejaratDatum = false;
         SzamoljLejaratot(); // újraszámolja az auto értéket
+    }
+
+    // ========== DUPLIKÁCIÓ DIALOG ==========
+    private async Task<string> ShowDuplikacioDialog(string uzenet)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Uzenet", uzenet }
+        };
+        var options = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<DuplikacioDialog>("Duplikáció észlelve", parameters, options);
+        var result = await dialog.Result;
+        if (result.Canceled) return "Mégsem";
+        return result.Data?.ToString() ?? "Mégsem";
     }
 
 }

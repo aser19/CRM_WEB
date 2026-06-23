@@ -1,0 +1,26 @@
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body1">@Uzenet</MudText>
+        <MudText Typo="Typo.body2" Class="mt-3" Color="Color.Info">
+            <strong>Igen:</strong> Régi inaktív lesz, új aktív állapottal mentésre kerül<br />
+            <strong>Nem:</strong> Régi változatlan marad, új aktív állapottal mentésre kerül<br />
+            <strong>Mégsem:</strong> Régi változatlan marad, új nem kerül mentésre
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Megse" Color="Color.Default">Mégsem</MudButton>
+        <MudButton OnClick="Nem" Color="Color.Warning">Nem</MudButton>
+        <MudButton OnClick="Igen" Color="Color.Primary" Variant="Variant.Filled">Igen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string Uzenet { get; set; } = string.Empty;
+
+    private void Igen() => MudDialog.Close(DialogResult.Ok("Igen"));
+    private void Nem() => MudDialog.Close(DialogResult.Ok("Nem"));
+    private void Megse() => MudDialog.Cancel();
+}

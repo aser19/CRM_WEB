@@ -111,15 +111,33 @@
                     <MudTd DataLabel="Túláramv. Típusa">
                         <MudAutocomplete T="string"
                                          Value="@context.TularamvedelemTipusa"
-                                         ValueChanged="@((string val) => OnTularamvedelemTipusaChanged(context, val))"
+                                         ValueChanged="@((string val) => OnTularamvedelemTextChanged(context, val))"
                                          SearchFunc="@SearchTularamvedelemTipusa"
                                          Variant="Variant.Text"
                                          Margin="Margin.Dense"
                                          Placeholder="TDK-C16"
                                          Clearable="true"
                                          ResetValueOnEmptyText="false"
-                                         CoerceText="true"
-                                         CoerceValue="false" />
+                                         CoerceText="false"
+                                         CoerceValue="false"
+                                         SelectValueOnTab="false"
+                                         DebounceInterval="300"
+                                         OnBlur="@(() => OnTularamvedelemBlur(context))">
+                            <ItemTemplate Context="item">
+                                @if (!_tularamvedelemTipusok.Any(t => t.Nev.Equals(item, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Add" Color="Color.Success" Size="Size.Small" />
+                                        <MudText>@item</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">új</MudChip>
+                                    </MudStack>
+                                }
+                                else
+                                {
+                                    <MudText>@item</MudText>
+                                }
+                            </ItemTemplate>
+                        </MudAutocomplete>
                     </MudTd>
                     <MudTd DataLabel="ÁVK">
                         @{
@@ -338,6 +356,65 @@
 
 </MudPaper>
 
+@* === ÚJ TÚLÁRAMVÉDELEM DIALOG === *@
+<MudDialog @bind-Visible="_ujTularamvedelemDialogNyitva"
+           Options="@(new DialogOptions { CloseOnEscapeKey = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új túláramvédelmi típus létrehozása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTularamvedelem is not null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Ez a típus még nem szerepel a rendszerben. Add meg az adatokat!
+            </MudAlert>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujTularamvedelem.Nev"
+                                  Label="Típus megnevezése *"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_ujTularamvedelem.NevlegesAram"
+                                     Label="Névleges áram (In) *"
+                                     Min="0m" Max="1000m"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="A" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect @bind-Value="_ujTularamvedelem.KarakterisztikaFeluliras"
+                               Label="Karakterisztika"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        <MudSelectItem T="string" Value="@((string?)null)">– Automatikus –</MudSelectItem>
+                        <MudSelectItem Value="@("A")">A (3× In)</MudSelectItem>
+                        <MudSelectItem Value="@("B")">B (5× In)</MudSelectItem>
+                        <MudSelectItem Value="@("C")">C (10× In)</MudSelectItem>
+                        <MudSelectItem Value="@("D")">D (20× In)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_ujTularamvedelem.Leiras"
+                                  Label="Megjegyzés"
+                                  Lines="2"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjTularamvedelemDialogBezarasa">Mégsem</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UjTularamvedelemMentese">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
     @code {
     [Parameter] public List<MeresiPontSor> MeresiPontok { get; set; } = new();
     [Parameter] public string RendszerTipus { get; set; } = "TN";
@@ -465,16 +542,51 @@
         if (string.IsNullOrWhiteSpace(value))
             return _tularamvedelemTipusok.Select(t => t.Nev);
 
-        return _tularamvedelemTipusok
+        var talalatok = _tularamvedelemTipusok
             .Where(t => t.Nev.Contains(value, StringComparison.OrdinalIgnoreCase))
             .Select(t => t.Nev)
-            .OrderBy(n => n);
+            .ToList();
+
+        // Ha a keresett érték pontosan NEM található a listában, hozzáadjuk
+        if (!string.IsNullOrWhiteSpace(value) && 
+            !talalatok.Any(t => t.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Az aktuális gépelt szöveget is hozzáadjuk, hogy ne tűnjön el
+            talalatok.Insert(0, value);
+        }
+
+        return talalatok;
     }
 
-    private void OnTularamvedelemTipusaChanged(MeresiPontSor pont, string ujTipus)
+    private Dictionary<MeresiPontSor, System.Threading.CancellationTokenSource> _tularamvedelemTimers = new();
+
+    private void OnTularamvedelemTextChanged(MeresiPontSor pont, string ujTipus)
     {
+        // Először mindig beállítjuk az értéket
         pont.TularamvedelemTipusa = ujTipus;
+
         InvokeAsync(async () => await SzamolMinositest(pont));
+
+        // NEM indítunk időzítőt - csak az OnBlur-ben ellenőrzünk
+    }
+
+    private async void OnTularamvedelemBlur(MeresiPontSor pont)
+    {
+        // Várunk, hogy a ValueChanged biztosan lefusson
+        await Task.Delay(200);
+
+        var ujTipus = pont.TularamvedelemTipusa;
+
+        if (!string.IsNullOrWhiteSpace(ujTipus))
+        {
+            var letezik = _tularamvedelemTipusok.Any(t => 
+                t.Nev.Equals(ujTipus, StringComparison.OrdinalIgnoreCase));
+
+            if (!letezik)
+            {
+                await UjTularamvedelemDialogMegnyitasa(ujTipus);
+            }
+        }
     }
 
     private void OnHurokimpedanciaChanged(MeresiPontSor pont, decimal? ujErtek)
@@ -567,6 +679,60 @@
 
         return helyisegek
             .Where(h => h.Contains(value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // === ÚJ TÚLÁRAMVÉDELEM DIALOG ===
+    private bool _ujTularamvedelemDialogNyitva = false;
+    private TularamvedelemTipus? _ujTularamvedelem;
+
+    private async Task UjTularamvedelemDialogMegnyitasa(string tipusNev)
+    {
+        _ujTularamvedelem = new TularamvedelemTipus
+        {
+            Nev = tipusNev,
+            NevlegesAram = KiolvasNevlegesAramot(tipusNev),
+            Aktiv = true,
+            FelulvizsgalasraVar = true,
+            Leiras = "Mérés során automatikusan létrehozott típus"
+        };
+        _ujTularamvedelemDialogNyitva = true;
+        StateHasChanged();
+    }
+
+    private void UjTularamvedelemDialogBezarasa()
+    {
+        _ujTularamvedelemDialogNyitva = false;
+        _ujTularamvedelem = null;
+    }
+
+    private async Task UjTularamvedelemMentese()
+    {
+        if (_ujTularamvedelem is null || string.IsNullOrWhiteSpace(_ujTularamvedelem.Nev))
+        {
+            Snackbar.Add("A típus megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await TularamvedelemService.CreateAsync(_ujTularamvedelem);
+            _tularamvedelemTipusok.Add(_ujTularamvedelem);
+            Snackbar.Add($"'{_ujTularamvedelem.Nev}' típus létrehozva - felülvizsgálatra vár!", Severity.Success);
+            UjTularamvedelemDialogBezarasa();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static decimal KiolvasNevlegesAramot(string tipusNev)
+    {
+        if (string.IsNullOrWhiteSpace(tipusNev)) return 16m;
+        var match = System.Text.RegularExpressions.Regex.Match(tipusNev, @"[AaBbCcDd]?(\d+(?:\.\d+)?)");
+        return match.Success && decimal.TryParse(match.Groups[1].Value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var aram) ? aram : 16m;
     }
 
     private bool _ocrFeldolgozas = false;

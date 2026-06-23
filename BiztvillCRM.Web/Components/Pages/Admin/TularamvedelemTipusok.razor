@@ -33,6 +33,7 @@ else
 
     <MudTable Items="@_tipusok" Dense="true" Hover="true" Bordered="true" Striped="true">
         <HeaderContent>
+            <MudTh>Státusz</MudTh>
             <MudTh>Típus</MudTh>
             <MudTh>In (A)</MudTh>
             <MudTh>Karakterisztika</MudTh>
@@ -42,15 +43,36 @@ else
             <MudTh>Műveletek</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Típus">
+            @{
+                var rowStyle = context.FelulvizsgalasraVar 
+                    ? "background-color: #fff3cd; border-left: 4px solid #ff9800;" 
+                    : "";
+            }
+            <MudTd DataLabel="Státusz" Style="@rowStyle">
+                @if (context.FelulvizsgalasraVar)
+                {
+                    <MudTooltip Text="Automatikusan létrehozott típus - felülvizsgálatra vár">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning">
+                            Felülvizsgálat
+                        </MudChip>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                        OK
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Típus" Style="@rowStyle">
                 <MudTextField T="string" @bind-Value="context.Nev" Variant="Variant.Text" 
                               Margin="Margin.Dense" Required="true" />
             </MudTd>
-            <MudTd DataLabel="In">
+            <MudTd DataLabel="In" Style="@rowStyle">
                 <MudNumericField T="decimal" @bind-Value="context.NevlegesAram" Min="0m" Max="1000m" 
                                  Variant="Variant.Text" Margin="Margin.Dense" Style="max-width: 80px;" />
             </MudTd>
-            <MudTd DataLabel="Karakterisztika">
+            <MudTd DataLabel="Karakterisztika" Style="@rowStyle">
                 <MudSelect T="string" @bind-Value="context.KarakterisztikaFeluliras"
                            Variant="Variant.Text" Margin="Margin.Dense" 
                            Style="max-width: 110px;"
@@ -63,19 +85,19 @@ else
                     <MudSelectItem T="string" Value="@("D")">D (20×)</MudSelectItem>
                 </MudSelect>
             </MudTd>
-            <MudTd DataLabel="Zs max">
+            <MudTd DataLabel="Zs max" Style="@rowStyle">
                 <MudChip T="string" Size="Size.Small" Color="Color.Info">
                     @($"{context.MaxHurokimpedancia:F3} Ω")
                 </MudChip>
             </MudTd>
-            <MudTd DataLabel="Leírás">
+            <MudTd DataLabel="Leírás" Style="@rowStyle">
                 <MudTextField T="string" @bind-Value="context.Leiras" Variant="Variant.Text" 
                               Margin="Margin.Dense" />
             </MudTd>
-            <MudTd DataLabel="Aktív">
+            <MudTd DataLabel="Aktív" Style="@rowStyle">
                 <MudSwitch T="bool" @bind-Value="context.Aktiv" Color="Color.Success" />
             </MudTd>
-            <MudTd>
+            <MudTd Style="@rowStyle">
                 <MudStack Row="true" Spacing="1">
                     <MudIconButton Icon="@Icons.Material.Filled.Save" 
                                    Color="Color.Success" 
@@ -215,8 +237,18 @@ else
 
         try
         {
+            // Mentéskor automatikusan felülvizsgáltnak jelöljük
+            if (tipus.FelulvizsgalasraVar)
+            {
+                tipus.FelulvizsgalasraVar = false;
+                Snackbar.Add("Típus felülvizsgálva és mentve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Típus mentve!", Severity.Success);
+            }
+
             await TipusService.UpdateAsync(tipus);
-            Snackbar.Add("Típus mentve!", Severity.Success);
         }
         catch (Exception ex)
         {
