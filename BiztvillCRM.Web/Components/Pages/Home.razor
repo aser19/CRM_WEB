@@ -15,6 +15,7 @@
 @inject NavigationManager Navigation
 @inject IMellekletJegyzokonyvService MellekletJegyzokonyvService
 @inject IKarbantartasService KarbantartasService
+@inject ILogger<Home> Logger
 
 <PageTitle>Dashboard - Biztovill CRM</PageTitle>
 
@@ -497,42 +498,74 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadModulesAsync();
-        await LoadDashboardDataAsync();
+        try
+        {
+            Logger.LogInformation("Dashboard inicializálás kezdete");
+
+            await LoadModulesAsync();
+            Logger.LogInformation("Modulok betöltve");
+
+            await LoadDashboardDataAsync();
+            Logger.LogInformation("Dashboard adatok betöltve");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Hiba a dashboard inicializálása során");
+            // Ne dobjuk tovább a hibát, hanem jelezzük a felhasználónak
+            _betoltes = false;
+        }
     }
 
     private async Task LoadModulesAsync()
     {
-        await ModulService.InitializeAsync();
-        var modulok = ModulService.GetAktivModulok();
-        
-        _hasModulMeresek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Meresek);
-        _hasModulHitelesitesek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Hitelesitesek);
-        _hasModulMunkavedelem = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Munkavedelem);
-        _hasModulKarbantartasok = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Karbantartasok);
+        try
+        {
+            await ModulService.InitializeAsync();
+            var modulok = ModulService.GetAktivModulok();
+
+            _hasModulMeresek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Meresek);
+            _hasModulHitelesitesek = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Hitelesitesek);
+            _hasModulMunkavedelem = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Munkavedelem);
+            _hasModulKarbantartasok = TenantService.IsInRole(FelhasznaloSzerepkor.Admin) || modulok.HasFlag(ModulJogosultsag.Karbantartasok);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Hiba a modulok betöltése során");
+            throw;
+        }
     }
 
     private async Task LoadDashboardDataAsync()
     {
         _betoltes = true;
 
-        var cegId = TenantService.GetCurrentCegId();
-        var ceg = await CegService.GetByIdAsync(cegId);
-        _cegTevekenyseg = ceg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+        try
+        {
+            Logger.LogInformation("Dashboard adatok betöltése kezdődik...");
 
-        _aktivTevekenysegek = new List<TevekenysegTipus>();
-        if (_cegTevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
-            _aktivTevekenysegek.Add(TevekenysegTipus.VillanosMeres);
-        if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
-            _aktivTevekenysegek.Add(TevekenysegTipus.Benzinkuttechnika);
-        if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
-            _aktivTevekenysegek.Add(TevekenysegTipus.Munkavédelem);
+            var cegId = TenantService.GetCurrentCegId();
+            Logger.LogInformation("CegId: {CegId}", cegId);
 
-        var ma = DateTime.Today;
-        var harmincNapMulva = ma.AddDays(60);
+            var ceg = await CegService.GetByIdAsync(cegId);
+            Logger.LogInformation("Cég betöltve: {CegNev}", ceg?.Nev ?? "NULL");
 
-        // Adatok betöltése modulok alapján
-        var ugyfelek = await UgyfelService.GetAllAsync();
+            _cegTevekenyseg = ceg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
+
+            _aktivTevekenysegek = new List<TevekenysegTipus>();
+            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
+                _aktivTevekenysegek.Add(TevekenysegTipus.VillanosMeres);
+            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
+                _aktivTevekenysegek.Add(TevekenysegTipus.Benzinkuttechnika);
+            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
+                _aktivTevekenysegek.Add(TevekenysegTipus.Munkavédelem);
+
+            var ma = DateTime.Today;
+            var harmincNapMulva = ma.AddDays(60);
+
+            // Adatok betöltése modulok alapján
+            Logger.LogInformation("Ügyfelek betöltése...");
+            var ugyfelek = await UgyfelService.GetAllAsync();
+            Logger.LogInformation("Ügyfelek betöltve: {Count}", ugyfelek.Count);
         
         if (_hasModulMeresek)
         {
@@ -610,7 +643,10 @@ else
 
         if (_hasModulKarbantartasok)
         {
+            Logger.LogInformation("Karbantartások betöltése...");
             var karbantartasok = await KarbantartasService.GetAllAsync();
+            Logger.LogInformation("Karbantartások betöltve: {Count}", karbantartasok.Count);
+
             _karbantartasokOsszesen = karbantartasok.Count;
             _lejaroKarbantartasokSzama = karbantartasok.Count(k =>
                 k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value > ma && k.KovetkezoDatum.Value <= harmincNapMulva);
@@ -620,10 +656,20 @@ else
                 .Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum.Value > ma && k.KovetkezoDatum.Value <= harmincNapMulva)
                 .OrderBy(k => k.KovetkezoDatum)
                 .ToList();
+
+            Logger.LogInformation("Karbantartások feldolgozva");
         }
 
         _betoltes = false;
+        Logger.LogInformation("Dashboard adatok betöltése befejezve");
     }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Hiba a dashboard adatok betöltése során");
+        _betoltes = false;
+        throw;
+    }
+}
 
     private DashboardStatisztika GetStatisztika(TevekenysegTipus tevekenyseg)
     {

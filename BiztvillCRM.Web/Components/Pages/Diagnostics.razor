@@ -1,0 +1,148 @@
+@page "/diagnostics"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.Configuration
+@using System.Reflection
+@inject IConfiguration Configuration
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Diagnosztika</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Rendszer diagnosztika</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">Környezet</MudText>
+    <MudSimpleTable Dense="true">
+        <tbody>
+            <tr>
+                <td><strong>Környezet neve:</strong></td>
+                <td>@Environment.EnvironmentName</td>
+            </tr>
+            <tr>
+                <td><strong>Alkalmazás neve:</strong></td>
+                <td>@Environment.ApplicationName</td>
+            </tr>
+            <tr>
+                <td><strong>Content root:</strong></td>
+                <td>@Environment.ContentRootPath</td>
+            </tr>
+            <tr>
+                <td><strong>Assembly verzió:</strong></td>
+                <td>@Assembly.GetExecutingAssembly().GetName().Version</td>
+            </tr>
+            <tr>
+                <td><strong>Build dátum:</strong></td>
+                <td>@GetBuildDate()</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">Adatbázis kapcsolat</MudText>
+    <MudSimpleTable Dense="true">
+        <tbody>
+            <tr>
+                <td><strong>Connection String:</strong></td>
+                <td>
+                    @{
+                        var connStr = Configuration.GetConnectionString("DefaultConnection") ?? "NINCS BEÁLLÍTVA";
+                        var maskedConnStr = MaskConnectionString(connStr);
+                    }
+                    @maskedConnStr
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Server:</strong></td>
+                <td>@GetConnectionStringPart("Server")</td>
+            </tr>
+            <tr>
+                <td><strong>Database:</strong></td>
+                <td>@GetConnectionStringPart("Database")</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">Konfiguráció</MudText>
+    <MudSimpleTable Dense="true">
+        <tbody>
+            <tr>
+                <td><strong>DetailedErrors:</strong></td>
+                <td>@Configuration["DetailedErrors"]</td>
+            </tr>
+            <tr>
+                <td><strong>JWT Issuer:</strong></td>
+                <td>@Configuration["Jwt:Issuer"]</td>
+            </tr>
+            <tr>
+                <td><strong>Email értesítés idő:</strong></td>
+                <td>@Configuration["EmailErtesites:FutasiIdoOra"]:@Configuration["EmailErtesites:FutasiIdoPerc"]</td>
+            </tr>
+            <tr>
+                <td><strong>Azure Doc Intelligence:</strong></td>
+                <td>@(string.IsNullOrEmpty(Configuration["AzureDocumentIntelligence:Endpoint"]) ? "NINCS" : "VAN")</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">Környezeti változók (Azure-specifikus)</MudText>
+    <MudSimpleTable Dense="true">
+        <tbody>
+            <tr>
+                <td><strong>WEBSITE_SITE_NAME:</strong></td>
+                <td>@System.Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")</td>
+            </tr>
+            <tr>
+                <td><strong>WEBSITE_INSTANCE_ID:</strong></td>
+                <td>@System.Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID")</td>
+            </tr>
+            <tr>
+                <td><strong>ASPNETCORE_ENVIRONMENT:</strong></td>
+                <td>@System.Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+@code {
+    private string MaskConnectionString(string connStr)
+    {
+        if (string.IsNullOrEmpty(connStr)) return "NINCS";
+
+        // Maszkolás: jelszó és user id elrejtése
+        var masked = System.Text.RegularExpressions.Regex.Replace(
+            connStr, 
+            @"(Password|Pwd)=([^;]+)", 
+            "$1=***", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        masked = System.Text.RegularExpressions.Regex.Replace(
+            masked, 
+            @"(User Id|UID)=([^;]+)", 
+            "$1=***", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return masked;
+    }
+
+    private string GetConnectionStringPart(string part)
+    {
+        var connStr = Configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrEmpty(connStr)) return "NINCS";
+
+        var regex = new System.Text.RegularExpressions.Regex($@"{part}=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var match = regex.Match(connStr);
+        return match.Success ? match.Groups[1].Value : "NINCS";
+    }
+
+    private string GetBuildDate()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var fileInfo = new System.IO.FileInfo(assembly.Location);
+        return fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss");
+    }
+}
