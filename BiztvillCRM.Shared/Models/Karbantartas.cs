@@ -1,3 +1,5 @@
+using BiztvillCRM.Shared.Enums;
+
 namespace BiztvillCRM.Shared.Models;
 
 /// <summary>Karbantartási esemény - ügyfélhez és telephelyhez tartozik.</summary>
@@ -14,7 +16,7 @@ public class Karbantartas
     // Ügyfél és telephely kapcsolat
     public int UgyfelId { get; set; }
     public Ugyfel? Ugyfel { get; set; }
-    
+
     public int TelephelyId { get; set; }
     public Telephely? Telephely { get; set; }
 
@@ -26,6 +28,6 @@ public class Karbantartas
     public DateTime? KovetkezoDatum { get; set; }
     public string? Leiras { get; set; }
     public string? Elvegzo { get; set; }
-    public bool Elvegezve { get; set; } = false;
+    public KarbantartasStatusz Statusz { get; set; } = KarbantartasStatusz.Tervezett;
     public bool Aktiv { get; set; } = true;
 }

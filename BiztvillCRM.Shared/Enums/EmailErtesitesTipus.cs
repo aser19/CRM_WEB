@@ -17,4 +17,6 @@ public enum EmailErtesitesTipus
     MunkavedelmiOktatas30Nap = 256,    // 2^8
     ZonaterkepLejarat90Nap = 512,      // 2^9
     ZonaterkepLejarat30Nap = 1024,     // 2^10
+    KarbantartasLejarat90Nap = 2048,   // 2^11
+    KarbantartasLejarat30Nap = 4096,   // 2^12
 }

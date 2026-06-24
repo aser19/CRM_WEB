@@ -51,9 +51,10 @@ public class LejaratErtesitoService : ILejaratErtesitoService
         }
 
         _logger.LogInformation(
-            "Lejárat értesítés feldolgozás befejezve. Hitelesítések: {H}, Mérések: {M}, Küldött: {K}, Sikertelen: {S}",
+            "Lejárat értesítés feldolgozás befejezve. Hitelesítések: {H}, Mérések: {M}, Karbantartások: {K}, Küldött: {Kul}, Sikertelen: {S}",
             eredmeny.FeldolgozottHitelesitesek,
             eredmeny.FeldolgozottMeresek,
+            eredmeny.FeldolgozottKarbantartasok,
             eredmeny.KuldottEmailek,
             eredmeny.SikertelenEmailek);
 
@@ -190,16 +191,83 @@ public class LejaratErtesitoService : ILejaratErtesitoService
                 }
             }
         }
+
+        // === KARBANTARTÁSOK ===
+        if (HasFlag(beallitas.ErtesitesTipusok, EmailErtesitesTipus.KarbantartasLejarat90Nap) ||
+            HasFlag(beallitas.ErtesitesTipusok, EmailErtesitesTipus.KarbantartasLejarat30Nap))
+        {
+            var karbantartasok = await _context.Karbantartasok
+                .Include(k => k.Ugyfel)
+                .Include(k => k.Telephely)
+                .Include(k => k.KarbantartasTipus)
+                .Where(k => k.Ugyfel != null && k.Ugyfel.CegId == cegId)
+                .Where(k => k.Aktiv)
+                .Where(k => k.KovetkezoDatum.HasValue && k.KovetkezoDatum >= ma)
+                .ToListAsync();
+
+            foreach (var k in karbantartasok)
+            {
+                if (!k.KovetkezoDatum.HasValue) continue;
+
+                var napokLejaratig = (k.KovetkezoDatum.Value.Date - ma).Days;
+                EmailErtesitesTipus? tipus = null;
+
+                // 90 napos értesítés
+                if (HasFlag(beallitas.ErtesitesTipusok, EmailErtesitesTipus.KarbantartasLejarat90Nap) &&
+                    napokLejaratig >= 89 && napokLejaratig <= 91)
+                {
+                    if (!await MarKuldtunkAsync(EmailErtesitesTipus.KarbantartasLejarat90Nap, karbantartasId: k.Id))
+                    {
+                        tipus = EmailErtesitesTipus.KarbantartasLejarat90Nap;
+                    }
+                }
+                // 30 napos értesítés
+                else if (HasFlag(beallitas.ErtesitesTipusok, EmailErtesitesTipus.KarbantartasLejarat30Nap) &&
+                         napokLejaratig >= 29 && napokLejaratig <= 31)
+                {
+                    if (!await MarKuldtunkAsync(EmailErtesitesTipus.KarbantartasLejarat30Nap, karbantartasId: k.Id))
+                    {
+                        tipus = EmailErtesitesTipus.KarbantartasLejarat30Nap;
+                    }
+                }
+
+                if (tipus.HasValue)
+                {
+                    eredmeny.FeldolgozottKarbantartasok++;
+                    var placeholderek = KeszitPlaceholderek(k.Ugyfel, k.Telephely, null, k.KarbantartasTipus?.Nev, k.KovetkezoDatum.Value, cegNev);
+                    var cimzettek = GyujtCimzetteket(beallitas, k.Ugyfel, k.Telephely, cegEmail, egyediCimek);
+
+                    foreach (var cimzett in cimzettek)
+                    {
+                        var siker = await _emailKuldo.KuldSablonbolAsync(
+                            tipus.Value, cimzett, placeholderek, cegId, karbantartasId: k.Id);
+
+                        if (siker) eredmeny.KuldottEmailek++;
+                        else eredmeny.SikertelenEmailek++;
+                    }
+
+                    // ÚJ: Automatikus státusz váltás "Folyamatban"-ra 90 napos értesítésnél
+                    if (tipus == EmailErtesitesTipus.KarbantartasLejarat90Nap && 
+                        k.Statusz == KarbantartasStatusz.Tervezett)
+                    {
+                        k.Statusz = KarbantartasStatusz.Folyamatban;
+                        k.Modositva = DateTime.UtcNow;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>Ellenőrzi, hogy küldtünk-e már értesítést ehhez a tételhez.</summary>
-    private async Task<bool> MarKuldtunkAsync(EmailErtesitesTipus tipus, int? hitelesitesId = null, int? meresId = null)
+    private async Task<bool> MarKuldtunkAsync(EmailErtesitesTipus tipus, int? hitelesitesId = null, int? meresId = null, int? karbantartasId = null)
     {
         return await _context.EmailKuldesNaplok.AnyAsync(n =>
             n.Tipus == tipus &&
             n.Sikeres &&
             (hitelesitesId == null || n.HitelesitesId == hitelesitesId) &&
-            (meresId == null || n.MeresId == meresId));
+            (meresId == null || n.MeresId == meresId) &&
+            (karbantartasId == null || n.KarbantartasId == karbantartasId));
     }
 
     /// <summary>Placeholder dictionary készítése.</summary>

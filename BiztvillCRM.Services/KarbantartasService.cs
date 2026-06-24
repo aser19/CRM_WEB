@@ -85,7 +85,7 @@ public class KarbantartasService : IKarbantartasService
         existing.KovetkezoDatum = karbantartas.KovetkezoDatum;
         existing.Leiras = karbantartas.Leiras;
         existing.Elvegzo = karbantartas.Elvegzo;
-        existing.Elvegezve = karbantartas.Elvegezve;
+        existing.Statusz = karbantartas.Statusz;
         existing.Modositva = DateTime.UtcNow;
         await SzamolKovetkezoDatumAsync(existing);
         await _context.SaveChangesAsync();
@@ -174,6 +174,17 @@ public class KarbantartasService : IKarbantartasService
         if (karbantartas != null)
         {
             karbantartas.Aktiv = false;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task StatuszFrissites(int karbantartasId, KarbantartasStatusz ujStatusz)
+    {
+        var karbantartas = await _context.Karbantartasok.FindAsync(karbantartasId);
+        if (karbantartas != null)
+        {
+            karbantartas.Statusz = ujStatusz;
+            karbantartas.Modositva = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }

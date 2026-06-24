@@ -1,6 +1,7 @@
 @page "/karbantartasok"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject IKarbantartasService KarbantartasService
 @inject IKarbantartasTipusService KarbantartasTipusService
@@ -79,14 +80,28 @@
             <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
             <TemplateColumn Title="Státusz">
                 <CellTemplate>
-                    <MudChip T="string" Size="Size.Small" Color="@(context.Item.Elvegezve ? Color.Success : Color.Warning)">
-                        @(context.Item.Elvegezve ? "Elvégezve" : "Függőben")
-                    </MudChip>
+                    @{
+                        var (szin, szoveg) = context.Item.Statusz switch
+                        {
+                            KarbantartasStatusz.Tervezett => (Color.Default, "Tervezett"),
+                            KarbantartasStatusz.Folyamatban => (Color.Info, "Folyamatban"),
+                            KarbantartasStatusz.Elvegezve => (Color.Success, "Elvégezve"),
+                            KarbantartasStatusz.Elhalasztva => (Color.Warning, "Elhalasztva"),
+                            _ => (Color.Default, "Ismeretlen")
+                        };
+                    }
+                    <MudChip T="string" Size="Size.Small" Color="@szin">@szoveg</MudChip>
                 </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Műveletek" Sortable="false">
                 <CellTemplate>
                     <MudStack Row="true">
+                        <MudTooltip Text="Másolás – új karbantartás az adatok alapján">
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" 
+                                           Color="Color.Secondary" 
+                                           Size="Size.Small" 
+                                           OnClick="() => MasolasMegnyitasa(context.Item)" />
+                        </MudTooltip>
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
                     </MudStack>
@@ -122,6 +137,16 @@
                         <CellTemplate>@(context.Item.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "Eseti")</CellTemplate>
                     </TemplateColumn>
                     <PropertyColumn Property="k => k.Elvegzo" Title="Elvégző" />
+                    <TemplateColumn Title="" Sortable="false">
+                        <CellTemplate>
+                            <MudTooltip Text="Másolás">
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" 
+                                               Color="Color.Secondary" 
+                                               Size="Size.Small" 
+                                               OnClick="() => { _inaktivDialogNyitva = false; MasolasMegnyitasa(context.Item); }" />
+                            </MudTooltip>
+                        </CellTemplate>
+                    </TemplateColumn>
                 </Columns>
             </MudDataGrid>
         }
@@ -132,7 +157,19 @@
 </MudDialog>
 
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
-    <TitleContent><MudText Typo="Typo.h6">@(_szerkesztesAlatt?.Id > 0 ? "Karbantartás szerkesztése" : "Új karbantartás")</MudText></TitleContent>
+    <TitleContent>
+        <div style="display:flex; align-items:center; gap:8px;">
+            @if (_masolasbol)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Secondary" Class="mr-1" />
+            }
+            <MudText Typo="Typo.h6">
+                @(_masolasbol ? "Másolat létrehozása" 
+                  : _szerkesztesAlatt?.Id > 0 ? "Karbantartás szerkesztése" 
+                  : "Új karbantartás")
+            </MudText>
+        </div>
+    </TitleContent>
     <DialogContent>
         @if (_szerkesztesAlatt is not null)
         {
@@ -173,17 +210,29 @@
                     <MudDatePicker Date="_datum" Label="Dátum *" DateChanged="DatumValtozottAsync" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudDatePicker @bind-Date="_kovetkezoDatum" Label="Következő dátum" Disabled="@_esetiTipus" />
+                    <MudDatePicker Date="_kovetkezoDatum" 
+                                   DateChanged="KovetkezoDatumValtozottAsync" 
+                                   Label="Következő dátum" 
+                                   Disabled="@_esetiTipus" />
                     @if (_esetiTipus)
                     {
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Eseti karbantartásnál nincs következő dátum</MudText>
+                    }
+                    else if (_manualisKovetkezoDatum)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Info">Kézileg módosított dátum</MudText>
                     }
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Elvegzo" Label="Elvégző" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudCheckBox @bind-Value="_szerkesztesAlatt.Elvegezve" Label="Elvégezve" Color="Color.Success" />
+                    <MudSelect T="KarbantartasStatusz" @bind-Value="_szerkesztesAlatt.Statusz" Label="Státusz *">
+                        <MudSelectItem Value="KarbantartasStatusz.Tervezett">Tervezett</MudSelectItem>
+                        <MudSelectItem Value="KarbantartasStatusz.Folyamatban">Folyamatban</MudSelectItem>
+                        <MudSelectItem Value="KarbantartasStatusz.Elvegezve">Elvégezve</MudSelectItem>
+                        <MudSelectItem Value="KarbantartasStatusz.Elhalasztva">Elhalasztva</MudSelectItem>
+                    </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" />
@@ -204,7 +253,8 @@
     private List<Telephely> _szurtTelephelyek = new();
     private List<KarbantartasTipus> _tipusok = new();
     private string _kereses = string.Empty;
-    private bool _betoltes = true, _dialogNyitva = false, _mentes = false, _esetiTipus = false;
+    private bool _betoltes = true, _dialogNyitva = false, _mentes = false, _esetiTipus = false, _masolasbol = false;
+    private bool _manualisKovetkezoDatum = false; // Flag a manuális következő dátum jelzésére
     private Karbantartas? _szerkesztesAlatt;
     private int _kivalasztottUgyfelId;
     private DateTime? _datum, _kovetkezoDatum;
@@ -310,6 +360,8 @@
         _kivalasztottUgyfelId = 0;
         _szurtTelephelyek = new();
         _esetiTipus = false;
+        _masolasbol = false; // ← Új karbantartás, NEM másolat
+        _manualisKovetkezoDatum = false; // ← Automatikus számítás engedélyezése
         _dialogNyitva = true; 
     }
 
@@ -323,17 +375,53 @@
             KarbantartasTipusId = item.KarbantartasTipusId, 
             Leiras = item.Leiras,
             Elvegzo = item.Elvegzo,
-            Elvegezve = item.Elvegezve
+            Statusz = item.Statusz
         }; 
         _kivalasztottUgyfelId = item.UgyfelId;
         _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
         _datum = item.Datum; 
         _kovetkezoDatum = item.KovetkezoDatum;
-        
+
         var tipus = _tipusok.FirstOrDefault(t => t.Id == item.KarbantartasTipusId);
         _esetiTipus = tipus?.Eseti ?? false;
-        
+
+        _masolasbol = false; // ← Szerkesztés, NEM másolat
+        _manualisKovetkezoDatum = false; // ← Meglévő dátum megtartása
         _dialogNyitva = true; 
+    }
+
+    private void MasolasMegnyitasa(Karbantartas item)
+    {
+        _szerkesztesAlatt = new Karbantartas
+        {
+            Id = 0,                                         // ← ÚJ rekord
+            UgyfelId = item.UgyfelId,
+            TelephelyId = item.TelephelyId,
+            KarbantartasTipusId = item.KarbantartasTipusId,
+            Leiras = item.Leiras,
+            Elvegzo = item.Elvegzo,
+            Statusz = KarbantartasStatusz.Tervezett        // ← új karbantartás, Tervezett státusz
+        };
+        _kivalasztottUgyfelId = item.UgyfelId;
+        _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
+        _datum = DateTime.Today;                            // ← mai dátum
+
+        var tipus = _tipusok.FirstOrDefault(t => t.Id == item.KarbantartasTipusId);
+        _esetiTipus = tipus?.Eseti ?? false;
+
+        // Következő dátum számítása az új dátum alapján
+        if (!_esetiTipus && tipus is not null)
+        {
+            _kovetkezoDatum = _datum.Value.AddMonths(tipus.IsmetlodesHonap);
+        }
+        else
+        {
+            _kovetkezoDatum = null;
+        }
+
+        _masolasbol = true;
+        _manualisKovetkezoDatum = false; // ← Automatikus számítás engedélyezése
+        _dialogNyitva = true;
     }
 
     private Task UgyfelValtozottAsync(int ugyfelId)
@@ -351,30 +439,31 @@
     private Task TipusValtozottAsync(int tipusId)
     {
         if (_szerkesztesAlatt is null) return Task.CompletedTask;
-        
+
         _szerkesztesAlatt.KarbantartasTipusId = tipusId;
         var tipus = _tipusok.FirstOrDefault(t => t.Id == tipusId);
         _esetiTipus = tipus?.Eseti ?? false;
-        
-        // Következő dátum automatikus számítása
+
+        // Következő dátum automatikus számítása csak ha nincs manuális felülírás
         if (_esetiTipus)
         {
             _kovetkezoDatum = null;
+            _manualisKovetkezoDatum = false;
         }
-        else if (_datum.HasValue && tipus is not null)
+        else if (!_manualisKovetkezoDatum && _datum.HasValue && tipus is not null)
         {
             _kovetkezoDatum = _datum.Value.AddMonths(tipus.IsmetlodesHonap);
         }
-        
+
         return Task.CompletedTask;
     }
 
     private Task DatumValtozottAsync(DateTime? ujDatum)
     {
         _datum = ujDatum;
-        
-        // Következő dátum újraszámítása ha nem eseti
-        if (!_esetiTipus && _datum.HasValue && _szerkesztesAlatt is not null)
+
+        // Következő dátum újraszámítása ha nem eseti ÉS nincs manuális felülírás
+        if (!_esetiTipus && !_manualisKovetkezoDatum && _datum.HasValue && _szerkesztesAlatt is not null)
         {
             var tipus = _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.KarbantartasTipusId);
             if (tipus is not null)
@@ -382,11 +471,26 @@
                 _kovetkezoDatum = _datum.Value.AddMonths(tipus.IsmetlodesHonap);
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
-    private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
+    private Task KovetkezoDatumValtozottAsync(DateTime? ujDatum)
+    {
+        // Felhasználó manuálisan módosította a következő dátumot
+        _kovetkezoDatum = ujDatum;
+        _manualisKovetkezoDatum = true; // Jelöljük, hogy manuális módosítás történt
+
+        return Task.CompletedTask;
+    }
+
+    private void DialogBezarasa() 
+    { 
+        _dialogNyitva = false; 
+        _szerkesztesAlatt = null; 
+        _masolasbol = false;   // ← visszaállítás
+        _manualisKovetkezoDatum = false; // ← visszaállítás
+    }
 
     private async Task MentesAsync()
     {

@@ -45,7 +45,7 @@ public class KarbantartasOsszefoglalo
 {
     public string TipusNev { get; set; } = "";
     public DateTime? KovetkezoDatum { get; set; }
-    public bool Elvegezve { get; set; }
+    public string Statusz { get; set; } = "";
 }
 
 public class ZonaterkepOsszefoglalo

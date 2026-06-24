@@ -1,3 +1,4 @@
+using BiztvillCRM.Shared.Enums;
 using BiztvillCRM.Shared.Models;
 
 namespace BiztvillCRM.Services.Interfaces;
@@ -12,4 +13,5 @@ public interface IKarbantartasService
     Task<List<Karbantartas>> GetInaktivakAsync();
     Task<Karbantartas?> EllenorizDuplikaciot(int ugyfelId, int telephelyId, int karbantartasTipusId, DateTime ujDatum);
     Task InaktivvaTesz(int karbantartasId);
+    Task StatuszFrissites(int karbantartasId, KarbantartasStatusz ujStatusz);
 }

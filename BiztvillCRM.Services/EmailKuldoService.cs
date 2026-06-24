@@ -87,7 +87,8 @@ public class EmailKuldoService : IEmailKuldoService
         Dictionary<string, string> placeholderek,
         int? cegId = null,
         int? hitelesitesId = null,
-        int? meresId = null)
+        int? meresId = null,
+        int? karbantartasId = null)
     {
         var sablon = await _sablonService.GetByTipusAsync(tipus, cegId);
         if (sablon is null)
@@ -118,7 +119,8 @@ public class EmailKuldoService : IEmailKuldoService
             Cimzett = cimzett,
             Targy = targy,
             HitelesitesId = hitelesitesId,
-            MeresId = meresId
+            MeresId = meresId,
+            KarbantartasId = karbantartasId
         };
 
         try

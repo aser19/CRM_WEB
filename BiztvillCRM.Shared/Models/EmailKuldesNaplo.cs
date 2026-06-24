@@ -15,7 +15,8 @@ public class EmailKuldesNaplo
     public bool Sikeres { get; set; }
     public string? Hiba { get; set; }
 
-    /// <summary>Hivatkozás a hitelesítésre vagy mérésre (opcionális).</summary>
+    /// <summary>Hivatkozás a hitelesítésre, mérésre vagy karbantartásra (opcionális).</summary>
     public int? HitelesitesId { get; set; }
     public int? MeresId { get; set; }
+    public int? KarbantartasId { get; set; }
 }

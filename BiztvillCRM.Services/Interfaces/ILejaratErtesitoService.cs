@@ -14,6 +14,7 @@ public class ErtesitesFeldolgozasEredmeny
 {
     public int FeldolgozottHitelesitesek { get; set; }
     public int FeldolgozottMeresek { get; set; }
+    public int FeldolgozottKarbantartasok { get; set; }
     public int KuldottEmailek { get; set; }
     public int SikertelenEmailek { get; set; }
     public List<string> Hibak { get; set; } = new();

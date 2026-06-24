@@ -136,7 +136,7 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                     {
                         TipusNev = k.KarbantartasTipus?.Nev ?? "",
                         KovetkezoDatum = k.KovetkezoDatum,
-                        Elvegezve = k.Elvegezve
+                        Statusz = k.Statusz.ToString()
                     }).ToList(),
                 Zonaterkepek = zonaterkepek
                     .Where(z => z.TelephelyId == tp.Id || z.TelephelyId == null)

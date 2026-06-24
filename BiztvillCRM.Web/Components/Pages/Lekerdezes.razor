@@ -294,10 +294,17 @@
                                         else { <span>–</span> }
                                     </MudTd>
                                     <MudTd>
-                                        <MudChip T="string" Size="Size.Small"
-                                                 Color="@(context.Elvegezve ? Color.Success : Color.Warning)">
-                                            @(context.Elvegezve ? "Elvégezve" : "Nyitott")
-                                        </MudChip>
+                                        @{
+                                            var (szin, szoveg) = context.Statusz switch
+                                            {
+                                                "Tervezett" => (Color.Default, "Tervezett"),
+                                                "Folyamatban" => (Color.Info, "Folyamatban"),
+                                                "Elvegezve" => (Color.Success, "Elvégezve"),
+                                                "Elhalasztva" => (Color.Warning, "Elhalasztva"),
+                                                _ => (Color.Default, context.Statusz)
+                                            };
+                                        }
+                                        <MudChip T="string" Size="Size.Small" Color="@szin">@szoveg</MudChip>
                                     </MudTd>
                                 </RowTemplate>
                             </MudTable>

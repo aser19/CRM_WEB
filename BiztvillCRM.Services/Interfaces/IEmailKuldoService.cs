@@ -16,5 +16,6 @@ public interface IEmailKuldoService
         Dictionary<string, string> placeholderek,
         int? cegId = null,
         int? hitelesitesId = null,
-        int? meresId = null);
+        int? meresId = null,
+        int? karbantartasId = null);
 }
