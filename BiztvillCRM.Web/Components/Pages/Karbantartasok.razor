@@ -33,11 +33,19 @@
             <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
         </MudSelect>
         <MudSpacer />
+        <MudTooltip Text="@(_csoportositott ? "Lista nézet" : "Csoportosítás ügyfél szerint")">
+            <MudIconButton Icon="@(_csoportositott ? Icons.Material.Filled.TableRows : Icons.Material.Filled.GroupWork)"
+                           Color="@(_csoportositott ? Color.Primary : Color.Default)"
+                           Variant="@(_csoportositott ? Variant.Filled : Variant.Outlined)"
+                           OnClick="@(() => _csoportositott = !_csoportositott)" />
+        </MudTooltip>
         <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" OnClick="InaktivakMegnyitasa">Inaktív karbantartások</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új karbantartás</MudButton>
     </MudStack>
 
-    <MudDataGrid T="Karbantartas" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+    @if (!_csoportositott)
+    {
+        <MudDataGrid T="Karbantartas" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
             <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(k => k.Ugyfel?.Nev ?? "")">
                 <CellTemplate>
@@ -110,6 +118,114 @@
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető karbantartás.</MudText></NoRecordsContent>
     </MudDataGrid>
+    }
+    else
+    {
+        @if (_betoltes)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mt-2" />
+        }
+        else if (!_szurtLista.Any())
+        {
+            <MudText Class="pa-4 ml-2">Nincs megjeleníthető karbantartás.</MudText>
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="true" Class="mt-1">
+                @foreach (var csoport in _szurtLista.GroupBy(k => k.UgyfelId).OrderBy(g => g.FirstOrDefault()?.Ugyfel?.Nev ?? ""))
+                {
+                    var ugyfelNev = csoport.FirstOrDefault()?.Ugyfel?.Nev ?? "-";
+                    var cegId = csoport.FirstOrDefault()?.Ugyfel?.CegId ?? 0;
+                    var karbantartasok = csoport.OrderBy(k => k.KovetkezoDatum ?? DateTime.MaxValue).ToList();
+
+                    <MudExpansionPanel IsInitiallyExpanded="true">
+                        <TitleContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1"><b>@ugyfelNev</b></MudText>
+                                @if (_elerhetoCegek.Count > 1)
+                                {
+                                    var szin = GetCegSzin(cegId);
+                                    var rovidites = GetCegRovidites(cegId);
+                                    var cegNev = GetCegNev(cegId);
+                                    <MudTooltip Text="@cegNev">
+                                        <MudChip T="string" Size="Size.Small" Label="true"
+                                                 Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px;")">
+                                            @rovidites
+                                        </MudChip>
+                                    </MudTooltip>
+                                }
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                    @karbantartasok.Count karbantartás
+                                </MudChip>
+                            </MudStack>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudTable T="Karbantartas" Items="@karbantartasok" Hover="true" Dense="true" Striped="true"
+                                      Breakpoint="Breakpoint.Sm" Class="mb-2">
+                                <HeaderContent>
+                                    <MudTh>Telephely</MudTh>
+                                    <MudTh>Típus</MudTh>
+                                    <MudTh>Dátum</MudTh>
+                                    <MudTh>Következő</MudTh>
+                                    <MudTh>Elvégző</MudTh>
+                                    <MudTh>Státusz</MudTh>
+                                    <MudTh>Műveletek</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Telephely">@(context.Telephely?.Nev ?? "-")</MudTd>
+                                    <MudTd DataLabel="Típus">@(context.KarbantartasTipus?.Nev ?? "-")</MudTd>
+                                    <MudTd DataLabel="Dátum">@context.Datum.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd DataLabel="Következő">
+                                        @if (context.KovetkezoDatum.HasValue)
+                                        {
+                                            <MudText>@context.KovetkezoDatum.Value.ToString("yyyy.MM.dd")</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Eseti</MudChip>
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Elvégző">@(context.Elvegzo ?? "-")</MudTd>
+                                    <MudTd DataLabel="Státusz">
+                                        @{
+                                            var (szin, szoveg) = context.Statusz switch
+                                            {
+                                                KarbantartasStatusz.Tervezett => (Color.Default, "Tervezett"),
+                                                KarbantartasStatusz.Folyamatban => (Color.Info, "Folyamatban"),
+                                                KarbantartasStatusz.Elvegezve => (Color.Success, "Elvégezve"),
+                                                KarbantartasStatusz.Elhalasztva => (Color.Warning, "Elhalasztva"),
+                                                _ => (Color.Default, "Ismeretlen")
+                                            };
+                                        }
+                                        <MudChip T="string" Size="Size.Small" Color="@szin">@szoveg</MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Műveletek">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudTooltip Text="Másolás – új karbantartás az adatok alapján">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                               Color="Color.Secondary"
+                                                               Size="Size.Small"
+                                                               OnClick="() => MasolasMegnyitasa(context)" />
+                                            </MudTooltip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           OnClick="() => SzerkesztesMegnyitasa(context)" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           OnClick="() => TorlesMegerosites(context)" />
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+        }
+    }
 </MudPaper>
 
 <MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
@@ -175,24 +291,50 @@
         {
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *" 
-                               ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
-                               ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")">
-                        @foreach (var u in _ugyfelek)
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *" 
+                                   ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
+                                   ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")"
+                                   Style="flex:1;">
+                            @foreach (var u in _ugyfelek)
+                            {
+                                <MudSelectItem Value="@u.Id">@u.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                        @if (_kivalasztottUgyfelId == 0)
                         {
-                            <MudSelectItem Value="@u.Id">@u.Nev</MudSelectItem>
+                            <MudTooltip Text="Új ügyfél felvétele">
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" 
+                                               Color="Color.Success" 
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               OnClick="UjUgyfelMegnyitasa" />
+                            </MudTooltip>
                         }
-                    </MudSelect>
+                    </MudStack>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *"
-                               Disabled="@(_szurtTelephelyek.Count == 0)"
-                               ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
-                        @foreach (var t in _szurtTelephelyek)
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudSelect T="int" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *"
+                                   Disabled="@(_szurtTelephelyek.Count == 0)"
+                                   ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")"
+                                   Style="flex:1;">
+                            @foreach (var t in _szurtTelephelyek)
+                            {
+                                <MudSelectItem Value="@t.Id">@t.Nev (@t.Cim)</MudSelectItem>
+                            }
+                        </MudSelect>
+                        @if (_kivalasztottUgyfelId > 0)
                         {
-                            <MudSelectItem Value="@t.Id">@t.Nev (@t.Cim)</MudSelectItem>
+                            <MudTooltip Text="Új telephely felvétele">
+                                <MudIconButton Icon="@Icons.Material.Filled.AddLocation" 
+                                               Color="Color.Success" 
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               OnClick="UjTelephelyMegnyitasa" />
+                            </MudTooltip>
                         }
-                    </MudSelect>
+                    </MudStack>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_szerkesztesAlatt.KarbantartasTipusId" Label="Típus *"
@@ -246,6 +388,84 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Új ügyfél dialógus -->
+<MudDialog @bind-Visible="_ujUgyfelDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Új ügyfél hozzáadása</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujUgyfel is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Nev" Label="Név *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="UgyfelTipus" @bind-Value="_ujUgyfel.UgyfelTipus" Label="Típus">
+                        @foreach (UgyfelTipus t in Enum.GetValues(typeof(UgyfelTipus)))
+                        {
+                            <MudSelectItem Value="@t">@t.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Adoszam" Label="Adószám" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Cim" Label="Cím" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _ujUgyfelDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="UjUgyfelMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujUgyfelMentes">
+            @(_ujUgyfelMentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Új telephely dialógus -->
+<MudDialog @bind-Visible="_ujTelephelyDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Új telephely hozzáadása</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTelephely is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Nev" Label="Telephely neve *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Cim" Label="Cím" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Kapcsolattarto" Label="Kapcsolattartó" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _ujTelephelyDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="UjTelephelyMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujTelephelyMentes">
+            @(_ujTelephelyMentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Karbantartas> _lista = new();
     private List<Ugyfel> _ugyfelek = new();
@@ -255,10 +475,26 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false, _esetiTipus = false, _masolasbol = false;
     private bool _manualisKovetkezoDatum = false; // Flag a manuális következő dátum jelzésére
+    private bool _csoportositott = true; // Csoportosított nézet kapcsoló
+
+    // Új ügyfél/telephely dialógok
+    private bool _ujUgyfelDialogNyitva = false;
+    private bool _ujTelephelyDialogNyitva = false;
+    private bool _ujUgyfelMentes = false;
+    private bool _ujTelephelyMentes = false;
+    private Ugyfel? _ujUgyfel;
+    private Telephely? _ujTelephely;
+
     private Karbantartas? _szerkesztesAlatt;
     private int _kivalasztottUgyfelId;
     private DateTime? _datum, _kovetkezoDatum;
-    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+    private readonly DialogOptions _dialogOptions = new() 
+    { 
+        MaxWidth = MaxWidth.Medium, 
+        FullWidth = true, 
+        CloseButton = true,
+        CloseOnEscapeKey = true  // ESC gomb kezelése
+    };
 
     private string? _datumSzuro;
 
@@ -331,26 +567,52 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await BetoltesAsync();
-        _ugyfelek = await UgyfelService.GetAllAsync();
-        _telephelyek = await TelephelyService.GetAllAsync();
-        _tipusok = await KarbantartasTipusService.GetActiveAsync();
-
-        // Multi-tenant cég badge betöltés
-        var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
-        if (elerhhetoCegIds.Count > 1)
+        try
         {
-            var cegId = TenantService.GetCurrentCegId();
-            var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
-            _elerhetoCegek = osszesCeg
-                .Where(c => elerhhetoCegIds.Contains(c.Id))
-                .OrderBy(c => c.Id == cegId ? 0 : 1)
-                .ThenBy(c => c.Nev)
-                .ToList();
+            await BetoltesAsync();
+            _ugyfelek = await UgyfelService.GetAllAsync();
+            _telephelyek = await TelephelyService.GetAllAsync();
+            _tipusok = await KarbantartasTipusService.GetActiveAsync();
+
+            // Multi-tenant cég badge betöltés
+            var elerhhetoCegIds = await TenantService.GetElerhhetoCegIdsAsync();
+            if (elerhhetoCegIds.Count > 1)
+            {
+                var cegId = TenantService.GetCurrentCegId();
+                var osszesCeg = await CegService.GetAllAsync(csakAktiv: false);
+                _elerhetoCegek = osszesCeg
+                    .Where(c => elerhhetoCegIds.Contains(c.Id))
+                    .OrderBy(c => c.Id == cegId ? 0 : 1)
+                    .ThenBy(c => c.Nev)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hiba a Karbantartasok oldal betöltése során: {ex.Message}");
+            Snackbar.Add($"Hiba történt az adatok betöltése során: {ex.Message}", Severity.Error);
+            _betoltes = false;
         }
     }
 
-    private async Task BetoltesAsync() { _betoltes = true; _lista = await KarbantartasService.GetAllAsync(); _betoltes = false; }
+    private async Task BetoltesAsync() 
+    { 
+        _betoltes = true; 
+        try
+        {
+            _lista = await KarbantartasService.GetAllAsync(); 
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hiba a karbantartások betöltése során: {ex.Message}");
+            Snackbar.Add("Nem sikerült betölteni a karbantartásokat. Lehet, hogy az adatbázis migráció még nem futott le.", Severity.Error);
+            _lista = new List<Karbantartas>();
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
 
     private void UjMegnyitasa() 
     { 
@@ -492,6 +754,113 @@
         _manualisKovetkezoDatum = false; // ← visszaállítás
     }
 
+    // === ÚJ ÜGYFÉL GYORSHOZZÁADÁS ===
+    private void UjUgyfelMegnyitasa()
+    {
+        var cegId = _elerhetoCegek.FirstOrDefault()?.Id ?? 0;
+
+        _ujUgyfel = new Ugyfel
+        {
+            CegId = cegId,
+            Aktiv = true,
+            UgyfelTipus = UgyfelTipus.Kft,
+            Tevekenyseg = TevekenysegTipus.VillanosMeres
+        };
+        _ujUgyfelDialogNyitva = true;
+    }
+
+    private async Task UjUgyfelMentesAsync()
+    {
+        if (_ujUgyfel is null || string.IsNullOrWhiteSpace(_ujUgyfel.Nev))
+        {
+            Snackbar.Add("Az ügyfél neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujUgyfelMentes = true;
+        try
+        {
+            await UgyfelService.CreateAsync(_ujUgyfel);
+
+            // Frissítjük az ügyfelek listáját
+            _ugyfelek = await UgyfelService.GetAllAsync();
+
+            // Kiválasztjuk az új ügyfelet
+            _kivalasztottUgyfelId = _ujUgyfel.Id;
+            if (_szerkesztesAlatt is not null)
+            {
+                _szerkesztesAlatt.UgyfelId = _ujUgyfel.Id;
+            }
+
+            // Telephelyek frissítése (üres lesz az új ügyfélhez)
+            _szurtTelephelyek = new List<Telephely>();
+
+            Snackbar.Add($"Új ügyfél ({_ujUgyfel.Nev}) sikeresen létrehozva!", Severity.Success);
+            _ujUgyfelDialogNyitva = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az ügyfél mentésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ujUgyfelMentes = false;
+        }
+    }
+
+    // === ÚJ TELEPHELY GYORSHOZZÁADÁS ===
+    private void UjTelephelyMegnyitasa()
+    {
+        if (_kivalasztottUgyfelId == 0)
+        {
+            Snackbar.Add("Először válassz ügyfelet!", Severity.Warning);
+            return;
+        }
+
+        _ujTelephely = new Telephely
+        {
+            UgyfelId = _kivalasztottUgyfelId,
+            Aktiv = true
+        };
+        _ujTelephelyDialogNyitva = true;
+    }
+
+    private async Task UjTelephelyMentesAsync()
+    {
+        if (_ujTelephely is null || string.IsNullOrWhiteSpace(_ujTelephely.Nev))
+        {
+            Snackbar.Add("A telephely neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujTelephelyMentes = true;
+        try
+        {
+            await TelephelyService.CreateAsync(_ujTelephely);
+
+            // Frissítjük a telephelyek listáját
+            _telephelyek = await TelephelyService.GetAllAsync();
+            _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
+
+            // Kiválasztjuk az új telephelyet
+            if (_szerkesztesAlatt is not null)
+            {
+                _szerkesztesAlatt.TelephelyId = _ujTelephely.Id;
+            }
+
+            Snackbar.Add($"Új telephely ({_ujTelephely.Nev}) sikeresen létrehozva!", Severity.Success);
+            _ujTelephelyDialogNyitva = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a telephely mentésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ujTelephelyMentes = false;
+        }
+    }
+
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
@@ -571,18 +940,23 @@
         var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == regi.UgyfelId)?.Nev ?? "?";
         var telephely = _telephelyek.FirstOrDefault(t => t.Id == regi.TelephelyId)?.Nev ?? "?";
         var tipus = _tipusok.FirstOrDefault(t => t.Id == regi.KarbantartasTipusId)?.Nev ?? "?";
+        var regiDatumStr = regi.Datum.ToString("yyyy.MM.dd");
         var lejaratStr = regi.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "nincs megadva";
+
+        var napKulonbseg = Math.Abs((_datum!.Value - regi.Datum).Days);
 
         var parameters = new DialogParameters
         {
-            ["Uzenet"] = $"Már létezik hasonló karbantartás:\n\n" +
-                         $"Ügyfél: {ugyfel}\n" +
-                         $"Telephely: {telephely}\n" +
-                         $"Típus: {tipus}\n" +
-                         $"Következő karbantartás dátuma: {lejaratStr}\n\n" +
+            ["Uzenet"] = $"⚠️ Duplikáció észlelve!\n\n" +
+                         $"Ugyanezen az ügyfélen, telephelyen és típussal már létezik karbantartás {napKulonbseg} napon belül:\n\n" +
+                         $"📍 Ügyfél: {ugyfel}\n" +
+                         $"📍 Telephely: {telephely}\n" +
+                         $"📍 Típus: {tipus}\n" +
+                         $"📅 Meglévő elvégzési dátum: {regiDatumStr}\n" +
+                         $"📅 Következő karbantartás: {lejaratStr}\n\n" +
                          $"Szeretnéd a régit inaktívvá tenni?\n\n" +
                          $"• Igen → Régi inaktív lesz, új aktív állapottal mentésre kerül\n" +
-                         $"• Nem → Régi változatlan marad, új aktív state-el kerül mentésre\n" +
+                         $"• Nem → Régi változatlan marad, új is aktív állapottal kerül mentésre\n" +
                          $"• Mégsem → Régi változatlan marad, új nem kerül mentésre"
         };
 

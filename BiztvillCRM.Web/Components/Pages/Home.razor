@@ -667,7 +667,7 @@ else
     {
         Logger.LogError(ex, "Hiba a dashboard adatok betöltése során");
         _betoltes = false;
-        throw;
+        // NE dobjuk tovább a hibát, hanem csak logoljuk
     }
 }
 

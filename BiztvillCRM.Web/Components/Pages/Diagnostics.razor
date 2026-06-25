@@ -1,14 +1,40 @@
 @page "/diagnostics"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize]
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.Extensions.Configuration
 @using System.Reflection
 @inject IConfiguration Configuration
 @inject IWebHostEnvironment Environment
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Diagnosztika</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Rendszer diagnosztika</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">Felhasználó</MudText>
+    <MudSimpleTable Dense="true">
+        <tbody>
+            <tr>
+                <td><strong>Név:</strong></td>
+                <td>@_userName</td>
+            </tr>
+            <tr>
+                <td><strong>Email:</strong></td>
+                <td>@_userEmail</td>
+            </tr>
+            <tr>
+                <td><strong>Szerepkörök:</strong></td>
+                <td>@_userRoles</td>
+            </tr>
+            <tr>
+                <td><strong>Bejelentkezve:</strong></td>
+                <td>@_isAuthenticated</td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
 
 <MudPaper Class="pa-4 mb-4">
     <MudText Typo="Typo.h6" Class="mb-2">Környezet</MudText>
@@ -109,6 +135,28 @@
 </MudPaper>
 
 @code {
+    private string _userName = "";
+    private string _userEmail = "";
+    private string _userRoles = "";
+    private bool _isAuthenticated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+
+        if (_isAuthenticated)
+        {
+            _userName = user.Identity?.Name ?? "N/A";
+            _userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "N/A";
+            _userRoles = string.Join(", ", user.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value));
+        }
+    }
+
     private string MaskConnectionString(string connStr)
     {
         if (string.IsNullOrEmpty(connStr)) return "NINCS";

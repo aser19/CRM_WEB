@@ -148,6 +148,10 @@ public class KarbantartasService : IKarbantartasService
             ? null
             : await _tenantService.GetElerhhetoCegIdsAsync();
 
+        // 10 napos ablak az új dátum körül (± 10 nap)
+        var datumTol = ujDatum.AddDays(-10);
+        var datumIg = ujDatum.AddDays(10);
+
         var query = _context.Karbantartasok
             .Include(k => k.Ugyfel)
             .Include(k => k.Telephely)
@@ -155,17 +159,15 @@ public class KarbantartasService : IKarbantartasService
             .Where(k => k.Aktiv
                         && k.UgyfelId == ugyfelId
                         && k.TelephelyId == telephelyId
-                        && k.KarbantartasTipusId == karbantartasTipusId);
+                        && k.KarbantartasTipusId == karbantartasTipusId
+                        && k.Datum >= datumTol
+                        && k.Datum <= datumIg);
 
         if (cegIds != null)
             query = query.Where(k => cegIds.Contains(k.CegId));
 
-        var regi = await query.FirstOrDefaultAsync();
-        if (regi == null || regi.KovetkezoDatum == null)
-            return null;
-
-        var kulonbseg = Math.Abs((ujDatum - regi.KovetkezoDatum.Value).TotalDays);
-        return kulonbseg <= 40 ? regi : null;
+        // Az első talált duplikált rekord visszaadása
+        return await query.FirstOrDefaultAsync();
     }
 
     public async Task InaktivvaTesz(int karbantartasId)

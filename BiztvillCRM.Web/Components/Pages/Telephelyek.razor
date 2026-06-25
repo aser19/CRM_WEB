@@ -18,10 +18,18 @@
         <MudTextField @bind-Value="_kereses" Label="Keresés (név, cím)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
         <MudSpacer />
+        <MudTooltip Text="@(_csoportositott ? "Lista nézet" : "Csoportosítás ügyfél szerint")">
+            <MudIconButton Icon="@(_csoportositott ? Icons.Material.Filled.TableRows : Icons.Material.Filled.GroupWork)"
+                           Color="@(_csoportositott ? Color.Primary : Color.Default)"
+                           Variant="@(_csoportositott ? Variant.Filled : Variant.Outlined)"
+                           OnClick="@(() => _csoportositott = !_csoportositott)" />
+        </MudTooltip>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új telephely</MudButton>
     </MudStack>
 
-    <MudDataGrid T="Telephely" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+    @if (!_csoportositott)
+    {
+        <MudDataGrid T="Telephely" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
             <PropertyColumn Property="t => t.Nev" Title="Név" />
             <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(t => t.Ugyfel?.Nev ?? "")">
@@ -65,6 +73,88 @@
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető telephely.</MudText></NoRecordsContent>
     </MudDataGrid>
+    }
+    else
+    {
+        @if (_betoltes)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mt-2" />
+        }
+        else if (!_szurtLista.Any())
+        {
+            <MudText Class="pa-4 ml-2">Nincs megjeleníthető telephely.</MudText>
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="true" Class="mt-1">
+                @foreach (var csoport in _szurtLista.GroupBy(t => t.UgyfelId).OrderBy(g => g.FirstOrDefault()?.Ugyfel?.Nev ?? ""))
+                {
+                    var ugyfelNev = csoport.FirstOrDefault()?.Ugyfel?.Nev ?? "-";
+                    var cegId = csoport.FirstOrDefault()?.Ugyfel?.CegId ?? 0;
+                    var telephelyek = csoport.OrderBy(t => t.Nev).ToList();
+
+                    <MudExpansionPanel IsInitiallyExpanded="true">
+                        <TitleContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1"><b>@ugyfelNev</b></MudText>
+                                @if (_elerhetoCegek.Count > 1)
+                                {
+                                    var szin = GetCegSzin(cegId);
+                                    var rovidites = GetCegRovidites(cegId);
+                                    var cegNev = GetCegNev(cegId);
+                                    <MudTooltip Text="@cegNev">
+                                        <MudChip T="string" Size="Size.Small" Label="true"
+                                                 Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px;")">
+                                            @rovidites
+                                        </MudChip>
+                                    </MudTooltip>
+                                }
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                    @telephelyek.Count telephely
+                                </MudChip>
+                            </MudStack>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudTable T="Telephely" Items="@telephelyek" Hover="true" Dense="true" Striped="true"
+                                      Breakpoint="Breakpoint.Sm" Class="mb-2">
+                                <HeaderContent>
+                                    <MudTh>Név</MudTh>
+                                    <MudTh>Cím</MudTh>
+                                    <MudTh>Kapcsolattartó</MudTh>
+                                    <MudTh>Telefon</MudTh>
+                                    <MudTh>Aktív</MudTh>
+                                    <MudTh>Műveletek</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Név">@(context.Nev ?? "-")</MudTd>
+                                    <MudTd DataLabel="Cím">@(context.Cim ?? "-")</MudTd>
+                                    <MudTd DataLabel="Kapcsolattartó">@(context.Kapcsolattarto ?? "-")</MudTd>
+                                    <MudTd DataLabel="Telefon">@(context.Telefon ?? "-")</MudTd>
+                                    <MudTd DataLabel="Aktív">
+                                        <MudIcon Icon="@(context.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                                                 Color="@(context.Aktiv ? Color.Success : Color.Error)" />
+                                    </MudTd>
+                                    <MudTd DataLabel="Műveletek">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           OnClick="() => SzerkesztesMegnyitasa(context)" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           OnClick="() => TorlesMegerosites(context)" />
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+        }
+    }
 </MudPaper>
 
 <MudDialog @bind-Visible="_dialogNyitva" Options="_dialogOptions">
@@ -101,6 +191,7 @@
     private List<Ugyfel> _ugyfelek = new();
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
+    private bool _csoportositott = true; // Csoportosított nézet kapcsoló
     private Telephely? _szerkesztesAlatt;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
