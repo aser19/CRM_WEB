@@ -6,6 +6,7 @@ using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Http;
 using Org.BouncyCastle.Crypto.Digests;
 
 namespace BiztvillCRM.Services;
@@ -13,17 +14,20 @@ namespace BiztvillCRM.Services;
 public class NavAdoszamService : INavAdoszamService
 {
     private readonly IDbContextFactory<CrmDbContext> _dbFactory;
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<NavAdoszamService> _logger;
 
     private const string NavTestUrl = "https://api-test.onlineszamla.nav.gov.hu/invoiceService/v3/queryTaxpayer";
     private const string NavElesUrl = "https://api.onlineszamla.nav.gov.hu/invoiceService/v3/queryTaxpayer";
 
-    public NavAdoszamService(IDbContextFactory<CrmDbContext> dbFactory, HttpClient http, ILogger<NavAdoszamService> logger)
+    public NavAdoszamService(
+        IDbContextFactory<CrmDbContext> dbFactory, 
+        IHttpClientFactory httpClientFactory, 
+        ILogger<NavAdoszamService> logger)
     {
         _dbFactory = dbFactory;
-        _http      = http;
-        _logger    = logger;
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<NavAdoszamEredmeny> LekerdezesByAdoszamAsync(string adoszam, int cegId)
@@ -111,15 +115,18 @@ public class NavAdoszamService : INavAdoszamService
 
         try
         {
+            // HttpClient létrehozása a factory-ból
+            using var httpClient = _httpClientFactory.CreateClient();
+
             // UTF8Encoding(false) = BOM nélkül! Ez az alapértelmezett Encoding.UTF8-tól eltér
             var content  = new StringContent(xml, new UTF8Encoding(false), "application/xml");
-            
+
             // Accept header hozzáadása – Naturasoft valószínűleg ezt is küldi
-            _http.DefaultRequestHeaders.Accept.Clear();
-            _http.DefaultRequestHeaders.Accept.Add(
+            httpClient.DefaultRequestHeaders.Accept.Clear();
+            httpClient.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/xml"));
 
-            var response  = await _http.PostAsync(url, content);
+            var response  = await httpClient.PostAsync(url, content);
             var xmlValasz = await response.Content.ReadAsStringAsync();
 
             // === IDEIGLENES DIAGNÓZIS – töröld éles előtt! ===

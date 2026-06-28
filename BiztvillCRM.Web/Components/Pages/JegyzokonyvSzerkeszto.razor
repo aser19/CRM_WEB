@@ -89,27 +89,51 @@
                     </MudItem>
                 }
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *"
-                               ValueChanged="OnUgyfelValtozas" Variant="Variant.Outlined"
-                               ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "-- Válassz --")">
-                        <MudSelectItem Value="0">-- Válassz ügyfelet --</MudSelectItem>
-                        @foreach (var ugyfel in _ugyfelek)
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudSelect T="int" Value="_kivalasztottUgyfelId" Label="Ügyfél *"
+                                   ValueChanged="OnUgyfelValtozas" Variant="Variant.Outlined"
+                                   ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")"
+                                   Style="flex:1;">
+                            @foreach (var ugyfel in _ugyfelek)
+                            {
+                                <MudSelectItem Value="@ugyfel.Id">@ugyfel.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                        @if (_kivalasztottUgyfelId == 0)
                         {
-                            <MudSelectItem Value="@ugyfel.Id">@ugyfel.Nev</MudSelectItem>
+                            <MudTooltip Text="Új ügyfél felvétele">
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                               Color="Color.Success"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               OnClick="UjUgyfelMegnyitasa" />
+                            </MudTooltip>
                         }
-                    </MudSelect>
+                    </MudStack>
                 </MudItem>
-                
+
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_kivalasztottTelephelyId" Label="Telephely *"
-                               Variant="Variant.Outlined" Disabled="@(_szurtTelephelyek.Count == 0)"
-                               ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "-- Válassz --")">
-                        <MudSelectItem Value="0">-- Válassz telephelyet --</MudSelectItem>
-                        @foreach (var telephely in _szurtTelephelyek)
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudSelect T="int" @bind-Value="_kivalasztottTelephelyId" Label="Telephely *"
+                                   Variant="Variant.Outlined" Disabled="@(_szurtTelephelyek.Count == 0)"
+                                   ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")"
+                                   Style="flex:1;">
+                            @foreach (var telephely in _szurtTelephelyek)
+                            {
+                                <MudSelectItem Value="@telephely.Id">@telephely.Nev (@telephely.Cim)</MudSelectItem>
+                            }
+                        </MudSelect>
+                        @if (_kivalasztottUgyfelId > 0)
                         {
-                            <MudSelectItem Value="@telephely.Id">@telephely.Nev - @telephely.Cim</MudSelectItem>
+                            <MudTooltip Text="Új telephely felvétele">
+                                <MudIconButton Icon="@Icons.Material.Filled.AddLocation"
+                                               Color="Color.Success"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               OnClick="UjTelephelyMegnyitasa" />
+                            </MudTooltip>
                         }
-                    </MudSelect>
+                    </MudStack>
                 </MudItem>
                 
                 <MudItem xs="12" md="6">
@@ -640,6 +664,84 @@
         </MudDataGrid>
     </MudPaper>
 }
+
+<!-- Új ügyfél dialógus -->
+<MudDialog @bind-Visible="_ujUgyfelDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Új ügyfél hozzáadása</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujUgyfel is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Nev" Label="Név *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="UgyfelTipus" @bind-Value="_ujUgyfel.UgyfelTipus" Label="Típus">
+                        @foreach (UgyfelTipus t in Enum.GetValues(typeof(UgyfelTipus)))
+                        {
+                            <MudSelectItem Value="@t">@t.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Adoszam" Label="Adószám" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Cim" Label="Cím" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _ujUgyfelDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="UjUgyfelMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujUgyfelMentes">
+            @(_ujUgyfelMentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Új telephely dialógus -->
+<MudDialog @bind-Visible="_ujTelephelyDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Új telephely hozzáadása</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTelephely is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Nev" Label="Telephely neve *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Cim" Label="Cím" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Kapcsolattarto" Label="Kapcsolattartó" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _ujTelephelyDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="UjTelephelyMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujTelephelyMentes">
+            @(_ujTelephelyMentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     [Parameter] public int? MeresId { get; set; }
@@ -1854,5 +1956,119 @@
     private string _kivalasztottSablonId = "VBF_KIF_MINTA";
     private List<VizsgalatiSablon> _vizsgalatiSablonok = [];
     private int? _kivalasztottVizsgalatiSablonId;
+
+    // === Új ügyfél/telephely dialógok ===
+    private bool _ujUgyfelDialogNyitva = false;
+    private bool _ujTelephelyDialogNyitva = false;
+    private bool _ujUgyfelMentes = false;
+    private bool _ujTelephelyMentes = false;
+    private Ugyfel? _ujUgyfel;
+    private Telephely? _ujTelephely;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = true,
+        CloseOnEscapeKey = true
+    };
+
+    // === ÚJ ÜGYFÉL GYORSHOZZÁADÁS ===
+    private void UjUgyfelMegnyitasa()
+    {
+        var cegId = TenantService.GetCurrentCegId();
+
+        _ujUgyfel = new Ugyfel
+        {
+            CegId = cegId,
+            Aktiv = true,
+            UgyfelTipus = UgyfelTipus.Kft,
+            Tevekenyseg = TevekenysegTipus.VillanosMeres
+        };
+        _ujUgyfelDialogNyitva = true;
+    }
+
+    private async Task UjUgyfelMentesAsync()
+    {
+        if (_ujUgyfel is null || string.IsNullOrWhiteSpace(_ujUgyfel.Nev))
+        {
+            Snackbar.Add("Az ügyfél neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujUgyfelMentes = true;
+        try
+        {
+            await UgyfelService.CreateAsync(_ujUgyfel);
+
+            // Frissítjük az ügyfelek listáját
+            _ugyfelek = await UgyfelService.GetAllAsync();
+
+            // Kiválasztjuk az új ügyfelet
+            _kivalasztottUgyfelId = _ujUgyfel.Id;
+            OnUgyfelValtozas(_ujUgyfel.Id);
+
+            Snackbar.Add($"Új ügyfél ({_ujUgyfel.Nev}) sikeresen létrehozva!", Severity.Success);
+            _ujUgyfelDialogNyitva = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az ügyfél mentésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ujUgyfelMentes = false;
+        }
+    }
+
+    // === ÚJ TELEPHELY GYORSHOZZÁADÁS ===
+    private void UjTelephelyMegnyitasa()
+    {
+        if (_kivalasztottUgyfelId == 0)
+        {
+            Snackbar.Add("Először válassz ügyfelet!", Severity.Warning);
+            return;
+        }
+
+        _ujTelephely = new Telephely
+        {
+            UgyfelId = _kivalasztottUgyfelId,
+            Aktiv = true
+        };
+        _ujTelephelyDialogNyitva = true;
+    }
+
+    private async Task UjTelephelyMentesAsync()
+    {
+        if (_ujTelephely is null || string.IsNullOrWhiteSpace(_ujTelephely.Nev))
+        {
+            Snackbar.Add("A telephely neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujTelephelyMentes = true;
+        try
+        {
+            await TelephelyService.CreateAsync(_ujTelephely);
+
+            // Frissítjük a telephelyek listáját
+            _telephelyek = await TelephelyService.GetAllAsync();
+            _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
+
+            // Kiválasztjuk az új telephelyet
+            _kivalasztottTelephelyId = _ujTelephely.Id;
+
+            Snackbar.Add($"Új telephely ({_ujTelephely.Nev}) sikeresen létrehozva!", Severity.Success);
+            _ujTelephelyDialogNyitva = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a telephely mentésekor: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _ujTelephelyMentes = false;
+        }
+    }
 
 }

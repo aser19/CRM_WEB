@@ -21,7 +21,10 @@ public class FelulvizsgaloKepzes
     public string? BizonyitvanySzam { get; set; }
     public DateTime? BizonyitvanyKelte { get; set; }
     public DateTime? BizonyitvanyLejarat { get; set; }
-    
+
+    /// <summary>Bizonyítvány fájl elérési útja (relatív a Uploads mappához)</summary>
+    public string? BizonyitvanyPath { get; set; }
+
     public string? Megjegyzes { get; set; }
     public bool Aktiv { get; set; } = true;
     

@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IJegyzokonyvWordService JegyzokonyvWordService
 
 <PageTitle>Hibavédelmi mérési jegyzőkönyv</PageTitle>
 
@@ -131,6 +132,13 @@ else
         <MudButton Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.ArrowBack"
                    OnClick="Vissza">Vissza</MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Info"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   OnClick="LetoltesAsync"
+                   Disabled="_feldolgozas">
+            @(_feldolgozas ? "Generálás..." : "Letöltés (Word)")
+        </MudButton>
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Save"
@@ -257,6 +265,69 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private async Task LetoltesAsync()
+    {
+        _feldolgozas = true;
+        try
+        {
+            // 1. Mentés JSON-be
+            var json = System.Text.Json.JsonSerializer.Serialize(_adatok);
+            await MellekletService.MentAdatokAsync(MellekletId, json, kesz: true);
+
+            // 2. Linked mérés létrehozása/frissítése, ha még nincs
+            _melleklet = await MellekletService.GetByIdAsync(MellekletId);
+            int meresId;
+
+            if (_melleklet != null && !_melleklet.MellekletMeresId.HasValue)
+            {
+                var foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+                if (foMeres != null)
+                {
+                    meresId = await MellekletService.MellekletMeresLetrehozAsync(
+                        MellekletId,
+                        foMeres.MeresTipusId,
+                        new BiztvillCRM.Shared.Models.JegyzokonyvAdatok
+                        {
+                            JegyzokonyvSzam = _melleklet.Szam
+                        });
+                }
+                else
+                {
+                    Snackbar.Add("Hiba: Főmérés nem található!", Severity.Error);
+                    return;
+                }
+            }
+            else
+            {
+                meresId = _melleklet?.MellekletMeresId ?? 0;
+            }
+
+            if (meresId == 0)
+            {
+                Snackbar.Add("Hiba: Mérés ID nem található!", Severity.Error);
+                return;
+            }
+
+            // 3. Word dokumentum generálása
+            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, "Hibavédelem_csakmeres");
+
+            // 4. Letöltés JavaScript segítségével
+            await JS.InvokeVoidAsync("downloadFile", 
+                $"HVM_{_melleklet?.Szam ?? "jegyzokonyv"}.docx", 
+                Convert.ToBase64String(wordBytes));
+
+            Snackbar.Add("Letöltés indult!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a letöltés során: {ex.Message}", Severity.Error);
         }
         finally
         {

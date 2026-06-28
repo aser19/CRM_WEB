@@ -21,7 +21,10 @@ public class Felulvizsgalo
     public string? Telefon { get; set; }
     public string? Megjegyzes { get; set; }
     public bool Aktiv { get; set; } = true;
-    
+
+    /// <summary>Aláírás kép fájl elérési útja (relatív a Uploads mappához)</summary>
+    public string? AlairasPath { get; set; }
+
     // Cég kapcsolat
     public int CegId { get; set; }
     public Ceg? Ceg { get; set; }

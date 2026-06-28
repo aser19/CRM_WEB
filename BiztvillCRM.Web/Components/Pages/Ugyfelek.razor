@@ -239,10 +239,17 @@
                 
                 @* === MEGLÉVŐ ADÓSZÁM MEZŐ === *@
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_szerkesztesAlatt.Adoszam"
+                    <MudTextField Value="@_szerkesztesAlatt.Adoszam"
+                                  ValueChanged="@((string val) => AdoszamValtozasEsemeny(val))"
                                   Label="Adószám"
                                   Placeholder="12345678-1-23"
                                   Immediate="true" />
+                    @if (_adoszamValtozottFigyelmezetes)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-1">
+                            Az adószám megváltozott. Kattints a "NAV lekérdezés" gombra az adatok frissítéséhez!
+                        </MudAlert>
+                    }
                 </MudItem>
 
                 @* === ÚJ: NAV LEKÉRDEZŐ GOMB az adószám mező mellé === *@
@@ -396,6 +403,10 @@
     private bool _validacioMutatasa = false;
     private Ceg? _sajatCeg;
 
+    // === Adószám változás figyelés ===
+    private string? _eredetiAdoszam;
+    private bool _adoszamValtozottFigyelmezetes = false;
+
     // === Token kezelés ===
     private bool _tokenDialogNyitva = false;
     private bool _tokenBetoltes = false;
@@ -504,6 +515,8 @@
         };
         _kivalasztottCegId = cegId;
         _validacioMutatasa = false;
+        _eredetiAdoszam = null;
+        _adoszamValtozottFigyelmezetes = false;
         _dialogNyitva = true;
     }
 
@@ -511,7 +524,7 @@
     {
         _szerkesztesAlatt = ugyfel.SekélyMásolat();
         _kivalasztottCegId = ugyfel.CegId;
-        
+
         // Cég tevékenységének betöltése
         if (_isAdmin)
         {
@@ -522,8 +535,10 @@
         {
             _aktualisCegTevekenyseg = _sajatCeg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
         }
-        
+
         _validacioMutatasa = false;
+        _eredetiAdoszam = ugyfel.Adoszam;
+        _adoszamValtozottFigyelmezetes = false;
         _dialogNyitva = true;
     }
 
@@ -800,6 +815,32 @@
         if (!string.IsNullOrWhiteSpace(adat.FormattaltCim))
             _szerkesztesAlatt.Cim = adat.FormattaltCim;
 
+        // NAV adatok frissítése után a figyelmeztetés eltűnik
+        _adoszamValtozottFigyelmezetes = false;
+
         StateHasChanged();
+    }
+
+    private void AdoszamValtozasEsemeny(string ujErtek)
+    {
+        if (_szerkesztesAlatt is null) return;
+
+        // Frissítjük az adószám értékét
+        _szerkesztesAlatt.Adoszam = ujErtek;
+
+        // Ellenőrizzük, hogy megváltozott-e az adószám
+        var aktualisAdoszam = ujErtek?.Trim();
+        var eredetiAdoszam = _eredetiAdoszam?.Trim();
+
+        // Csak akkor jelezzük, ha tényleg megváltozott és nem üres
+        if (!string.IsNullOrWhiteSpace(aktualisAdoszam) && 
+            aktualisAdoszam != eredetiAdoszam)
+        {
+            _adoszamValtozottFigyelmezetes = true;
+        }
+        else
+        {
+            _adoszamValtozottFigyelmezetes = false;
+        }
     }
 }

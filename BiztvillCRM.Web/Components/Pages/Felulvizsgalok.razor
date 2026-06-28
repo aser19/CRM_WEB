@@ -4,6 +4,8 @@
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
 @attribute [Authorize]
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IKepzesTipusService KepzesTipusService
@@ -11,6 +13,7 @@
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IFileStorageService FileStorageService
 
 <PageTitle>Felülvizsgálók</PageTitle>
 
@@ -163,6 +166,26 @@
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Aláírás feltöltése (kép vagy PDF)</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.AlairasPath))
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+                            <MudText Typo="Typo.caption">Aláírás feltöltve: @Path.GetFileName(_szerkesztesAlatt.AlairasPath)</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
+                                           OnClick="AlairasTorlese" Title="Aláírás törlése" />
+                        </MudStack>
+                    }
+                    <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1" 
+                                   FilesChanged="AlairasKivalasztasa">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload">
+                                Aláírás választása
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
                 </MudItem>
                 <MudItem xs="12">
                     <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Success" />
@@ -329,6 +352,17 @@
                 <MudItem xs="12" md="6">
                     <MudDatePicker @bind-Date="_kepzesDatum" Label="Bizonyítvány kelte" Variant="Variant.Outlined" DateFormat="yyyy.MM.dd" />
                 </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Bizonyítvány feltöltése (kép vagy PDF)</MudText>
+                    <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1" 
+                                   FilesChanged="@((file) => _kivalasztottBizonyitvany = file)">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload">
+                                @(_kivalasztottBizonyitvany != null ? $"Választva: {_kivalasztottBizonyitvany.Name}" : "Bizonyítvány választása")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
@@ -383,7 +417,9 @@
     private KepzesTovabbkepzes? _ujTovabbkepzes;
     private DateTime? _kepzesDatum;
     private DateTime? _tovabbkepzesDatum;
-    
+    private IBrowserFile? _kivalasztottAlairas;
+    private IBrowserFile? _kivalasztottBizonyitvany;
+
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
     private readonly DialogOptions _reszletekDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
@@ -462,11 +498,43 @@
         _mentes = true;
         try
         {
+            // Aláírás feltöltése, ha van kiválasztva
+            if (_kivalasztottAlairas != null)
+            {
+                var cegNev = _isAdmin 
+                    ? _cegek.FirstOrDefault(c => c.Id == _szerkesztesAlatt.CegId)?.Nev ?? "Ismeretlen" 
+                    : (await CegService.GetByIdAsync(TenantService.GetCurrentCegId()))?.Nev ?? "Ismeretlen";
+
+                using var stream = _kivalasztottAlairas.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var path = await FileStorageService.SaveFileAsync(
+                    stream,
+                    _kivalasztottAlairas.Name,
+                    cegNev,
+                    _szerkesztesAlatt.Nev,
+                    "alairas",
+                    new[] { ".jpg", ".jpeg", ".png", ".pdf" },
+                    5);
+
+                if (path != null)
+                {
+                    // Régi fájl törlése, ha létezett
+                    if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.AlairasPath))
+                    {
+                        await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.AlairasPath);
+                    }
+                    _szerkesztesAlatt.AlairasPath = path;
+                }
+                else
+                {
+                    Snackbar.Add("Az aláírás feltöltése sikertelen!", Severity.Warning);
+                }
+            }
+
             if (_szerkesztesAlatt.Id == 0)
                 await FelulvizsgaloService.CreateAsync(_szerkesztesAlatt);
             else
                 await FelulvizsgaloService.UpdateAsync(_szerkesztesAlatt);
-            
+
             Snackbar.Add("Sikeres mentés!", Severity.Success);
             DialogBezarasa();
             await FrissitesAsync();
@@ -502,11 +570,47 @@
             return;
         }
 
-        _ujKepzes.BizonyitvanyKelte = _kepzesDatum;
-        await FelulvizsgaloService.AddKepzesAsync(_kivalasztottFelulvizsgalo.Id, _ujKepzes);
-        _kepzesDialogNyitva = false;
-        _kivalasztottFelulvizsgalo = await FelulvizsgaloService.GetByIdWithDetailsAsync(_kivalasztottFelulvizsgalo.Id);
-        Snackbar.Add("Képzés hozzáadva!", Severity.Success);
+        try
+        {
+            _ujKepzes.BizonyitvanyKelte = _kepzesDatum;
+
+            // Bizonyítvány feltöltése, ha van kiválasztva
+            if (_kivalasztottBizonyitvany != null)
+            {
+                var cegNev = _isAdmin
+                    ? _cegek.FirstOrDefault(c => c.Id == _kivalasztottFelulvizsgalo.CegId)?.Nev ?? "Ismeretlen"
+                    : (await CegService.GetByIdAsync(TenantService.GetCurrentCegId()))?.Nev ?? "Ismeretlen";
+
+                using var stream = _kivalasztottBizonyitvany.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var path = await FileStorageService.SaveFileAsync(
+                    stream,
+                    _kivalasztottBizonyitvany.Name,
+                    cegNev,
+                    _kivalasztottFelulvizsgalo.Nev,
+                    "bizonyitvanyok",
+                    new[] { ".jpg", ".jpeg", ".png", ".pdf" },
+                    5);
+
+                if (path != null)
+                {
+                    _ujKepzes.BizonyitvanyPath = path;
+                }
+                else
+                {
+                    Snackbar.Add("A bizonyítvány feltöltése sikertelen!", Severity.Warning);
+                }
+            }
+
+            await FelulvizsgaloService.AddKepzesAsync(_kivalasztottFelulvizsgalo.Id, _ujKepzes);
+            _kepzesDialogNyitva = false;
+            _kivalasztottBizonyitvany = null;
+            _kivalasztottFelulvizsgalo = await FelulvizsgaloService.GetByIdWithDetailsAsync(_kivalasztottFelulvizsgalo.Id);
+            Snackbar.Add("Képzés hozzáadva!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task KepzesTorles(FelulvizsgaloKepzes kepzes)
@@ -557,4 +661,22 @@
             ? await FelulvizsgaloService.GetAllAdminAsync() 
             : await FelulvizsgaloService.GetAllAsync();
     }
+
+    // === FÁJLKEZELÉS ===
+
+    private void AlairasKivalasztasa(IBrowserFile file)
+    {
+        _kivalasztottAlairas = file;
+    }
+
+    private async Task AlairasTorlese()
+    {
+        if (_szerkesztesAlatt?.AlairasPath != null)
+        {
+            await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.AlairasPath);
+            _szerkesztesAlatt.AlairasPath = null;
+            Snackbar.Add("Aláírás törölve", Severity.Info);
+        }
+    }
+}
 }

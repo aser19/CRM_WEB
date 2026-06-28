@@ -1058,14 +1058,6 @@
     }
     private async Task MellekletWordLetoltes(MellekletJegyzokonyv melleklet)
     {
-        // HVM: saját szerkesztőbe navigálás
-        if (melleklet.Tipus == "HVM")
-        {
-            _dialogNyitva = false;
-            Navigation.NavigateTo($"/hvm-szerkeszto/{melleklet.Id}");
-            return;
-        }
-
         // Ha nincs még MellekletMeresId: a szerkesztőt kell előbb megnyitni (MEGNYITÁS gomb)
         if (!melleklet.MellekletMeresId.HasValue)
         {
@@ -1077,6 +1069,13 @@
         {
             var mellekletTipus = _tipusok.FirstOrDefault(t => t.MellekletTipusKod == melleklet.Tipus);
             var sablonId = mellekletTipus?.SablonId;
+
+            // HVM esetén alapértelmezett sablon, ha nincs beállítva
+            if (melleklet.Tipus == "HVM" && string.IsNullOrEmpty(sablonId))
+            {
+                sablonId = "Hibavédelem_csakmeres";
+            }
+
             if (string.IsNullOrEmpty(sablonId))
             {
                 Snackbar.Add($"Nincs Word sablon a '{melleklet.Tipus}' típushoz!", Severity.Warning);
@@ -1101,6 +1100,7 @@
                 await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     wordBytes);
+                Snackbar.Add("Letöltés indult!", Severity.Success);
             }
             else
                 Snackbar.Add("Word dokumentum nem generálható (sablon hiányzik?).", Severity.Warning);

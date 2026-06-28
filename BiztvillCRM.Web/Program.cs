@@ -89,7 +89,9 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 builder.Services.AddScoped<IEszkozTipusService, EszkozTipusService>();
 builder.Services.AddScoped<IKarbantartasTipusService, KarbantartasTipusService>();
 builder.Services.AddScoped<IKotelezoHitelesitesService, KotelezoHitelesitesService>();
-builder.Services.AddHttpClient<INavAdoszamService, NavAdoszamService>();    //Nav adószám lekérdezés
+// Nav adószám lekérdezés - HttpClient és Service regisztrálása
+builder.Services.AddHttpClient(); // HttpClient factory regisztrálása
+builder.Services.AddScoped<INavAdoszamService, NavAdoszamService>();
 builder.Services.AddScoped<AktualisCegService>();
 
 // --- Munkavédelem szolgáltatások ---
@@ -116,6 +118,12 @@ builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- Ú
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
+builder.Services.AddSingleton<IFileStorageService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+    var logger = sp.GetRequiredService<ILogger<FileStorageService>>();
+    return new FileStorageService(env.WebRootPath, logger);
+}); // <-- FÁJLKEZELŐ SZOLGÁLTATÁS
 builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IModulJogosultsagService, ModulJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IMunkaszamService, MunkaszamService>(); // A többi service regisztráció mellé

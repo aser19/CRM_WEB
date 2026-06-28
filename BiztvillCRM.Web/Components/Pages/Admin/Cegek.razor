@@ -7,6 +7,7 @@
 @using BiztvillCRM.Web.Components.Shared
 @using Microsoft.AspNetCore.Authorization
 @inject ICegService CegService
+@inject INavAdoszamService NavService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -215,6 +216,19 @@
                 <MudSwitch @bind-Value="_szerkesztettCeg.NavTesztKornyezet"
                            Label="@(_szerkesztettCeg.NavTesztKornyezet ? "Teszt környezet (api-test.onlineszamla.nav.gov.hu)" : "Éles környezet (api.onlineszamla.nav.gov.hu)")"
                            Color="Color.Warning" />
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.CloudSync"
+                           OnClick="NavBeallitasTeszt"
+                           Disabled="@(string.IsNullOrWhiteSpace(_szerkesztettCeg.NavLoginName) || 
+                                       string.IsNullOrWhiteSpace(_szerkesztettCeg.NavPassword) || 
+                                       string.IsNullOrWhiteSpace(_szerkesztettCeg.NavXmlSignKey) || 
+                                       string.IsNullOrWhiteSpace(_szerkesztettCeg.NavTaxNumber))"
+                           Class="mt-2">
+                    NAV beállítások tesztelése
+                </MudButton>
             </MudItem>
         }
     </DialogContent>
@@ -435,11 +449,71 @@
             _szerkesztettCeg.AktivModulok &= ~modul;
     }
 
+    private async Task NavBeallitasTeszt()
+    {
+        if (_szerkesztettCeg == null) return;
+
+        // Először menteni kell a változtatásokat
+        if (_szerkesztettCeg.Id > 0)
+        {
+            var megerosites = await DialogService.ShowMessageBox(
+                "NAV beállítások tesztelése",
+                "A teszt előtt elmentjük a változtatásokat. Folytatja?",
+                yesText: "Igen, teszt",
+                cancelText: "Mégse");
+
+            if (megerosites != true)
+                return;
+
+            // Mentés
+            await CegService.UpdateAsync(_szerkesztettCeg);
+            Snackbar.Add("Beállítások mentve, teszt indul...", Severity.Info);
+
+            // Kis késleltetés, hogy az adatbázis commit biztosan megtörténjen
+            await Task.Delay(200);
+        }
+
+        // Teszt adószám lekérdezés
+        var testTaxNumber = _szerkesztettCeg.NavTaxNumber?.Trim();
+
+        if (string.IsNullOrWhiteSpace(testTaxNumber))
+        {
+            Snackbar.Add("Adószám megadása szükséges a teszthez!", Severity.Warning);
+            return;
+        }
+
+        var eredmeny = await NavService.LekerdezesByAdoszamAsync(testTaxNumber, _szerkesztettCeg.Id);
+
+        if (eredmeny.Sikeres)
+        {
+            await DialogService.ShowMessageBox(
+                "NAV teszt sikeres! ✅",
+                $"Sikeres kapcsolat a NAV API-val!\n\n" +
+                $"Lekérdezett adatok:\n" +
+                $"Cégnév: {eredmeny.CegNev}\n" +
+                $"Cím: {eredmeny.FormattaltCim}",
+                yesText: "OK");
+        }
+        else
+        {
+            await DialogService.ShowMessageBox(
+                "NAV teszt sikertelen ❌",
+                $"Hiba történt:\n{eredmeny.HibaSzoveg}\n\n" +
+                $"Ellenőrizd a beállításokat:\n" +
+                $"- Login név\n" +
+                $"- Jelszó\n" +
+                $"- XML aláíró kulcs\n" +
+                $"- Adószám (8 számjegy)\n" +
+                $"- Környezet (teszt/éles)",
+                yesText: "OK");
+        }
+    }
+
     private string? ValidateMatricaElotag(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null; // Opcionális
-        
+
         if (value.Length > 3)
             return "Maximum 3 karakter lehet!";
         
