@@ -5,6 +5,7 @@
 @using BiztvillCRM.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
 @using System.IO
 @attribute [Authorize]
 @inject IFelulvizsgaloService FelulvizsgaloService
@@ -14,6 +15,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IFileStorageService FileStorageService
+@inject IJSRuntime JS
 
 <PageTitle>Felülvizsgálók</PageTitle>
 
@@ -243,22 +245,49 @@
                                         </MudStack>
                                     </TitleContent>
                                     <ChildContent>
-                                        <MudGrid>
-                                            <MudItem xs="6">
-                                                <MudText Typo="Typo.caption">Bizonyítvány kelte</MudText>
-                                                <MudText>@kepzes.BizonyitvanyKelte?.ToString("yyyy.MM.dd")</MudText>
-                                            </MudItem>
-                                            <MudItem xs="6">
-                                                <MudText Typo="Typo.caption">Következő továbbképzés</MudText>
-                                                <MudText Color="@(kepzes.TovabbkepzesLejart ? Color.Error : Color.Default)">
-                                                    @(kepzes.KovetkezoTovabbkepzesDatum?.ToString("yyyy.MM.dd") ?? "-")
-                                                    @if (kepzes.TovabbkepzesHatralevoNap.HasValue)
-                                                    {
-                                                        <span> (@kepzes.TovabbkepzesHatralevoNap nap)</span>
-                                                    }
-                                                </MudText>
-                                            </MudItem>
-                                        </MudGrid>
+                                       <MudGrid>
+                                           <MudItem xs="6">
+                                               <MudText Typo="Typo.caption">Bizonyítvány kelte</MudText>
+                                               <MudText>@kepzes.BizonyitvanyKelte?.ToString("yyyy.MM.dd")</MudText>
+                                           </MudItem>
+                                           <MudItem xs="6">
+                                               <MudText Typo="Typo.caption">Következő továbbképzés</MudText>
+                                               <MudText Color="@(kepzes.TovabbkepzesLejart ? Color.Error : Color.Default)">
+                                                   @(kepzes.KovetkezoTovabbkepzesDatum?.ToString("yyyy.MM.dd") ?? "-")
+                                                   @if (kepzes.TovabbkepzesHatralevoNap.HasValue)
+                                                   {
+                                                       <span> (@kepzes.TovabbkepzesHatralevoNap nap)</span>
+                                                   }
+                                               </MudText>
+                                           </MudItem>
+                                           <MudItem xs="12">
+                                               <MudText Typo="Typo.caption">Bizonyítvány melléklet</MudText>
+                                               @if (!string.IsNullOrWhiteSpace(kepzes.BizonyitvanyPath))
+                                               {
+                                                   <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                       <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                       <MudText Typo="Typo.body2">@Path.GetFileName(kepzes.BizonyitvanyPath)</MudText>
+                                                       <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                      OnClick="@(() => BizonyitvanyLetoltese(kepzes))" Title="Letöltés" />
+                                                       <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                      OnClick="@(() => BizonyitvanyTorlese(kepzes))" Title="Törlés" />
+                                                   </MudStack>
+                                               }
+                                               else
+                                               {
+                                                   <MudText Typo="Typo.body2" Color="Color.Secondary">Nincs feltöltve</MudText>
+                                               }
+                                               <MudFileUpload T="IBrowserFile" @ref="_bizonyitvanyUpload" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1"
+                                                              FilesChanged="@(async (file) => await BizonyitvanyFeltoltese(kepzes, file))">
+                                                   <ActivatorContent>
+                                                       <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" 
+                                                                  StartIcon="@Icons.Material.Filled.Upload" Class="mt-1">
+                                                           @(string.IsNullOrWhiteSpace(kepzes.BizonyitvanyPath) ? "Bizonyítvány feltöltése" : "Csere")
+                                                       </MudButton>
+                                                   </ActivatorContent>
+                                               </MudFileUpload>
+                                           </MudItem>
+                                       </MudGrid>
                                         
                                         <MudDivider Class="my-3" />
                                         
@@ -419,6 +448,7 @@
     private DateTime? _tovabbkepzesDatum;
     private IBrowserFile? _kivalasztottAlairas;
     private IBrowserFile? _kivalasztottBizonyitvany;
+    private MudFileUpload<IBrowserFile>? _bizonyitvanyUpload;
 
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
     private readonly DialogOptions _reszletekDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
@@ -676,6 +706,105 @@
             await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.AlairasPath);
             _szerkesztesAlatt.AlairasPath = null;
             Snackbar.Add("Aláírás törölve", Severity.Info);
+        }
+    }
+
+    private async Task BizonyitvanyFeltoltese(FelulvizsgaloKepzes kepzes, IBrowserFile file)
+    {
+        if (file == null || _kivalasztottFelulvizsgalo == null) return;
+
+        try
+        {
+            var cegNev = _isAdmin
+                ? _cegek.FirstOrDefault(c => c.Id == _kivalasztottFelulvizsgalo.CegId)?.Nev ?? "Ismeretlen"
+                : (await CegService.GetByIdAsync(TenantService.GetCurrentCegId()))?.Nev ?? "Ismeretlen";
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            var path = await FileStorageService.SaveFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                _kivalasztottFelulvizsgalo.Nev,
+                "bizonyitvanyok",
+                new[] { ".jpg", ".jpeg", ".png", ".pdf" },
+                5);
+
+            if (path != null)
+            {
+                // Régi fájl törlése, ha létezett
+                if (!string.IsNullOrWhiteSpace(kepzes.BizonyitvanyPath))
+                {
+                    await FileStorageService.DeleteFileAsync(kepzes.BizonyitvanyPath);
+                }
+
+                kepzes.BizonyitvanyPath = path;
+                await FelulvizsgaloService.UpdateKepzesAsync(kepzes);
+                _kivalasztottFelulvizsgalo = await FelulvizsgaloService.GetByIdWithDetailsAsync(_kivalasztottFelulvizsgalo.Id);
+
+                Snackbar.Add("Bizonyítvány feltöltve!", Severity.Success);
+
+                // Reset file upload
+                if (_bizonyitvanyUpload != null)
+                {
+                    await _bizonyitvanyUpload.ResetAsync();
+                }
+            }
+            else
+            {
+                Snackbar.Add("A bizonyítvány feltöltése sikertelen!", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feltöltési hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task BizonyitvanyTorlese(FelulvizsgaloKepzes kepzes)
+    {
+        if (string.IsNullOrWhiteSpace(kepzes.BizonyitvanyPath)) return;
+
+        if (await DialogService.ShowMessageBox("Törlés", "Biztosan törli a bizonyítványt?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await FileStorageService.DeleteFileAsync(kepzes.BizonyitvanyPath);
+                kepzes.BizonyitvanyPath = null;
+                await FelulvizsgaloService.UpdateKepzesAsync(kepzes);
+                _kivalasztottFelulvizsgalo = await FelulvizsgaloService.GetByIdWithDetailsAsync(_kivalasztottFelulvizsgalo!.Id);
+
+                Snackbar.Add("Bizonyítvány törölve", Severity.Info);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Törlési hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task BizonyitvanyLetoltese(FelulvizsgaloKepzes kepzes)
+    {
+        if (string.IsNullOrWhiteSpace(kepzes.BizonyitvanyPath)) return;
+
+        try
+        {
+            var fileStream = await FileStorageService.GetFileStreamAsync(kepzes.BizonyitvanyPath);
+            if (fileStream != null)
+            {
+                var fileName = Path.GetFileName(kepzes.BizonyitvanyPath);
+                using var streamRef = new DotNetStreamReference(stream: fileStream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+                Snackbar.Add("Letöltés elindítva!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("A fájl nem található!", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Letöltési hiba: {ex.Message}", Severity.Error);
         }
     }
 }
