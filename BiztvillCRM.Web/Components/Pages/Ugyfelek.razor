@@ -42,12 +42,14 @@
                  SortMode="SortMode.Multiple"
                  Hover="true"
                  Striped="true"
-                 Loading="_betoltes">
+                 Loading="_betoltes"
+                 Dense="true"
+                 Style="font-size: 0.875rem;">
         <Columns>
-            <TemplateColumn Title="Név" Sortable="true" SortBy="@(u => u.Nev ?? "")">
+            <TemplateColumn Title="Név" Sortable="true" SortBy="@(u => u.Nev ?? "")" Sticky="true" StickyLeft="true">
                 <CellTemplate>
                     <div>
-                        <div>@(context.Item.Nev ?? "-")</div>
+                        <div style="font-weight: 500;">@(context.Item.Nev ?? "-")</div>
                         @if (_elerhetoCegek.Count > 1)
                         {
                             var szin = GetCegSzin(context.Item.CegId);
@@ -56,7 +58,7 @@
                             <MudTooltip Text="@cegNev" Placement="Placement.Right">
                                 <MudChip T="string"
                                          Size="Size.Small"
-                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
+                                         Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:16px; margin-top:2px;")"
                                          Label="true">
                                     @rovidites
                                 </MudChip>
@@ -94,7 +96,8 @@
             <TemplateColumn Title="Aktív">
                 <CellTemplate>
                     <MudIcon Icon="@(context.Item.Aktiv ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
-                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)" />
+                             Color="@(context.Item.Aktiv ? Color.Success : Color.Error)"
+                             Size="Size.Small" />
                 </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Telephelyek">
@@ -102,7 +105,7 @@
                     <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Telephelyek.Count db</MudChip>
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Műveletek" Sortable="false">
+            <TemplateColumn Title="Műveletek" Sortable="false" Sticky="true" StickyRight="true">
                 <CellTemplate>
                     <MudStack Row="true">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"

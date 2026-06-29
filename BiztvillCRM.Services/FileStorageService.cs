@@ -43,10 +43,15 @@ public class FileStorageService : IFileStorageService
                 return null;
             }
 
+            // BrowserFileStream esetén a stream-et először memóriába kell másolni
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
             // Fájlméret ellenőrzése
-            if (fileStream.Length > maxSizeMB * 1024 * 1024)
+            if (memoryStream.Length > maxSizeMB * 1024 * 1024)
             {
-                _logger.LogWarning("A fájl túl nagy: {Size} MB", fileStream.Length / 1024 / 1024);
+                _logger.LogWarning("A fájl túl nagy: {Size} MB", memoryStream.Length / 1024 / 1024);
                 return null;
             }
 
@@ -70,8 +75,8 @@ public class FileStorageService : IFileStorageService
             // Fájl mentése
             using (var fileStreamOut = new FileStream(fullPath, FileMode.Create))
             {
-                fileStream.Seek(0, SeekOrigin.Begin);
-                await fileStream.CopyToAsync(fileStreamOut);
+                memoryStream.Position = 0;
+                await memoryStream.CopyToAsync(fileStreamOut);
             }
 
             // Relatív útvonal visszaadása
@@ -175,10 +180,15 @@ public class FileStorageService : IFileStorageService
                 return null;
             }
 
+            // BrowserFileStream esetén a stream-et először memóriába kell másolni
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
             // Fájlméret ellenőrzése
-            if (fileStream.Length > maxSizeMB * 1024 * 1024)
+            if (memoryStream.Length > maxSizeMB * 1024 * 1024)
             {
-                _logger.LogWarning("A fájl túl nagy: {Size} MB", fileStream.Length / 1024 / 1024);
+                _logger.LogWarning("A fájl túl nagy: {Size} MB", memoryStream.Length / 1024 / 1024);
                 return null;
             }
 
@@ -202,8 +212,8 @@ public class FileStorageService : IFileStorageService
             // Fájl mentése
             using (var fileStreamOut = new FileStream(fullPath, FileMode.Create))
             {
-                fileStream.Seek(0, SeekOrigin.Begin);
-                await fileStream.CopyToAsync(fileStreamOut);
+                memoryStream.Position = 0;
+                await memoryStream.CopyToAsync(fileStreamOut);
             }
 
             // Relatív útvonal visszaadása
