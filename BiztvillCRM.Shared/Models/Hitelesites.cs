@@ -88,4 +88,16 @@ public class Hitelesites
     /// de megmaradnak aHistory-ban.
     /// </summary>
     public bool Aktiv { get; set; } = true;
+
+    /// <summary>
+    /// Munkalap fájl relatív elérési útja (strukturált mappában: Cég\Ügyfél\munkalap_*.pdf)
+    /// </summary>
+    [MaxLength(500)]
+    public string? MunkalapPath { get; set; }
+
+    /// <summary>
+    /// Hitelesítési bizonyítvány fájl relatív elérési útja (strukturált mappában: Cég\Ügyfél\bizonyitvany_*.pdf)
+    /// </summary>
+    [MaxLength(500)]
+    public string? BizonyitvanyPath { get; set; }
 }

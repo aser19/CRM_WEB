@@ -14,7 +14,7 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
         _contextFactory = contextFactory;
     }
 
-    public async Task<UgyfelLekerdezesViewModel?> LekerdezesByTokenAsync(string token)
+    public async Task<UgyfelLekerdezesViewModel?> LekerdezesByTokenAsync(string token, bool tartalmazzaInaktivakat = false)
     {
         await using var ctx = await _contextFactory.CreateDbContextAsync();
 
@@ -41,9 +41,17 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
             .OrderByDescending(m => m.Datum)
             .ToListAsync();
 
-        var hitelesitesek = await ctx.Hitelesitesek
+        // Hitelesítések lekérdezése: aktív vagy összes az élettörténet kapcsoló alapján
+        var hitelesitesekQuery = ctx.Hitelesitesek
             .Include(h => h.EszkozTipus)
-            .Where(h => h.UgyfelId == ugyfelId)
+            .Where(h => h.UgyfelId == ugyfelId);
+
+        if (!tartalmazzaInaktivakat)
+        {
+            hitelesitesekQuery = hitelesitesekQuery.Where(h => h.Aktiv);
+        }
+
+        var hitelesitesek = await hitelesitesekQuery
             .OrderByDescending(h => h.Datum)
             .ToListAsync();
 
@@ -126,6 +134,7 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                             Darabszam = h.Darabszam,
                             Datum = h.Datum,
                             LejaratDatum = h.LejaratDatum,
+                            Aktiv = h.Aktiv,
                             KozbensoVizsgalatok = kozbensoVizsgalatok,
                             EgyediLejaratok = h.EgyediLejaratokLista
                         };

@@ -33,6 +33,7 @@ public class HitelesitesOsszefoglalo
     public int Darabszam { get; set; }
     public DateTime Datum { get; set; }
     public DateTime? LejaratDatum { get; set; }
+    public bool Aktiv { get; set; } = true;
 
     /// <summary>Ha van hitelesítési csoport rendelve, itt jönnek a közbenső vizsgálatok</summary>
     public List<CsoportTagLejaratReszlet> KozbensoVizsgalatok { get; set; } = new();

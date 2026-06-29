@@ -156,6 +156,69 @@ public class FileStorageService : IFileStorageService
         }
     }
 
+    public async Task<string?> SaveHitelesitesFileAsync(
+        Stream fileStream,
+        string fileName,
+        string cegNev,
+        string ugyfelNev,
+        string category,
+        string[] allowedExtensions,
+        int maxSizeMB = 10)
+    {
+        try
+        {
+            // Fájlnév és kiterjesztés validálása
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                _logger.LogWarning("Nem engedélyezett fájlkiterjesztés: {Extension}", extension);
+                return null;
+            }
+
+            // Fájlméret ellenőrzése
+            if (fileStream.Length > maxSizeMB * 1024 * 1024)
+            {
+                _logger.LogWarning("A fájl túl nagy: {Size} MB", fileStream.Length / 1024 / 1024);
+                return null;
+            }
+
+            // Mappa struktúra létrehozása: Uploads\CégNév\ÜgyfélNév\Kategória
+            var safeCegNev = MakeSafeFileName(cegNev);
+            var safeUgyfelNev = MakeSafeFileName(ugyfelNev);
+            var safeCategory = MakeSafeFileName(category);
+
+            var directoryPath = Path.Combine(_uploadsPath, safeCegNev, safeUgyfelNev, safeCategory);
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            // Egyedi fájlnév generálása (timestamp + eredeti név)
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var safeFileName = MakeSafeFileName(Path.GetFileNameWithoutExtension(fileName));
+            var uniqueFileName = $"{timestamp}_{safeFileName}{extension}";
+            var fullPath = Path.Combine(directoryPath, uniqueFileName);
+
+            // Fájl mentése
+            using (var fileStreamOut = new FileStream(fullPath, FileMode.Create))
+            {
+                fileStream.Seek(0, SeekOrigin.Begin);
+                await fileStream.CopyToAsync(fileStreamOut);
+            }
+
+            // Relatív útvonal visszaadása
+            var relativePath = Path.Combine(safeCegNev, safeUgyfelNev, safeCategory, uniqueFileName);
+            _logger.LogInformation("Hitelesítés fájl sikeresen mentve: {Path}", relativePath);
+
+            return relativePath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hiba a hitelesítés fájl mentése során: {FileName}", fileName);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Biztonságos fájlnév/mappanév készítése (nem engedélyezett karakterek eltávolítása)
     /// </summary>

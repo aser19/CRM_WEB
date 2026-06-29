@@ -42,10 +42,17 @@
 
     @if (_eredmeny != null)
     {
-        <MudText Typo="Typo.h6" Class="mt-6 mb-3">
-            <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" />
-            @_eredmeny.UgyfelNev adatai
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mt-6 mb-3">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" />
+                @_eredmeny.UgyfelNev adatai
+            </MudText>
+            <MudSwitch @bind-Value="_elettortenetMutat" 
+                       Color="Color.Info" 
+                       Label="Élettörténet (inaktívakkal)"
+                       ThumbIcon="@(_elettortenetMutat ? Icons.Material.Filled.History : Icons.Material.Filled.Visibility)"
+                       @onchange="OnElettortenetChange" />
+        </MudStack>
 
         @foreach (var tp in _eredmeny.Telephelyek)
         {
@@ -144,8 +151,10 @@
                                         var ervenyes = context.LejaratDatum == null || context.LejaratDatum.Value >= DateTime.Today;
                                         var vanCsoport = context.KozbensoVizsgalatok.Any();
                                         var nyitva = _nyitottHitelesitesek.Contains(context);
+                                        var inaktiv = !context.Aktiv;
+                                        var inaktivStyle = inaktiv ? "opacity:0.6" : "";
                                     }
-                                    <MudTd Style="width:32px; padding:0;">
+                                    <MudTd Style="@($"width:32px; padding:0; {inaktivStyle}")">
                                         @if (vanCsoport)
                                         {
                                             <MudIconButton Icon="@(nyitva ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
@@ -153,16 +162,20 @@
                                                            OnClick="@(() => HitelesitesLenyit(context))" />
                                         }
                                     </MudTd>
-                                    <MudTd>
-                                        <MudText>@context.EszkozTipusNev</MudText>
+                                    <MudTd Style="@inaktivStyle">
+                                        <MudText Style="@(inaktiv ? "text-decoration:line-through" : "")">@context.EszkozTipusNev</MudText>
                                         @if (!string.IsNullOrEmpty(context.EszkozAzonosito))
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">@context.EszkozAzonosito</MudText>
                                         }
+                                        @if (inaktiv)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Icon="@Icons.Material.Filled.Archive" Class="mt-1">Inaktív</MudChip>
+                                        }
                                     </MudTd>
-                                    <MudTd>@context.Darabszam</MudTd>
-                                    <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
-                                    <MudTd>
+                                    <MudTd Style="@inaktivStyle">@context.Darabszam</MudTd>
+                                    <MudTd Style="@inaktivStyle">@context.Datum.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd Style="@inaktivStyle">
                                         <div>@(context.LejaratDatum?.ToString("yyyy.MM.dd") ?? "–")</div>
                                         @if (context.EgyediLejaratok.Any())
                                         {
@@ -189,11 +202,18 @@
                                             </MudTooltip>
                                         }
                                     </MudTd>
-                                    <MudTd>
-                                        <MudChip T="string" Size="Size.Small"
-                                                 Color="@(ervenyes ? Color.Success : Color.Error)">
-                                            @(ervenyes ? "Érvényes" : "Lejárt")
-                                        </MudChip>
+                                    <MudTd Style="@inaktivStyle">
+                                        @if (inaktiv)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Inaktív</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small"
+                                                     Color="@(ervenyes ? Color.Success : Color.Error)">
+                                                @(ervenyes ? "Érvényes" : "Lejárt")
+                                            </MudChip>
+                                        }
                                     </MudTd>
                                 </RowTemplate>
                                 <ChildRowContent>
@@ -397,6 +417,7 @@
     private bool _betoltes = false;
     private string? _hibaUzenet;
     private UgyfelLekerdezesViewModel? _eredmeny;
+    private bool _elettortenetMutat = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -425,7 +446,7 @@
 
         try
         {
-            _eredmeny = await LekerdezesService.LekerdezesByTokenAsync(_token.Trim());
+            _eredmeny = await LekerdezesService.LekerdezesByTokenAsync(_token.Trim(), _elettortenetMutat);
             if (_eredmeny == null)
                 _hibaUzenet = "Érvénytelen vagy lejárt azonosítókód.";
         }
@@ -438,6 +459,18 @@
             _betoltes = false;
         }
     }
+
+    private async Task ElettortenetValtozas(bool ujErtek)
+    {
+        _elettortenetMutat = ujErtek;
+        await LekerdezesFuttatas();
+    }
+
+    private async Task OnElettortenetChange()
+    {
+        await LekerdezesFuttatas();
+    }
+
     private HashSet<HitelesitesOsszefoglalo> _nyitottHitelesitesek = new();
 
     private void HitelesitesLenyit(HitelesitesOsszefoglalo h)

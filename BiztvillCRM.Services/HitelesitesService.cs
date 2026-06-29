@@ -89,7 +89,7 @@ public class HitelesitesService : IHitelesitesService
     {
         var existing = await _context.Hitelesitesek.FindAsync(hitelesites.Id)
             ?? throw new InvalidOperationException("Nem található.");
-        
+
         existing.UgyfelId = hitelesites.UgyfelId;
         existing.TelephelyId = hitelesites.TelephelyId;
         existing.EszkozTipusId = hitelesites.EszkozTipusId;
@@ -100,12 +100,14 @@ public class HitelesitesService : IHitelesitesService
         existing.HitelesitesStatusz = hitelesites.HitelesitesStatusz;
         existing.Megjegyzes = hitelesites.Megjegyzes;
         existing.EgyediLejaratok = hitelesites.EgyediLejaratok;
-        existing.EszkozAzonosito = hitelesites.EszkozAzonosito;        // ← ez hiányzott
-        existing.CsoportTagLejaratok = hitelesites.CsoportTagLejaratok; // ← ez hiányzott
+        existing.EszkozAzonosito = hitelesites.EszkozAzonosito;
+        existing.CsoportTagLejaratok = hitelesites.CsoportTagLejaratok;
+        existing.MunkalapPath = hitelesites.MunkalapPath;
+        existing.BizonyitvanyPath = hitelesites.BizonyitvanyPath;
         existing.Modositva = DateTime.UtcNow;
-        
+
         await SzamolLejaratDatumAsync(existing);
-        
+
         await _context.SaveChangesAsync();
         return existing;
     }

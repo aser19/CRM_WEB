@@ -3,6 +3,9 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using System.IO
 @inject IHitelesitesService HitelesitesService
 @inject IEszkozTipusService EszkozTipusService
 @inject IHatosagService HatosagService
@@ -15,6 +18,8 @@
 @inject IHitelesitesCsoportService HitelesitesCsoportService
 @inject IHitelesitesCsoportService HitelesitesCsoportService
 @inject ICegService CegService
+@inject IFileStorageService FileStorageService
+@inject IJSRuntime JS
 
 <PageTitle>Hitelesítések</PageTitle>
 
@@ -659,7 +664,75 @@
                     }
                 </MudItem>
                 <!-- ========== EGYEDI LEJÁRATOK VÉGE ========== -->
-                
+
+                <!-- ========== FÁJLFELTÖLTÉSEK ========== -->
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                        Dokumentumok
+                    </MudText>
+                </MudItem>
+
+                <!-- Munkalap feltöltés -->
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.caption" Class="mb-1">Munkalap (PDF, képfájl)</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.MunkalapPath))
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@Path.GetFileName(_szerkesztesAlatt.MunkalapPath)</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="@(() => MunkalapLetoltese())" Title="Letöltés" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => MunkalapTorlese())" Title="Törlés" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">Nincs feltöltve</MudText>
+                    }
+                    <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1"
+                                   FilesChanged="@(async (file) => await MunkalapFeltoltese(file))">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Upload">
+                                @(string.IsNullOrWhiteSpace(_szerkesztesAlatt.MunkalapPath) ? "Munkalap feltöltése" : "Csere")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                </MudItem>
+
+                <!-- Hitelesítési bizonyítvány feltöltés -->
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.caption" Class="mb-1">Hitelesítési bizonyítvány (PDF, képfájl)</MudText>
+                    @if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.BizonyitvanyPath))
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@Path.GetFileName(_szerkesztesAlatt.BizonyitvanyPath)</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="@(() => BizonyitvanyLetoltese())" Title="Letöltés" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => BizonyitvanyTorlese())" Title="Törlés" />
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">Nincs feltöltve</MudText>
+                    }
+                    <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1"
+                                   FilesChanged="@(async (file) => await BizonyitvanyFeltoltese(file))">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Upload">
+                                @(string.IsNullOrWhiteSpace(_szerkesztesAlatt.BizonyitvanyPath) ? "Bizonyítvány feltöltése" : "Csere")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                </MudItem>
+                <!-- ========== FÁJLFELTÖLTÉSEK VÉGE ========== -->
+
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Általános megjegyzés" Lines="2" />
                 </MudItem>
@@ -786,53 +859,145 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudDataGrid T="Hitelesites" Items="_inaktivLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_inaktivBetoltes">
-            <Columns>
-                <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(h => h.Ugyfel?.Nev ?? "")">
-                    <CellTemplate>
-                        <div>
-                            <div>@(context.Item.Ugyfel?.Nev ?? "-")</div>
-                            @if (_elerhetoCegek.Count > 1 && context.Item.Ugyfel != null)
-                            {
-                                var cegId = context.Item.Ugyfel.CegId;
-                                var szin = GetCegSzin(cegId);
-                                var rovidites = GetCegRovidites(cegId);
-                                var cegNev = GetCegNev(cegId);
-                                <MudTooltip Text="@cegNev" Placement="Placement.Right">
-                                    <MudChip T="string"
-                                             Size="Size.Small"
-                                             Style="@($"background-color:{szin}; color:white; font-weight:600; font-size:10px; height:18px; margin-top:2px;")"
-                                             Label="true">
-                                        @rovidites
-                                    </MudChip>
-                                </MudTooltip>
-                            }
-                        </div>
-                    </CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="Telephely" Sortable="true" SortBy="@(h => h.Telephely?.Nev ?? "")">
-                    <CellTemplate>@(context.Item.Telephely?.Nev ?? "-")</CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="Eszköztípus" Sortable="true" SortBy="@(h => h.EszkozTipus?.Nev ?? "")">
-                    <CellTemplate>@(context.Item.EszkozTipus?.Nev ?? "-")</CellTemplate>
-                </TemplateColumn>
-                <PropertyColumn Property="h => h.Darabszam" Title="Darab" Sortable="true" />
-                <PropertyColumn Property="h => h.Datum" Title="Dátum" Format="yyyy.MM.dd" Sortable="true" />
-                <TemplateColumn Title="Lejárat" Sortable="true" SortBy="@(h => h.LejaratDatum ?? DateTime.MaxValue)">
-                    <CellTemplate>
-                        @if (context.Item.LejaratDatum.HasValue)
-                        {
-                            <div>@context.Item.LejaratDatum.Value.ToString("yyyy.MM.dd")</div>
-                        }
-                    </CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="Állapot" Sortable="true" SortBy="@(h => h.Aktiv)">
-                    <CellTemplate>
-                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Inaktív</MudChip>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-        </MudDataGrid>
+        @if (_inaktivBetoltes)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mt-2" />
+        }
+        else if (!_inaktivLista.Any())
+        {
+            <MudText Class="pa-4 ml-2">Nincs inaktív hitelesítés.</MudText>
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="true" Class="mt-1">
+                @foreach (var csoport in _inaktivLista
+                    .GroupBy(h => h.UgyfelId)
+                    .OrderBy(g => g.FirstOrDefault()?.Ugyfel?.Nev ?? ""))
+                {
+                    var ugyfelNev    = csoport.FirstOrDefault()?.Ugyfel?.Nev ?? "-";
+                    var cegId        = csoport.FirstOrDefault()?.Ugyfel?.CegId ?? 0;
+                    var hitelesitesek = csoport
+                        .OrderBy(h => h.Telephely?.Nev ?? "")
+                        .ThenBy(h => h.EszkozTipus?.Nev ?? "")
+                        .ToList();
+
+                    <MudExpansionPanel IsInitiallyExpanded="true">
+                        <TitleContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Warning" />
+                                <MudText Typo="Typo.subtitle1"><b>@ugyfelNev</b></MudText>
+                                @if (_elerhetoCegek.Count > 1)
+                                {
+                                    var szin      = GetCegSzin(cegId);
+                                    var rovidites = GetCegRovidites(cegId);
+                                    var cegNev    = GetCegNev(cegId);
+                                    <MudTooltip Text="@cegNev">
+                                        <MudChip T="string" Size="Size.Small" Label="true"
+                                                 Style="@($"background-color:{szin};color:white;font-weight:600;font-size:10px;height:18px;")">
+                                            @rovidites
+                                        </MudChip>
+                                    </MudTooltip>
+                                }
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Icon="@Icons.Material.Filled.Archive">
+                                    @hitelesitesek.Count inaktív
+                                </MudChip>
+                            </MudStack>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudTable T="Hitelesites" Items="@hitelesitesek"
+                                      Hover="true" Dense="true" Striped="true"
+                                      Breakpoint="Breakpoint.Sm" Class="mb-2">
+                                <HeaderContent>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.Telephely?.Nev ?? string.Empty)"
+                                                           InitialDirection="SortDirection.Ascending">
+                                            Telephely
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.EszkozTipus?.Nev ?? string.Empty)">
+                                            Eszköztípus
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.EszkozAzonosito ?? string.Empty)">
+                                            Azonosító
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.Darabszam)">
+                                            Db
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.Datum)">
+                                            Dátum
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => h.LejaratDatum ?? DateTime.MaxValue)">
+                                            Lejárat
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>
+                                        <MudTableSortLabel SortBy="new Func<Hitelesites, object>(h => (int)h.HitelesitesStatusz)">
+                                            Státusz
+                                        </MudTableSortLabel>
+                                    </MudTh>
+                                    <MudTh>Állapot</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Telephely">@(context.Telephely?.Nev ?? "-")</MudTd>
+                                    <MudTd DataLabel="Eszköztípus">@(context.EszkozTipus?.Nev ?? "-")</MudTd>
+                                    <MudTd DataLabel="Azonosító">
+                                        @if (!string.IsNullOrEmpty(context.EszkozAzonosito))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary"
+                                                     Icon="@Icons.Material.Filled.Label">
+                                                @context.EszkozAzonosito
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Db">@context.Darabszam</MudTd>
+                                    <MudTd DataLabel="Dátum">@context.Datum.ToString("yyyy.MM.dd")</MudTd>
+                                    <MudTd DataLabel="Lejárat">
+                                        @if (context.LejaratDatum.HasValue)
+                                        {
+                                            <span>@context.LejaratDatum.Value.ToString("yyyy.MM.dd")</span>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">–</MudText>
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Státusz">
+                                        @switch (context.HitelesitesStatusz)
+                                        {
+                                            case HitelesitesStatusz.Sikeres:
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Sikeres</MudChip>
+                                                break;
+                                            case HitelesitesStatusz.Sikertelen:
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Cancel">Sikertelen</MudChip>
+                                                break;
+                                            case HitelesitesStatusz.Lejart:
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning">Lejárt</MudChip>
+                                                break;
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Állapot">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Archive">Inaktív</MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _inaktivDialogNyitva = false" Color="Color.Primary">Bezárás</MudButton>
@@ -1535,4 +1700,191 @@ private bool _eszkozAzonositoDuplikalva =>
         return result.Data?.ToString() ?? "Mégsem";
     }
 
-}
+    // ========== FÁJLFELTÖLTÉS ÉS -KEZELÉS ==========
+
+    private async Task MunkalapFeltoltese(IBrowserFile? file)
+    {
+        if (file is null || _szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null) return;
+
+        try
+        {
+            var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId.Value);
+            if (ugyfel is null)
+            {
+                Snackbar.Add("Ügyfél nem található!", Severity.Error);
+                return;
+            }
+
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+
+            // Régi fájl törlése, ha volt
+            if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.MunkalapPath))
+            {
+                await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.MunkalapPath);
+            }
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB
+            var relativePath = await FileStorageService.SaveHitelesitesFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                ugyfel.Nev ?? "Ismeretlen",
+                "munkalapok",
+                new[] { ".jpg", ".jpeg", ".png", ".pdf" },
+                10
+            );
+
+            if (relativePath is not null)
+            {
+                _szerkesztesAlatt.MunkalapPath = relativePath;
+                Snackbar.Add("Munkalap feltöltve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Fájl feltöltése sikertelen!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task BizonyitvanyFeltoltese(IBrowserFile? file)
+    {
+        if (file is null || _szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null) return;
+
+        try
+        {
+            var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId.Value);
+            if (ugyfel is null)
+            {
+                Snackbar.Add("Ügyfél nem található!", Severity.Error);
+                return;
+            }
+
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+
+            // Régi fájl törlése, ha volt
+            if (!string.IsNullOrWhiteSpace(_szerkesztesAlatt.BizonyitvanyPath))
+            {
+                await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.BizonyitvanyPath);
+            }
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB
+            var relativePath = await FileStorageService.SaveHitelesitesFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                ugyfel.Nev ?? "Ismeretlen",
+                "bizonyitványok",
+                new[] { ".jpg", ".jpeg", ".png", ".pdf" },
+                10
+            );
+
+            if (relativePath is not null)
+            {
+                _szerkesztesAlatt.BizonyitvanyPath = relativePath;
+                Snackbar.Add("Bizonyítvány feltöltve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Fájl feltöltése sikertelen!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task MunkalapTorlese()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.MunkalapPath)) return;
+
+        if (await DialogService.ShowMessageBox("Törlés", "Biztosan törli a munkalapot?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.MunkalapPath);
+                _szerkesztesAlatt.MunkalapPath = null;
+                Snackbar.Add("Munkalap törölve!", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task BizonyitvanyTorlese()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.BizonyitvanyPath)) return;
+
+        if (await DialogService.ShowMessageBox("Törlés", "Biztosan törli a bizonyítványt?", yesText: "Törlés", cancelText: "Mégse") == true)
+        {
+            try
+            {
+                await FileStorageService.DeleteFileAsync(_szerkesztesAlatt.BizonyitvanyPath);
+                _szerkesztesAlatt.BizonyitvanyPath = null;
+                Snackbar.Add("Bizonyítvány törölve!", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task MunkalapLetoltese()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.MunkalapPath)) return;
+
+        try
+        {
+            var stream = await FileStorageService.GetFileStreamAsync(_szerkesztesAlatt.MunkalapPath);
+            if (stream is not null)
+            {
+                var fileName = Path.GetFileName(_szerkesztesAlatt.MunkalapPath);
+                using var streamRef = new DotNetStreamReference(stream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+                Snackbar.Add("Munkalap letöltése megkezdődött!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Fájl nem található!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task BizonyitvanyLetoltese()
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(_szerkesztesAlatt.BizonyitvanyPath)) return;
+
+        try
+        {
+            var stream = await FileStorageService.GetFileStreamAsync(_szerkesztesAlatt.BizonyitvanyPath);
+            if (stream is not null)
+            {
+                var fileName = Path.GetFileName(_szerkesztesAlatt.BizonyitvanyPath);
+                using var streamRef = new DotNetStreamReference(stream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+                Snackbar.Add("Bizonyítvány letöltése megkezdődött!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Fájl nem található!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+}}
