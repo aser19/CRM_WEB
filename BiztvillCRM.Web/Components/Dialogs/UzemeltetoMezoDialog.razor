@@ -11,12 +11,22 @@
             <MudSelect @bind-Value="Mezo.MezoNev" Label="Mező neve" Required="true" Disabled="!UjMezo">
                 @if (ElerhetoMezok != null)
                 {
-                    @foreach (var mezoInfo in ElerhetoMezok.Where(m => !FoglaltMezok.Contains(m.Nev) || m.Nev == Mezo.MezoNev))
+                    @foreach (var modulCsoport in ElerhetoMezok
+                        .Where(m => !FoglaltMezok.Contains(m.Nev) || m.Nev == Mezo.MezoNev)
+                        .GroupBy(m => m.Modul)
+                        .OrderBy(g => g.Key))
                     {
-                        <MudSelectItem Value="@mezoInfo.Nev">
-                            <MudText>@mezoInfo.Nev</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@mezoInfo.Modul</MudText>
+                        <MudSelectItem Value="@("")" Disabled="true">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Style="font-weight: 600; margin-top: 8px;">
+                                @GetModulIcon(modulCsoport.Key) @modulCsoport.Key
+                            </MudText>
                         </MudSelectItem>
+                        @foreach (var mezoInfo in modulCsoport.OrderBy(m => m.Nev))
+                        {
+                            <MudSelectItem Value="@mezoInfo.Nev" Style="padding-left: 24px;">
+                                @mezoInfo.Nev
+                            </MudSelectItem>
+                        }
                     }
                 }
             </MudSelect>
@@ -65,6 +75,17 @@
         }
         MudDialog.Close(DialogResult.Ok(Mezo));
     }
+
+    private string GetModulIcon(string modulNev) => modulNev switch
+    {
+        "Hitelesítések" => "🔒",
+        "Mérések" => "📊",
+        "Karbantartások" => "🔧",
+        "Munkavédelem" => "👷",
+        "Tűzvédelem" => "🔥",
+        "Környezetvédelem" => "🌱",
+        _ => "📋"
+    };
 
     public class MezoInfo
     {
