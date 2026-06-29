@@ -6,6 +6,7 @@ namespace BiztvillCRM.Shared.Enums
         CegAdmin,
         Felhasznalo,
         Megtekinto,
-        Vendeg
+        Vendeg,
+        Uzemelteto
     }
 }

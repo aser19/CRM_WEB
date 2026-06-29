@@ -130,6 +130,7 @@
             <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.Business">Cégek</MudNavLink>
             <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.People">Felhasználók</MudNavLink>
             <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modul kezelés</MudNavLink>
+            <MudNavLink Href="/admin/uzemelteto-sablonok" Icon="@Icons.Material.Filled.Assignment">Üzemeltető sablonok</MudNavLink>
             <MudNavLink Href="/admin/email-naplo" Icon="@Icons.Material.Filled.MarkEmailRead">Email napló</MudNavLink>
             <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Category">Méréstípusok</MudNavLink>
             <MudNavLink Href="/admin/kepzes-tipusok" Icon="@Icons.Material.Filled.School">Képzés típusok</MudNavLink>
@@ -142,6 +143,14 @@
             <MudNavLink Href="/admin/hitelesites-csoportok" Icon="@Icons.Material.Filled.AccountTree">Hitelesítési csoportok</MudNavLink>
             <MudNavLink Href="/diagnostics" Icon="@Icons.Material.Filled.BugReport">🔍 Diagnosztika</MudNavLink>
         </MudNavGroup>
+    }
+
+    <!-- Üzemeltető - Üzemeltető szerepkörűeknek -->
+    @if (TenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+    {
+        <MudNavLink Href="/uzemelteto/adatok" Icon="@Icons.Material.Filled.Assignment">
+            Üzemeltető adatok
+        </MudNavLink>
     }
 </MudNavMenu>
 

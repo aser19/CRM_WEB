@@ -1,0 +1,75 @@
+@using BiztvillCRM.Shared.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(UjMezo ? "Új mező" : "Mező szerkesztése")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect @bind-Value="Mezo.MezoNev" Label="Mező neve" Required="true" Disabled="!UjMezo">
+                @if (ElerhetoMezok != null)
+                {
+                    @foreach (var mezoInfo in ElerhetoMezok.Where(m => !FoglaltMezok.Contains(m.Nev) || m.Nev == Mezo.MezoNev))
+                    {
+                        <MudSelectItem Value="@mezoInfo.Nev">
+                            <MudText>@mezoInfo.Nev</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@mezoInfo.Modul</MudText>
+                        </MudSelectItem>
+                    }
+                }
+            </MudSelect>
+            <MudSelect @bind-Value="Mezo.MezoTipus" Label="Mező típusa" Required="true">
+                <MudSelectItem Value="@("Text")">Szöveg</MudSelectItem>
+                <MudSelectItem Value="@("Datum")">Dátum</MudSelectItem>
+                <MudSelectItem Value="@("Szam")">Szám</MudSelectItem>
+                <MudSelectItem Value="@("Boolean")">Igen/Nem</MudSelectItem>
+            </MudSelect>
+            <MudNumericField @bind-Value="Mezo.Sorrend" Label="Sorrend" Min="0" />
+            <MudCheckBox @bind-Value="Mezo.Kotelezo" Label="Kötelező" Color="Color.Primary" />
+            <MudTextField @bind-Value="Mezo.AlapErtek" Label="Alapértelmezett érték" />
+            <MudTextField @bind-Value="Mezo.Sugo" Label="Súgó szöveg" Lines="2" />
+            <MudTextField @bind-Value="Mezo.ValidaciosSzabaly" Label="Validációs szabály" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public UzemeltetoSablonMezo Mezo { get; set; } = null!;
+
+    [Parameter]
+    public bool UjMezo { get; set; }
+
+    [Parameter]
+    public List<MezoInfo>? ElerhetoMezok { get; set; }
+
+    [Parameter]
+    public HashSet<string> FoglaltMezok { get; set; } = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Mezo.MezoNev))
+        {
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(Mezo));
+    }
+
+    public class MezoInfo
+    {
+        public string Nev { get; set; } = string.Empty;
+        public string Modul { get; set; } = string.Empty;
+        public string Tipus { get; set; } = "Text";
+    }
+}

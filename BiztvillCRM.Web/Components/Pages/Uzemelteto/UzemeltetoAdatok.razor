@@ -1,0 +1,418 @@
+@page "/uzemelteto/adatok"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,Uzemelteto")]
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Shared.Models
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@inject IUzemeltetoService UzemeltetoService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Üzemeltető adatok - Biztovill CRM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Üzemeltető adatok</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudSelect T="int?" @bind-Value="_szurtSablonId" Label="Szűrés sablon szerint" Clearable="true" Style="max-width:300px;">
+            @foreach (var sablon in _sablonok)
+            {
+                <MudSelectItem Value="@((int?)sablon.Id)">@sablon.Nev</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" @bind-Value="_szurtStatusz" Label="Szűrés státusz szerint" Clearable="true" Style="max-width:200px;">
+            <MudSelectItem Value="@("Tervezett")">Tervezett</MudSelectItem>
+            <MudSelectItem Value="@("Elvégezve")">Elvégezve</MudSelectItem>
+            <MudSelectItem Value="@("Lejárt")">Lejárt</MudSelectItem>
+        </MudSelect>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjAdatMegnyitasa">
+            Új adat rögzítése
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="UzemeltetoAdat" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <TemplateColumn Title="Sablon" Sortable="true" SortBy="@(a => a.UzemeltetoSablon?.Nev ?? "")">
+                <CellTemplate>@(context.Item.UzemeltetoSablon?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="a => a.RogzitesDatum" Title="Rögzítés dátuma" Format="yyyy.MM.dd" Sortable="true" />
+            <TemplateColumn Title="Következő esedékesség" Sortable="true" SortBy="@(a => a.KovetkezoEsedekesseg ?? DateTime.MaxValue)">
+                <CellTemplate>
+                    @if (context.Item.KovetkezoEsedekesseg != null)
+                    {
+                        var napokHatra = (context.Item.KovetkezoEsedekesseg.Value - DateTime.Today).Days;
+                        var szin = napokHatra < 0 ? Color.Error : napokHatra <= 30 ? Color.Warning : Color.Success;
+                        <MudChip T="string" Size="Size.Small" Color="@szin">
+                            @context.Item.KovetkezoEsedekesseg.Value.ToString("yyyy.MM.dd")
+                            @if (napokHatra < 0)
+                            {
+                                <text> (lejárt)</text>
+                            }
+                            else if (napokHatra <= 30)
+                            {
+                                <text> (@napokHatra nap)</text>
+                            }
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <text>-</text>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Státusz" Sortable="true" SortBy="@(a => a.Statusz)">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatuszSzin(context.Item.Statusz)">
+                        @context.Item.Statusz
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Rögzítő">
+                <CellTemplate>@(context.Item.RogzitoFelhasznalo?.Nev ?? "-")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
+                                   OnClick="@(() => MegtekintMegnyitasa(context.Item))" Title="Megtekintés" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                   OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" Title="Szerkesztés" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => Torles(context.Item))" Title="Törlés" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+</MudPaper>
+
+@if (_dialogLatszik)
+{
+    <MudDialog @bind-IsVisible="_dialogLatszik" Options="_dialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                @(_ujAdat ? "Új adat rögzítése" : _readonly ? "Adat megtekintése" : "Adat szerkesztése")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudStack Spacing="3">
+                <MudSelect @bind-Value="_szerkesztettAdat!.UzemeltetoSablonId" Label="Sablon" Required="true" 
+                           Disabled="@(!_ujAdat)" OnValueChanged="SablonValtozas">
+                    @foreach (var sablon in _sablonok)
+                    {
+                        <MudSelectItem Value="@sablon.Id">@sablon.Nev</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudDatePicker @bind-Date="_rogzitesDatum" Label="Rögzítés dátuma" Required="true" ReadOnly="@_readonly" />
+                <MudDatePicker @bind-Date="_kovetkezoEsedekesseg" Label="Következő esedékesség" ReadOnly="@_readonly" />
+
+                <MudSelect @bind-Value="_szerkesztettAdat!.Statusz" Label="Státusz" Required="true" Disabled="@_readonly">
+                    <MudSelectItem Value="@("Tervezett")">Tervezett</MudSelectItem>
+                    <MudSelectItem Value="@("Elvégezve")">Elvégezve</MudSelectItem>
+                    <MudSelectItem Value="@("Lejárt")">Lejárt</MudSelectItem>
+                </MudSelect>
+
+                @if (_kivalasztottSablon?.Mezok.Any() == true)
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.h6">Sablon mezők</MudText>
+
+                    @foreach (var mezo in _kivalasztottSablon.Mezok.OrderBy(m => m.Sorrend))
+                    {
+                        <div>
+                            @if (mezo.MezoTipus == "Text")
+                            {
+                                <MudTextField Value="@GetMezoErtek(mezo.Id)" 
+                                              ValueChanged="@((string v) => SetMezoErtek(mezo.Id, v))"
+                                              Label="@mezo.MezoNev" 
+                                              Required="@mezo.Kotelezo"
+                                              HelperText="@mezo.Sugo"
+                                              ReadOnly="@_readonly" />
+                            }
+                            else if (mezo.MezoTipus == "Datum")
+                            {
+                                DateTime? datumErtek = null;
+                                var ertekStr = GetMezoErtek(mezo.Id);
+                                if (!string.IsNullOrEmpty(ertekStr) && DateTime.TryParse(ertekStr, out var parsedDatum))
+                                {
+                                    datumErtek = parsedDatum;
+                                }
+                                <MudDatePicker Date="@datumErtek" 
+                                               DateChanged="@((DateTime? d) => SetMezoErtek(mezo.Id, d?.ToString("yyyy-MM-dd") ?? ""))"
+                                               Label="@mezo.MezoNev" 
+                                               Required="@mezo.Kotelezo"
+                                               HelperText="@mezo.Sugo"
+                                               ReadOnly="@_readonly" />
+                            }
+                            else if (mezo.MezoTipus == "Szam")
+                            {
+                                int? szamErtek = null;
+                                var ertekStr = GetMezoErtek(mezo.Id);
+                                if (!string.IsNullOrEmpty(ertekStr) && int.TryParse(ertekStr, out var parsedSzam))
+                                {
+                                    szamErtek = parsedSzam;
+                                }
+                                <MudNumericField Value="@szamErtek" 
+                                                 ValueChanged="@((int? v) => SetMezoErtek(mezo.Id, v?.ToString() ?? ""))"
+                                                 Label="@mezo.MezoNev" 
+                                                 Required="@mezo.Kotelezo"
+                                                 HelperText="@mezo.Sugo"
+                                                 ReadOnly="@_readonly" />
+                            }
+                            else if (mezo.MezoTipus == "Boolean")
+                            {
+                                bool boolErtek = false;
+                                var ertekStr = GetMezoErtek(mezo.Id);
+                                if (!string.IsNullOrEmpty(ertekStr) && bool.TryParse(ertekStr, out var parsedBool))
+                                {
+                                    boolErtek = parsedBool;
+                                }
+                                <MudCheckBox Value="@boolErtek" 
+                                             ValueChanged="@((bool v) => SetMezoErtek(mezo.Id, v.ToString()))"
+                                             Label="@mezo.MezoNev" 
+                                             Color="Color.Primary"
+                                             ReadOnly="@_readonly" />
+                            }
+                        </div>
+                    }
+                }
+
+                <MudTextField @bind-Value="_szerkesztettAdat!.Megjegyzes" Label="Megjegyzés" Lines="3" ReadOnly="@_readonly" />
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _dialogLatszik = false)">@(_readonly ? "Bezárás" : "Mégse")</MudButton>
+            @if (!_readonly)
+            {
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Mentes" Disabled="_mentes">
+                    @if (_mentes)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <text>Mentés</text>
+                    }
+                </MudButton>
+            }
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private List<UzemeltetoSablon> _sablonok = new();
+    private List<UzemeltetoAdat> _adatok = new();
+    private int? _szurtSablonId;
+    private string? _szurtStatusz;
+    private bool _betoltes = true;
+    private bool _dialogLatszik;
+    private bool _mentes;
+    private bool _ujAdat;
+    private bool _readonly;
+    private UzemeltetoAdat? _szerkesztettAdat;
+    private UzemeltetoSablon? _kivalasztottSablon;
+    private Dictionary<int, string> _mezoErtekek = new();
+    private DateTime? _rogzitesDatum;
+    private DateTime? _kovetkezoEsedekesseg;
+
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
+
+    private IEnumerable<UzemeltetoAdat> _szurtLista
+    {
+        get
+        {
+            var lista = _adatok.AsEnumerable();
+
+            if (_szurtSablonId != null)
+            {
+                lista = lista.Where(a => a.UzemeltetoSablonId == _szurtSablonId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_szurtStatusz))
+            {
+                lista = lista.Where(a => a.Statusz == _szurtStatusz);
+            }
+
+            return lista;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _sablonok = await UzemeltetoService.GetSablonokAsync();
+        _adatok = await UzemeltetoService.GetAdatokAsync();
+        _betoltes = false;
+    }
+
+    private void UjAdatMegnyitasa()
+    {
+        _ujAdat = true;
+        _readonly = false;
+        _szerkesztettAdat = new UzemeltetoAdat 
+        { 
+            RogzitesDatum = DateTime.Today,
+            Statusz = "Tervezett",
+            Aktiv = true
+        };
+        _rogzitesDatum = DateTime.Today;
+        _kovetkezoEsedekesseg = null;
+        _mezoErtekek.Clear();
+        _kivalasztottSablon = null;
+        _dialogLatszik = true;
+    }
+
+    private async Task SzerkesztesMegnyitasa(UzemeltetoAdat adat)
+    {
+        _ujAdat = false;
+        _readonly = false;
+        await AdatBetoltes(adat);
+        _dialogLatszik = true;
+    }
+
+    private async Task MegtekintMegnyitasa(UzemeltetoAdat adat)
+    {
+        _ujAdat = false;
+        _readonly = true;
+        await AdatBetoltes(adat);
+        _dialogLatszik = true;
+    }
+
+    private async Task AdatBetoltes(UzemeltetoAdat adat)
+    {
+        var teljesAdat = await UzemeltetoService.GetAdatByIdAsync(adat.Id);
+        if (teljesAdat == null) return;
+
+        _szerkesztettAdat = new UzemeltetoAdat
+        {
+            Id = teljesAdat.Id,
+            UzemeltetoSablonId = teljesAdat.UzemeltetoSablonId,
+            RogzitesDatum = teljesAdat.RogzitesDatum,
+            KovetkezoEsedekesseg = teljesAdat.KovetkezoEsedekesseg,
+            Statusz = teljesAdat.Statusz,
+            MezoErtekekJson = teljesAdat.MezoErtekekJson,
+            Megjegyzes = teljesAdat.Megjegyzes,
+            Aktiv = teljesAdat.Aktiv
+        };
+
+        _rogzitesDatum = teljesAdat.RogzitesDatum;
+        _kovetkezoEsedekesseg = teljesAdat.KovetkezoEsedekesseg;
+        _kivalasztottSablon = teljesAdat.UzemeltetoSablon;
+
+        // JSON feldolgozása
+        try
+        {
+            _mezoErtekek = JsonSerializer.Deserialize<Dictionary<int, string>>(teljesAdat.MezoErtekekJson) ?? new();
+        }
+        catch
+        {
+            _mezoErtekek = new();
+        }
+    }
+
+    private async Task SablonValtozas(int sablonId)
+    {
+        _szerkesztettAdat!.UzemeltetoSablonId = sablonId;
+        _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(sablonId);
+        _mezoErtekek.Clear();
+
+        // Következő esedékesség beállítása
+        if (_kivalasztottSablon?.EllenorzesiIdoszakHonap != null && _rogzitesDatum != null)
+        {
+            _kovetkezoEsedekesseg = _rogzitesDatum.Value.AddMonths(_kivalasztottSablon.EllenorzesiIdoszakHonap.Value);
+        }
+    }
+
+    private string GetMezoErtek(int mezoId)
+    {
+        return _mezoErtekek.GetValueOrDefault(mezoId, string.Empty);
+    }
+
+    private void SetMezoErtek(int mezoId, string ertek)
+    {
+        _mezoErtekek[mezoId] = ertek;
+    }
+
+    private async Task Mentes()
+    {
+        if (_szerkesztettAdat == null || _szerkesztettAdat.UzemeltetoSablonId == 0)
+        {
+            Snackbar.Add("Sablon kiválasztása kötelező!", Severity.Warning);
+            return;
+        }
+
+        if (_rogzitesDatum == null)
+        {
+            Snackbar.Add("Rögzítés dátuma kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            _szerkesztettAdat.RogzitesDatum = _rogzitesDatum.Value;
+            _szerkesztettAdat.KovetkezoEsedekesseg = _kovetkezoEsedekesseg;
+            _szerkesztettAdat.MezoErtekekJson = JsonSerializer.Serialize(_mezoErtekek);
+
+            if (_ujAdat)
+            {
+                await UzemeltetoService.CreateAdatAsync(_szerkesztettAdat);
+                Snackbar.Add("Adat sikeresen rögzítve!", Severity.Success);
+            }
+            else
+            {
+                await UzemeltetoService.UpdateAdatAsync(_szerkesztettAdat);
+                Snackbar.Add("Adat sikeresen frissítve!", Severity.Success);
+            }
+
+            _dialogLatszik = false;
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private async Task Torles(UzemeltetoAdat adat)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            "Biztosan törölni szeretnéd ezt az adatot?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await UzemeltetoService.DeleteAdatAsync(adat.Id);
+                Snackbar.Add("Adat sikeresen törölve!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private Color GetStatuszSzin(string statusz) => statusz switch
+    {
+        "Elvégezve" => Color.Success,
+        "Tervezett" => Color.Info,
+        "Lejárt" => Color.Error,
+        _ => Color.Default
+    };
+}

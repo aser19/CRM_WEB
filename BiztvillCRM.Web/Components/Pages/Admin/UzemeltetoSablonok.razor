@@ -1,0 +1,362 @@
+@page "/admin/uzemelteto-sablonok"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,CegAdmin")]
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Shared.Enums
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Web.Components.Dialogs
+@using Microsoft.AspNetCore.Authorization
+@inject IUzemeltetoService UzemeltetoService
+@inject ITenantService TenantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Üzemeltető sablonok - Biztovill CRM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Üzemeltető sablonok</MudText>
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_kereses" Label="Keresés (név, leírás)" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:400px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" 
+                   OnClick="InaktivakMegnyitasa" Class="mr-2">Inaktív sablonok</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjSablonMegnyitasa">
+            Új sablon
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="UzemeltetoSablon" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+        <Columns>
+            <PropertyColumn Property="s => s.Nev" Title="Név" />
+            <PropertyColumn Property="s => s.Leiras" Title="Leírás" />
+            <PropertyColumn Property="s => s.JogszabalyiHivatkozas" Title="Jogszabályi hivatkozás" />
+            <TemplateColumn Title="Ellenőrzési időszak">
+                <CellTemplate>
+                    @if (context.Item.EllenorzesiIdoszakHonap != null)
+                    {
+                        <text>@context.Item.EllenorzesiIdoszakHonap hónap</text>
+                    }
+                    else
+                    {
+                        <text>-</text>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Mezők száma">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Item.Mezok.Count db</MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Létrehozva">
+                <CellTemplate>
+                    @context.Item.Letrehozva.ToString("yyyy.MM.dd")
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                   OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" Title="Szerkesztés" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ViewList" Size="Size.Small" Color="Color.Info"
+                                   OnClick="@(() => MezokMegnyitasa(context.Item))" Title="Mezők kezelése" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => Torles(context.Item))" Title="Törlés" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+</MudPaper>
+
+
+@code {
+    private List<UzemeltetoSablon> _sablonok = new();
+    private string _kereses = string.Empty;
+    private bool _betoltes = true;
+    private UzemeltetoSablon? _kivalasztottSablon;
+
+    private IEnumerable<UzemeltetoSablon> _szurtLista => string.IsNullOrWhiteSpace(_kereses)
+        ? _sablonok
+        : _sablonok.Where(s =>
+            s.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
+            (s.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    // Elérhető mezők a különböző modulokból
+    private static List<UzemeltetoMezoDialog.MezoInfo> ElerhetoModulMezok => new()
+    {
+        // Hitelesítések
+        new() { Nev = "Darabszám", Modul = "Hitelesítések", Tipus = "Szam" },
+        new() { Nev = "Hitelesítés dátuma", Modul = "Hitelesítések", Tipus = "Datum" },
+        new() { Nev = "Lejárat dátuma", Modul = "Hitelesítések", Tipus = "Datum" },
+        new() { Nev = "Hitelesítés státusz", Modul = "Hitelesítések", Tipus = "Text" },
+        new() { Nev = "Megjegyzés (Hitelesítés)", Modul = "Hitelesítések", Tipus = "Text" },
+
+        // Mérések
+        new() { Nev = "Mérés dátuma", Modul = "Mérések", Tipus = "Datum" },
+        new() { Nev = "Következő mérés", Modul = "Mérések", Tipus = "Datum" },
+        new() { Nev = "Mérés eredménye", Modul = "Mérések", Tipus = "Text" },
+        new() { Nev = "Mérés státusz", Modul = "Mérések", Tipus = "Text" },
+        new() { Nev = "Megjegyzés (Mérés)", Modul = "Mérések", Tipus = "Text" },
+
+        // Karbantartások
+        new() { Nev = "Karbantartás dátuma", Modul = "Karbantartások", Tipus = "Datum" },
+        new() { Nev = "Következő karbantartás", Modul = "Karbantartások", Tipus = "Datum" },
+        new() { Nev = "Karbantartás leírása", Modul = "Karbantartások", Tipus = "Text" },
+        new() { Nev = "Elvégző neve", Modul = "Karbantartások", Tipus = "Text" },
+        new() { Nev = "Karbantartás státusz", Modul = "Karbantartások", Tipus = "Text" },
+
+        // Munkavédelem
+        new() { Nev = "Oktatás megnevezése", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Oktatás dátuma", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Következő oktatás", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Oktató neve", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Oktatás időszak (hónap)", Modul = "Munkavédelem", Tipus = "Szam" },
+
+        // Tűzvédelem
+        new() { Nev = "Tűzvédelmi ellenőrzés dátuma", Modul = "Tűzvédelem", Tipus = "Datum" },
+        new() { Nev = "Tűzvédelmi jegyzőkönyv száma", Modul = "Tűzvédelem", Tipus = "Text" },
+        new() { Nev = "Tűzoltó készülék típusa", Modul = "Tűzvédelem", Tipus = "Text" },
+        new() { Nev = "Tűzoltó készülék lejárata", Modul = "Tűzvédelem", Tipus = "Datum" },
+
+        // Környezetvédelem
+        new() { Nev = "Környezetvédelmi ellenőrzés dátuma", Modul = "Környezetvédelem", Tipus = "Datum" },
+        new() { Nev = "Következő környezetvédelmi ellenőrzés", Modul = "Környezetvédelem", Tipus = "Datum" },
+        new() { Nev = "Hulladékgazdálkodási engedély száma", Modul = "Környezetvédelem", Tipus = "Text" },
+        new() { Nev = "Környezetvédelmi engedély érvényessége", Modul = "Környezetvédelem", Tipus = "Datum" },
+        new() { Nev = "Emisszió mérés eredménye", Modul = "Környezetvédelem", Tipus = "Text" },
+        new() { Nev = "Zajterhelés mérés (dB)", Modul = "Környezetvédelem", Tipus = "Szam" },
+        new() { Nev = "Veszélyes hulladék mennyisége (kg)", Modul = "Környezetvédelem", Tipus = "Szam" },
+        new() { Nev = "Környezetvédelmi megfelelőség", Modul = "Környezetvédelem", Tipus = "Boolean" },
+        new() { Nev = "Megjegyzés (Környezetvédelem)", Modul = "Környezetvédelem", Tipus = "Text" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _sablonok = await UzemeltetoService.GetSablonokAsync();
+        _betoltes = false;
+    }
+
+    private async Task UjSablonMegnyitasa()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Sablon"] = new UzemeltetoSablon { Aktiv = true },
+            ["UjSablon"] = true
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoSablonDialog>("Új sablon", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is UzemeltetoSablon sablon)
+        {
+            try
+            {
+                await UzemeltetoService.CreateSablonAsync(sablon);
+                Snackbar.Add("Sablon sikeresen létrehozva!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task SzerkesztesMegnyitasa(UzemeltetoSablon sablon)
+    {
+        var szerkesztett = new UzemeltetoSablon
+        {
+            Id = sablon.Id,
+            Nev = sablon.Nev,
+            Leiras = sablon.Leiras,
+            JogszabalyiHivatkozas = sablon.JogszabalyiHivatkozas,
+            EllenorzesiIdoszakHonap = sablon.EllenorzesiIdoszakHonap,
+            Aktiv = sablon.Aktiv
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Sablon"] = szerkesztett,
+            ["UjSablon"] = false
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoSablonDialog>("Sablon szerkesztése", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is UzemeltetoSablon frissitett)
+        {
+            try
+            {
+                await UzemeltetoService.UpdateSablonAsync(frissitett);
+                Snackbar.Add("Sablon sikeresen frissítve!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task Torles(UzemeltetoSablon sablon)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretnéd a(z) '{sablon.Nev}' sablont?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await UzemeltetoService.DeleteSablonAsync(sablon.Id);
+                Snackbar.Add("Sablon sikeresen törölve!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task InaktivakMegnyitasa()
+    {
+        _betoltes = true;
+        _sablonok = await UzemeltetoService.GetInaktivSablonokAsync();
+        _betoltes = false;
+        Snackbar.Add("Inaktív sablonok betöltve", Severity.Info);
+    }
+
+    // --- Mezők kezelése ---
+
+    private async Task MezokMegnyitasa(UzemeltetoSablon sablon)
+    {
+        _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(sablon.Id);
+
+        var parameters = new DialogParameters
+        {
+            ["Sablon"] = _kivalasztottSablon,
+            ["OnUjMezo"] = EventCallback.Factory.Create(this, UjMezoMegnyitasa),
+            ["OnSzerkesztes"] = EventCallback.Factory.Create<UzemeltetoSablonMezo>(this, MezoSzerkesztes),
+            ["OnTorles"] = EventCallback.Factory.Create<UzemeltetoSablonMezo>(this, MezoTorles)
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        await DialogService.ShowAsync<UzemeltetoMezokDialog>("Sablon mezők", parameters, options);
+    }
+
+    private async Task UjMezoMegnyitasa()
+    {
+        var ujMezo = new UzemeltetoSablonMezo
+        {
+            UzemeltetoSablonId = _kivalasztottSablon!.Id,
+            Kotelezo = true,
+            MezoTipus = "Text",
+            Sorrend = _kivalasztottSablon.Mezok.Any() ? _kivalasztottSablon.Mezok.Max(m => m.Sorrend) + 1 : 1
+        };
+
+        var foglaltMezok = new HashSet<string>(_kivalasztottSablon.Mezok.Select(m => m.MezoNev));
+
+        var parameters = new DialogParameters
+        {
+            ["Mezo"] = ujMezo,
+            ["UjMezo"] = true,
+            ["ElerhetoMezok"] = ElerhetoModulMezok,
+            ["FoglaltMezok"] = foglaltMezok
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoMezoDialog>("Új mező", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is UzemeltetoSablonMezo mezo)
+        {
+            try
+            {
+                await UzemeltetoService.AddSablonMezoAsync(mezo);
+                Snackbar.Add("Mező sikeresen hozzáadva!", Severity.Success);
+                _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(_kivalasztottSablon.Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task MezoSzerkesztes(UzemeltetoSablonMezo mezo)
+    {
+        var szerkesztett = new UzemeltetoSablonMezo
+        {
+            Id = mezo.Id,
+            UzemeltetoSablonId = mezo.UzemeltetoSablonId,
+            MezoNev = mezo.MezoNev,
+            MezoTipus = mezo.MezoTipus,
+            Kotelezo = mezo.Kotelezo,
+            Sorrend = mezo.Sorrend,
+            AlapErtek = mezo.AlapErtek,
+            Sugo = mezo.Sugo,
+            ValidaciosSzabaly = mezo.ValidaciosSzabaly
+        };
+
+        var foglaltMezok = new HashSet<string>(_kivalasztottSablon!.Mezok.Select(m => m.MezoNev));
+
+        var parameters = new DialogParameters
+        {
+            ["Mezo"] = szerkesztett,
+            ["UjMezo"] = false,
+            ["ElerhetoMezok"] = ElerhetoModulMezok,
+            ["FoglaltMezok"] = foglaltMezok
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoMezoDialog>("Mező szerkesztése", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is UzemeltetoSablonMezo frissitett)
+        {
+            try
+            {
+                await UzemeltetoService.UpdateSablonMezoAsync(frissitett);
+                Snackbar.Add("Mező sikeresen frissítve!", Severity.Success);
+                _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(_kivalasztottSablon!.Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task MezoTorles(UzemeltetoSablonMezo mezo)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törölni szeretnéd a(z) '{mezo.MezoNev}' mezőt?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await UzemeltetoService.DeleteSablonMezoAsync(mezo.Id);
+                Snackbar.Add("Mező sikeresen törölve!", Severity.Success);
+                _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(_kivalasztottSablon!.Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}
+

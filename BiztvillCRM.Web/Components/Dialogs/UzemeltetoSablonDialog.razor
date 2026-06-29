@@ -1,0 +1,44 @@
+@using BiztvillCRM.Shared.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(UjSablon ? "Új sablon" : "Sablon szerkesztése")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="Sablon.Nev" Label="Név" Required="true" />
+            <MudTextField @bind-Value="Sablon.Leiras" Label="Leírás" Lines="3" />
+            <MudTextField @bind-Value="Sablon.JogszabalyiHivatkozas" Label="Jogszabályi hivatkozás" />
+            <MudNumericField @bind-Value="Sablon.EllenorzesiIdoszakHonap" Label="Ellenőrzési időszak (hónap)" Min="0" />
+            <MudCheckBox @bind-Value="Sablon.Aktiv" Label="Aktív" Color="Color.Primary" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public UzemeltetoSablon Sablon { get; set; } = null!;
+
+    [Parameter]
+    public bool UjSablon { get; set; }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Sablon.Nev))
+        {
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(Sablon));
+    }
+}

@@ -136,6 +136,7 @@ builder.Services.AddScoped<IJegyzokonyvSablonService, JegyzokonyvSablonService>(
 builder.Services.AddScoped<IMellekletJegyzokonyvService, MellekletJegyzokonyvService>();
 builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();
 builder.Services.AddScoped<IHitelesitesCsoportService, HitelesitesCsoportService>();
+builder.Services.AddScoped<IUzemeltetoService, UzemeltetoService>(); // <-- ÚJ ÜZEMELTETŐ MODUL
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
@@ -323,7 +324,8 @@ static async Task SzerepkorokLetrehozasa(RoleManager<IdentityRole> roleManager)
         FelhasznaloSzerepkor.Admin.ToString(),
         FelhasznaloSzerepkor.CegAdmin.ToString(),
         FelhasznaloSzerepkor.Felhasznalo.ToString(),
-        FelhasznaloSzerepkor.Megtekinto.ToString()
+        FelhasznaloSzerepkor.Megtekinto.ToString(),
+        FelhasznaloSzerepkor.Uzemelteto.ToString() // <-- ÚJ SZEREPKÖR
     };
     foreach (var role in roles)
     {

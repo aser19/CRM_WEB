@@ -100,6 +100,11 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     // --- Felhasználó-Cég kapcsolatok ---
     public DbSet<FelhasznaloCeg> FelhasznaloCegek { get; set; }
 
+    // --- Üzemeltető modul ---
+    public DbSet<UzemeltetoSablon> UzemeltetoSablonok { get; set; }
+    public DbSet<UzemeltetoSablonMezo> UzemeltetoSablonMezok { get; set; }
+    public DbSet<UzemeltetoAdat> UzemeltetoAdatok { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -723,6 +728,76 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasOne(fc => fc.Ceg)
                   .WithMany(c => c.FelhasznaloCegek)
                   .HasForeignKey(fc => fc.CegId);
+        });
+
+        // --- UzemeltetoSablon ---
+        modelBuilder.Entity<UzemeltetoSablon>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Leiras).HasMaxLength(1000);
+            entity.Property(e => e.JogszabalyiHivatkozas).HasMaxLength(500);
+
+            entity.HasOne(e => e.Ceg)
+                .WithMany()
+                .HasForeignKey(e => e.CegId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.LetrehozoFelhasznalo)
+                .WithMany()
+                .HasForeignKey(e => e.LetrehozoFelhasznaloId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.CegId);
+            entity.HasIndex(e => e.Aktiv);
+        });
+
+        // --- UzemeltetoSablonMezo ---
+        modelBuilder.Entity<UzemeltetoSablonMezo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MezoNev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.MezoTipus).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AlapErtek).HasMaxLength(500);
+            entity.Property(e => e.Sugo).HasMaxLength(500);
+            entity.Property(e => e.ValidaciosSzabaly).HasMaxLength(500);
+
+            entity.HasOne(e => e.UzemeltetoSablon)
+                .WithMany(s => s.Mezok)
+                .HasForeignKey(e => e.UzemeltetoSablonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.UzemeltetoSablonId, e.Sorrend });
+        });
+
+        // --- UzemeltetoAdat ---
+        modelBuilder.Entity<UzemeltetoAdat>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Statusz).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.MezoErtekekJson).IsRequired();
+            entity.Property(e => e.Megjegyzes).HasMaxLength(1000);
+
+            entity.HasOne(e => e.UzemeltetoSablon)
+                .WithMany(s => s.Adatok)
+                .HasForeignKey(e => e.UzemeltetoSablonId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Ceg)
+                .WithMany()
+                .HasForeignKey(e => e.CegId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.RogzitoFelhasznalo)
+                .WithMany()
+                .HasForeignKey(e => e.RogzitoFelhasznaloId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.CegId);
+            entity.HasIndex(e => e.UzemeltetoSablonId);
+            entity.HasIndex(e => e.RogzitesDatum);
+            entity.HasIndex(e => e.KovetkezoEsedekesseg);
+            entity.HasIndex(e => e.Aktiv);
         });
     }
 }
