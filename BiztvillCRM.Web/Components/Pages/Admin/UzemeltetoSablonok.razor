@@ -10,6 +10,9 @@
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IMeresTipusService MeresTipusService
+@inject IEszkozTipusService EszkozTipusService
+@inject IKarbantartasTipusService KarbantartasTipusService
 
 <PageTitle>Üzemeltető sablonok - Biztovill CRM</PageTitle>
 
@@ -74,6 +77,7 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true;
     private UzemeltetoSablon? _kivalasztottSablon;
+    private List<UzemeltetoMezoDialog.MezoInfo> _dinamikusMezok = new();
 
     private IEnumerable<UzemeltetoSablon> _szurtLista => string.IsNullOrWhiteSpace(_kereses)
         ? _sablonok
@@ -81,42 +85,113 @@
             s.Nev.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ||
             (s.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    // Elérhető mezők a különböző modulokból
-    private static List<UzemeltetoMezoDialog.MezoInfo> ElerhetoModulMezok => new()
+    protected override async Task OnInitializedAsync()
     {
-        // Hitelesítések
+        await BetoltesAsync();
+        await DinamikusMezokBetoltese();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _sablonok = await UzemeltetoService.GetSablonokAsync();
+        _betoltes = false;
+    }
+
+    private async Task DinamikusMezokBetoltese()
+    {
+        var mezok = new List<UzemeltetoMezoDialog.MezoInfo>();
+
+        try
+        {
+            // Hitelesítések - Eszköztípusok
+            var eszkozTipusok = await EszkozTipusService.GetAllAsync();
+            foreach (var tipus in eszkozTipusok)
+            {
+                mezok.Add(new() { Nev = tipus.Nev, Modul = "Hitelesítések", Tipus = "Text" });
+            }
+
+            // Mérések - Méréstípusok
+            var meresTipusok = await MeresTipusService.GetAllAsync();
+            foreach (var tipus in meresTipusok)
+            {
+                mezok.Add(new() { Nev = tipus.Nev, Modul = "Mérések", Tipus = "Text" });
+            }
+
+            // Karbantartások - Karbantartástípusok
+            var karbantartasTipusok = await KarbantartasTipusService.GetAllAsync();
+            foreach (var tipus in karbantartasTipusok)
+            {
+                mezok.Add(new() { Nev = tipus.Nev, Modul = "Karbantartások", Tipus = "Text" });
+            }
+
+            // Statikus mezők hozzáadása
+            mezok.AddRange(StatikusMezok);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a mezők betöltésekor: {ex.Message}", Severity.Warning);
+        }
+
+        _dinamikusMezok = mezok;
+    }
+
+    // Statikus mezők (nem típusfüggő adatok)
+    private static List<UzemeltetoMezoDialog.MezoInfo> StatikusMezok => new()
+    {
+        // Hitelesítések - általános mezők
         new() { Nev = "Darabszám", Modul = "Hitelesítések", Tipus = "Szam" },
         new() { Nev = "Hitelesítés dátuma", Modul = "Hitelesítések", Tipus = "Datum" },
         new() { Nev = "Lejárat dátuma", Modul = "Hitelesítések", Tipus = "Datum" },
         new() { Nev = "Hitelesítés státusz", Modul = "Hitelesítések", Tipus = "Text" },
+        new() { Nev = "Hatóság", Modul = "Hitelesítések", Tipus = "Text" },
         new() { Nev = "Megjegyzés (Hitelesítés)", Modul = "Hitelesítések", Tipus = "Text" },
 
-        // Mérések
+        // Mérések - általános mezők
         new() { Nev = "Mérés dátuma", Modul = "Mérések", Tipus = "Datum" },
         new() { Nev = "Következő mérés", Modul = "Mérések", Tipus = "Datum" },
         new() { Nev = "Mérés eredménye", Modul = "Mérések", Tipus = "Text" },
         new() { Nev = "Mérés státusz", Modul = "Mérések", Tipus = "Text" },
+        new() { Nev = "Jegyzőkönyv száma", Modul = "Mérések", Tipus = "Text" },
         new() { Nev = "Megjegyzés (Mérés)", Modul = "Mérések", Tipus = "Text" },
 
-        // Karbantartások
+        // Karbantartások - általános mezők
         new() { Nev = "Karbantartás dátuma", Modul = "Karbantartások", Tipus = "Datum" },
         new() { Nev = "Következő karbantartás", Modul = "Karbantartások", Tipus = "Datum" },
         new() { Nev = "Karbantartás leírása", Modul = "Karbantartások", Tipus = "Text" },
         new() { Nev = "Elvégző neve", Modul = "Karbantartások", Tipus = "Text" },
         new() { Nev = "Karbantartás státusz", Modul = "Karbantartások", Tipus = "Text" },
 
-        // Munkavédelem
+        // Munkavédelem - Oktatás
         new() { Nev = "Oktatás megnevezése", Modul = "Munkavédelem", Tipus = "Text" },
         new() { Nev = "Oktatás dátuma", Modul = "Munkavédelem", Tipus = "Datum" },
         new() { Nev = "Következő oktatás", Modul = "Munkavédelem", Tipus = "Datum" },
         new() { Nev = "Oktató neve", Modul = "Munkavédelem", Tipus = "Text" },
         new() { Nev = "Oktatás időszak (hónap)", Modul = "Munkavédelem", Tipus = "Szam" },
+        new() { Nev = "Oktatás leírása", Modul = "Munkavédelem", Tipus = "Text" },
+
+        // Munkavédelem - Kockázatértékelés
+        new() { Nev = "Kockázatértékelés megnevezése", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Értékelés dátuma", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Következő felülvizsgálat", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Kockázati szint", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Intézkedések", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Felelős neve", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Kockázat státusz", Modul = "Munkavédelem", Tipus = "Text" },
+
+        // Munkavédelem - Zónatérkép
+        new() { Nev = "Zónatérkép megnevezése", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Zóna típusa", Modul = "Munkavédelem", Tipus = "Text" },
+        new() { Nev = "Érvényesség kezdete", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Érvényesség vége", Modul = "Munkavédelem", Tipus = "Datum" },
+        new() { Nev = "Zónatérkép fájl neve", Modul = "Munkavédelem", Tipus = "Text" },
 
         // Tűzvédelem
         new() { Nev = "Tűzvédelmi ellenőrzés dátuma", Modul = "Tűzvédelem", Tipus = "Datum" },
         new() { Nev = "Tűzvédelmi jegyzőkönyv száma", Modul = "Tűzvédelem", Tipus = "Text" },
         new() { Nev = "Tűzoltó készülék típusa", Modul = "Tűzvédelem", Tipus = "Text" },
         new() { Nev = "Tűzoltó készülék lejárata", Modul = "Tűzvédelem", Tipus = "Datum" },
+        new() { Nev = "Tűzvédelmi terv érvényessége", Modul = "Tűzvédelem", Tipus = "Datum" },
 
         // Környezetvédelem
         new() { Nev = "Környezetvédelmi ellenőrzés dátuma", Modul = "Környezetvédelem", Tipus = "Datum" },
@@ -129,18 +204,6 @@
         new() { Nev = "Környezetvédelmi megfelelőség", Modul = "Környezetvédelem", Tipus = "Boolean" },
         new() { Nev = "Megjegyzés (Környezetvédelem)", Modul = "Környezetvédelem", Tipus = "Text" }
     };
-
-    protected override async Task OnInitializedAsync()
-    {
-        await BetoltesAsync();
-    }
-
-    private async Task BetoltesAsync()
-    {
-        _betoltes = true;
-        _sablonok = await UzemeltetoService.GetSablonokAsync();
-        _betoltes = false;
-    }
 
     private async Task UjSablonMegnyitasa()
     {
@@ -270,7 +333,7 @@
         {
             ["Mezo"] = ujMezo,
             ["UjMezo"] = true,
-            ["ElerhetoMezok"] = ElerhetoModulMezok,
+            ["ElerhetoMezok"] = _dinamikusMezok,
             ["FoglaltMezok"] = foglaltMezok
         };
 
@@ -314,7 +377,7 @@
         {
             ["Mezo"] = szerkesztett,
             ["UjMezo"] = false,
-            ["ElerhetoMezok"] = ElerhetoModulMezok,
+            ["ElerhetoMezok"] = _dinamikusMezok,
             ["FoglaltMezok"] = foglaltMezok
         };
 
