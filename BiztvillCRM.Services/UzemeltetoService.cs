@@ -233,8 +233,15 @@ public class UzemeltetoService : IUzemeltetoService
             .Where(a => a.Aktiv)
             .AsQueryable();
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
         {
+            // Üzemeltető csak a saját adatait láthatja
+            var userId = _tenantService.GetCurrentUserId();
+            query = query.Where(a => a.RogzitoFelhasznaloId == userId);
+        }
+        else if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            // Egyéb szerepkörök a céghez tartozó összes adatot láthatják
             var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
             query = query.Where(a => cegIds.Contains(a.CegId));
         }
@@ -308,8 +315,17 @@ public class UzemeltetoService : IUzemeltetoService
             throw new InvalidOperationException($"Adat nem található: {adat.Id}");
         }
 
-        // Tenant ellenőrzés
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        // Tenant és üzemeltető ellenőrzés
+        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+        {
+            // Üzemeltető csak a saját adatait módosíthatja
+            var userId = _tenantService.GetCurrentUserId();
+            if (existing.RogzitoFelhasznaloId != userId)
+            {
+                throw new UnauthorizedAccessException("Csak a saját adatait módosíthatja!");
+            }
+        }
+        else if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
             var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
             if (!cegIds.Contains(existing.CegId))
@@ -338,8 +354,17 @@ public class UzemeltetoService : IUzemeltetoService
             throw new InvalidOperationException($"Adat nem található: {id}");
         }
 
-        // Tenant ellenőrzés
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        // Tenant és üzemeltető ellenőrzés
+        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+        {
+            // Üzemeltető csak a saját adatait törölheti
+            var userId = _tenantService.GetCurrentUserId();
+            if (adat.RogzitoFelhasznaloId != userId)
+            {
+                throw new UnauthorizedAccessException("Csak a saját adatait törölheti!");
+            }
+        }
+        else if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
             var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
             if (!cegIds.Contains(adat.CegId))

@@ -71,9 +71,12 @@
                     </MudChip>
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Rögzítő">
-                <CellTemplate>@(context.Item.RogzitoFelhasznalo?.Nev ?? "-")</CellTemplate>
-            </TemplateColumn>
+            @if (!_isUzemelteto)
+            {
+                <TemplateColumn Title="Rögzítő">
+                    <CellTemplate>@(context.Item.RogzitoFelhasznalo?.Nev ?? "-")</CellTemplate>
+                </TemplateColumn>
+            }
             <TemplateColumn Title="Műveletek" CellStyle="white-space: nowrap;">
                 <CellTemplate>
                     <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Info"
@@ -212,6 +215,7 @@
     private bool _mentes;
     private bool _ujAdat;
     private bool _readonly;
+    private bool _isUzemelteto;
     private UzemeltetoAdat? _szerkesztettAdat;
     private UzemeltetoSablon? _kivalasztottSablon;
     private Dictionary<int, string> _mezoErtekek = new();
@@ -242,6 +246,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _isUzemelteto = TenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto);
         await BetoltesAsync();
     }
 

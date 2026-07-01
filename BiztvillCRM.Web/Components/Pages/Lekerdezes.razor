@@ -3,6 +3,9 @@
 @using BiztvillCRM.Services
 @inject INyilvanosLekerdezesService LekerdezesService
 @inject NavigationManager NavManager
+@inject IFileStorageService FileStorageService
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @layout BiztvillCRM.Web.Components.Layout.PublicLayout
 
@@ -145,6 +148,7 @@
                                     <MudTh>Hitelesítés dátuma</MudTh>
                                     <MudTh>Lejárat</MudTh>
                                     <MudTh>Állapot</MudTh>
+                                    <MudTh>Dokumentumok</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     @{
@@ -215,12 +219,43 @@
                                             </MudChip>
                                         }
                                     </MudTd>
+                                    <MudTd Style="@inaktivStyle">
+                                        @if (!string.IsNullOrEmpty(context.MunkalapPath) || !string.IsNullOrEmpty(context.BizonyitvanyPath))
+                                        {
+                                            <MudStack Spacing="1">
+                                                @if (!string.IsNullOrEmpty(context.MunkalapPath))
+                                                {
+                                                    <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                               Size="Size.Small"
+                                                               Color="Color.Primary"
+                                                               Variant="Variant.Text"
+                                                               OnClick="@(async () => await MunkalapLetoltesePublikus(context.MunkalapPath))">
+                                                        Munkalap
+                                                    </MudButton>
+                                                }
+                                                @if (!string.IsNullOrEmpty(context.BizonyitvanyPath))
+                                                {
+                                                    <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                               Size="Size.Small"
+                                                               Color="Color.Success"
+                                                               Variant="Variant.Text"
+                                                               OnClick="@(async () => await BizonyitvanyLetoltesePublikus(context.BizonyitvanyPath))">
+                                                        Bizonyítvány
+                                                    </MudButton>
+                                                }
+                                            </MudStack>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Nincs feltöltve</MudText>
+                                        }
+                                    </MudTd>
                                 </RowTemplate>
                                 <ChildRowContent>
                                     @if (_nyitottHitelesitesek.Contains(context) && context.KozbensoVizsgalatok.Any())
                                     {
                                         <MudTr>
-                                            <MudTd ColSpan="6" Style="padding: 0 16px 12px 48px; background-color: var(--mud-palette-background-grey);">
+                                            <MudTd ColSpan="7" Style="padding: 0 16px 12px 48px; background-color: var(--mud-palette-background-grey);">
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1 mt-2">
                                                     <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Secondary" />
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary">Közbenső vizsgálatok</MudText>
@@ -243,6 +278,7 @@
                                                         <MudTh>Lejárat dátuma</MudTh>
                                                         <MudTh>Állapot</MudTh>
                                                         <MudTh>Megjegyzés</MudTh>
+                                                        <MudTh>Dokumentumok</MudTh>
                                                     </HeaderContent>
                                                     <RowTemplate>
                                                         @{
@@ -279,6 +315,37 @@
                                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                                 @(nemAlk ? "Nem alkalmazható ennél az eszköznél" : tagContext.Megjegyzes ?? "–")
                                                             </MudText>
+                                                        </MudTd>
+                                                        <MudTd>
+                                                            @if (!string.IsNullOrEmpty(tagContext.MunkalapPath) || !string.IsNullOrEmpty(tagContext.BizonyitvanyPath))
+                                                            {
+                                                                <MudStack Spacing="1">
+                                                                    @if (!string.IsNullOrEmpty(tagContext.MunkalapPath))
+                                                                    {
+                                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                                   Size="Size.Small"
+                                                                                   Color="Color.Primary"
+                                                                                   Variant="Variant.Text"
+                                                                                   OnClick="@(async () => await KozbensoMunkalapLetoltesePublikus(tagContext.MunkalapPath))">
+                                                                            Munkalap
+                                                                        </MudButton>
+                                                                    }
+                                                                    @if (!string.IsNullOrEmpty(tagContext.BizonyitvanyPath))
+                                                                    {
+                                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                                   Size="Size.Small"
+                                                                                   Color="Color.Success"
+                                                                                   Variant="Variant.Text"
+                                                                                   OnClick="@(async () => await KozbensoBizonyitvanyLetoltesePublikus(tagContext.BizonyitvanyPath))">
+                                                                            Bizonyítvány
+                                                                        </MudButton>
+                                                                    }
+                                                                </MudStack>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Nincs feltöltve</MudText>
+                                                            }
                                                         </MudTd>
                                                     </RowTemplate>
                                                 </MudTable>
@@ -477,5 +544,97 @@
     {
         if (!_nyitottHitelesitesek.Remove(h))
             _nyitottHitelesitesek.Add(h);
+    }
+
+    private async Task MunkalapLetoltesePublikus(string munkalapPath)
+    {
+        try
+        {
+            var fullPath = FileStorageService.GetFullPath(munkalapPath);
+            if (!FileStorageService.FileExists(fullPath))
+            {
+                Snackbar.Add("A munkalap fájl nem található.", Severity.Error);
+                return;
+            }
+
+            var stream = await FileStorageService.GetFileStreamAsync(fullPath);
+            var fileName = Path.GetFileName(munkalapPath);
+
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a munkalap letöltése során: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task BizonyitvanyLetoltesePublikus(string bizonyitvanyPath)
+    {
+        try
+        {
+            var fullPath = FileStorageService.GetFullPath(bizonyitvanyPath);
+            if (!FileStorageService.FileExists(fullPath))
+            {
+                Snackbar.Add("A bizonyítvány fájl nem található.", Severity.Error);
+                return;
+            }
+
+            var stream = await FileStorageService.GetFileStreamAsync(fullPath);
+            var fileName = Path.GetFileName(bizonyitvanyPath);
+
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a bizonyítvány letöltése során: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoMunkalapLetoltesePublikus(string munkalapPath)
+    {
+        try
+        {
+            var fullPath = FileStorageService.GetFullPath(munkalapPath);
+            if (!FileStorageService.FileExists(fullPath))
+            {
+                Snackbar.Add("A munkalap fájl nem található.", Severity.Error);
+                return;
+            }
+
+            var stream = await FileStorageService.GetFileStreamAsync(fullPath);
+            var fileName = Path.GetFileName(munkalapPath);
+
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a munkalap letöltése során: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoBizonyitvanyLetoltesePublikus(string bizonyitvanyPath)
+    {
+        try
+        {
+            var fullPath = FileStorageService.GetFullPath(bizonyitvanyPath);
+            if (!FileStorageService.FileExists(fullPath))
+            {
+                Snackbar.Add("A bizonyítvány fájl nem található.", Severity.Error);
+                return;
+            }
+
+            var stream = await FileStorageService.GetFileStreamAsync(fullPath);
+            var fileName = Path.GetFileName(bizonyitvanyPath);
+
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a bizonyítvány letöltése során: {ex.Message}", Severity.Error);
+        }
     }
 }

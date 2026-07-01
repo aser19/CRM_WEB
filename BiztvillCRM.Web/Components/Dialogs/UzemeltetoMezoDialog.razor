@@ -8,39 +8,61 @@
     </TitleContent>
     <DialogContent>
         <MudStack Spacing="3">
-            <MudSelect @bind-Value="Mezo.MezoNev" Label="Mező neve" Required="true" Disabled="!UjMezo">
-                @if (ElerhetoMezok != null)
-                {
-                    @foreach (var modulCsoport in ElerhetoMezok
-                        .Where(m => !FoglaltMezok.Contains(m.Nev) || m.Nev == Mezo.MezoNev)
-                        .GroupBy(m => m.Modul)
-                        .OrderBy(g => g.Key))
+            @if (UjMezo)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Mező neve *</MudText>
+                <MudPaper Elevation="1" Class="pa-2" Style="max-height: 400px; overflow-y: auto;">
+                    @if (ElerhetoMezok != null)
                     {
-                        <MudSelectItem Value="@("")" Disabled="true">
-                            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Style="font-weight: 600; margin-top: 8px;">
-                                @GetModulIcon(modulCsoport.Key) @modulCsoport.Key
-                            </MudText>
-                        </MudSelectItem>
-                        @foreach (var mezoInfo in modulCsoport.OrderBy(m => m.Nev))
+                        @foreach (var modulCsoport in ElerhetoMezok
+                            .Where(m => !FoglaltMezok.Contains(m.Nev) || m.Nev == Mezo.MezoNev)
+                            .GroupBy(m => m.Modul)
+                            .OrderBy(g => g.Key))
                         {
-                            <MudSelectItem Value="@mezoInfo.Nev" Style="padding-left: 24px;">
-                                @mezoInfo.Nev
-                            </MudSelectItem>
+                            <MudExpansionPanels>
+                                <MudExpansionPanel>
+                                    <TitleContent>
+                                        <div class="d-flex align-center">
+                                            <MudText Typo="Typo.subtitle1" Color="Color.Primary" Style="font-weight: 600;">
+                                                @GetModulIcon(modulCsoport.Key) @modulCsoport.Key
+                                            </MudText>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">
+                                                @modulCsoport.Count() db
+                                            </MudChip>
+                                        </div>
+                                    </TitleContent>
+                                    <ChildContent>
+                                        <MudList T="string" Clickable="true" Dense="true">
+                                            @foreach (var mezoInfo in modulCsoport.OrderBy(m => m.Nev))
+                                            {
+                                                <MudListItem T="string" OnClick="@(() => MezoKivalasztas(mezoInfo.Nev))"
+                                                             Style="@(Mezo.MezoNev == mezoInfo.Nev ? "background-color: var(--mud-palette-action-default-hover);" : "")">
+                                                    <MudText>@mezoInfo.Nev</MudText>
+                                                </MudListItem>
+                                            }
+                                        </MudList>
+                                    </ChildContent>
+                                </MudExpansionPanel>
+                            </MudExpansionPanels>
                         }
                     }
+                </MudPaper>
+
+                @if (!string.IsNullOrEmpty(Mezo.MezoNev))
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                        Kiválasztva: @Mezo.MezoNev
+                    </MudChip>
                 }
-            </MudSelect>
-            <MudSelect @bind-Value="Mezo.MezoTipus" Label="Mező típusa" Required="true">
-                <MudSelectItem Value="@("Text")">Szöveg</MudSelectItem>
-                <MudSelectItem Value="@("Datum")">Dátum</MudSelectItem>
-                <MudSelectItem Value="@("Szam")">Szám</MudSelectItem>
-                <MudSelectItem Value="@("Boolean")">Igen/Nem</MudSelectItem>
-            </MudSelect>
+            }
+            else
+            {
+                <MudTextField @bind-Value="Mezo.MezoNev" Label="Mező neve" Required="true" Disabled="true" />
+            }
+
             <MudNumericField @bind-Value="Mezo.Sorrend" Label="Sorrend" Min="0" />
             <MudCheckBox @bind-Value="Mezo.Kotelezo" Label="Kötelező" Color="Color.Primary" />
-            <MudTextField @bind-Value="Mezo.AlapErtek" Label="Alapértelmezett érték" />
-            <MudTextField @bind-Value="Mezo.Sugo" Label="Súgó szöveg" Lines="2" />
-            <MudTextField @bind-Value="Mezo.ValidaciosSzabaly" Label="Validációs szabály" />
+            <MudTextField @bind-Value="Mezo.Sugo" Label="Megjegyzés" Lines="2" />
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -67,12 +89,22 @@
 
     private void Cancel() => MudDialog.Cancel();
 
+    private void MezoKivalasztas(string mezoNev)
+    {
+        Mezo.MezoNev = mezoNev;
+        StateHasChanged();
+    }
+
     private void Submit()
     {
         if (string.IsNullOrWhiteSpace(Mezo.MezoNev))
         {
             return;
         }
+
+        // Mező típusa mindig dátum
+        Mezo.MezoTipus = "Datum";
+
         MudDialog.Close(DialogResult.Ok(Mezo));
     }
 

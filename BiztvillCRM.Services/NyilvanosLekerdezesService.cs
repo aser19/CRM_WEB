@@ -135,6 +135,8 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                             Datum = h.Datum,
                             LejaratDatum = h.LejaratDatum,
                             Aktiv = h.Aktiv,
+                            MunkalapPath = h.MunkalapPath,
+                            BizonyitvanyPath = h.BizonyitvanyPath,
                             KozbensoVizsgalatok = kozbensoVizsgalatok,
                             EgyediLejaratok = h.EgyediLejaratokLista
                         };

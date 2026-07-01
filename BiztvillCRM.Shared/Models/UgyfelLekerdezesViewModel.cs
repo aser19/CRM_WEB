@@ -35,6 +35,12 @@ public class HitelesitesOsszefoglalo
     public DateTime? LejaratDatum { get; set; }
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>Munkalap relatív útvonala (ha van feltöltve)</summary>
+    public string? MunkalapPath { get; set; }
+
+    /// <summary>Hitelesítési bizonyítvány relatív útvonala (ha van feltöltve)</summary>
+    public string? BizonyitvanyPath { get; set; }
+
     /// <summary>Ha van hitelesítési csoport rendelve, itt jönnek a közbenső vizsgálatok</summary>
     public List<CsoportTagLejaratReszlet> KozbensoVizsgalatok { get; set; } = new();
 

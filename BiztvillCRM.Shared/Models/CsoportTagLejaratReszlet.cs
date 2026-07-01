@@ -17,6 +17,16 @@ public class CsoportTagLejaratReszlet
     /// </summary>
     public bool NemAlkalmazhato { get; set; } = false;
 
+    /// <summary>
+    /// Munkalap fájl relatív elérési útja (strukturált mappában)
+    /// </summary>
+    public string? MunkalapPath { get; set; }
+
+    /// <summary>
+    /// Hitelesítési bizonyítvány fájl relatív elérési útja (strukturált mappában)
+    /// </summary>
+    public string? BizonyitvanyPath { get; set; }
+
     [System.Text.Json.Serialization.JsonIgnore]
     public DateTime? LejaratDatumNullable
     {

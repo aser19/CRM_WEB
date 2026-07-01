@@ -506,6 +506,73 @@
                                                 ThumbIcon="@Icons.Material.Filled.Block" />
                                             </MudTooltip>
                                         </MudItem>
+
+                                        <!-- Dokumentumok -->
+                                        @if (!sor.NemAlkalmazhato)
+                                        {
+                                            <MudItem xs="12">
+                                                <MudDivider Class="my-1" />
+                                                <MudGrid Spacing="1">
+                                                    <!-- Munkalap -->
+                                                    <MudItem xs="12" sm="6">
+                                                        <MudText Typo="Typo.caption" Class="mb-1">Munkalap</MudText>
+                                                        @if (!string.IsNullOrWhiteSpace(sor.MunkalapPath))
+                                                        {
+                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                                <MudText Typo="Typo.caption">@Path.GetFileName(sor.MunkalapPath)</MudText>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                               OnClick="@(() => KozbensoMunkalapLetoltese(sor))" Title="Letöltés" />
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                               OnClick="@(() => KozbensoMunkalapTorlese(sor))" Title="Törlés" />
+                                                            </MudStack>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">Nincs feltöltve</MudText>
+                                                        }
+                                                        <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1"
+                                                                       FilesChanged="@(async (file) => await KozbensoMunkalapFeltoltese(file, sor))">
+                                                            <ActivatorContent>
+                                                                <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
+                                                                           StartIcon="@Icons.Material.Filled.Upload">
+                                                                    @(string.IsNullOrWhiteSpace(sor.MunkalapPath) ? "Feltöltés" : "Csere")
+                                                                </MudButton>
+                                                            </ActivatorContent>
+                                                        </MudFileUpload>
+                                                    </MudItem>
+
+                                                    <!-- Bizonyítvány -->
+                                                    <MudItem xs="12" sm="6">
+                                                        <MudText Typo="Typo.caption" Class="mb-1">Bizonyítvány</MudText>
+                                                        @if (!string.IsNullOrWhiteSpace(sor.BizonyitvanyPath))
+                                                        {
+                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                                <MudText Typo="Typo.caption">@Path.GetFileName(sor.BizonyitvanyPath)</MudText>
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                               OnClick="@(() => KozbensoBizonyitvanyLetoltese(sor))" Title="Letöltés" />
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                               OnClick="@(() => KozbensoBizonyitvanyTorlese(sor))" Title="Törlés" />
+                                                            </MudStack>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">Nincs feltöltve</MudText>
+                                                        }
+                                                        <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.pdf" MaximumFileCount="1"
+                                                                       FilesChanged="@(async (file) => await KozbensoBizonyitvanyFeltoltese(file, sor))">
+                                                            <ActivatorContent>
+                                                                <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
+                                                                           StartIcon="@Icons.Material.Filled.Upload">
+                                                                    @(string.IsNullOrWhiteSpace(sor.BizonyitvanyPath) ? "Feltöltés" : "Csere")
+                                                                </MudButton>
+                                                            </ActivatorContent>
+                                                        </MudFileUpload>
+                                                                      </MudItem>
+                                                                 </MudGrid>
+                                                             </MudItem>
+                                        }
                                     </MudGrid>
                                 </MudPaper>
                             }
@@ -1331,7 +1398,9 @@ private bool _eszkozAzonositoDuplikalva =>
                     AutoLejaratDatum = autoLejarat,
                     EgyediDatumHasznalata = mentett != null && !mentett.NemAlkalmazhato,
                     EgyediLejaratDatum = mentett?.LejaratDatum ?? autoLejarat,
-                    NemAlkalmazhato = mentett?.NemAlkalmazhato ?? false  // ← ÚJ
+                    NemAlkalmazhato = mentett?.NemAlkalmazhato ?? false,  // ← ÚJ
+                    MunkalapPath = mentett?.MunkalapPath,
+                    BizonyitvanyPath = mentett?.BizonyitvanyPath
                 };
             })
             .ToList();
@@ -1478,13 +1547,15 @@ private bool _eszkozAzonositoDuplikalva =>
 
         // Csoporttag lejáratok mentése (csak az egyedi dátummal rendelkezőkét)
         _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
-            .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato)  // ← mentjük a N/A-t is
+            .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || !string.IsNullOrEmpty(s.MunkalapPath) || !string.IsNullOrEmpty(s.BizonyitvanyPath))  // ← mentjük a N/A-t és dokumentumokat is
             .Select(s => new CsoportTagLejaratReszlet
             {
                 EszkozTipusId = s.Tag.EszkozTipusId,
                 EszkozTipusNev = s.EszkozTipusNev,
                 LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
-                NemAlkalmazhato = s.NemAlkalmazhato
+                NemAlkalmazhato = s.NemAlkalmazhato,
+                MunkalapPath = s.MunkalapPath,
+                BizonyitvanyPath = s.BizonyitvanyPath
             })
             .ToList();
 
@@ -1676,6 +1747,8 @@ private bool _eszkozAzonositoDuplikalva =>
         public bool EgyediDatumHasznalata { get; set; }
         public DateTime? EgyediLejaratDatum { get; set; }
         public bool NemAlkalmazhato { get; set; }  // ← ÚJ
+        public string? MunkalapPath { get; set; }
+        public string? BizonyitvanyPath { get; set; }
     }
 
     private bool _manualisLejaratDatum = false; // ha true, nem számolja újra auto
@@ -1937,6 +2010,175 @@ private bool _eszkozAzonositoDuplikalva =>
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== KÖZBENSŐ VIZSGÁLATOK DOKUMENTUMKEZELÉSE ==========
+
+    private async Task KozbensoMunkalapFeltoltese(IBrowserFile? file, CsoportTagSor sor)
+    {
+        if (file is null || _szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null) return;
+
+        try
+        {
+            var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId.Value);
+            if (ugyfel is null)
+            {
+                Snackbar.Add("Ügyfél nem található!", Severity.Error);
+                return;
+            }
+
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+
+            // Kategória: közbenső vizsgálat neve
+            var kategoria = $"Kozbenso_{sor.EszkozTipusNev.Replace(" ", "_")}";
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var path = await FileStorageService.SaveHitelesitesFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                ugyfel.Nev ?? "Ismeretlen",
+                kategoria,
+                new[] { ".pdf", ".jpg", ".jpeg", ".png" },
+                10
+            );
+
+            sor.MunkalapPath = path;
+            Snackbar.Add("Munkalap feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoBizonyitvanyFeltoltese(IBrowserFile? file, CsoportTagSor sor)
+    {
+        if (file is null || _szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null) return;
+
+        try
+        {
+            var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId.Value);
+            if (ugyfel is null)
+            {
+                Snackbar.Add("Ügyfél nem található!", Severity.Error);
+                return;
+            }
+
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+
+            var kategoria = $"Kozbenso_{sor.EszkozTipusNev.Replace(" ", "_")}";
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var path = await FileStorageService.SaveHitelesitesFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                ugyfel.Nev ?? "Ismeretlen",
+                kategoria,
+                new[] { ".pdf", ".jpg", ".jpeg", ".png" },
+                10
+            );
+
+            sor.BizonyitvanyPath = path;
+            Snackbar.Add("Bizonyítvány feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoMunkalapLetoltese(CsoportTagSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.MunkalapPath)) return;
+
+        try
+        {
+            var stream = await FileStorageService.GetFileStreamAsync(sor.MunkalapPath);
+            if (stream is not null)
+            {
+                var fileName = Path.GetFileName(sor.MunkalapPath);
+                using var streamRef = new DotNetStreamReference(stream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+                Snackbar.Add("Munkalap letöltése megkezdődött!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Fájl nem található!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoBizonyitvanyLetoltese(CsoportTagSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.BizonyitvanyPath)) return;
+
+        try
+        {
+            var stream = await FileStorageService.GetFileStreamAsync(sor.BizonyitvanyPath);
+            if (stream is not null)
+            {
+                var fileName = Path.GetFileName(sor.BizonyitvanyPath);
+                using var streamRef = new DotNetStreamReference(stream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+                Snackbar.Add("Bizonyítvány letöltése megkezdődött!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Fájl nem található!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KozbensoMunkalapTorlese(CsoportTagSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.MunkalapPath)) return;
+
+        var confirm = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a munkalapot?");
+        if (confirm)
+        {
+            try
+            {
+                await FileStorageService.DeleteFileAsync(sor.MunkalapPath);
+                sor.MunkalapPath = null;
+                Snackbar.Add("Munkalap törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task KozbensoBizonyitvanyTorlese(CsoportTagSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.BizonyitvanyPath)) return;
+
+        var confirm = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a bizonyítványt?");
+        if (confirm)
+        {
+            try
+            {
+                await FileStorageService.DeleteFileAsync(sor.BizonyitvanyPath);
+                sor.BizonyitvanyPath = null;
+                Snackbar.Add("Bizonyítvány törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
         }
     }
 }
