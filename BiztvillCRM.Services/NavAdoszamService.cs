@@ -5,6 +5,7 @@ using BiztvillCRM.Data;
 using BiztvillCRM.Services.Interfaces;
 using BiztvillCRM.Shared.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Http;
 using Org.BouncyCastle.Crypto.Digests;
@@ -16,6 +17,7 @@ public class NavAdoszamService : INavAdoszamService
     private readonly IDbContextFactory<CrmDbContext> _dbFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<NavAdoszamService> _logger;
+    private readonly IConfiguration _configuration;
 
     private const string NavTestUrl = "https://api-test.onlineszamla.nav.gov.hu/invoiceService/v3/queryTaxpayer";
     private const string NavElesUrl = "https://api.onlineszamla.nav.gov.hu/invoiceService/v3/queryTaxpayer";
@@ -23,11 +25,13 @@ public class NavAdoszamService : INavAdoszamService
     public NavAdoszamService(
         IDbContextFactory<CrmDbContext> dbFactory, 
         IHttpClientFactory httpClientFactory, 
-        ILogger<NavAdoszamService> logger)
+        ILogger<NavAdoszamService> logger,
+        IConfiguration configuration)
     {
         _dbFactory = dbFactory;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<NavAdoszamEredmeny> LekerdezesByAdoszamAsync(string adoszam, int cegId)
@@ -49,39 +53,47 @@ public class NavAdoszamService : INavAdoszamService
             return Hiba("A NAV API nincs beállítva. Kérjük töltse ki a cég NAV beállításait.");
 
         var url              = ceg.NavTesztKornyezet ? NavTestUrl : NavElesUrl;
-        var requestId        = "QUERY" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
-        var timestamp        = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"); // milliszekundummal!
+        var now              = DateTime.UtcNow;
+        var requestId        = "QUERY_" + Guid.NewGuid().ToString("N").Substring(0, 16).ToUpperInvariant(); // Egyedi azonosító, NAV szerint max 30 karakter
+        var timestamp        = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        var timestampForSignature = now.ToString("yyyyMMddHHmmss"); // NAV: timestamp maszkolva a requestSignature számításához (szeparátorok és ms nélkül)
         var loginName    = ceg.NavLoginName.Trim();
         var password     = ceg.NavPassword.Trim();
         var xmlSignKey   = ceg.NavXmlSignKey.Trim();
         var taxNumber    = ceg.NavTaxNumber.Trim();
 
         var passwordHash     = Sha512Hex(password);
-        var requestSignature = Sha3_512Hex(requestId + timestamp + xmlSignKey);
+        var requestSignature = Sha3_512Hex(requestId + timestampForSignature + xmlSignKey);
 
-        // === DIAGNÓZIS ===
-        var logFajl = Path.Combine(Path.GetTempPath(), "nav_debug.xml");
-        var signKeyBytes = Encoding.UTF8.GetBytes(xmlSignKey);
-        var rawSignBytes = SHA3_512.HashData(Encoding.UTF8.GetBytes(requestId + timestamp + xmlSignKey));
-        var diagInfo = $"""
-            SHA3_512.IsSupported: {SHA3_512.IsSupported}
-            URL: {url}
-            NavTesztKornyezet: {ceg.NavTesztKornyezet}
-            Login: '{loginName}' ({loginName.Length} kar)
-            Password: '{password}' ({password.Length} kar)
-            TaxNumber: '{taxNumber}' ({taxNumber.Length} kar)
-            XmlSignKey: '{xmlSignKey}' ({xmlSignKey.Length} kar / {signKeyBytes.Length} byte)
-            XmlSignKey HEX: {Convert.ToHexString(signKeyBytes)}
-            PasswordHash ({passwordHash.Length} kar): {passwordHash}
-            SignatureInput: {requestId + timestamp + xmlSignKey}
-            RequestSignature ({requestSignature.Length} kar): {requestSignature}
-            RequestSignature byte count: {rawSignBytes.Length}
-            RequestSignature HEX manual: {string.Concat(rawSignBytes.Select(b => b.ToString("X2")))}
-            RequestSignature via Convert: {Convert.ToHexString(rawSignBytes)}
-            Lengths equal: {string.Concat(rawSignBytes.Select(b => b.ToString("X2"))).Length == Convert.ToHexString(rawSignBytes).Length}
-            """;
-        await File.WriteAllTextAsync(logFajl, diagInfo);
-        // =================
+        // === DEBUG LOGGING (csak Development módban) ===
+        var enableDebugLogging = _configuration.GetValue<bool>("Nav:EnableDebugLogging", false);
+        string? diagInfo = null;
+
+        if (enableDebugLogging)
+        {
+            var signKeyBytes = Encoding.UTF8.GetBytes(xmlSignKey);
+            var rawSignBytes = SHA3_512.HashData(Encoding.UTF8.GetBytes(requestId + timestampForSignature + xmlSignKey));
+            diagInfo = $"""
+                SHA3_512.IsSupported: {SHA3_512.IsSupported}
+                URL: {url}
+                NavTesztKornyezet: {ceg.NavTesztKornyezet}
+                Login: '{loginName}' ({loginName.Length} kar)
+                Password: '{password}' ({password.Length} kar)
+                TaxNumber: '{taxNumber}' ({taxNumber.Length} kar)
+                XmlSignKey: '{xmlSignKey}' ({xmlSignKey.Length} kar / {signKeyBytes.Length} byte)
+                XmlSignKey HEX: {Convert.ToHexString(signKeyBytes)}
+                PasswordHash ({passwordHash.Length} kar): {passwordHash}
+                Timestamp (XML): {timestamp}
+                Timestamp (Signature): {timestampForSignature}
+                SignatureInput: {requestId + timestampForSignature + xmlSignKey}
+                RequestSignature ({requestSignature.Length} kar): {requestSignature}
+                RequestSignature byte count: {rawSignBytes.Length}
+                RequestSignature HEX manual: {string.Concat(rawSignBytes.Select(b => b.ToString("X2")))}
+                RequestSignature via Convert: {Convert.ToHexString(rawSignBytes)}
+                Lengths equal: {string.Concat(rawSignBytes.Select(b => b.ToString("X2"))).Length == Convert.ToHexString(rawSignBytes).Length}
+                """;
+        }
+
 
         var xml = $"""
             <?xml version="1.0" encoding="UTF-8"?>
@@ -129,11 +141,13 @@ public class NavAdoszamService : INavAdoszamService
             var response  = await httpClient.PostAsync(url, content);
             var xmlValasz = await response.Content.ReadAsStringAsync();
 
-            // === IDEIGLENES DIAGNÓZIS – töröld éles előtt! ===
-            logFajl = Path.Combine(Path.GetTempPath(), "nav_debug.xml");
-            await File.WriteAllTextAsync(logFajl,
-                $"{diagInfo}\n\n=== KÉRÉS ===\n{xml}\n\n=== VÁLASZ ({(int)response.StatusCode}) ===\n{xmlValasz}");
-            // =================================================
+            // Debug logging ha engedélyezett
+            if (enableDebugLogging && diagInfo != null)
+            {
+                var logFajl = Path.Combine(Path.GetTempPath(), "nav_debug.xml");
+                await File.WriteAllTextAsync(logFajl,
+                    $"{diagInfo}\n\n=== KÉRÉS ===\n{xml}\n\n=== VÁLASZ ({(int)response.StatusCode}) ===\n{xmlValasz}");
+            }
 
             return ParseValasz(xmlValasz);
         }
@@ -212,7 +226,7 @@ public class NavAdoszamService : INavAdoszamService
     private static string Sha512Hex(string input)
     {
         var bytes = SHA512.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes).ToLowerInvariant(); // NAV: kisbetű kötelező!
+        return Convert.ToHexString(bytes); // NAV: kisbetű kötelező!
     }
 
     private static string Sha3_512Hex(string input)
@@ -220,7 +234,7 @@ public class NavAdoszamService : INavAdoszamService
         if (SHA3_512.IsSupported)
         {
             var bytes = SHA3_512.HashData(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(bytes).ToLowerInvariant(); // NAV: kisbetű kötelező!
+            return Convert.ToHexString(bytes); // NAV: nagybetű kötelező!
         }
 
         // BouncyCastle fallback (Linux/Azure)
@@ -229,6 +243,6 @@ public class NavAdoszamService : INavAdoszamService
         digest.BlockUpdate(inputBytes, 0, inputBytes.Length);
         var result = new byte[digest.GetDigestSize()];
         digest.DoFinal(result, 0);
-        return Convert.ToHexString(result).ToLowerInvariant(); // NAV: kisbetű kötelező!
+        return Convert.ToHexString(result); // NAV: nagybetű kötelező!
     }
 }
