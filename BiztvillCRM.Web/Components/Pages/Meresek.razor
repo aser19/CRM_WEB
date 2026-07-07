@@ -1,6 +1,7 @@
 @page "/meresek"
 @attribute [Authorize(Policy = "RequireMeresek")]
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
@@ -21,6 +22,35 @@
 @inject ILejaroOsszefoglaloService LejaroOsszefoglaloService
 
 <PageTitle>Mérések</PageTitle>
+
+<style>
+    .sticky-horizontal-scroll-wrapper {
+        position: relative;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+        position: sticky;
+        bottom: 0;
+        height: 12px;
+    }
+
+    .sticky-horizontal-scroll-wrapper {
+        scrollbar-width: thin;
+    }
+
+    /* A táblázat min-width beállítása hogy kikényszerítse a vízszintes scrollt ha szükséges */
+    .sticky-horizontal-scroll-wrapper > * {
+        min-width: max-content;
+    }
+
+    /* Sticky scrollbar wrapper rögzítése az ablak aljához */
+    .table-container-sticky {
+        position: relative;
+        padding-bottom: 20px;
+    }
+</style>
 
 <MudText Typo="Typo.h4" Class="mb-4">Mérések</MudText>
 
@@ -54,8 +84,10 @@
 
     @if (!_csoportositott)
     {
-        <MudDataGrid T="Meres" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
-            <Columns>
+        <div class="table-container-sticky">
+            <div class="sticky-horizontal-scroll-wrapper">
+                <MudDataGrid T="Meres" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+                    <Columns>
                 <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(m => m.Ugyfel?.Nev ?? "")">
                     <CellTemplate>
                         <div>
@@ -150,6 +182,8 @@
             </Columns>
             <NoRecordsContent><MudText>Nincs megjeleníthető mérés.</MudText></NoRecordsContent>
         </MudDataGrid>
+            </div>
+        </div>
     }
     else
     {
@@ -193,18 +227,19 @@
                             </MudStack>
                         </TitleContent>
                         <ChildContent>
-                            <MudTable T="Meres" Items="@meresek" Hover="true" Dense="true" Striped="true"
-                                      Breakpoint="Breakpoint.Sm" Class="mb-2">
-                                <HeaderContent>
-                                    <MudTh>Telephely</MudTh>
-                                    <MudTh>Típus</MudTh>
-                                    <MudTh>Dátum</MudTh>
-                                    <MudTh>Következő</MudTh>
-                                    <MudTh>Eredmény</MudTh>
-                                    <MudTh>Státusz</MudTh>
-                                    <MudTh Style="width:40px;"></MudTh>
-                                    <MudTh>Műveletek</MudTh>
-                                </HeaderContent>
+                            <div class="sticky-horizontal-scroll-wrapper">
+                                <MudTable T="Meres" Items="@meresek" Hover="true" Dense="true" Striped="true"
+                                          Breakpoint="Breakpoint.Sm" Class="mb-2">
+                                    <HeaderContent>
+                                        <MudTh>Telephely</MudTh>
+                                        <MudTh>Típus</MudTh>
+                                        <MudTh>Dátum</MudTh>
+                                        <MudTh>Következő</MudTh>
+                                        <MudTh>Eredmény</MudTh>
+                                        <MudTh>Státusz</MudTh>
+                                        <MudTh Style="width:40px;"></MudTh>
+                                        <MudTh>Műveletek</MudTh>
+                                    </HeaderContent>
                                 <RowTemplate>
                                     @{
                                         var tk = _tipusok.FirstOrDefault(t => t.Id == context.MeresTipusId)?.MellekletTipusKod;
@@ -267,6 +302,7 @@
                                     </MudTd>
                                 </RowTemplate>
                             </MudTable>
+                            </div>
                         </ChildContent>
                     </MudExpansionPanel>
                 }
@@ -722,6 +758,46 @@
             .ToDictionary(x => x.Id, x => x.Szam);
 
         _betoltes = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Sticky scroll inicializálása
+            await JS.InvokeVoidAsync("eval", @"
+                import('/js/sticky-scroll.js').then(module => {
+                    setTimeout(() => {
+                        module.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 500);
+                });
+            ");
+        }
+        else
+        {
+            // Táblázat frissítése után is újra inicializáljuk
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.initializeStickyScroll) {
+                    setTimeout(() => {
+                        window.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 300);
+                }
+            ");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup sticky scroll
+        try
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.cleanupStickyScroll) {
+                    window.cleanupStickyScroll('.sticky-horizontal-scroll-wrapper');
+                }
+            ");
+        }
+        catch { /* Ignore errors during cleanup */ }
     }
 
     private void UjMegnyitasa() 

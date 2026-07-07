@@ -1,5 +1,6 @@
 @page "/telephelyek"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
 @inject ITelephelyService TelephelyService
@@ -8,8 +9,38 @@
 @inject ISnackbar Snackbar
 @inject ITenantService TenantService
 @inject ICegService CegService
+@inject IJSRuntime JS
 
 <PageTitle>Telephelyek</PageTitle>
+
+<style>
+    .sticky-horizontal-scroll-wrapper {
+        position: relative;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+        position: sticky;
+        bottom: 0;
+        height: 12px;
+    }
+
+    .sticky-horizontal-scroll-wrapper {
+        scrollbar-width: thin;
+    }
+
+    /* A táblázat min-width beállítása hogy kikényszerítse a vízszintes scrollt ha szükséges */
+    .sticky-horizontal-scroll-wrapper > * {
+        min-width: max-content;
+    }
+
+    /* Sticky scrollbar wrapper rögzítése az ablak aljához */
+    .table-container-sticky {
+        position: relative;
+        padding-bottom: 20px;
+    }
+</style>
 
 <MudText Typo="Typo.h4" Class="mb-4">Telephelyek</MudText>
 
@@ -29,8 +60,10 @@
 
     @if (!_csoportositott)
     {
-        <MudDataGrid T="Telephely" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
-        <Columns>
+        <div class="table-container-sticky">
+            <div class="sticky-horizontal-scroll-wrapper">
+                <MudDataGrid T="Telephely" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
+                <Columns>
             <PropertyColumn Property="t => t.Nev" Title="Név" />
             <TemplateColumn Title="Ügyfél" Sortable="true" SortBy="@(t => t.Ugyfel?.Nev ?? "")">
                 <CellTemplate>
@@ -73,6 +106,8 @@
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető telephely.</MudText></NoRecordsContent>
     </MudDataGrid>
+            </div>
+        </div>
     }
     else
     {
@@ -116,16 +151,17 @@
                             </MudStack>
                         </TitleContent>
                         <ChildContent>
-                            <MudTable T="Telephely" Items="@telephelyek" Hover="true" Dense="true" Striped="true"
-                                      Breakpoint="Breakpoint.Sm" Class="mb-2">
-                                <HeaderContent>
-                                    <MudTh>Név</MudTh>
-                                    <MudTh>Cím</MudTh>
-                                    <MudTh>Kapcsolattartó</MudTh>
-                                    <MudTh>Telefon</MudTh>
-                                    <MudTh>Aktív</MudTh>
-                                    <MudTh>Műveletek</MudTh>
-                                </HeaderContent>
+                            <div class="sticky-horizontal-scroll-wrapper">
+                                <MudTable T="Telephely" Items="@telephelyek" Hover="true" Dense="true" Striped="true"
+                                          Breakpoint="Breakpoint.Sm" Class="mb-2">
+                                    <HeaderContent>
+                                        <MudTh>Név</MudTh>
+                                        <MudTh>Cím</MudTh>
+                                        <MudTh>Kapcsolattartó</MudTh>
+                                        <MudTh>Telefon</MudTh>
+                                        <MudTh>Aktív</MudTh>
+                                        <MudTh>Műveletek</MudTh>
+                                    </HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="Név">@(context.Nev ?? "-")</MudTd>
                                     <MudTd DataLabel="Cím">@(context.Cim ?? "-")</MudTd>
@@ -149,6 +185,7 @@
                                     </MudTd>
                                 </RowTemplate>
                             </MudTable>
+                            </div>
                         </ChildContent>
                     </MudExpansionPanel>
                 }
@@ -240,6 +277,46 @@
                 .ThenBy(c => c.Nev)
                 .ToList();
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Sticky scroll inicializálása
+            await JS.InvokeVoidAsync("eval", @"
+                import('/js/sticky-scroll.js').then(module => {
+                    setTimeout(() => {
+                        module.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 500);
+                });
+            ");
+        }
+        else
+        {
+            // Táblázat frissítése után is újra inicializáljuk
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.initializeStickyScroll) {
+                    setTimeout(() => {
+                        window.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 300);
+                }
+            ");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup sticky scroll
+        try
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.cleanupStickyScroll) {
+                    window.cleanupStickyScroll('.sticky-horizontal-scroll-wrapper');
+                }
+            ");
+        }
+        catch { /* Ignore errors during cleanup */ }
     }
 
     private async Task BetoltesAsync() { _betoltes = true; _lista = await TelephelyService.GetAllAsync(); _betoltes = false; }

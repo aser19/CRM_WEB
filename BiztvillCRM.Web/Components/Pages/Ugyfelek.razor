@@ -1,5 +1,6 @@
 @page "/ugyfelek"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
@@ -14,6 +15,35 @@
 @inject IJSRuntime JS
 
 <PageTitle>Ügyfelek</PageTitle>
+
+<style>
+    .sticky-horizontal-scroll-wrapper {
+        position: relative;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+        position: sticky;
+        bottom: 0;
+        height: 12px;
+    }
+
+    .sticky-horizontal-scroll-wrapper {
+        scrollbar-width: thin;
+    }
+
+    /* A táblázat min-width beállítása hogy kikényszerítse a vízszintes scrollt ha szükséges */
+    .sticky-horizontal-scroll-wrapper > * {
+        min-width: max-content;
+    }
+
+    /* Sticky scrollbar wrapper rögzítése az ablak aljához */
+    .table-container-sticky {
+        position: relative;
+        padding-bottom: 20px;
+    }
+</style>
 
 <MudText Typo="Typo.h4" Class="mb-4">Ügyfelek</MudText>
 
@@ -36,16 +66,18 @@
         </MudButton>
     </MudStack>
 
-    <MudDataGrid T="Ugyfel"
-                 Items="_szurtUgyfelek"
-                 Filterable="false"
-                 SortMode="SortMode.Multiple"
-                 Hover="true"
-                 Striped="true"
-                 Loading="_betoltes"
-                 Dense="true"
-                 Style="font-size: 0.875rem;">
-        <Columns>
+    <div class="table-container-sticky">
+        <div class="sticky-horizontal-scroll-wrapper">
+            <MudDataGrid T="Ugyfel"
+                         Items="_szurtUgyfelek"
+                         Filterable="false"
+                         SortMode="SortMode.Multiple"
+                         Hover="true"
+                         Striped="true"
+                         Loading="_betoltes"
+                         Dense="true"
+                         Style="font-size: 0.875rem;">
+                <Columns>
             <TemplateColumn Title="Név" Sortable="true" SortBy="@(u => u.Nev ?? "")" Sticky="true" StickyLeft="true">
                 <CellTemplate>
                     <div>
@@ -134,6 +166,8 @@
             <MudText>Betöltés...</MudText>
         </LoadingContent>
     </MudDataGrid>
+        </div>
+    </div>
 </MudPaper>
 
 <!-- Ügyfél hozzáadása / szerkesztése dialógus -->
@@ -482,6 +516,46 @@
                 .ToList();
         }
         await BetoltesAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Sticky scroll inicializálása
+            await JS.InvokeVoidAsync("eval", @"
+                import('/js/sticky-scroll.js').then(module => {
+                    setTimeout(() => {
+                        module.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 500);
+                });
+            ");
+        }
+        else
+        {
+            // Táblázat frissítése után is újra inicializáljuk
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.initializeStickyScroll) {
+                    setTimeout(() => {
+                        window.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 300);
+                }
+            ");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup sticky scroll
+        try
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.cleanupStickyScroll) {
+                    window.cleanupStickyScroll('.sticky-horizontal-scroll-wrapper');
+                }
+            ");
+        }
+        catch { /* Ignore errors during cleanup */ }
     }
 
     private async Task BetoltesAsync()
