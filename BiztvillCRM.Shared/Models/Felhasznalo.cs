@@ -22,6 +22,9 @@ public class Felhasznalo : IdentityUser
     /// <summary>Összes kezelt cég (many-to-many).</summary>
     public List<FelhasznaloCeg> Cegek { get; set; } = new();
 
+    /// <summary>Üzemeltető szerepkörben hozzárendelt sablonok</summary>
+    public List<UzemeltetoSablonFelhasznalo> UzemeltetoSablonok { get; set; } = new();
+
     /// <summary>Aktív/kiválasztott cég session-szinten.</summary>
     [NotMapped]
     public int? AktualisCegId { get; set; }

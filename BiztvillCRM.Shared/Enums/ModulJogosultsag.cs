@@ -34,5 +34,6 @@ public enum ModulJogosultsag
     Riportok = 2048,           // Admin only
     KepzesTipusok = 4096,      // Admin only
     KepzesSzabalyok = 8192,    // Admin only
-    AdminFunkciok = 16384      // Admin menü összes funkciója
+    AdminFunkciok = 16384,     // Admin menü összes funkciója
+    Uzemelteto = 32768         // Üzemeltető modul (sablonok és adatrögzítés)
 }

@@ -31,8 +31,25 @@ public class UzemeltetoService : IUzemeltetoService
             .Where(s => s.Aktiv)
             .AsQueryable();
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        // Admin mindent lát, nincs szűrés
+        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
+            // Admin felhasználó minden aktív sablont lát
+        }
+        // Üzemeltető szerepkör esetén csak a hozzárendelt sablonokat láthatja
+        else if (_tenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+        {
+            var userId = _tenantService.GetCurrentUserId();
+            var hozzarendeltSablonIds = await _context.UzemeltetoSablonFelhasznalok
+                .Where(sf => sf.FelhasznaloId == userId && sf.Aktiv)
+                .Select(sf => sf.UzemeltetoSablonId)
+                .ToListAsync();
+
+            query = query.Where(s => hozzarendeltSablonIds.Contains(s.Id));
+        }
+        else
+        {
+            // Egyéb szerepkörök (pl. Felhasználó, Cégadmin) csak a céghez tartozó sablonokat láthatják
             var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
             query = query.Where(s => cegIds.Contains(s.CegId));
         }
@@ -66,8 +83,25 @@ public class UzemeltetoService : IUzemeltetoService
             .Include(s => s.Mezok.OrderBy(m => m.Sorrend))
             .AsQueryable();
 
-        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        // Admin mindent lát
+        if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
+            // Nincs szűrés
+        }
+        // Üzemeltető csak a hozzárendelt sablonokat látja
+        else if (_tenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+        {
+            var userId = _tenantService.GetCurrentUserId();
+            var hozzarendeltSablonIds = await _context.UzemeltetoSablonFelhasznalok
+                .Where(sf => sf.FelhasznaloId == userId && sf.Aktiv)
+                .Select(sf => sf.UzemeltetoSablonId)
+                .ToListAsync();
+
+            query = query.Where(s => hozzarendeltSablonIds.Contains(s.Id));
+        }
+        else
+        {
+            // Egyéb szerepkörök csak a céghez tartozó sablonokat látják
             var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
             query = query.Where(s => cegIds.Contains(s.CegId));
         }

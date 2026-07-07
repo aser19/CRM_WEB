@@ -104,6 +104,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<UzemeltetoSablon> UzemeltetoSablonok { get; set; }
     public DbSet<UzemeltetoSablonMezo> UzemeltetoSablonMezok { get; set; }
     public DbSet<UzemeltetoAdat> UzemeltetoAdatok { get; set; }
+    public DbSet<UzemeltetoSablonFelhasznalo> UzemeltetoSablonFelhasznalok { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -797,6 +798,30 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasIndex(e => e.UzemeltetoSablonId);
             entity.HasIndex(e => e.RogzitesDatum);
             entity.HasIndex(e => e.KovetkezoEsedekesseg);
+            entity.HasIndex(e => e.Aktiv);
+        });
+
+        // --- UzemeltetoSablonFelhasznalo ---
+        modelBuilder.Entity<UzemeltetoSablonFelhasznalo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.UzemeltetoSablon)
+                .WithMany(s => s.Uzemeltetok)
+                .HasForeignKey(e => e.UzemeltetoSablonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Felhasznalo)
+                .WithMany(f => f.UzemeltetoSablonok)
+                .HasForeignKey(e => e.FelhasznaloId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.HozzarendeloFelhasznalo)
+                .WithMany()
+                .HasForeignKey(e => e.HozzarendeloFelhasznaloId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UzemeltetoSablonId, e.FelhasznaloId }).IsUnique();
             entity.HasIndex(e => e.Aktiv);
         });
     }

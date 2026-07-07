@@ -15,11 +15,18 @@
 @inject NavigationManager Navigation
 @inject IMellekletJegyzokonyvService MellekletJegyzokonyvService
 @inject IKarbantartasService KarbantartasService
+@inject IUzemeltetoService UzemeltetoService
 @inject ILogger<Home> Logger
 
 <PageTitle>Dashboard - Biztovill CRM</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+@if (_uzemeltetoAtiranyitas)
+{
+    <MudText>Átirányítás...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
 
 @if (_betoltes)
 {
@@ -394,7 +401,42 @@ else
                 </div>
             </MudItem>
         }
+
+        @* Üzemeltető esedékességek kártya *@
+        @if (_esedekesUzemeltetoAdatok.Any())
+        {
+            <MudItem xs="12" md="@boxSize">
+                <div class="lejaro-card-wrapper">
+                    <MudPaper Class="pa-4 stat-card lejaro-card" Elevation="2"
+                              @onclick="@(() => NavigateTo("/uzemelteto/adatok?szuro=lejaro"))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Engineering" Color="Color.Success" Class="mr-2" />
+                            <MudText Typo="Typo.h6">Hamarosan esedékes üzemeltető</MudText>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">@_esedekesUzemeltetoAdatok.Count db</MudChip>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
+                        </MudStack>
+                    </MudPaper>
+                    @if (_esedekesUzemeltetoAdatok.Any())
+                    {
+                        <div class="lejaro-popup mud-paper mud-elevation-8 pa-2">
+                            @foreach (var u in _esedekesUzemeltetoAdatok.Take(8))
+                            {
+                                <div class="lejaro-popup-sor" @onclick="@(() => NavigateTo($"/uzemelteto/adatok?id={u.Id}"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" Class="mr-1" />
+                                    <span class="lejaro-popup-nev">@u.UzemeltetoSablon?.Nev – @u.Ceg?.Nev</span>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-auto">
+                                        @u.KovetkezoEsedekesseg?.ToString("MM.dd")
+                                    </MudChip>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </MudItem>
+        }
     </MudGrid>
+}
 }
 
 <style>
@@ -479,20 +521,22 @@ else
 
 @code {
     private bool _betoltes = true;
+    private bool _uzemeltetoAtiranyitas = false;
     private TevekenysegTipus _cegTevekenyseg = TevekenysegTipus.Nincs;
     private List<TevekenysegTipus> _aktivTevekenysegek = new();
     private Dictionary<TevekenysegTipus, DashboardStatisztika> _statisztikak = new();
-    
+
     // Modulok
     private bool _hasModulMeresek;
     private bool _hasModulHitelesitesek;
     private bool _hasModulMunkavedelem;
-    
+
     // Lejáró elemek
     private List<Meres> _lejaroMeresek = new();
     private List<Hitelesites> _lejaroHitelesitesek = new();
     private List<MunkavedelmiOktatas> _lejaroOktatasok = new();
-    
+    private List<UzemeltetoAdat> _esedekesUzemeltetoAdatok = new();
+
     // Munkavédelem statisztika
     private MunkavedelemStatisztika _munkavedelemStat = new();
 
@@ -500,6 +544,14 @@ else
     {
         try
         {
+            // Ha üzemeltető szerepkörű, átirányítjuk
+            if (TenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+            {
+                _uzemeltetoAtiranyitas = true;
+                Navigation.NavigateTo("/uzemelteto/adatok");
+                return;
+            }
+
             Logger.LogInformation("Dashboard inicializálás kezdete");
 
             await LoadModulesAsync();
@@ -659,6 +711,18 @@ else
 
             Logger.LogInformation("Karbantartások feldolgozva");
         }
+
+        // Üzemeltető adatok betöltése
+        Logger.LogInformation("Üzemeltető adatok betöltése...");
+        var uzemeltetoAdatok = await UzemeltetoService.GetAdatokAsync();
+        Logger.LogInformation("Üzemeltető adatok betöltve: {Count}", uzemeltetoAdatok.Count);
+
+        _esedekesUzemeltetoAdatok = uzemeltetoAdatok
+            .Where(a => a.KovetkezoEsedekesseg.HasValue && a.KovetkezoEsedekesseg.Value > ma && a.KovetkezoEsedekesseg.Value <= harmincNapMulva)
+            .OrderBy(a => a.KovetkezoEsedekesseg)
+            .ToList();
+
+        Logger.LogInformation("Üzemeltető adatok feldolgozva, esedékes: {Count}", _esedekesUzemeltetoAdatok.Count);
 
         _betoltes = false;
         Logger.LogInformation("Dashboard adatok betöltése befejezve");

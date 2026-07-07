@@ -137,12 +137,16 @@ builder.Services.AddScoped<IMellekletJegyzokonyvService, MellekletJegyzokonyvSer
 builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();
 builder.Services.AddScoped<IHitelesitesCsoportService, HitelesitesCsoportService>();
 builder.Services.AddScoped<IUzemeltetoService, UzemeltetoService>(); // <-- ÚJ ÜZEMELTETŐ MODUL
+builder.Services.AddScoped<IUzemeltetoSablonFelhasznaloService, UzemeltetoSablonFelhasznaloService>(); // <-- ÜZEMELTETŐ HOZZÁRENDELÉSEK
 
 // === Email szolgáltatások ===
 builder.Services.AddScoped<ISmtpBeallitasService, SmtpBeallitasService>();
 builder.Services.AddScoped<IEmailSablonService, EmailSablonService>();
 builder.Services.AddScoped<IEmailBeallitasService, EmailBeallitasService>();
 builder.Services.AddScoped<IEmailKuldoService, EmailKuldoService>();
+
+// === Export szolgáltatás ===
+builder.Services.AddScoped<IExportService, ExportService>();
 builder.Services.AddScoped<ILejaratErtesitoService, LejaratErtesitoService>();
 builder.Services.AddHostedService<EmailErtesitesBackgroundService>();
 builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();

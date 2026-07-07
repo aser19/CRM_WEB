@@ -94,6 +94,8 @@
                                    OnClick="@(() => SzerkesztesMegnyitasa(context.Item))" Title="Szerkesztés" />
                     <MudIconButton Icon="@Icons.Material.Filled.ViewList" Size="Size.Small" Color="Color.Info"
                                    OnClick="@(() => MezokMegnyitasa(context.Item))" Title="Mezők kezelése" />
+                    <MudIconButton Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Success"
+                                   OnClick="@(() => UzemeltetokMegnyitasa(context.Item))" Title="Hozzárendelt üzemeltetők" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
                                    OnClick="@(() => Torles(context.Item))" Title="Törlés" />
                 </CellTemplate>
@@ -490,6 +492,19 @@
                 Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
             }
         }
+    }
+
+    private async Task UzemeltetokMegnyitasa(UzemeltetoSablon sablon)
+    {
+        var parameters = new DialogParameters
+        {
+            ["SablonId"] = sablon.Id,
+            ["SablonNev"] = sablon.Nev
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoSablonFelhasznalokDialog>("Hozzárendelt üzemeltetők", parameters, options);
+        await dialog.Result;
     }
 }
 

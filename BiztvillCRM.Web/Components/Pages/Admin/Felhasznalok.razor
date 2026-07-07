@@ -11,6 +11,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject CrmDbContext Db
 @inject UserManager<Felhasznalo> UserManager
+@inject SignInManager<Felhasznalo> SignInManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject ITenantService TenantService
 @inject IDialogService DialogService
@@ -311,11 +312,11 @@
         if (!_isAdmin)
         {
             query = query.Where(f => f.CegId == cegId);
-            _elerheroSzerepkorok = [FelhasznaloSzerepkor.Felhasznalo.ToString(), FelhasznaloSzerepkor.Megtekinto.ToString()];
+            _elerheroSzerepkorok = [FelhasznaloSzerepkor.Felhasznalo.ToString(), FelhasznaloSzerepkor.Megtekinto.ToString(), FelhasznaloSzerepkor.Uzemelteto.ToString()];
         }
         else
         {
-            _elerheroSzerepkorok = [FelhasznaloSzerepkor.Admin.ToString(), FelhasznaloSzerepkor.CegAdmin.ToString(), FelhasznaloSzerepkor.Felhasznalo.ToString(), FelhasznaloSzerepkor.Megtekinto.ToString()];
+            _elerheroSzerepkorok = [FelhasznaloSzerepkor.Admin.ToString(), FelhasznaloSzerepkor.CegAdmin.ToString(), FelhasznaloSzerepkor.Felhasznalo.ToString(), FelhasznaloSzerepkor.Megtekinto.ToString(), FelhasznaloSzerepkor.Uzemelteto.ToString()];
         }
 
         _felhasznalok = await query.OrderBy(f => f.Nev).ToListAsync();
@@ -489,6 +490,9 @@
                 var user = await UserManager.FindByIdAsync(_szerkesztettFelhasznalo.Id);
                 if (user != null)
                 {
+                    // Mentjük az eredeti CegId-t
+                    var eredetiCegId = user.CegId;
+
                     user.Nev = _szerkesztettFelhasznalo.Nev;
                     user.Beosztas = _szerkesztettFelhasznalo.Beosztas;
                     user.Telefon = _szerkesztettFelhasznalo.Telefon;
@@ -512,6 +516,19 @@
                     var currentRoles = await UserManager.GetRolesAsync(user);
                     await UserManager.RemoveFromRolesAsync(user, currentRoles);
                     await UserManager.AddToRoleAsync(user, _kivalasztottSzerepkor);
+
+                    // Ha a módosított felhasználó saját maga, vagy a CegId változott, akkor frissítjük a session-t
+                    var currentUserId = TenantService.GetCurrentUserId();
+                    if (user.Id == currentUserId)
+                    {
+                        await SignInManager.RefreshSignInAsync(user);
+                    }
+                    else if (_isAdmin && eredetiCegId != user.CegId)
+                    {
+                        // Ha admin változtatta meg egy másik felhasználó CegId-ját,
+                        // és az a felhasználó be van jelentkezve, akkor kijelentkeztetjük
+                        await SignInManager.RefreshSignInAsync(user);
+                    }
 
                     Snackbar.Add("Felhasználó sikeresen módosítva!", Severity.Success);
                 }

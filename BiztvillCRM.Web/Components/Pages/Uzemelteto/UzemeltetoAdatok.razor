@@ -5,6 +5,7 @@
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Web.Components.Dialogs
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @inject IUzemeltetoService UzemeltetoService
@@ -12,6 +13,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject IExportService ExportService
 
 <PageTitle>Üzemeltető adatok - Biztovill CRM</PageTitle>
 
@@ -58,6 +60,13 @@
             <MudSelectItem Value="@("Lejárt")">Lejárt</MudSelectItem>
         </MudSelect>
         <MudSpacer />
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload"
+                   OnClick="ExportExcel" Class="mr-2" Disabled="_betoltes">Excel export</MudButton>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   OnClick="ExportPdf" Class="mr-2" Disabled="_betoltes">PDF export</MudButton>
+
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjAdatMegnyitasa">
             Új adat rögzítése
         </MudButton>
@@ -123,120 +132,6 @@
         </div>
     </div>
 </MudPaper>
-
-@if (_dialogLatszik)
-{
-    <MudDialog @bind-IsVisible="_dialogLatszik" Options="_dialogOptions">
-        <TitleContent>
-            <MudText Typo="Typo.h6">
-                @(_ujAdat ? "Új adat rögzítése" : _readonly ? "Adat megtekintése" : "Adat szerkesztése")
-            </MudText>
-        </TitleContent>
-        <DialogContent>
-            <MudStack Spacing="3">
-                <MudSelect @bind-Value="_szerkesztettAdat!.UzemeltetoSablonId" Label="Sablon" Required="true" 
-                           Disabled="@(!_ujAdat)" OnValueChanged="SablonValtozas">
-                    @foreach (var sablon in _sablonok)
-                    {
-                        <MudSelectItem Value="@sablon.Id">@sablon.Nev</MudSelectItem>
-                    }
-                </MudSelect>
-
-                <MudDatePicker @bind-Date="_rogzitesDatum" Label="Rögzítés dátuma" Required="true" ReadOnly="@_readonly" />
-                <MudDatePicker @bind-Date="_kovetkezoEsedekesseg" Label="Következő esedékesség" ReadOnly="@_readonly" />
-
-                <MudSelect @bind-Value="_szerkesztettAdat!.Statusz" Label="Státusz" Required="true" Disabled="@_readonly">
-                    <MudSelectItem Value="@("Tervezett")">Tervezett</MudSelectItem>
-                    <MudSelectItem Value="@("Elvégezve")">Elvégezve</MudSelectItem>
-                    <MudSelectItem Value="@("Lejárt")">Lejárt</MudSelectItem>
-                </MudSelect>
-
-                @if (_kivalasztottSablon?.Mezok.Any() == true)
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.h6">Sablon mezők</MudText>
-
-                    @foreach (var mezo in _kivalasztottSablon.Mezok.OrderBy(m => m.Sorrend))
-                    {
-                        <div>
-                            @if (mezo.MezoTipus == "Text")
-                            {
-                                <MudTextField Value="@GetMezoErtek(mezo.Id)" 
-                                              ValueChanged="@((string v) => SetMezoErtek(mezo.Id, v))"
-                                              Label="@mezo.MezoNev" 
-                                              Required="@mezo.Kotelezo"
-                                              HelperText="@mezo.Sugo"
-                                              ReadOnly="@_readonly" />
-                            }
-                            else if (mezo.MezoTipus == "Datum")
-                            {
-                                DateTime? datumErtek = null;
-                                var ertekStr = GetMezoErtek(mezo.Id);
-                                if (!string.IsNullOrEmpty(ertekStr) && DateTime.TryParse(ertekStr, out var parsedDatum))
-                                {
-                                    datumErtek = parsedDatum;
-                                }
-                                <MudDatePicker Date="@datumErtek" 
-                                               DateChanged="@((DateTime? d) => SetMezoErtek(mezo.Id, d?.ToString("yyyy-MM-dd") ?? ""))"
-                                               Label="@mezo.MezoNev" 
-                                               Required="@mezo.Kotelezo"
-                                               HelperText="@mezo.Sugo"
-                                               ReadOnly="@_readonly" />
-                            }
-                            else if (mezo.MezoTipus == "Szam")
-                            {
-                                int? szamErtek = null;
-                                var ertekStr = GetMezoErtek(mezo.Id);
-                                if (!string.IsNullOrEmpty(ertekStr) && int.TryParse(ertekStr, out var parsedSzam))
-                                {
-                                    szamErtek = parsedSzam;
-                                }
-                                <MudNumericField Value="@szamErtek" 
-                                                 ValueChanged="@((int? v) => SetMezoErtek(mezo.Id, v?.ToString() ?? ""))"
-                                                 Label="@mezo.MezoNev" 
-                                                 Required="@mezo.Kotelezo"
-                                                 HelperText="@mezo.Sugo"
-                                                 ReadOnly="@_readonly" />
-                            }
-                            else if (mezo.MezoTipus == "Boolean")
-                            {
-                                bool boolErtek = false;
-                                var ertekStr = GetMezoErtek(mezo.Id);
-                                if (!string.IsNullOrEmpty(ertekStr) && bool.TryParse(ertekStr, out var parsedBool))
-                                {
-                                    boolErtek = parsedBool;
-                                }
-                                <MudCheckBox Value="@boolErtek" 
-                                             ValueChanged="@((bool v) => SetMezoErtek(mezo.Id, v.ToString()))"
-                                             Label="@mezo.MezoNev" 
-                                             Color="Color.Primary"
-                                             ReadOnly="@_readonly" />
-                            }
-                        </div>
-                    }
-                }
-
-                <MudTextField @bind-Value="_szerkesztettAdat!.Megjegyzes" Label="Megjegyzés" Lines="3" ReadOnly="@_readonly" />
-            </MudStack>
-        </DialogContent>
-        <DialogActions>
-            <MudButton OnClick="@(() => _dialogLatszik = false)">@(_readonly ? "Bezárás" : "Mégse")</MudButton>
-            @if (!_readonly)
-            {
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Mentes" Disabled="_mentes">
-                    @if (_mentes)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                    }
-                    else
-                    {
-                        <text>Mentés</text>
-                    }
-                </MudButton>
-            }
-        </DialogActions>
-    </MudDialog>
-}
 
 @code {
     private List<UzemeltetoSablon> _sablonok = new();
@@ -328,21 +223,41 @@
         _betoltes = false;
     }
 
-    private void UjAdatMegnyitasa()
+    private async Task UjAdatMegnyitasa()
     {
-        _ujAdat = true;
-        _readonly = false;
-        _szerkesztettAdat = new UzemeltetoAdat 
-        { 
+        var ujAdat = new UzemeltetoAdat
+        {
             RogzitesDatum = DateTime.Today,
             Statusz = "Tervezett",
-            Aktiv = true
+            Aktiv = true,
+            UzemeltetoSablonId = 0
         };
-        _rogzitesDatum = DateTime.Today;
-        _kovetkezoEsedekesseg = null;
-        _mezoErtekek.Clear();
-        _kivalasztottSablon = null;
-        _dialogLatszik = true;
+
+        var parameters = new DialogParameters
+        {
+            ["Adat"] = ujAdat,
+            ["Sablonok"] = _sablonok,
+            ["UjAdat"] = true,
+            ["Readonly"] = false
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UzemeltetoAdatDialog>("Új adat rögzítése", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is UzemeltetoAdat adat)
+        {
+            try
+            {
+                await UzemeltetoService.CreateAdatAsync(adat);
+                Snackbar.Add("Adat sikeresen rögzítve!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
     private async Task SzerkesztesMegnyitasa(UzemeltetoAdat adat)
@@ -461,6 +376,11 @@
         }
     }
 
+    private void DialogLathatosagValtozas(bool latszik)
+    {
+        _dialogLatszik = latszik;
+    }
+
     private async Task Torles(UzemeltetoAdat adat)
     {
         var result = await DialogService.ShowMessageBox(
@@ -480,6 +400,46 @@
             {
                 Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
             }
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        try
+        {
+            _betoltes = true;
+            var bytes = await ExportService.ExportUzemeltetoAdatokExcelAsync(_szurtLista.ToList());
+            var fileName = $"UzemeltetoAdatok_{DateTime.Now:yyyy-MM-dd_HHmm}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromByteArray", fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+            Snackbar.Add("Excel exportálás sikeres!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az Excel exportálás során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+
+    private async Task ExportPdf()
+    {
+        try
+        {
+            _betoltes = true;
+            var bytes = await ExportService.ExportUzemeltetoAdatokPdfAsync(_szurtLista.ToList());
+            var fileName = $"UzemeltetoAdatok_{DateTime.Now:yyyy-MM-dd_HHmm}.pdf";
+            await JS.InvokeVoidAsync("downloadFileFromByteArray", fileName, "application/pdf", bytes);
+            Snackbar.Add("PDF exportálás sikeres!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a PDF exportálás során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
         }
     }
 

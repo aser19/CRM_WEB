@@ -1,0 +1,210 @@
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Shared.Models
+@using System.Text.Json
+@inject IUzemeltetoService UzemeltetoService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(UjAdat ? "Új adat rögzítése" : Readonly ? "Adat megtekintése" : "Adat szerkesztése")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect Value="_adat.UzemeltetoSablonId" 
+                       ValueChanged="SablonValtozas"
+                       Label="Sablon" Required="true" 
+                       Disabled="@(!UjAdat)" T="int">
+                @foreach (var sablon in Sablonok)
+                {
+                    <MudSelectItem Value="@sablon.Id">@sablon.Nev</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudDatePicker @bind-Date="_rogzitesDatum" Label="Rögzítés dátuma" Required="true" ReadOnly="@Readonly" />
+            <MudDatePicker @bind-Date="_kovetkezoEsedekesseg" Label="Következő esedékesség" ReadOnly="@Readonly" />
+
+            <MudSelect @bind-Value="_adat.Statusz" Label="Státusz" Required="true" Disabled="@Readonly" T="string">
+                <MudSelectItem Value="@("Tervezett")">Tervezett</MudSelectItem>
+                <MudSelectItem Value="@("Elvégezve")">Elvégezve</MudSelectItem>
+                <MudSelectItem Value="@("Lejárt")">Lejárt</MudSelectItem>
+            </MudSelect>
+
+            @if (_kivalasztottSablon?.Mezok.Any() == true)
+            {
+                <MudDivider />
+                <MudText Typo="Typo.h6" Class="mt-2">Sablon mezők</MudText>
+
+                @foreach (var mezo in _kivalasztottSablon.Mezok.OrderBy(m => m.Sorrend))
+                {
+                    <div>
+                        @if (mezo.MezoTipus == "Text")
+                        {
+                            <MudTextField Value="@GetMezoErtek(mezo.Id)" 
+                                          ValueChanged="@((string v) => SetMezoErtek(mezo.Id, v))"
+                                          Label="@mezo.MezoNev" 
+                                          Required="@mezo.Kotelezo"
+                                          HelperText="@mezo.Sugo"
+                                          ReadOnly="@Readonly" />
+                        }
+                        else if (mezo.MezoTipus == "Datum")
+                        {
+                            DateTime? datumErtek = null;
+                            var ertekStr = GetMezoErtek(mezo.Id);
+                            if (!string.IsNullOrEmpty(ertekStr) && DateTime.TryParse(ertekStr, out var parsedDatum))
+                            {
+                                datumErtek = parsedDatum;
+                            }
+                            <MudDatePicker Date="@datumErtek" 
+                                           DateChanged="@((DateTime? d) => SetMezoErtek(mezo.Id, d?.ToString("yyyy-MM-dd") ?? ""))"
+                                           Label="@mezo.MezoNev" 
+                                           Required="@mezo.Kotelezo"
+                                           HelperText="@mezo.Sugo"
+                                           ReadOnly="@Readonly" />
+                        }
+                        else if (mezo.MezoTipus == "Szam")
+                        {
+                            int? szamErtek = null;
+                            var ertekStr = GetMezoErtek(mezo.Id);
+                            if (!string.IsNullOrEmpty(ertekStr) && int.TryParse(ertekStr, out var parsedSzam))
+                            {
+                                szamErtek = parsedSzam;
+                            }
+                            <MudNumericField Value="@szamErtek" 
+                                             ValueChanged="@((int? v) => SetMezoErtek(mezo.Id, v?.ToString() ?? ""))"
+                                             Label="@mezo.MezoNev" 
+                                             Required="@mezo.Kotelezo"
+                                             HelperText="@mezo.Sugo"
+                                             ReadOnly="@Readonly" />
+                        }
+                        else if (mezo.MezoTipus == "Boolean")
+                        {
+                            bool boolErtek = false;
+                            var ertekStr = GetMezoErtek(mezo.Id);
+                            if (!string.IsNullOrEmpty(ertekStr) && bool.TryParse(ertekStr, out var parsedBool))
+                            {
+                                boolErtek = parsedBool;
+                            }
+                            <MudCheckBox Value="@boolErtek" 
+                                         ValueChanged="@((bool v) => SetMezoErtek(mezo.Id, v.ToString()))"
+                                         Label="@mezo.MezoNev" 
+                                         Color="Color.Primary"
+                                         ReadOnly="@Readonly" />
+                        }
+                    </div>
+                }
+            }
+
+            <MudTextField @bind-Value="_adat.Megjegyzes" Label="Megjegyzés" Lines="3" ReadOnly="@Readonly" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        @if (!Readonly)
+        {
+            <MudButton Color="Color.Primary" OnClick="Submit" Disabled="_loading">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <text>Mentés</text>
+                }
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public UzemeltetoAdat Adat { get; set; } = null!;
+    [Parameter] public List<UzemeltetoSablon> Sablonok { get; set; } = new();
+    [Parameter] public bool UjAdat { get; set; }
+    [Parameter] public bool Readonly { get; set; }
+
+    private UzemeltetoAdat _adat = null!;
+    private UzemeltetoSablon? _kivalasztottSablon;
+    private DateTime? _rogzitesDatum;
+    private DateTime? _kovetkezoEsedekesseg;
+    private Dictionary<int, string> _mezoErtekek = new();
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _adat = Adat;
+        _rogzitesDatum = _adat.RogzitesDatum;
+        _kovetkezoEsedekesseg = _adat.KovetkezoEsedekesseg;
+
+        // Ha van MezoErtekekJson, deserialize-áljuk
+        if (!string.IsNullOrEmpty(_adat.MezoErtekekJson))
+        {
+            try
+            {
+                _mezoErtekek = JsonSerializer.Deserialize<Dictionary<int, string>>(_adat.MezoErtekekJson) ?? new();
+            }
+            catch
+            {
+                _mezoErtekek = new();
+            }
+        }
+
+        // Ha van sablon kiválasztva, töltsük be
+        if (_adat.UzemeltetoSablonId > 0)
+        {
+            await SablonValtozas(_adat.UzemeltetoSablonId);
+        }
+        // Ha nincs sablon kiválasztva, de csak 1 sablon van, válasszuk ki automatikusan
+        else if (UjAdat && Sablonok.Count == 1)
+        {
+            await SablonValtozas(Sablonok[0].Id);
+        }
+    }
+
+    private async Task SablonValtozas(int sablonId)
+    {
+        _adat.UzemeltetoSablonId = sablonId;
+        _kivalasztottSablon = await UzemeltetoService.GetSablonByIdAsync(sablonId);
+
+        Console.WriteLine($"[UzemeltetoAdatDialog] Sablon betöltve: {_kivalasztottSablon?.Nev}");
+        Console.WriteLine($"[UzemeltetoAdatDialog] Mezők száma: {_kivalasztottSablon?.Mezok?.Count ?? 0}");
+
+        // Következő esedékesség beállítása
+        if (_kivalasztottSablon?.EllenorzesiIdoszakHonap != null && _rogzitesDatum != null)
+        {
+            _kovetkezoEsedekesseg = _rogzitesDatum.Value.AddMonths(_kivalasztottSablon.EllenorzesiIdoszakHonap.Value);
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetMezoErtek(int mezoId)
+    {
+        return _mezoErtekek.GetValueOrDefault(mezoId, string.Empty);
+    }
+
+    private void SetMezoErtek(int mezoId, string ertek)
+    {
+        _mezoErtekek[mezoId] = ertek;
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Submit()
+    {
+        if (_adat.UzemeltetoSablonId == 0)
+        {
+            return;
+        }
+
+        _adat.RogzitesDatum = _rogzitesDatum ?? DateTime.Today;
+        _adat.KovetkezoEsedekesseg = _kovetkezoEsedekesseg;
+        _adat.MezoErtekekJson = JsonSerializer.Serialize(_mezoErtekek);
+
+        MudDialog.Close(DialogResult.Ok(_adat));
+    }
+}

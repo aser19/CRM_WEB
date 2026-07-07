@@ -20,6 +20,7 @@
 @inject IMellekletJegyzokonyvService MellekletService
 @inject ICegService CegService
 @inject ILejaroOsszefoglaloService LejaroOsszefoglaloService
+@inject IExportService ExportService
 
 <PageTitle>Mérések</PageTitle>
 
@@ -79,6 +80,13 @@
         </MudTooltip>
         <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Archive" 
                    OnClick="InaktivakMegnyitasa" Class="mr-2">Inaktív mérések</MudButton>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload"
+                   OnClick="ExportExcel" Class="mr-2" Disabled="_betoltes">Excel export</MudButton>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   OnClick="ExportPdf" Class="mr-2" Disabled="_betoltes">PDF export</MudButton>
+
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új mérés</MudButton>
     </MudStack>
 
@@ -1226,6 +1234,46 @@
         finally
         {
             _inaktivBetoltes = false;
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        try
+        {
+            _betoltes = true;
+            var bytes = await ExportService.ExportMeresekExcelAsync(_szurtLista.ToList());
+            var fileName = $"Meresek_{DateTime.Now:yyyy-MM-dd_HHmm}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromByteArray", fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+            Snackbar.Add("Excel exportálás sikeres!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az Excel exportálás során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
+        }
+    }
+
+    private async Task ExportPdf()
+    {
+        try
+        {
+            _betoltes = true;
+            var bytes = await ExportService.ExportMeresekPdfAsync(_szurtLista.ToList());
+            var fileName = $"Meresek_{DateTime.Now:yyyy-MM-dd_HHmm}.pdf";
+            await JS.InvokeVoidAsync("downloadFileFromByteArray", fileName, "application/pdf", bytes);
+            Snackbar.Add("PDF exportálás sikeres!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a PDF exportálás során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltes = false;
         }
     }
 

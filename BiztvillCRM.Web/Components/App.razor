@@ -13,8 +13,20 @@
 
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
-    <script src="js/download.js?v=@DateTime.Now.Ticks"></script>
+    <script src="js/download.js"></script>
     <script>
+        window.downloadFileFromByteArray = function (fileName, mimeType, byteArray) {
+            const blob = new Blob([byteArray], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
         window.submitLoginForm = function (email, password, rememberMe) {
             console.log('submitLoginForm called');
             var form = document.createElement('form');

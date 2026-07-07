@@ -159,7 +159,14 @@
                                  ValueChanged="@(v => ToggleModul(ModulJogosultsag.Zonaterkepek, v))"
                                  Label="Zónatérképek" 
                                  Color="Color.Warning" />
-                    
+
+                    <!-- Üzemeltető modul -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Uzemelteto)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Uzemelteto, v))"
+                                 Label="Üzemeltető" 
+                                 Color="Color.Success" />
+
                     <!-- Beállítások -->
                     <MudCheckBox T="bool" 
                                  Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.EmailSablonok)"

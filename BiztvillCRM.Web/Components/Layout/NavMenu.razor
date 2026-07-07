@@ -4,24 +4,31 @@
 @inject IModulJogosultsagService ModulService
 
 <MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-        Dashboard
-    </MudNavLink>
+    <!-- Dashboard - mindenki látja kivéve Üzemeltető szerepkör -->
+    @if (!TenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+    {
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+            Dashboard
+        </MudNavLink>
+    }
 
-    <!-- Törzsadatok - mindig látszik -->
-    <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" 
-                 Expanded="@(_nyitottMenu == "Torzsadatok")" 
-                 ExpandedChanged="@(expanded => MenuValtas("Torzsadatok", expanded))">
-        <MudNavLink Href="/ugyfelek" Icon="@Icons.Material.Filled.People">Ügyfelek</MudNavLink>
-        <MudNavLink Href="/telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
-        <MudNavLink Href="/gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
-        <MudNavLink Href="/eszkozok" Icon="@Icons.Material.Filled.Build">Eszközök</MudNavLink>
-        <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Badge">Felülvizsgálók</MudNavLink>
-        @if (_isAdmin)
-        {
-            <MudNavLink Href="/eszkoztipusok" Icon="@Icons.Material.Filled.Category">Eszköztípusok</MudNavLink>
-        }
-    </MudNavGroup>
+    <!-- Törzsadatok - csak ha nem Üzemeltető szerepkör -->
+    @if (!TenantService.IsInRole(FelhasznaloSzerepkor.Uzemelteto))
+    {
+        <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" 
+                     Expanded="@(_nyitottMenu == "Torzsadatok")" 
+                     ExpandedChanged="@(expanded => MenuValtas("Torzsadatok", expanded))">
+            <MudNavLink Href="/ugyfelek" Icon="@Icons.Material.Filled.People">Ügyfelek</MudNavLink>
+            <MudNavLink Href="/telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
+            <MudNavLink Href="/gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
+            <MudNavLink Href="/eszkozok" Icon="@Icons.Material.Filled.Build">Eszközök</MudNavLink>
+            <MudNavLink Href="/felulvizsgalok" Icon="@Icons.Material.Filled.Badge">Felülvizsgálók</MudNavLink>
+            @if (_isAdmin)
+            {
+                <MudNavLink Href="/eszkoztipusok" Icon="@Icons.Material.Filled.Category">Eszköztípusok</MudNavLink>
+            }
+        </MudNavGroup>
+    }
 
     <!-- Mérések - csak ha van jogosultság -->
     @if (HasModule(ModulJogosultsag.Meresek))

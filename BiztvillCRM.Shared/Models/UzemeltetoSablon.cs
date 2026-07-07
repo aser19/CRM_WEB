@@ -38,4 +38,7 @@ public class UzemeltetoSablon
 
     /// <summary>Üzemeltetők által rögzített adatok</summary>
     public List<UzemeltetoAdat> Adatok { get; set; } = new();
+
+    /// <summary>Sablonhoz rendelt üzemeltető felhasználók</summary>
+    public List<UzemeltetoSablonFelhasznalo> Uzemeltetok { get; set; } = new();
 }
