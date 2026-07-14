@@ -16,35 +16,6 @@
 
 <PageTitle>Ügyfelek</PageTitle>
 
-<style>
-    .sticky-horizontal-scroll-wrapper {
-        position: relative;
-        overflow-x: auto;
-        max-width: 100%;
-    }
-
-    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
-        position: sticky;
-        bottom: 0;
-        height: 12px;
-    }
-
-    .sticky-horizontal-scroll-wrapper {
-        scrollbar-width: thin;
-    }
-
-    /* A táblázat min-width beállítása hogy kikényszerítse a vízszintes scrollt ha szükséges */
-    .sticky-horizontal-scroll-wrapper > * {
-        min-width: max-content;
-    }
-
-    /* Sticky scrollbar wrapper rögzítése az ablak aljához */
-    .table-container-sticky {
-        position: relative;
-        padding-bottom: 20px;
-    }
-</style>
-
 <MudText Typo="Typo.h4" Class="mb-4">Ügyfelek</MudText>
 
 <MudPaper Class="pa-4">
@@ -522,12 +493,12 @@
     {
         if (firstRender)
         {
-            // Sticky scroll inicializálása
+            // Sticky scroll inicializálása - hosszabb várakozás a MudDataGrid teljes renderelésére
             await JS.InvokeVoidAsync("eval", @"
                 import('/js/sticky-scroll.js').then(module => {
                     setTimeout(() => {
                         module.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
-                    }, 500);
+                    }, 800);
                 });
             ");
         }
@@ -538,7 +509,7 @@
                 if (window.initializeStickyScroll) {
                     setTimeout(() => {
                         window.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
-                    }, 300);
+                    }, 500);
                 }
             ");
         }

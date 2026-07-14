@@ -37,7 +37,10 @@ export function initializeStickyScroll(tableWrapperSelector) {
         };
 
         const updateShadowSize = () => {
-            const scrollWidth = wrapper.scrollWidth;
+            // Keressük meg a tényleges táblázatot a wrapper-en belül
+            const table = wrapper.querySelector('.mud-table, table');
+            const scrollWidth = table ? table.scrollWidth : wrapper.scrollWidth;
+
             shadowContent.style.width = scrollWidth + 'px';
             shadowContent.style.height = '1px';
         };
@@ -47,8 +50,12 @@ export function initializeStickyScroll(tableWrapperSelector) {
             const wrapperBottom = rect.bottom;
             const windowHeight = window.innerHeight;
 
+            // Keressük meg a tényleges táblázatot
+            const table = wrapper.querySelector('.mud-table, table');
+            const actualScrollWidth = table ? table.scrollWidth : wrapper.scrollWidth;
+
             // Csak akkor jelenítjük meg a shadow scrollbart, ha a wrapper scrollable
-            const needsScroll = wrapper.scrollWidth > wrapper.clientWidth;
+            const needsScroll = actualScrollWidth > wrapper.clientWidth;
 
             // Ha a wrapper alja nincs látható tartományban és szükséges a scroll
             if (wrapperBottom > windowHeight && needsScroll) {
@@ -70,6 +77,21 @@ export function initializeStickyScroll(tableWrapperSelector) {
         });
         observer.observe(wrapper);
 
+        // MutationObserver a táblázat tartalmának változásaihoz
+        const mutationObserver = new MutationObserver(() => {
+            setTimeout(() => {
+                updateShadowSize();
+                checkVisibility();
+            }, 50);
+        });
+
+        mutationObserver.observe(wrapper, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
+
         // Frissítés görgetéskor és resize-oláskor
         window.addEventListener('scroll', checkVisibility);
         window.addEventListener('resize', () => {
@@ -87,6 +109,7 @@ export function initializeStickyScroll(tableWrapperSelector) {
         wrapper._stickyScrollCleanup = () => {
             shadowScroll.remove();
             observer.disconnect();
+            mutationObserver.disconnect();
             window.removeEventListener('scroll', checkVisibility);
         };
     });

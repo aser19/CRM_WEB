@@ -1,22 +1,46 @@
 window.downloadFileFromStream = async (fileName, contentStreamReference) => {
-    const arrayBuffer = await contentStreamReference.arrayBuffer();
+    try {
+        console.log('downloadFileFromStream called with:', fileName);
 
-    const mimeTypes = {
-        '.pdf': 'application/pdf',
-        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    };
+        if (!contentStreamReference) {
+            throw new Error('contentStreamReference is null or undefined');
+        }
 
-    const ext = fileName.substring(fileName.lastIndexOf('.'));
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
 
-    const blob = new Blob([arrayBuffer], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+            throw new Error('Array buffer is empty');
+        }
+
+        const mimeTypes = {
+            '.pdf': 'application/pdf',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        };
+
+        const ext = fileName.substring(fileName.lastIndexOf('.'));
+        const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+        const blob = new Blob([arrayBuffer], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Kis késleltetés után törölni a URL-t
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
+
+        console.log('File download initiated successfully:', fileName);
+    } catch (error) {
+        console.error('Error in downloadFileFromStream:', error);
+        alert('Hiba a fájl letöltése során: ' + error.message);
+        throw error;
+    }
 };
 
 window.downloadFileFromBytes = (fileName, mimeType, bytes) => {
@@ -70,4 +94,8 @@ window.downloadFileFromByteArray = (fileName, mimeType, byteArray) => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 };
+
+// Jelezzük, hogy a download.js betöltődött
+console.log('download.js loaded successfully');
+console.log('downloadFileFromStream available:', typeof window.downloadFileFromStream === 'function');
 };

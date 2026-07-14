@@ -561,11 +561,16 @@
             var fileName = Path.GetFileName(munkalapPath);
 
             using var streamRef = new DotNetStreamReference(stream);
+
+            // Várunk, hogy a JavaScript betöltődjön
+            await Task.Delay(100);
+
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba a munkalap letöltése során: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Download error: {ex}");
         }
     }
 
@@ -584,11 +589,16 @@
             var fileName = Path.GetFileName(bizonyitvanyPath);
 
             using var streamRef = new DotNetStreamReference(stream);
+
+            // Várunk, hogy a JavaScript betöltődjön
+            await Task.Delay(100);
+
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba a bizonyítvány letöltése során: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Download error: {ex}");
         }
     }
 
@@ -607,11 +617,16 @@
             var fileName = Path.GetFileName(munkalapPath);
 
             using var streamRef = new DotNetStreamReference(stream);
+
+            // Várunk, hogy a JavaScript betöltődjön
+            await Task.Delay(100);
+
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba a munkalap letöltése során: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Download error: {ex}");
         }
     }
 
@@ -630,11 +645,16 @@
             var fileName = Path.GetFileName(bizonyitvanyPath);
 
             using var streamRef = new DotNetStreamReference(stream);
+
+            // Várunk, hogy a JavaScript betöltődjön
+            await Task.Delay(100);
+
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba a bizonyítvány letöltése során: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Download error: {ex}");
         }
     }
 }

@@ -171,6 +171,61 @@
                                 </div>
                             </CellTemplate>
                         </TemplateColumn>
+                        <TemplateColumn Title="Dokumentumok" Sortable="false">
+                            <CellTemplate>
+                                @{
+                                    var item = context.Item;
+                                    var vanFoMunkalap = !string.IsNullOrWhiteSpace(item.MunkalapPath) || item.MunkalapPathsLista.Any();
+                                    var vanFoBizonyitvany = !string.IsNullOrWhiteSpace(item.BizonyitvanyPath) || item.BizonyitvanyPathsLista.Any();
+                                    var kozbensoTagok = item.CsoportTagLejaratokLista.Where(t => !t.NemAlkalmazhato).ToList();
+                                    var feltoltottKozbenso = kozbensoTagok.Count(t => t.MunkalapPathsLista.Any() || t.BizonyitvanyPathsLista.Any());
+                                    var osszesKozbenso = kozbensoTagok.Count;
+                                }
+
+                                @if (vanFoMunkalap || vanFoBizonyitvany)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Class="mb-1">
+                                        @(vanFoMunkalap && vanFoBizonyitvany ? "M+B" : vanFoMunkalap ? "M" : "B")
+                                    </MudChip>
+                                }
+
+                                @if (osszesKozbenso > 0)
+                                {
+                                    var kozbensoSzin = feltoltottKozbenso == osszesKozbenso ? Color.Success :
+                                                      feltoltottKozbenso == 0 ? Color.Error :
+                                                      Color.Warning;
+                                    var kozbensoIkon = feltoltottKozbenso == osszesKozbenso ? Icons.Material.Filled.CheckCircle :
+                                                      feltoltottKozbenso == 0 ? Icons.Material.Filled.Cancel :
+                                                      Icons.Material.Filled.Warning;
+
+                                    <MudTooltip>
+                                        <TooltipContent>
+                                            @foreach (var tag in kozbensoTagok)
+                                            {
+                                                var vanDok = tag.MunkalapPathsLista.Any() || tag.BizonyitvanyPathsLista.Any();
+                                                <div>
+                                                    @(vanDok ? "✓" : "✗") @tag.EszkozTipusNev
+                                                    @if (vanDok)
+                                                    {
+                                                        <text> (@(tag.MunkalapPathsLista.Count)M / @(tag.BizonyitvanyPathsLista.Count)B)</text>
+                                                    }
+                                                </div>
+                                            }
+                                        </TooltipContent>
+                                        <ChildContent>
+                                            <MudChip T="string" Size="Size.Small" Color="@kozbensoSzin" Icon="@kozbensoIkon">
+                                                @feltoltottKozbenso/@osszesKozbenso részfeladat
+                                            </MudChip>
+                                        </ChildContent>
+                                    </MudTooltip>
+                                }
+
+                                @if (!vanFoMunkalap && !vanFoBizonyitvany && osszesKozbenso == 0)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Nincs feltöltve</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
                         <TemplateColumn Title="Státusz" Sortable="true" SortBy="@(h => (int)h.HitelesitesStatusz)">
                             <CellTemplate>
                                 @switch (context.Item.HitelesitesStatusz)
@@ -468,12 +523,29 @@
                 {
                     <MudItem xs="12">
                         <MudPaper Outlined="true" Class="pa-3 mt-1" Style="border-color: var(--mud-palette-info);">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                                <MudIcon Icon="@Icons.Material.Filled.AccountTree"
-                                Color="Color.Info" Size="Size.Small" />
-                                <MudText Typo="Typo.subtitle2" Color="Color.Info">
-                                    @_aktivCsoport.Nev – közbenső vizsgálatok
-                                </MudText>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree"
+                                    Color="Color.Info" Size="Size.Small" />
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Info">
+                                        @_aktivCsoport.Nev – közbenső vizsgálatok
+                                    </MudText>
+                                </MudStack>
+                                @{
+                                    var osszesTag = _csoportTagSorok.Count(s => !s.NemAlkalmazhato);
+                                    var feltoltottTag = _csoportTagSorok.Count(s => !s.NemAlkalmazhato && (s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any()));
+                                    var statuszSzoveg = osszesTag == 0 ? "Nincs alkalmazható részfeladat" :
+                                                       feltoltottTag == osszesTag ? "Minden feltöltve" :
+                                                       feltoltottTag == 0 ? "Nincs feltöltve" :
+                                                       $"{feltoltottTag}/{osszesTag} részfeladat feltöltve";
+                                    var statuszSzin = osszesTag == 0 ? Color.Default :
+                                                     feltoltottTag == osszesTag ? Color.Success :
+                                                     feltoltottTag == 0 ? Color.Error :
+                                                     Color.Warning;
+                                }
+                                <MudChip T="string" Size="Size.Small" Color="@statuszSzin" Variant="Variant.Text">
+                                    @statuszSzoveg
+                                </MudChip>
                             </MudStack>
 
                             @foreach (var sor in _csoportTagSorok)
@@ -559,16 +631,19 @@
                                                     <!-- Munkalap -->
                                                     <MudItem xs="12" sm="6">
                                                         <MudText Typo="Typo.caption" Class="mb-1">Munkalap</MudText>
-                                                        @if (!string.IsNullOrWhiteSpace(sor.MunkalapPath))
+                                                        @if (sor.MunkalapPaths.Any())
                                                         {
-                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
-                                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                                                                <MudText Typo="Typo.caption">@Path.GetFileName(sor.MunkalapPath)</MudText>
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
-                                                                               OnClick="@(() => KozbensoMunkalapLetoltese(sor))" Title="Letöltés" />
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                                                               OnClick="@(() => KozbensoMunkalapTorlese(sor))" Title="Törlés" />
-                                                            </MudStack>
+                                                            @foreach (var munkalapPath in sor.MunkalapPaths)
+                                                            {
+                                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                                    <MudText Typo="Typo.caption">@Path.GetFileName(munkalapPath)</MudText>
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                                   OnClick="@(() => KozbensoMunkalapLetoltese(munkalapPath))" Title="Letöltés" />
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                                   OnClick="@(() => KozbensoMunkalapTorlese(sor, munkalapPath))" Title="Törlés" />
+                                                                </MudStack>
+                                                            }
                                                         }
                                                         else
                                                         {
@@ -579,7 +654,7 @@
                                                             <ActivatorContent>
                                                                 <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
                                                                            StartIcon="@Icons.Material.Filled.Upload">
-                                                                    @(string.IsNullOrWhiteSpace(sor.MunkalapPath) ? "Feltöltés" : "Csere")
+                                                                    @(sor.MunkalapPaths.Any() ? "Újabb hozzáadása" : "Feltöltés")
                                                                 </MudButton>
                                                             </ActivatorContent>
                                                         </MudFileUpload>
@@ -588,16 +663,19 @@
                                                     <!-- Bizonyítvány -->
                                                     <MudItem xs="12" sm="6">
                                                         <MudText Typo="Typo.caption" Class="mb-1">Bizonyítvány</MudText>
-                                                        @if (!string.IsNullOrWhiteSpace(sor.BizonyitvanyPath))
+                                                        @if (sor.BizonyitvanyPaths.Any())
                                                         {
-                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
-                                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                                                                <MudText Typo="Typo.caption">@Path.GetFileName(sor.BizonyitvanyPath)</MudText>
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
-                                                                               OnClick="@(() => KozbensoBizonyitvanyLetoltese(sor))" Title="Letöltés" />
-                                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                                                               OnClick="@(() => KozbensoBizonyitvanyTorlese(sor))" Title="Törlés" />
-                                                            </MudStack>
+                                                            @foreach (var bizonyitvanyPath in sor.BizonyitvanyPaths)
+                                                            {
+                                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                                    <MudText Typo="Typo.caption">@Path.GetFileName(bizonyitvanyPath)</MudText>
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                                   OnClick="@(() => KozbensoBizonyitvanyLetoltese(bizonyitvanyPath))" Title="Letöltés" />
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                                   OnClick="@(() => KozbensoBizonyitvanyTorlese(sor, bizonyitvanyPath))" Title="Törlés" />
+                                                                </MudStack>
+                                                            }
                                                         }
                                                         else
                                                         {
@@ -608,7 +686,7 @@
                                                             <ActivatorContent>
                                                                 <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
                                                                            StartIcon="@Icons.Material.Filled.Upload">
-                                                                    @(string.IsNullOrWhiteSpace(sor.BizonyitvanyPath) ? "Feltöltés" : "Csere")
+                                                                    @(sor.BizonyitvanyPaths.Any() ? "Újabb hozzáadása" : "Feltöltés")
                                                                 </MudButton>
                                                             </ActivatorContent>
                                                         </MudFileUpload>
@@ -1523,7 +1601,9 @@ private bool _eszkozAzonositoDuplikalva =>
                     EgyediLejaratDatum = mentett?.LejaratDatum ?? autoLejarat,
                     NemAlkalmazhato = mentett?.NemAlkalmazhato ?? false,  // ← ÚJ
                     MunkalapPath = mentett?.MunkalapPath,
-                    BizonyitvanyPath = mentett?.BizonyitvanyPath
+                    BizonyitvanyPath = mentett?.BizonyitvanyPath,
+                    MunkalapPaths = mentett?.MunkalapPathsLista ?? new List<string>(),
+                    BizonyitvanyPaths = mentett?.BizonyitvanyPathsLista ?? new List<string>()
                 };
             })
             .ToList();
@@ -1670,7 +1750,7 @@ private bool _eszkozAzonositoDuplikalva =>
 
         // Csoporttag lejáratok mentése (csak az egyedi dátummal rendelkezőkét)
         _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
-            .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || !string.IsNullOrEmpty(s.MunkalapPath) || !string.IsNullOrEmpty(s.BizonyitvanyPath))  // ← mentjük a N/A-t és dokumentumokat is
+            .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any())  // ← mentjük a N/A-t és dokumentumokat is
             .Select(s => new CsoportTagLejaratReszlet
             {
                 EszkozTipusId = s.Tag.EszkozTipusId,
@@ -1678,7 +1758,9 @@ private bool _eszkozAzonositoDuplikalva =>
                 LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
                 NemAlkalmazhato = s.NemAlkalmazhato,
                 MunkalapPath = s.MunkalapPath,
-                BizonyitvanyPath = s.BizonyitvanyPath
+                BizonyitvanyPath = s.BizonyitvanyPath,
+                MunkalapPathsLista = s.MunkalapPaths,
+                BizonyitvanyPathsLista = s.BizonyitvanyPaths
             })
             .ToList();
 
@@ -1870,8 +1952,10 @@ private bool _eszkozAzonositoDuplikalva =>
         public bool EgyediDatumHasznalata { get; set; }
         public DateTime? EgyediLejaratDatum { get; set; }
         public bool NemAlkalmazhato { get; set; }  // ← ÚJ
-        public string? MunkalapPath { get; set; }
-        public string? BizonyitvanyPath { get; set; }
+        public string? MunkalapPath { get; set; }  // ← LEGACY
+        public string? BizonyitvanyPath { get; set; }  // ← LEGACY
+        public List<string> MunkalapPaths { get; set; } = new();  // ← ÚJ: több fájl
+        public List<string> BizonyitvanyPaths { get; set; } = new();  // ← ÚJ: több fájl
     }
 
     private bool _manualisLejaratDatum = false; // ha true, nem számolja újra auto
@@ -2169,7 +2253,40 @@ private bool _eszkozAzonositoDuplikalva =>
             );
 
             sor.MunkalapPath = path;
-            Snackbar.Add("Munkalap feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+
+            // ÚJ: hozzáadjuk a fájlt a listához is
+            if (!sor.MunkalapPaths.Contains(path))
+                sor.MunkalapPaths.Add(path);
+
+            // Frissítjük a felületet
+            StateHasChanged();
+
+            // Ha a hitelesítés már el van mentve, automatikusan frissítjük az adatbázisban is
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                // Frissítjük a CsoportTagLejaratokLista-t
+                _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
+                    .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any())
+                    .Select(s => new CsoportTagLejaratReszlet
+                    {
+                        EszkozTipusId = s.Tag.EszkozTipusId,
+                        EszkozTipusNev = s.EszkozTipusNev,
+                        LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
+                        NemAlkalmazhato = s.NemAlkalmazhato,
+                        MunkalapPath = s.MunkalapPath,
+                        BizonyitvanyPath = s.BizonyitvanyPath,
+                        MunkalapPathsLista = s.MunkalapPaths,
+                        BizonyitvanyPathsLista = s.BizonyitvanyPaths
+                    })
+                    .ToList();
+
+                await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Munkalap feltöltve és mentve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Munkalap feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
@@ -2207,7 +2324,40 @@ private bool _eszkozAzonositoDuplikalva =>
             );
 
             sor.BizonyitvanyPath = path;
-            Snackbar.Add("Bizonyítvány feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+
+            // ÚJ: hozzáadjuk a fájlt a listához is
+            if (!sor.BizonyitvanyPaths.Contains(path))
+                sor.BizonyitvanyPaths.Add(path);
+
+            // Frissítjük a felületet
+            StateHasChanged();
+
+            // Ha a hitelesítés már el van mentve, automatikusan frissítjük az adatbázisban is
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                // Frissítjük a CsoportTagLejaratokLista-t
+                _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
+                    .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any())
+                    .Select(s => new CsoportTagLejaratReszlet
+                    {
+                        EszkozTipusId = s.Tag.EszkozTipusId,
+                        EszkozTipusNev = s.EszkozTipusNev,
+                        LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
+                        NemAlkalmazhato = s.NemAlkalmazhato,
+                        MunkalapPath = s.MunkalapPath,
+                        BizonyitvanyPath = s.BizonyitvanyPath,
+                        MunkalapPathsLista = s.MunkalapPaths,
+                        BizonyitvanyPathsLista = s.BizonyitvanyPaths
+                    })
+                    .ToList();
+
+                await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Bizonyítvány feltöltve és mentve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Bizonyítvány feltöltve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
@@ -2215,16 +2365,16 @@ private bool _eszkozAzonositoDuplikalva =>
         }
     }
 
-    private async Task KozbensoMunkalapLetoltese(CsoportTagSor sor)
+    private async Task KozbensoMunkalapLetoltese(string munkalapPath)
     {
-        if (string.IsNullOrWhiteSpace(sor.MunkalapPath)) return;
+        if (string.IsNullOrWhiteSpace(munkalapPath)) return;
 
         try
         {
-            var stream = await FileStorageService.GetFileStreamAsync(sor.MunkalapPath);
+            var stream = await FileStorageService.GetFileStreamAsync(munkalapPath);
             if (stream is not null)
             {
-                var fileName = Path.GetFileName(sor.MunkalapPath);
+                var fileName = Path.GetFileName(munkalapPath);
                 using var streamRef = new DotNetStreamReference(stream);
                 await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
                 Snackbar.Add("Munkalap letöltése megkezdődött!", Severity.Info);
@@ -2240,16 +2390,16 @@ private bool _eszkozAzonositoDuplikalva =>
         }
     }
 
-    private async Task KozbensoBizonyitvanyLetoltese(CsoportTagSor sor)
+    private async Task KozbensoBizonyitvanyLetoltese(string bizonyitvanyPath)
     {
-        if (string.IsNullOrWhiteSpace(sor.BizonyitvanyPath)) return;
+        if (string.IsNullOrWhiteSpace(bizonyitvanyPath)) return;
 
         try
         {
-            var stream = await FileStorageService.GetFileStreamAsync(sor.BizonyitvanyPath);
+            var stream = await FileStorageService.GetFileStreamAsync(bizonyitvanyPath);
             if (stream is not null)
             {
-                var fileName = Path.GetFileName(sor.BizonyitvanyPath);
+                var fileName = Path.GetFileName(bizonyitvanyPath);
                 using var streamRef = new DotNetStreamReference(stream);
                 await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
                 Snackbar.Add("Bizonyítvány letöltése megkezdődött!", Severity.Info);
@@ -2265,18 +2415,53 @@ private bool _eszkozAzonositoDuplikalva =>
         }
     }
 
-    private async Task KozbensoMunkalapTorlese(CsoportTagSor sor)
+    private async Task KozbensoMunkalapTorlese(CsoportTagSor sor, string munkalapPath)
     {
-        if (string.IsNullOrWhiteSpace(sor.MunkalapPath)) return;
+        if (string.IsNullOrWhiteSpace(munkalapPath)) return;
 
         var confirm = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a munkalapot?");
         if (confirm)
         {
             try
             {
-                await FileStorageService.DeleteFileAsync(sor.MunkalapPath);
-                sor.MunkalapPath = null;
-                Snackbar.Add("Munkalap törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+                await FileStorageService.DeleteFileAsync(munkalapPath);
+
+                // Eltávolítjuk a listából
+                sor.MunkalapPaths.Remove(munkalapPath);
+
+                // Ha ez volt a legacy path, töröljük
+                if (sor.MunkalapPath == munkalapPath)
+                    sor.MunkalapPath = sor.MunkalapPaths.FirstOrDefault();
+
+                // Frissítjük a felületet
+                StateHasChanged();
+
+                // Ha a hitelesítés már el van mentve, automatikusan frissítjük az adatbázisban is
+                if (_szerkesztesAlatt?.Id > 0)
+                {
+                    // Frissítjük a CsoportTagLejaratokLista-t
+                    _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
+                        .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any())
+                        .Select(s => new CsoportTagLejaratReszlet
+                        {
+                            EszkozTipusId = s.Tag.EszkozTipusId,
+                            EszkozTipusNev = s.EszkozTipusNev,
+                            LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
+                            NemAlkalmazhato = s.NemAlkalmazhato,
+                            MunkalapPath = s.MunkalapPath,
+                            BizonyitvanyPath = s.BizonyitvanyPath,
+                            MunkalapPathsLista = s.MunkalapPaths,
+                            BizonyitvanyPathsLista = s.BizonyitvanyPaths
+                        })
+                        .ToList();
+
+                    await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                    Snackbar.Add("Munkalap törölve és mentve!", Severity.Info);
+                }
+                else
+                {
+                    Snackbar.Add("Munkalap törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+                }
             }
             catch (Exception ex)
             {
@@ -2285,18 +2470,53 @@ private bool _eszkozAzonositoDuplikalva =>
         }
     }
 
-    private async Task KozbensoBizonyitvanyTorlese(CsoportTagSor sor)
+    private async Task KozbensoBizonyitvanyTorlese(CsoportTagSor sor, string bizonyitvanyPath)
     {
-        if (string.IsNullOrWhiteSpace(sor.BizonyitvanyPath)) return;
+        if (string.IsNullOrWhiteSpace(bizonyitvanyPath)) return;
 
         var confirm = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a bizonyítványt?");
         if (confirm)
         {
             try
             {
-                await FileStorageService.DeleteFileAsync(sor.BizonyitvanyPath);
-                sor.BizonyitvanyPath = null;
-                Snackbar.Add("Bizonyítvány törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+                await FileStorageService.DeleteFileAsync(bizonyitvanyPath);
+
+                // Eltávolítjuk a listából
+                sor.BizonyitvanyPaths.Remove(bizonyitvanyPath);
+
+                // Ha ez volt a legacy path, töröljük
+                if (sor.BizonyitvanyPath == bizonyitvanyPath)
+                    sor.BizonyitvanyPath = sor.BizonyitvanyPaths.FirstOrDefault();
+
+                // Frissítjük a felületet
+                StateHasChanged();
+
+                // Ha a hitelesítés már el van mentve, automatikusan frissítjük az adatbázisban is
+                if (_szerkesztesAlatt?.Id > 0)
+                {
+                    // Frissítjük a CsoportTagLejaratokLista-t
+                    _szerkesztesAlatt.CsoportTagLejaratokLista = _csoportTagSorok
+                        .Where(s => s.EgyediDatumHasznalata || s.NemAlkalmazhato || s.MunkalapPaths.Any() || s.BizonyitvanyPaths.Any())
+                        .Select(s => new CsoportTagLejaratReszlet
+                        {
+                            EszkozTipusId = s.Tag.EszkozTipusId,
+                            EszkozTipusNev = s.EszkozTipusNev,
+                            LejaratDatum = s.NemAlkalmazhato ? null : s.EgyediLejaratDatum,
+                            NemAlkalmazhato = s.NemAlkalmazhato,
+                            MunkalapPath = s.MunkalapPath,
+                            BizonyitvanyPath = s.BizonyitvanyPath,
+                            MunkalapPathsLista = s.MunkalapPaths,
+                            BizonyitvanyPathsLista = s.BizonyitvanyPaths
+                        })
+                        .ToList();
+
+                    await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                    Snackbar.Add("Bizonyítvány törölve és mentve!", Severity.Info);
+                }
+                else
+                {
+                    Snackbar.Add("Bizonyítvány törölve! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Info);
+                }
             }
             catch (Exception ex)
             {

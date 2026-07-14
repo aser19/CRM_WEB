@@ -267,8 +267,107 @@ BEGIN
 END
 GO
 
+-- ========================================
+-- 4. Multiple File Support Migration
+-- ========================================
+
+PRINT 'Migráció 4/4: Multiple File Support for Documents';
+GO
+
+-- Új oszlopok hozzáadása a Hitelesitesek táblához
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Hitelesitesek]') AND name = 'MunkalapPaths')
+BEGIN
+	ALTER TABLE [dbo].[Hitelesitesek]
+	ADD [MunkalapPaths] NVARCHAR(MAX) NULL;
+
+	PRINT '✓ Hitelesitesek.MunkalapPaths oszlop hozzáadva.';
+END
+ELSE
+BEGIN
+	PRINT 'ℹ Hitelesitesek.MunkalapPaths oszlop már létezik.';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Hitelesitesek]') AND name = 'BizonyitvanyPaths')
+BEGIN
+	ALTER TABLE [dbo].[Hitelesitesek]
+	ADD [BizonyitvanyPaths] NVARCHAR(MAX) NULL;
+
+	PRINT '✓ Hitelesitesek.BizonyitvanyPaths oszlop hozzáadva.';
+END
+ELSE
+BEGIN
+	PRINT 'ℹ Hitelesitesek.BizonyitvanyPaths oszlop már létezik.';
+END
+GO
+
+-- Adatmigráció: Ha van régi MunkalapPath, konvertáljuk JSON listává
+DECLARE @migratedMunkalap INT = 0;
+
+UPDATE [dbo].[Hitelesitesek]
+SET [MunkalapPaths] = '["' + REPLACE([MunkalapPath], '"', '\"') + '"]',
+	@migratedMunkalap = @migratedMunkalap + 1
+WHERE [MunkalapPath] IS NOT NULL 
+  AND [MunkalapPath] <> ''
+  AND ([MunkalapPaths] IS NULL OR [MunkalapPaths] = '');
+
+PRINT '✓ ' + CAST(@migratedMunkalap AS NVARCHAR(10)) + ' MunkalapPath érték migrálva JSON formátumba.';
+GO
+
+-- Adatmigráció: Ha van régi BizonyitvanyPath, konvertáljuk JSON listává
+DECLARE @migratedBizonyitvany INT = 0;
+
+UPDATE [dbo].[Hitelesitesek]
+SET [BizonyitvanyPaths] = '["' + REPLACE([BizonyitvanyPath], '"', '\"') + '"]',
+	@migratedBizonyitvany = @migratedBizonyitvany + 1
+WHERE [BizonyitvanyPath] IS NOT NULL 
+  AND [BizonyitvanyPath] <> ''
+  AND ([BizonyitvanyPaths] IS NULL OR [BizonyitvanyPaths] = '');
+
+PRINT '✓ ' + CAST(@migratedBizonyitvany AS NVARCHAR(10)) + ' BizonyitvanyPath érték migrálva JSON formátumba.';
+GO
+
+-- Migration history bejegyzés
+IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20241215000000_AddMultipleFileSupportForDocuments')
+BEGIN
+	INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+	VALUES (N'20241215000000_AddMultipleFileSupportForDocuments', N'8.0.0');
+
+	PRINT '✓ Migration history frissítve.';
+END
+GO
+
 COMMIT TRANSACTION;
 GO
 
-PRINT '✓ Összes pending migráció sikeresen lefutott!';
+PRINT '✅ Összes pending migráció sikeresen lefutott!';
 GO
+
+-- =====================================================
+-- ELLENŐRZÉS (opcionális - futtatható külön):
+-- =====================================================
+/*
+SELECT 
+	Id,
+	Datum,
+	MunkalapPath AS 'Régi_Munkalap',
+	MunkalapPaths AS 'Új_Munkalap_JSON',
+	BizonyitvanyPath AS 'Régi_Bizonyitvany',
+	BizonyitvanyPaths AS 'Új_Bizonyitvany_JSON'
+FROM [dbo].[Hitelesitesek]
+WHERE MunkalapPaths IS NOT NULL OR BizonyitvanyPaths IS NOT NULL;
+*/
+
+-- =====================================================
+-- MEGJEGYZÉSEK:
+-- 
+-- A migration visszafele kompatibilis:
+-- - A régi MunkalapPath és BizonyitvanyPath mezők MEGMARADNAK
+-- - Az új kód először az új listákat olvassa, aztán fallback a régire
+-- - A régi oszlopok NEM lettek törölve - opcionális később
+--
+-- ROLLBACK (csak akkor használd, ha visszaalakítod a kódot):
+-- ALTER TABLE [dbo].[Hitelesitesek] DROP COLUMN [MunkalapPaths];
+-- ALTER TABLE [dbo].[Hitelesitesek] DROP COLUMN [BizonyitvanyPaths];
+-- DELETE FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20241215000000_AddMultipleFileSupportForDocuments';
+-- =====================================================

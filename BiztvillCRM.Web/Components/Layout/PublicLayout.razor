@@ -11,3 +11,38 @@
 <MudMainContent Class="pt-16">
     @Body
 </MudMainContent>
+
+<script src="js/download.js"></script>
+<script>
+    // Biztosítjuk, hogy a downloadFileFromStream függvény elérhető legyen
+    if (!window.downloadFileFromStream) {
+        console.error('downloadFileFromStream function not loaded properly');
+        window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+            try {
+                const arrayBuffer = await contentStreamReference.arrayBuffer();
+
+                const mimeTypes = {
+                    '.pdf': 'application/pdf',
+                    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                };
+
+                const ext = fileName.substring(fileName.lastIndexOf('.'));
+                const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+                const blob = new Blob([arrayBuffer], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Hiba a fájl letöltése során: ' + error.message);
+            }
+        };
+    }
+</script>

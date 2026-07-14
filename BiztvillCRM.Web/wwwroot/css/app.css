@@ -20,3 +20,34 @@ html, body {
     right: 0.75rem;
     top: 0.5rem;
 }
+
+/* Sticky horizontal scrollbar wrapper - közös stílusok */
+.sticky-horizontal-scroll-wrapper {
+    position: relative;
+    overflow-x: auto;
+    max-width: 100%;
+    width: 100%;
+    scrollbar-width: thin;
+}
+
+.sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+    position: sticky;
+    bottom: 0;
+    height: 12px;
+}
+
+/* A táblázat teljes szélessége - MudDataGrid specifikus */
+.sticky-horizontal-scroll-wrapper .mud-table-container {
+    overflow: visible !important;
+}
+
+.sticky-horizontal-scroll-wrapper .mud-table {
+    width: max-content !important;
+    min-width: 100%;
+}
+
+/* Sticky scrollbar wrapper rögzítése az ablak aljához */
+.table-container-sticky {
+    position: relative;
+    padding-bottom: 20px;
+}
