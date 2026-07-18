@@ -51,3 +51,31 @@ html, body {
     position: relative;
     padding-bottom: 20px;
 }
+
+/* Mobil nézet optimalizálás */
+@media (max-width: 600px) {
+    .mud-container {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    .mud-table-toolbar {
+        flex-wrap: wrap;
+        height: auto !important;
+        padding: 8px !important;
+    }
+
+    .mud-table-toolbar .mud-input-control,
+    .mud-table-toolbar .mud-select {
+        width: 100%;
+    }
+
+    .mud-dialog {
+        margin: 8px !important;
+        max-width: calc(100% - 16px) !important;
+    }
+
+    .mud-card {
+        padding: 8px !important;
+    }
+}

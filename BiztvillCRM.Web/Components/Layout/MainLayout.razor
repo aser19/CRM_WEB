@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
 @inject NavigationManager Navigation
 @inject BiztvillCRM.Services.Interfaces.ITenantService TenantService
+@inject IBrowserViewportService BrowserViewportService
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -34,13 +36,14 @@
                                OnClick="Kijelentkezes" Title="Kijelentkezés" />
             </MudAppBar>
 
-            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Mini">
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2"
+                       Variant="@(_isMobile ? DrawerVariant.Temporary : DrawerVariant.Mini)">
                 <NavMenu />
             </MudDrawer>
         </Authorized>
     </AuthorizeView>
 
-    <MudMainContent Class="pa-4">
+    <MudMainContent Class="pa-2 pa-sm-4">
         @Body
     </MudMainContent>
 </MudLayout>
@@ -50,6 +53,8 @@
     private bool _isDarkMode = false;
     private string _felhasznaloNev = "";
     private bool _isAdmin = false;
+    private bool _isMobile = false;
+    private Guid _viewportSubscriptionId = Guid.NewGuid();
 
     private MudTheme _theme = new MudTheme()
     {
@@ -85,11 +90,36 @@
         _isAdmin = TenantService.IsInRole(BiztvillCRM.Shared.Enums.FelhasznaloSzerepkor.Admin);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await BrowserViewportService.SubscribeAsync(_viewportSubscriptionId, OnBreakpointChanged, fireImmediately: true);
+        }
+    }
+
+    private Task OnBreakpointChanged(BrowserViewportEventArgs args)
+    {
+        var isMobile = args.Breakpoint is Breakpoint.Xs or Breakpoint.Sm;
+        if (isMobile != _isMobile)
+        {
+            _isMobile = isMobile;
+            _drawerOpen = !_isMobile;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
-    
+
     private void Kijelentkezes()
     {
         Navigation.NavigateTo("/kijelentkezes", forceLoad: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await BrowserViewportService.UnsubscribeAsync(_viewportSubscriptionId);
     }
 }
