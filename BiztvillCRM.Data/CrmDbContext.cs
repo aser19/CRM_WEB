@@ -14,6 +14,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<Ugyfel> Ugyfelek { get; set; }
     public DbSet<Telephely> Telephelyek { get; set; }
     public DbSet<Gyarto> Gyartok { get; set; }
+    public DbSet<Munkaszam> Munkaszamok { get; set; }
     public DbSet<Eszkoz> Eszkozok { get; set; }
     public DbSet<Terminal> Terminalok { get; set; }
     public DbSet<EszkozTipus> EszkozTipusok { get; set; }

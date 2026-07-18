@@ -92,6 +92,12 @@
         <MudNavLink Href="/jogszabalyok" Icon="@Icons.Material.Filled.Gavel">Jogszabályok</MudNavLink>
     }
 
+    <!-- Munkaszám - csak ha van jogosultság -->
+    @if (HasModule(ModulJogosultsag.Munkaszam))
+    {
+        <MudNavLink Href="/munkaszamok" Icon="@Icons.Material.Filled.Assignment">Munkaszám</MudNavLink>
+    }
+
     <!-- Riportok - csak admin felhasználóknak -->
     @if (_isAdmin)
     {
@@ -136,7 +142,6 @@
                      ExpandedChanged="@(expanded => MenuValtas("Admin", expanded))">
             <MudNavLink Href="/admin/cegek" Icon="@Icons.Material.Filled.Business">Cégek</MudNavLink>
             <MudNavLink Href="/admin/felhasznalok" Icon="@Icons.Material.Filled.People">Felhasználók</MudNavLink>
-            <MudNavLink Href="/admin/modulok" Icon="@Icons.Material.Filled.Extension">Modul kezelés</MudNavLink>
             <MudNavLink Href="/admin/uzemelteto-sablonok" Icon="@Icons.Material.Filled.Assignment">Üzemeltető sablonok</MudNavLink>
             <MudNavLink Href="/admin/email-naplo" Icon="@Icons.Material.Filled.MarkEmailRead">Email napló</MudNavLink>
             <MudNavLink Href="/admin/meres-tipusok" Icon="@Icons.Material.Filled.Category">Méréstípusok</MudNavLink>

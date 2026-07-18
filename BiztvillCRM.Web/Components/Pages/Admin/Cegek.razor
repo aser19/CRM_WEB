@@ -179,6 +179,13 @@
                                  ValueChanged="@(v => ToggleModul(ModulJogosultsag.Jogszabalyok, v))"
                                  Label="Jogszabályok" 
                                  Color="Color.Info" />
+
+                    <!-- Munkaszám modul -->
+                    <MudCheckBox T="bool" 
+                                 Value="@_szerkesztettCeg.AktivModulok.HasFlag(ModulJogosultsag.Munkaszam)"
+                                 ValueChanged="@(v => ToggleModul(ModulJogosultsag.Munkaszam, v))"
+                                 Label="Munkaszám" 
+                                 Color="Color.Success" />
                 </MudStack>
             </MudItem>
 

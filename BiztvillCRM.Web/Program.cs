@@ -80,6 +80,7 @@ builder.Services.AddScoped<ITanusitvanyService, TanusitvanyService>();
 builder.Services.AddScoped<IKepzesService, KepzesService>();
 builder.Services.AddScoped<IHitelesitesService, HitelesitesService>();
 builder.Services.AddScoped<IHatosagService, HatosagService>();
+builder.Services.AddScoped<IMunkaszamTorzsService, MunkaszamTorzsService>();
 builder.Services.AddScoped<IJogszabalyService, JogszabalyService>();
 builder.Services.AddScoped<IKalibracioService, KalibracioService>();
 builder.Services.AddScoped<ITerminalService, TerminalService>();

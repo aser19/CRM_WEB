@@ -35,5 +35,6 @@ public enum ModulJogosultsag
     KepzesTipusok = 4096,      // Admin only
     KepzesSzabalyok = 8192,    // Admin only
     AdminFunkciok = 16384,     // Admin menü összes funkciója
-    Uzemelteto = 32768         // Üzemeltető modul (sablonok és adatrögzítés)
+    Uzemelteto = 32768,        // Üzemeltető modul (sablonok és adatrögzítés)
+    Munkaszam = 65536          // Munkaszám modul (munkaszám törzsadatok kezelése és hozzárendelése)
 }

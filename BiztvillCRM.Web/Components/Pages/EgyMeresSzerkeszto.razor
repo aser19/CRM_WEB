@@ -39,17 +39,19 @@ else
         }
     </MudText>
 
-    @* === FEJLÉC – csak olvasható === *@
+    @* === FEJLÉC === *@
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <MudText Typo="Typo.subtitle2" Class="mb-2">
             <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
-            Alapadatok (csak olvasható)
+            Alapadatok
         </MudText>
         <MudGrid>
             <MudItem xs="12" md="3">
-                <MudTextField Value="@_adatok.JegyzokonyvSzam"
-                              Label="Jegyzőkönyv száma" ReadOnly="true"
+                <MudTextField T="string" Value="@_adatok.JegyzokonyvSzam"
+                              ValueChanged="@((string v) => OnMunkaszamValtozott(v))"
+                              Label="Jegyzőkönyv száma / munkaszám"
                               Variant="Variant.Outlined"
+                              HelperText="Automatikusan generált, szükség esetén felülírható"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Tag" />
             </MudItem>
@@ -159,6 +161,15 @@ else
         }
 
         _betoltes = false;
+    }
+
+    /// <summary>
+    /// A felhasználó felülírja az automatikusan generált munkaszámot/jegyzőkönyv számot.
+    /// </summary>
+    private void OnMunkaszamValtozott(string ujErtek)
+    {
+        _adatok.JegyzokonyvSzam = ujErtek;
+        _adatok.Munkaszam = ujErtek;
     }
 
     private async Task StatuszFrissitesAMeresAdatokAlapjanAsync()
