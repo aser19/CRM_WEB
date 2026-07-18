@@ -15,6 +15,59 @@
     <script src="_framework/blazor.web.js"></script>
     <script src="js/download.js"></script>
     <script>
+        // Fallback: ha a download.js nem töltődött be rendesen
+        if (!window.downloadFileFromStream) {
+            console.warn('downloadFileFromStream fallback activated');
+            window.downloadFileFromStream = async function (fileName, contentStreamReference) {
+                try {
+                    const arrayBuffer = await contentStreamReference.arrayBuffer();
+
+                    const mimeTypes = {
+                        '.pdf': 'application/pdf',
+                        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    };
+
+                    const ext = fileName.substring(fileName.lastIndexOf('.'));
+                    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+                    const blob = new Blob([arrayBuffer], { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Error in downloadFileFromStream fallback:', error);
+                    alert('Hiba a fájl letöltése során: ' + error.message);
+                }
+            };
+        }
+
+        if (!window.downloadFileFromBytes) {
+            console.warn('downloadFileFromBytes fallback activated');
+            window.downloadFileFromBytes = function (fileName, mimeType, byteArray) {
+                try {
+                    const uint8Array = new Uint8Array(byteArray);
+                    const blob = new Blob([uint8Array], { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Error in downloadFileFromBytes fallback:', error);
+                    alert('Hiba a fájl letöltése során: ' + error.message);
+                }
+            };
+        }
+
         window.downloadFileFromByteArray = function (fileName, mimeType, byteArray) {
             const blob = new Blob([byteArray], { type: mimeType });
             const url = URL.createObjectURL(blob);

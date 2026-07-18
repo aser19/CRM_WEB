@@ -1,6 +1,7 @@
 @page "/lekerdezes"
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services
+@using System.IO
 @inject INyilvanosLekerdezesService LekerdezesService
 @inject NavigationManager NavManager
 @inject IFileStorageService FileStorageService
@@ -220,28 +221,109 @@
                                         }
                                     </MudTd>
                                     <MudTd Style="@inaktivStyle">
-                                        @if (!string.IsNullOrEmpty(context.MunkalapPath) || !string.IsNullOrEmpty(context.BizonyitvanyPath))
+                                        @{
+                                            var vanMunkalap = !string.IsNullOrEmpty(context.MunkalapPath) || context.MunkalapPaths.Any();
+                                            var vanBizonyitvany = !string.IsNullOrEmpty(context.BizonyitvanyPath) || context.BizonyitvanyPaths.Any();
+                                            var vanKozbensoDokumentum = vanMunkalap || vanBizonyitvany;
+
+                                            // Közbenső vizsgálatok státusza
+                                            var vanKozbenso = context.KozbensoVizsgalatok.Any();
+                                            var alkalmazhato = context.KozbensoVizsgalatok.Where(k => !k.NemAlkalmazhato).ToList();
+                                            var kozbensoFeltoltott = 0;
+                                            var kozbensoOsszes = 0;
+
+                                            if (alkalmazhato.Any())
+                                            {
+                                                kozbensoFeltoltott = alkalmazhato.Count(k => k.MunkalapPathsLista.Any() || k.BizonyitvanyPathsLista.Any());
+                                                kozbensoOsszes = alkalmazhato.Count;
+                                            }
+
+                                            var kozbensoTeljes = kozbensoFeltoltott == kozbensoOsszes && kozbensoOsszes > 0;
+                                        }
+
+                                        @if (vanKozbenso && kozbensoOsszes > 0)
                                         {
-                                            <MudStack Spacing="1">
-                                                @if (!string.IsNullOrEmpty(context.MunkalapPath))
+                                            @* Ha van közbenső vizsgálat, akkor státusz chipet mutatunk *@
+                                            <MudChip T="string" Size="Size.Small"
+                                                     Color="@(kozbensoTeljes ? Color.Success : kozbensoFeltoltott > 0 ? Color.Warning : Color.Default)"
+                                                     Icon="@(kozbensoTeljes ? Icons.Material.Filled.CheckCircle : kozbensoFeltoltott > 0 ? Icons.Material.Filled.Schedule : Icons.Material.Filled.HourglassEmpty)">
+                                                @if (kozbensoTeljes)
                                                 {
-                                                    <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                                               Size="Size.Small"
-                                                               Color="Color.Primary"
-                                                               Variant="Variant.Text"
-                                                               OnClick="@(async () => await MunkalapLetoltesePublikus(context.MunkalapPath))">
-                                                        Munkalap
-                                                    </MudButton>
+                                                    <text>Minden letölthető</text>
                                                 }
-                                                @if (!string.IsNullOrEmpty(context.BizonyitvanyPath))
+                                                else if (kozbensoFeltoltott > 0)
                                                 {
-                                                    <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                                               Size="Size.Small"
-                                                               Color="Color.Success"
-                                                               Variant="Variant.Text"
-                                                               OnClick="@(async () => await BizonyitvanyLetoltesePublikus(context.BizonyitvanyPath))">
-                                                        Bizonyítvány
-                                                    </MudButton>
+                                                    <text>@kozbensoFeltoltott/@kozbensoOsszes részfeladat feltöltve</text>
+                                                }
+                                                else
+                                                {
+                                                    <text>Nincs feltöltve</text>
+                                                }
+                                            </MudChip>
+                                        }
+                                        else if (vanKozbensoDokumentum)
+                                        {
+                                            @* Ha nincs közbenső vizsgálat, csak fő dokumentumok *@
+                                            <MudStack Spacing="1">
+                                                @if (vanMunkalap)
+                                                {
+                                                    var munkalapPaths = context.MunkalapPaths.Any() ? context.MunkalapPaths : 
+                                                                       (!string.IsNullOrEmpty(context.MunkalapPath) ? new List<string> { context.MunkalapPath } : new List<string>());
+                                                    @if (munkalapPaths.Count == 1)
+                                                    {
+                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Primary"
+                                                                   Variant="Variant.Text"
+                                                                   OnClick="@(async () => await MunkalapLetoltesePublikus(munkalapPaths.First()))">
+                                                            Munkalap
+                                                        </MudButton>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudMenu Icon="@Icons.Material.Filled.Download" 
+                                                                 Size="Size.Small" 
+                                                                 Color="Color.Primary"
+                                                                 Variant="Variant.Text"
+                                                                 Label="@($"Munkalap ({munkalapPaths.Count})")">
+                                                            @foreach (var path in munkalapPaths)
+                                                            {
+                                                                <MudMenuItem OnClick="@(async () => await MunkalapLetoltesePublikus(path))">
+                                                                    @Path.GetFileName(path)
+                                                                </MudMenuItem>
+                                                            }
+                                                        </MudMenu>
+                                                    }
+                                                }
+                                                @if (vanBizonyitvany)
+                                                {
+                                                    var bizonyitvanyPaths = context.BizonyitvanyPaths.Any() ? context.BizonyitvanyPaths : 
+                                                                           (!string.IsNullOrEmpty(context.BizonyitvanyPath) ? new List<string> { context.BizonyitvanyPath } : new List<string>());
+                                                    @if (bizonyitvanyPaths.Count == 1)
+                                                    {
+                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Success"
+                                                                   Variant="Variant.Text"
+                                                                   OnClick="@(async () => await BizonyitvanyLetoltesePublikus(bizonyitvanyPaths.First()))">
+                                                            Bizonyítvány
+                                                        </MudButton>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudMenu Icon="@Icons.Material.Filled.Download" 
+                                                                 Size="Size.Small" 
+                                                                 Color="Color.Success"
+                                                                 Variant="Variant.Text"
+                                                                 Label="@($"Bizonyítvány ({bizonyitvanyPaths.Count})")">
+                                                            @foreach (var path in bizonyitvanyPaths)
+                                                            {
+                                                                <MudMenuItem OnClick="@(async () => await BizonyitvanyLetoltesePublikus(path))">
+                                                                    @Path.GetFileName(path)
+                                                                </MudMenuItem>
+                                                            }
+                                                        </MudMenu>
+                                                    }
                                                 }
                                             </MudStack>
                                         }
@@ -317,28 +399,70 @@
                                                             </MudText>
                                                         </MudTd>
                                                         <MudTd>
-                                                            @if (!string.IsNullOrEmpty(tagContext.MunkalapPath) || !string.IsNullOrEmpty(tagContext.BizonyitvanyPath))
+                                                            @{
+                                                                var vanTagMunkalap = !string.IsNullOrEmpty(tagContext.MunkalapPath) || tagContext.MunkalapPathsLista.Any();
+                                                                var vanTagBizonyitvany = !string.IsNullOrEmpty(tagContext.BizonyitvanyPath) || tagContext.BizonyitvanyPathsLista.Any();
+                                                            }
+                                                            @if (vanTagMunkalap || vanTagBizonyitvany)
                                                             {
                                                                 <MudStack Spacing="1">
-                                                                    @if (!string.IsNullOrEmpty(tagContext.MunkalapPath))
+                                                                    @if (vanTagMunkalap)
                                                                     {
-                                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                                                                   Size="Size.Small"
-                                                                                   Color="Color.Primary"
-                                                                                   Variant="Variant.Text"
-                                                                                   OnClick="@(async () => await KozbensoMunkalapLetoltesePublikus(tagContext.MunkalapPath))">
-                                                                            Munkalap
-                                                                        </MudButton>
+                                                                        var tagMunkalapPaths = tagContext.MunkalapPathsLista;
+                                                                        @if (tagMunkalapPaths.Count == 1)
+                                                                        {
+                                                                            <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                                       Size="Size.Small"
+                                                                                       Color="Color.Primary"
+                                                                                       Variant="Variant.Text"
+                                                                                       OnClick="@(async () => await KozbensoMunkalapLetoltesePublikus(tagMunkalapPaths.First()))">
+                                                                                Munkalap
+                                                                            </MudButton>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <MudMenu Icon="@Icons.Material.Filled.Download" 
+                                                                                     Size="Size.Small" 
+                                                                                     Color="Color.Primary"
+                                                                                     Variant="Variant.Text"
+                                                                                     Label="@($"Munkalap ({tagMunkalapPaths.Count})")">
+                                                                                @foreach (var path in tagMunkalapPaths)
+                                                                                {
+                                                                                    <MudMenuItem OnClick="@(async () => await KozbensoMunkalapLetoltesePublikus(path))">
+                                                                                        @Path.GetFileName(path)
+                                                                                    </MudMenuItem>
+                                                                                }
+                                                                            </MudMenu>
+                                                                        }
                                                                     }
-                                                                    @if (!string.IsNullOrEmpty(tagContext.BizonyitvanyPath))
+                                                                    @if (vanTagBizonyitvany)
                                                                     {
-                                                                        <MudButton StartIcon="@Icons.Material.Filled.Download"
-                                                                                   Size="Size.Small"
-                                                                                   Color="Color.Success"
-                                                                                   Variant="Variant.Text"
-                                                                                   OnClick="@(async () => await KozbensoBizonyitvanyLetoltesePublikus(tagContext.BizonyitvanyPath))">
-                                                                            Bizonyítvány
-                                                                        </MudButton>
+                                                                        var tagBizonyitvanyPaths = tagContext.BizonyitvanyPathsLista;
+                                                                        @if (tagBizonyitvanyPaths.Count == 1)
+                                                                        {
+                                                                            <MudButton StartIcon="@Icons.Material.Filled.Download"
+                                                                                       Size="Size.Small"
+                                                                                       Color="Color.Success"
+                                                                                       Variant="Variant.Text"
+                                                                                       OnClick="@(async () => await KozbensoBizonyitvanyLetoltesePublikus(tagBizonyitvanyPaths.First()))">
+                                                                                Bizonyítvány
+                                                                            </MudButton>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <MudMenu Icon="@Icons.Material.Filled.Download" 
+                                                                                     Size="Size.Small" 
+                                                                                     Color="Color.Success"
+                                                                                     Variant="Variant.Text"
+                                                                                     Label="@($"Bizonyítvány ({tagBizonyitvanyPaths.Count})")">
+                                                                                @foreach (var path in tagBizonyitvanyPaths)
+                                                                                {
+                                                                                    <MudMenuItem OnClick="@(async () => await KozbensoBizonyitvanyLetoltesePublikus(path))">
+                                                                                        @Path.GetFileName(path)
+                                                                                    </MudMenuItem>
+                                                                                }
+                                                                            </MudMenu>
+                                                                        }
                                                                     }
                                                                 </MudStack>
                                                             }

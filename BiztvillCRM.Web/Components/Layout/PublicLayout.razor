@@ -45,4 +45,26 @@
             }
         };
     }
+
+    // Biztosítjuk, hogy a downloadFileFromBytes függvény elérhető legyen
+    if (!window.downloadFileFromBytes) {
+        console.error('downloadFileFromBytes function not loaded properly');
+        window.downloadFileFromBytes = (fileName, mimeType, bytes) => {
+            try {
+                const uint8Array = new Uint8Array(bytes);
+                const blob = new Blob([uint8Array], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Hiba a fájl letöltése során: ' + error.message);
+            }
+        };
+    }
 </script>

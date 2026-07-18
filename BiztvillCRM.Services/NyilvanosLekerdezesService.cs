@@ -123,7 +123,12 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                                     EszkozTipusId = tag.EszkozTipusId,
                                     EszkozTipusNev = tag.EszkozTipus?.Nev ?? "",
                                     LejaratDatum = mentett?.LejaratDatum ?? autoLejarat,
-                                    Megjegyzes = tag.Megjegyzes
+                                    Megjegyzes = tag.Megjegyzes,
+                                    NemAlkalmazhato = mentett?.NemAlkalmazhato ?? false,
+                                    MunkalapPath = mentett?.MunkalapPath,
+                                    BizonyitvanyPath = mentett?.BizonyitvanyPath,
+                                    MunkalapPaths = mentett?.MunkalapPaths,
+                                    BizonyitvanyPaths = mentett?.BizonyitvanyPaths
                                 };
                             }).ToList() ?? new();
 

@@ -1,5 +1,7 @@
 namespace BiztvillCRM.Shared.Models;
 
+using System.Text.Json;
+
 public class UgyfelLekerdezesViewModel
 {
     public string UgyfelNev { get; set; } = "";
@@ -40,6 +42,30 @@ public class HitelesitesOsszefoglalo
 
     /// <summary>Hitelesítési bizonyítvány relatív útvonala (ha van feltöltve)</summary>
     public string? BizonyitvanyPath { get; set; }
+
+    /// <summary>Lista a JSON mezőből - több munkalap támogatásához</summary>
+    public List<string> MunkalapPaths
+    {
+        get
+        {
+            var list = new List<string>();
+            if (!string.IsNullOrEmpty(MunkalapPath))
+                list.Add(MunkalapPath);
+            return list;
+        }
+    }
+
+    /// <summary>Lista a JSON mezőből - több bizonyítvány támogatásához</summary>
+    public List<string> BizonyitvanyPaths
+    {
+        get
+        {
+            var list = new List<string>();
+            if (!string.IsNullOrEmpty(BizonyitvanyPath))
+                list.Add(BizonyitvanyPath);
+            return list;
+        }
+    }
 
     /// <summary>Ha van hitelesítési csoport rendelve, itt jönnek a közbenső vizsgálatok</summary>
     public List<CsoportTagLejaratReszlet> KozbensoVizsgalatok { get; set; } = new();

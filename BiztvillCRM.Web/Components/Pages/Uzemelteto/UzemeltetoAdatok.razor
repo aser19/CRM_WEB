@@ -262,18 +262,57 @@
 
     private async Task SzerkesztesMegnyitasa(UzemeltetoAdat adat)
     {
-        _ujAdat = false;
-        _readonly = false;
-        await AdatBetoltes(adat);
-        _dialogLatszik = true;
+        await AdatDialogMegnyitasa(adat, readonlyMode: false);
     }
 
     private async Task MegtekintMegnyitasa(UzemeltetoAdat adat)
     {
-        _ujAdat = false;
-        _readonly = true;
-        await AdatBetoltes(adat);
-        _dialogLatszik = true;
+        await AdatDialogMegnyitasa(adat, readonlyMode: true);
+    }
+
+    private async Task AdatDialogMegnyitasa(UzemeltetoAdat adat, bool readonlyMode)
+    {
+        var teljesAdat = await UzemeltetoService.GetAdatByIdAsync(adat.Id);
+        if (teljesAdat == null) return;
+
+        var szerkesztettAdat = new UzemeltetoAdat
+        {
+            Id = teljesAdat.Id,
+            UzemeltetoSablonId = teljesAdat.UzemeltetoSablonId,
+            RogzitesDatum = teljesAdat.RogzitesDatum,
+            KovetkezoEsedekesseg = teljesAdat.KovetkezoEsedekesseg,
+            Statusz = teljesAdat.Statusz,
+            MezoErtekekJson = teljesAdat.MezoErtekekJson,
+            Megjegyzes = teljesAdat.Megjegyzes,
+            Aktiv = teljesAdat.Aktiv
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Adat"] = szerkesztettAdat,
+            ["Sablonok"] = _sablonok,
+            ["UjAdat"] = false,
+            ["Readonly"] = readonlyMode
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var title = readonlyMode ? "Adat megtekintése" : "Adat szerkesztése";
+        var dialog = await DialogService.ShowAsync<UzemeltetoAdatDialog>(title, parameters, options);
+        var result = await dialog.Result;
+
+        if (!readonlyMode && !result.Canceled && result.Data is UzemeltetoAdat frissitettAdat)
+        {
+            try
+            {
+                await UzemeltetoService.UpdateAdatAsync(frissitettAdat);
+                Snackbar.Add("Adat sikeresen frissítve!", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
     private async Task AdatBetoltes(UzemeltetoAdat adat)
