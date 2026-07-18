@@ -1,0 +1,302 @@
+@page "/admin/sugo-tartalom"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Web.Helpers
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject ISugoService SugoService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Súgó tartalom szerkesztése</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Help" Class="mr-2" />
+    Súgó tartalom szerkesztése
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Itt kezelheti a Súgó menüpont kategóriáit és az egyes témák szöveges tartalmát, valamint az opcionális videó linkeket.
+</MudAlert>
+
+<MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjKategoriaMegnyitasa">
+        Új kategória
+    </MudButton>
+</MudStack>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" Class="my-4" />
+}
+else
+{
+    <MudExpansionPanels>
+        @foreach (var kategoria in _kategoriak)
+        {
+            <MudExpansionPanel>
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Style="width:100%;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@SugoIkonTerkep.Feloldas(kategoria.Icon)" />
+                            <MudText Typo="Typo.subtitle1">@kategoria.Nev</MudText>
+                        </MudStack>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="@(() => KategoriaSzerkesztesMegnyitasa(kategoria))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => KategoriaTorlese(kategoria))" />
+                        </MudStack>
+                    </MudStack>
+                </TitleContent>
+                <ChildContent>
+                    <MudStack Row="true" Class="mb-2">
+                        <MudSpacer />
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => UjTemaMegnyitasa(kategoria))">
+                            Új téma
+                        </MudButton>
+                    </MudStack>
+
+                    @foreach (var tema in kategoria.Temak)
+                    {
+                        <MudPaper Class="pa-3 mb-2" Outlined="true">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                                <div>
+                                    <MudText Typo="Typo.subtitle2">@tema.Cim</MudText>
+                                    <MudText Typo="Typo.body2" Style="white-space: pre-line;">@tema.Leiras</MudText>
+                                    @if (!string.IsNullOrWhiteSpace(tema.VideoUrl))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Videó: @tema.VideoUrl</MudText>
+                                    }
+                                </div>
+                                <MudStack Row="true" Spacing="1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="@(() => TemaSzerkesztesMegnyitasa(tema))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                   OnClick="@(() => TemaTorlese(tema))" />
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    @if (!kategoria.Temak.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Default">Ehhez a kategóriához még nincs téma felvéve.</MudText>
+                    }
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+<MudDialog @bind-Visible="_kategoriaDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_kategoriaSzerkesztesAlatt?.Id > 0 ? "Kategória szerkesztése" : "Új kategória")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_kategoriaSzerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_kategoriaSzerkesztesAlatt.Nev" Label="Kategória neve *" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="string" @bind-Value="_kategoriaSzerkesztesAlatt.Icon" Label="Ikon" Variant="Variant.Outlined">
+                        @foreach (var ikon in SugoIkonTerkep.Ikonok.Keys)
+                        {
+                            <MudSelectItem T="string" Value="@ikon">@ikon</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="_kategoriaSzerkesztesAlatt.Sorrend" Label="Sorrend" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="KategoriaDialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="KategoriaMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_temaDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_temaSzerkesztesAlatt?.Id > 0 ? "Téma szerkesztése" : "Új téma")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_temaSzerkesztesAlatt is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_temaSzerkesztesAlatt.Cim" Label="Téma címe *" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_temaSzerkesztesAlatt.Leiras" Label="Leírás *" Required="true" Lines="8" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_temaSzerkesztesAlatt.VideoUrl" Label="Videó link (opcionális)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="_temaSzerkesztesAlatt.Sorrend" Label="Sorrend" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="TemaDialogBezarasa">Mégse</MudButton>
+        <MudButton OnClick="TemaMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_mentes">@(_mentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<SugoKategoria> _kategoriak = [];
+    private bool _betoltes = true, _mentes = false;
+    private bool _kategoriaDialogNyitva, _temaDialogNyitva;
+    private SugoKategoria? _kategoriaSzerkesztesAlatt;
+    private SugoTema? _temaSzerkesztesAlatt;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _kategoriak = await SugoService.GetAllWithTemakAsync();
+        _betoltes = false;
+    }
+
+    private void UjKategoriaMegnyitasa()
+    {
+        _kategoriaSzerkesztesAlatt = new SugoKategoria { Icon = "Help", Sorrend = _kategoriak.Count };
+        _kategoriaDialogNyitva = true;
+    }
+
+    private void KategoriaSzerkesztesMegnyitasa(SugoKategoria item)
+    {
+        _kategoriaSzerkesztesAlatt = new SugoKategoria
+        {
+            Id = item.Id,
+            Nev = item.Nev,
+            Icon = item.Icon,
+            Sorrend = item.Sorrend
+        };
+        _kategoriaDialogNyitva = true;
+    }
+
+    private void KategoriaDialogBezarasa()
+    {
+        _kategoriaDialogNyitva = false;
+        _kategoriaSzerkesztesAlatt = null;
+    }
+
+    private async Task KategoriaMentesAsync()
+    {
+        if (_kategoriaSzerkesztesAlatt is null || string.IsNullOrWhiteSpace(_kategoriaSzerkesztesAlatt.Nev))
+        {
+            Snackbar.Add("A kategória neve kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            if (_kategoriaSzerkesztesAlatt.Id == 0)
+                await SugoService.CreateKategoriaAsync(_kategoriaSzerkesztesAlatt);
+            else
+                await SugoService.UpdateKategoriaAsync(_kategoriaSzerkesztesAlatt);
+
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            KategoriaDialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task KategoriaTorlese(SugoKategoria item)
+    {
+        var megerositve = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törli a(z) \"{item.Nev}\" kategóriát az összes hozzá tartozó témával együtt?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (megerositve == true)
+        {
+            await SugoService.DeleteKategoriaAsync(item.Id);
+            Snackbar.Add("Kategória törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+
+    private void UjTemaMegnyitasa(SugoKategoria kategoria)
+    {
+        _temaSzerkesztesAlatt = new SugoTema { SugoKategoriaId = kategoria.Id, Sorrend = kategoria.Temak.Count };
+        _temaDialogNyitva = true;
+    }
+
+    private void TemaSzerkesztesMegnyitasa(SugoTema item)
+    {
+        _temaSzerkesztesAlatt = new SugoTema
+        {
+            Id = item.Id,
+            SugoKategoriaId = item.SugoKategoriaId,
+            Cim = item.Cim,
+            Leiras = item.Leiras,
+            VideoUrl = item.VideoUrl,
+            Sorrend = item.Sorrend
+        };
+        _temaDialogNyitva = true;
+    }
+
+    private void TemaDialogBezarasa()
+    {
+        _temaDialogNyitva = false;
+        _temaSzerkesztesAlatt = null;
+    }
+
+    private async Task TemaMentesAsync()
+    {
+        if (_temaSzerkesztesAlatt is null || string.IsNullOrWhiteSpace(_temaSzerkesztesAlatt.Cim) ||
+            string.IsNullOrWhiteSpace(_temaSzerkesztesAlatt.Leiras))
+        {
+            Snackbar.Add("A cím és a leírás kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            if (_temaSzerkesztesAlatt.Id == 0)
+                await SugoService.CreateTemaAsync(_temaSzerkesztesAlatt);
+            else
+                await SugoService.UpdateTemaAsync(_temaSzerkesztesAlatt);
+
+            Snackbar.Add("Sikeres mentés!", Severity.Success);
+            TemaDialogBezarasa();
+            await BetoltesAsync();
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _mentes = false; }
+    }
+
+    private async Task TemaTorlese(SugoTema item)
+    {
+        var megerositve = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törli a(z) \"{item.Cim}\" témát?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (megerositve == true)
+        {
+            await SugoService.DeleteTemaAsync(item.Id);
+            Snackbar.Add("Téma törölve.", Severity.Success);
+            await BetoltesAsync();
+        }
+    }
+}

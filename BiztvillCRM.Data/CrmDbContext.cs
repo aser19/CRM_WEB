@@ -98,6 +98,10 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<MeresCsoport> MeresCsoportok { get; set; }
     public DbSet<MeresCsoportTag> MeresCsoportTagok { get; set; }
 
+    // --- Súgó ---
+    public DbSet<SugoKategoria> SugoKategoriak { get; set; }
+    public DbSet<SugoTema> SugoTemak { get; set; }
+
     // --- Felhasználó-Cég kapcsolatok ---
     public DbSet<FelhasznaloCeg> FelhasznaloCegek { get; set; }
 
@@ -110,6 +114,27 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // --- SugoKategoria / SugoTema ---
+        modelBuilder.Entity<SugoKategoria>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Icon).IsRequired().HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<SugoTema>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Cim).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Leiras).IsRequired();
+            entity.Property(e => e.VideoUrl).HasMaxLength(500);
+
+            entity.HasOne(e => e.SugoKategoria)
+                  .WithMany(k => k.Temak)
+                  .HasForeignKey(e => e.SugoKategoriaId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // --- Ceg ---
         modelBuilder.Entity<Ceg>(entity =>

@@ -2,6 +2,8 @@
 @using BiztvillCRM.Services.Interfaces
 @inject ITenantService TenantService
 @inject IModulJogosultsagService ModulService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <MudNavMenu>
     <!-- Dashboard - mindenki látja kivéve Üzemeltető szerepkör -->
@@ -153,6 +155,7 @@
             <MudNavLink Href="/admin/jegyozokonyv-sablon" Icon="@Icons.Material.Filled.Description">Jegyzőkönyv sablonok</MudNavLink>
             <MudNavLink Href="/admin/meres-csoportok" Icon="@Icons.Material.Filled.AccountTree">Vizsgálatcsoportok</MudNavLink>
             <MudNavLink Href="/admin/hitelesites-csoportok" Icon="@Icons.Material.Filled.AccountTree">Hitelesítési csoportok</MudNavLink>
+            <MudNavLink Href="/admin/sugo-tartalom" Icon="@Icons.Material.Filled.Help">Súgó tartalom</MudNavLink>
             <MudNavLink Href="/diagnostics" Icon="@Icons.Material.Filled.BugReport">🔍 Diagnosztika</MudNavLink>
         </MudNavGroup>
     }
@@ -165,8 +168,8 @@
         </MudNavLink>
     }
 
-    <!-- Súgó - mindenki számára elérhető -->
-    <MudNavLink Href="/sugo" Icon="@Icons.Material.Filled.Help">Súgó</MudNavLink>
+    <!-- Súgó - mindenki számára elérhető, kontextusfüggő megnyitás új ablakban -->
+    <MudNavLink OnClick="@SugoMegnyitasa" Icon="@Icons.Material.Filled.Help">Súgó</MudNavLink>
 </MudNavMenu>
 
 @code {
@@ -190,6 +193,55 @@
 
     private bool HasModule(ModulJogosultsag modul) => 
         _isAdmin || _aktivModulok.HasFlag(modul);
+
+    // Útvonal-előtag → Súgó kategória mapping (a Sugo.razor kategórianeveivel egyezően)
+    private static readonly (string UtvonalElotag, string Kategoria)[] SugoKategoriaMapping = new[]
+    {
+        ("/ugyfelek", "Törzsadatok"),
+        ("/telephelyek", "Törzsadatok"),
+        ("/gyartok", "Törzsadatok"),
+        ("/eszkozok", "Törzsadatok"),
+        ("/felulvizsgalok", "Törzsadatok"),
+        ("/eszkoztipusok", "Törzsadatok"),
+        ("/meresek", "Mérések"),
+        ("/kalibraciok", "Mérések"),
+        ("/jegyzokonyv", "Mérések"),
+        ("/alkatresz-kezeles", "Mérések"),
+        ("/hitelesitesek", "Hitelesítések"),
+        ("/kotelezo-hitelesitesek", "Hitelesítések"),
+        ("/hatosagok", "Hitelesítések"),
+        ("/munkavedelmi-oktatasok", "Munkavédelem"),
+        ("/kockazatertekelesek", "Munkavédelem"),
+        ("/zonaterkepek", "Munkavédelem"),
+        ("/karbantartasok", "Karbantartás"),
+        ("/jogszabalyok", "Jogszabályok"),
+        ("/munkaszamok", "Munkaszám"),
+        ("/riportok", "Riportok"),
+        ("/beallitasok", "Beállítások"),
+        ("/admin", "Admin"),
+        ("/diagnostics", "Admin"),
+        ("/uzemelteto", "Üzemeltető"),
+    };
+
+    private async Task SugoMegnyitasa()
+    {
+        var relativUtvonal = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+        var talalat = SugoKategoriaMapping
+            .FirstOrDefault(m => relativUtvonal.StartsWith(m.UtvonalElotag, StringComparison.OrdinalIgnoreCase));
+
+        var kategoria = talalat.Kategoria;
+        if (string.IsNullOrEmpty(kategoria) && (relativUtvonal == "/" || relativUtvonal.StartsWith("/dashboard", StringComparison.OrdinalIgnoreCase)))
+        {
+            kategoria = "Dashboard";
+        }
+
+        var celUrl = string.IsNullOrEmpty(kategoria)
+            ? "/sugo"
+            : $"/sugo?kategoria={Uri.EscapeDataString(kategoria)}";
+
+        await JSRuntime.InvokeVoidAsync("open", celUrl, "_blank");
+    }
 
     private void MenuValtas(string menu, bool expanded)
     {

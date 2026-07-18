@@ -116,6 +116,7 @@ builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
     return new JegyzokonyvWordService(meresService, tenantService, cegService, sablonService);
 }); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
@@ -224,6 +225,9 @@ using (var scope = app.Services.CreateScope())
         // DbInitializer.Initialize(db); <-- TÖRÖLVE
         await SzerepkorokLetrehozasa(roleManager);
         await AdminFelhasznaloLetrehozasa(db, userManager);
+
+        var sugoService = scope.ServiceProvider.GetRequiredService<ISugoService>();
+        await sugoService.SeedIfEmptyAsync();
     }
     catch (Exception ex)
     {
