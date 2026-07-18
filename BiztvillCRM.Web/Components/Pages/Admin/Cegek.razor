@@ -1,5 +1,6 @@
 @page "/admin/cegek"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @attribute [Authorize(Roles = "Admin")]
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Shared.Models
@@ -10,8 +11,36 @@
 @inject INavAdoszamService NavService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>Cégek kezelése - Biztovill CRM</PageTitle>
+
+<style>
+    .sticky-horizontal-scroll-wrapper {
+        position: relative;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+        position: sticky;
+        bottom: 0;
+        height: 12px;
+    }
+
+    .sticky-horizontal-scroll-wrapper {
+        scrollbar-width: thin;
+    }
+
+    .sticky-horizontal-scroll-wrapper > * {
+        min-width: max-content;
+    }
+
+    .table-container-sticky {
+        position: relative;
+        padding-bottom: 20px;
+    }
+</style>
 
 <MudText Typo="Typo.h4" Class="mb-4">Cégek kezelése</MudText>
 
@@ -26,6 +55,8 @@
         </MudButton>
     </MudStack>
 
+    <div class="table-container-sticky">
+        <div class="sticky-horizontal-scroll-wrapper">
     <MudDataGrid T="CegListaElem" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
             <PropertyColumn Property="c => c.Ceg.Nev" Title="Cégnév" />
@@ -79,6 +110,8 @@
             </TemplateColumn>
         </Columns>
     </MudDataGrid>
+        </div>
+    </div>
 </MudPaper>
 
 <!-- Új/Szerkesztés dialógus -->
@@ -290,6 +323,43 @@
     protected override async Task OnInitializedAsync()
     {
         await BetoltesAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                import('/js/sticky-scroll.js').then(module => {
+                    setTimeout(() => {
+                        module.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 500);
+                });
+            ");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.initializeStickyScroll) {
+                    setTimeout(() => {
+                        window.initializeStickyScroll('.sticky-horizontal-scroll-wrapper');
+                    }, 300);
+                }
+            ");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                if (window.cleanupStickyScroll) {
+                    window.cleanupStickyScroll('.sticky-horizontal-scroll-wrapper');
+                }
+            ");
+        }
+        catch { }
     }
 
     private async Task BetoltesAsync()
