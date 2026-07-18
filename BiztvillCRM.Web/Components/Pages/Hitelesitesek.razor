@@ -4,6 +4,7 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using BiztvillCRM.Web.Components.Dialog
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
 @using System.IO
@@ -21,6 +22,8 @@
 @inject IHitelesitesCsoportService HitelesitesCsoportService
 @inject ICegService CegService
 @inject IFileStorageService FileStorageService
+@inject IModulJogosultsagService ModulService
+@inject IMunkaszamTorzsService MunkaszamTorzsService
 @inject IJSRuntime JS
 
 <PageTitle>Hitelesítések</PageTitle>
@@ -96,6 +99,17 @@
                    OnClick="ExportPdf" Class="mr-2" Disabled="_betoltes">PDF export</MudButton>
 
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="UjMegnyitasa">Új hitelesítés</MudButton>
+
+        @if (_munkaszamModulAktiv)
+        {
+            <MudAutocomplete T="Munkaszam" Label="Munkaszám szűrő" Value="_szuroMunkaszam"
+                             ValueChanged="OnMunkaszamSzuroValtozott"
+                             SearchFunc="MunkaszamKereses"
+                             ToStringFunc="@(m => m?.Szam ?? string.Empty)"
+                             ResetValueOnEmptyText="true" CoerceText="false" Clearable="true"
+                             Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tag"
+                             Style="min-width:220px; max-width:260px;" Dense="true" />
+        }
     </MudStack>
 
     @if (!_csoportositott)
@@ -517,6 +531,19 @@
                         }
                     </MudSelect>
                 </MudItem>
+
+                @if (_munkaszamModulAktiv)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudAutocomplete T="Munkaszam" Label="Munkaszám" Value="_kivalasztottMunkaszam"
+                                         ValueChanged="OnMunkaszamValtozott"
+                                         @bind-Text="_munkaszamSzoveg"
+                                         SearchFunc="MunkaszamKereses"
+                                         ToStringFunc="@(m => m?.Szam ?? string.Empty)"
+                                         ResetValueOnEmptyText="true" CoerceText="false" Clearable="true"
+                                         Placeholder="Kezdje el gépelni a munkaszámot..." />
+                    </MudItem>
+                }
 
                 @* === Közbenső vizsgálatok – a MudSelect-en KÍVÜL! === *@
                 @if (_aktivCsoport is not null)
@@ -1205,6 +1232,10 @@
     private Hitelesites? _szerkesztesAlatt;
     private DateTime? _datum, _lejaratDatum;
     private int? _kivalasztottUgyfelId;
+    private bool _munkaszamModulAktiv;
+    private Munkaszam? _kivalasztottMunkaszam;
+    private Munkaszam? _szuroMunkaszam;
+    private string _munkaszamSzoveg = string.Empty;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
     // A meglévő mezők után (~510. sor után) add hozzá:
     private List<Ceg> _elerhetoCegek = new();
@@ -1307,6 +1338,10 @@
                     (h.Telephely?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (h.EszkozTipus?.Nev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
 
+            // Munkaszám szűrő
+            if (_szuroMunkaszam != null)
+                lista = lista.Where(h => h.MunkaszamId == _szuroMunkaszam.Id);
+
             return lista;
         }
     }
@@ -1347,6 +1382,8 @@ private bool _eszkozAzonositoDuplikalva =>
     {
         _isAdmin = TenantService.IsInRole(FelhasznaloSzerepkor.Admin);
         _cegId = TenantService.GetCurrentCegId();
+        await ModulService.InitializeAsync();
+        _munkaszamModulAktiv = ModulService.HasModule(ModulJogosultsag.Munkaszam);
         await BetoltesAsync();
         _eszkozTipusok = await EszkozTipusService.GetAllAsync();
         _hatosagok = await HatosagService.GetAllAsync();
@@ -1476,6 +1513,8 @@ private bool _eszkozAzonositoDuplikalva =>
         _datum = DateTime.Today;
         _lejaratDatum = null;
         _aktualisEgyediLejaratok = new List<HitelesitesReszlet>();
+        _kivalasztottMunkaszam = null;
+        _munkaszamSzoveg = string.Empty;
 
         SzamoljLejaratot();
         FrissitsCsoportTagSorokat();
@@ -1493,6 +1532,7 @@ private bool _eszkozAzonositoDuplikalva =>
             TelephelyId = item.TelephelyId,
             EszkozTipusId = item.EszkozTipusId,
             HatosagId = item.HatosagId,
+            MunkaszamId = item.MunkaszamId,
             Darabszam = item.Darabszam,
             HitelesitesStatusz = item.HitelesitesStatusz,
             Megjegyzes = item.Megjegyzes,
@@ -1506,6 +1546,8 @@ private bool _eszkozAzonositoDuplikalva =>
         _datum = item.Datum;
         _lejaratDatum = item.LejaratDatum;
         _manualisLejaratDatum = item.LejaratDatum.HasValue; // ← ha volt mentett dátum, manuális
+        _kivalasztottMunkaszam = item.Munkaszam;
+        _munkaszamSzoveg = item.Munkaszam?.Szam ?? string.Empty;
 
         // ÚJ: Egyedi lejáratok betöltése
         _aktualisEgyediLejaratok = item.EgyediLejaratokLista.ToList();
@@ -1523,6 +1565,7 @@ private bool _eszkozAzonositoDuplikalva =>
             TelephelyId = item.TelephelyId,
             EszkozTipusId = item.EszkozTipusId,
             HatosagId = item.HatosagId,
+            MunkaszamId = item.MunkaszamId,
             Darabszam = item.Darabszam,
             HitelesitesStatusz = HitelesitesStatusz.Sikeres, // ← friss hitelesítés = Sikeres
             Megjegyzes = item.Megjegyzes,
@@ -1534,8 +1577,10 @@ private bool _eszkozAzonositoDuplikalva =>
         _datum = DateTime.Today;                             // ← mai dátum
         _manualisLejaratDatum = false;
         _aktualisEgyediLejaratok = item.EgyediLejaratokLista.ToList();
+        _kivalasztottMunkaszam = item.Munkaszam;
+        _munkaszamSzoveg = item.Munkaszam?.Szam ?? string.Empty;
         _masolasbol = true;
-    
+
         SzamoljLejaratot();
         FrissitsCsoportTagSorokat();
         _dialogNyitva = true;
@@ -1549,6 +1594,41 @@ private bool _eszkozAzonositoDuplikalva =>
             _szerkesztesAlatt.UgyfelId = ujUgyfelId;
             var elsoTelephely = _szurtTelephelyek.FirstOrDefault();
             _szerkesztesAlatt.TelephelyId = elsoTelephely?.Id;
+        }
+    }
+
+    private async Task<IEnumerable<Munkaszam>> MunkaszamKereses(string kereses, CancellationToken token)
+    {
+        return await MunkaszamTorzsService.KeresAsync(kereses ?? string.Empty);
+    }
+
+    private async Task<Munkaszam?> UjMunkaszamLetrehozasa(string kezdetiSzam)
+    {
+        var parameters = new DialogParameters
+        {
+            ["KezdetiSzam"] = kezdetiSzam
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UjMunkaszamDialog>("Új munkaszám", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+            return null;
+
+        return result.Data as Munkaszam;
+    }
+
+    private void OnMunkaszamSzuroValtozott(Munkaszam? ujMunkaszam)
+    {
+        _szuroMunkaszam = ujMunkaszam;
+    }
+
+    private void OnMunkaszamValtozott(Munkaszam? ujMunkaszam)
+    {
+        _kivalasztottMunkaszam = ujMunkaszam;
+        if (_szerkesztesAlatt != null)
+        {
+            _szerkesztesAlatt.MunkaszamId = ujMunkaszam?.Id;
         }
     }
 
@@ -1680,6 +1760,20 @@ private bool _eszkozAzonositoDuplikalva =>
         { 
             Snackbar.Add("Az eszköztípus kiválasztása kötelező!", Severity.Warning); 
             return; 
+        }
+
+        // Munkaszám: ha a felhasználó gépelt be szöveget, de nem választott ki létező munkaszámot, felajánljuk az új munkaszám létrehozását
+        if (_munkaszamModulAktiv && _kivalasztottMunkaszam == null && !string.IsNullOrWhiteSpace(_munkaszamSzoveg))
+        {
+            var ujMunkaszam = await UjMunkaszamLetrehozasa(_munkaszamSzoveg);
+            if (ujMunkaszam == null)
+            {
+                return; // Felhasználó megszakította
+            }
+
+            _kivalasztottMunkaszam = ujMunkaszam;
+            _munkaszamSzoveg = ujMunkaszam.Szam;
+            _szerkesztesAlatt.MunkaszamId = ujMunkaszam.Id;
         }
 
         // ÚJ: Egyedi lejáratok validálása

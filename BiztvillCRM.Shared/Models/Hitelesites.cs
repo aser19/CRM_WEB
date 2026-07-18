@@ -28,6 +28,10 @@ public class Hitelesites
     public int? HatosagId { get; set; }
     public Hatosag? Hatosag { get; set; }
 
+    // Munkaszám
+    public int? MunkaszamId { get; set; }
+    public Munkaszam? Munkaszam { get; set; }
+
     public int Darabszam { get; set; } = 1;
     public DateTime Datum { get; set; }
     

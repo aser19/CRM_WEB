@@ -1,0 +1,81 @@
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IMunkaszamTorzsService MunkaszamTorzsService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új munkaszám
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Secondary">
+            A megadott munkaszám még nem létezik. Adja meg az adatait a létrehozáshoz.
+        </MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_ujMunkaszam.Szam"
+                              Label="Munkaszám *"
+                              Required="true"
+                              MaxLength="50"
+                              Counter="50"
+                              Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_ujMunkaszam.Megnevezes"
+                              Label="Megnevezés"
+                              MaxLength="300"
+                              Counter="300"
+                              Immediate="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_mentes">
+            @(_mentes ? "Mentés..." : "Mentés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string KezdetiSzam { get; set; } = string.Empty;
+
+    private Munkaszam _ujMunkaszam = new();
+    private bool _mentes = false;
+
+    protected override void OnInitialized()
+    {
+        _ujMunkaszam.Szam = KezdetiSzam;
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_ujMunkaszam.Szam))
+        {
+            Snackbar.Add("A munkaszám megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _mentes = true;
+        try
+        {
+            var letrehozott = await MunkaszamTorzsService.CreateAsync(_ujMunkaszam);
+            Snackbar.Add("Munkaszám létrehozva!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(letrehozott));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _mentes = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

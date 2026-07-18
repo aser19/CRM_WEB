@@ -24,6 +24,7 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
+            .Include(h => h.Munkaszam)
             .Where(h => h.Aktiv) // Csak az aktívak
             .AsQueryable();
 
@@ -43,6 +44,7 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
+            .Include(h => h.Munkaszam)
             .Where(h => !h.Aktiv) // Csak az inaktívak
             .AsQueryable();
 
@@ -62,6 +64,7 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
+            .Include(h => h.Munkaszam)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -94,6 +97,7 @@ public class HitelesitesService : IHitelesitesService
         existing.TelephelyId = hitelesites.TelephelyId;
         existing.EszkozTipusId = hitelesites.EszkozTipusId;
         existing.HatosagId = hitelesites.HatosagId;
+        existing.MunkaszamId = hitelesites.MunkaszamId;
         existing.Darabszam = hitelesites.Darabszam;
         existing.Datum = hitelesites.Datum;
         existing.LejaratDatum = hitelesites.LejaratDatum;

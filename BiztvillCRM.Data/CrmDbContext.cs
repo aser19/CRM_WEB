@@ -265,6 +265,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.EszkozTipus).WithMany().HasForeignKey(e => e.EszkozTipusId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Hatosag).WithMany().HasForeignKey(e => e.HatosagId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Munkaszam).WithMany().HasForeignKey(e => e.MunkaszamId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // --- Tanusitvany ---
