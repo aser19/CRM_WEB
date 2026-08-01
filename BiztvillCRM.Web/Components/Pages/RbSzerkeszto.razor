@@ -1,0 +1,262 @@
+@page "/rb-szerkeszto/{MellekletId:int}"
+@page "/rb-szerkeszto/meres/{MeresId:int}"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IMellekletJegyzokonyvService MellekletService
+@inject IMeresService MeresService
+@inject IMeresTipusService MeresTipusService
+@inject ITenantService TenantService
+@inject ICegService CegService
+@inject IRbPdfService RbPdfService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Rb Felülvizsgálati Lap</PageTitle>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-8" />
+}
+else if (MeresId == 0 && _melleklet == null)
+{
+    <MudAlert Severity="Severity.Error">A melléklet nem található.</MudAlert>
+}
+else if (MeresId > 0 && _onalloMeres == null)
+{
+    <MudAlert Severity="Severity.Error">A mérés nem található.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-2" />
+        Rb felülvizsgálati lap —
+        @if (_onalloMod)
+        {
+            <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-1">Önálló Rb</MudChip>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Class="ml-1">
+                @(_melleklet?.Szam ?? "Melléklet")
+            </MudChip>
+        }
+    </MudText>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">Kiállító adatai (automatikusan kitöltve)</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6"><MudTextField Value="@_adatok.CegNev" Label="Cég neve" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField Value="@_adatok.CegCim" Label="Cég címe" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField Value="@_jegyzokonyvSzam" Label="Jegyzőkönyv szám" ReadOnly="true" /></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4">
+        <RbMeresiTabla @bind-Sorok="_adatok.RbSorok" AlapertelmezettVizsgalo="@_adatok.FelulvizsgaloNev" />
+
+        <MudDivider Class="my-4" />
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="Vissza">Vissza</MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="PdfLetoltesAsync"
+                       Disabled="@(!_adatok.RbSorok.Any())">PDF letöltése</MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="MentesEsBezarAsync"
+                       Disabled="_feldolgozas">
+                @(_feldolgozas ? "Mentés..." : "Mentés és bezár")
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public int MellekletId { get; set; }
+    [Parameter] public int MeresId { get; set; }
+
+    private MellekletJegyzokonyv? _melleklet;
+    private Meres? _onalloMeres;
+    private Meres? _foMeres;
+    private JegyzokonyvAdatok _adatok = new();
+    private bool _betoltes = true;
+    private bool _feldolgozas;
+    private bool _onalloMod;
+    private string _jegyzokonyvSzam = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (MeresId > 0)
+        {
+            // === ÖNÁLLÓ RB MÓD (MeresId alapján) ===
+            _onalloMod = true;
+            _onalloMeres = await MeresService.GetByIdAsync(MeresId);
+
+            if (_onalloMeres != null)
+            {
+                if (!string.IsNullOrEmpty(_onalloMeres.JegyzokonyvAdatokJson))
+                {
+                    _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                        _onalloMeres.JegyzokonyvAdatokJson,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                    ) ?? new();
+                }
+                _jegyzokonyvSzam = _adatok.JegyzokonyvSzam;
+                if (string.IsNullOrEmpty(_jegyzokonyvSzam))
+                {
+                    _jegyzokonyvSzam = $"RB-{_onalloMeres.Id:D6}/{DateTime.Now:yyyy}";
+                    _adatok.JegyzokonyvSzam = _jegyzokonyvSzam;
+                }
+            }
+        }
+        else
+        {
+            // === MELLÉKLET MÓD (MellekletId alapján) ===
+            _melleklet = await MellekletService.GetByIdAsync(MellekletId);
+
+            if (_melleklet != null)
+            {
+                _foMeres = await MeresService.GetByIdAsync(_melleklet.MeresId);
+                _jegyzokonyvSzam = _melleklet.Szam;
+
+                if (_melleklet.MellekletMeresId.HasValue)
+                {
+                    var rbMeres = await MeresService.GetByIdAsync(_melleklet.MellekletMeresId.Value);
+                    if (!string.IsNullOrEmpty(rbMeres?.JegyzokonyvAdatokJson))
+                    {
+                        _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                            rbMeres.JegyzokonyvAdatokJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        ) ?? new();
+                    }
+                }
+
+                if (_foMeres != null && !string.IsNullOrEmpty(_foMeres.JegyzokonyvAdatokJson))
+                {
+                    var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var foAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                        _foMeres.JegyzokonyvAdatokJson, opts);
+                    if (foAdatok != null && string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
+                        _adatok.FelulvizsgaloNev = foAdatok.FelulvizsgaloNev;
+                }
+
+                _adatok.JegyzokonyvSzam = _jegyzokonyvSzam;
+            }
+        }
+
+        await BetoltCegAdatokAsync();
+
+        if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
+            _adatok.FelulvizsgaloNev = TenantService.GetCurrentUserName() ?? "";
+
+        _adatok.RbSorok ??= new List<RbSor>();
+        _betoltes = false;
+    }
+
+    private async Task BetoltCegAdatokAsync()
+    {
+        try
+        {
+            var cegId = TenantService.GetCurrentCegId();
+            if (cegId > 0)
+            {
+                var ceg = await CegService.GetByIdAsync(cegId);
+                if (ceg != null)
+                {
+                    _adatok.CegNev = ceg.Nev ?? "";
+                    _adatok.CegCim = ceg.Cim ?? "";
+                    _adatok.CegWeb = ceg.Weboldal ?? ceg.Email ?? "";
+                    _adatok.CegTelefon = ceg.Telefon ?? "";
+                }
+            }
+        }
+        catch
+        {
+            _adatok.CegNev = "";
+            _adatok.CegCim = "";
+        }
+    }
+
+    private async Task MentesEsBezarAsync()
+    {
+        _feldolgozas = true;
+        try
+        {
+            if (MeresId > 0)
+            {
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(MeresId, _adatok);
+                Snackbar.Add("Rb mérés elmentve!", Severity.Success);
+                Navigation.NavigateTo("/meresek");
+            }
+            else
+            {
+                var melleklet = await MellekletService.GetByIdAsync(MellekletId);
+                if (melleklet == null)
+                {
+                    Snackbar.Add("Melléklet nem található!", Severity.Error);
+                    return;
+                }
+
+                int rbMeresId;
+                if (melleklet.MellekletMeresId.HasValue)
+                {
+                    rbMeresId = melleklet.MellekletMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(rbMeresId, _adatok);
+                }
+                else
+                {
+                    rbMeresId = await MellekletService.MellekletMeresLetrehozAsync(
+                        melleklet.Id,
+                        _foMeres?.MeresTipusId ?? 0,
+                        _adatok);
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(rbMeresId, _adatok);
+                }
+
+                await MellekletService.MentAvkAdatokAsync(melleklet.Id, _adatok);
+
+                Snackbar.Add("Rb melléklet elmentve!", Severity.Success);
+                Navigation.NavigateTo("/meresek");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba mentés közben: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private async Task PdfLetoltesAsync()
+    {
+        try
+        {
+            var pdfBytes = RbPdfService.Generalas(
+                _adatok.RbSorok,
+                _adatok.CegNev,
+                _adatok.CegCim,
+                _adatok.CegWeb,
+                _jegyzokonyvSzam);
+
+            var fajlNev = $"Rb-Felulvizsgalati-Lap-{_jegyzokonyvSzam.Replace("/", "-")}.pdf";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a PDF generálása közben: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Vissza()
+    {
+        Navigation.NavigateTo("/meresek");
+    }
+}

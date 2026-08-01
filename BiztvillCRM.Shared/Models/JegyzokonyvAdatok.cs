@@ -355,6 +355,9 @@ public class JegyzokonyvAdatok
     // === AVK MELLÉKLET – ÁRAMVÉDŐ KAPCSOLÓK ===
     public List<AvkSor> AvkSorok { get; set; } = new();
 
+    // === RB MELLÉKLET – ROBBANÁSBIZTOS BERENDEZÉSEK FELÜLVIZSGÁLATA ===
+    public List<RbSor> RbSorok { get; set; } = new();
+
     /// <summary>Dinamikus sablon tételek értékei: kulcs = "oldalSzam_tetelId", érték = kiválasztott érték</summary>
     public Dictionary<string, string> SablonErtekek { get; set; } = new();
 

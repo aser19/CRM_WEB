@@ -47,7 +47,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AlapertelmezettEmailBeallitasok");
+                    b.ToTable("AlapertelmezettEmailBeallitasok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.AutomatikaFutasNaplo", b =>
@@ -87,7 +87,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("Sikeres", "FutasiIdo");
 
-                    b.ToTable("AutomatikaFutasNaplok");
+                    b.ToTable("AutomatikaFutasNaplok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.AvkVedelemTipus", b =>
@@ -132,7 +132,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AvkVedelemTipusok");
+                    b.ToTable("AvkVedelemTipusok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Ceg", b =>
@@ -204,7 +204,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Cegek");
+                    b.ToTable("Cegek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EmailBeallitas", b =>
@@ -242,7 +242,7 @@ namespace BiztvillCRM.Data.Migrations
                     b.HasIndex("CegId")
                         .IsUnique();
 
-                    b.ToTable("EmailBeallitasok");
+                    b.ToTable("EmailBeallitasok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EmailKuldesNaplo", b =>
@@ -292,7 +292,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("Kuldve");
 
-                    b.ToTable("EmailKuldesNaplok");
+                    b.ToTable("EmailKuldesNaplok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EmailSablon", b =>
@@ -336,7 +336,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("CegId");
 
-                    b.ToTable("EmailSablonok");
+                    b.ToTable("EmailSablonok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.ErintesvedelmiModOsztaly", b =>
@@ -472,7 +472,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Eszkozok");
+                    b.ToTable("Eszkozok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EszkozSablon", b =>
@@ -530,7 +530,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("CegId", "Megnevezes");
 
-                    b.ToTable("EszkozSablonok");
+                    b.ToTable("EszkozSablonok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EszkozSablonAlkatresz", b =>
@@ -576,7 +576,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("EszkozSablonId", "Sorrend");
 
-                    b.ToTable("EszkozSablonAlkatreszek");
+                    b.ToTable("EszkozSablonAlkatreszek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.EszkozTipus", b =>
@@ -603,7 +603,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EszkozTipusok");
+                    b.ToTable("EszkozTipusok", (string)null);
 
                     b.HasData(
                         new
@@ -753,7 +753,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("CegId");
 
-                    b.ToTable("FelhasznaloCegek");
+                    b.ToTable("FelhasznaloCegek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.FelhasznaloErtesitesBeallitas", b =>
@@ -923,7 +923,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Gyartok");
+                    b.ToTable("Gyartok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Hatosag", b =>
@@ -962,7 +962,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Hatosagok");
+                    b.ToTable("Hatosagok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Helyiseg", b =>
@@ -1080,7 +1080,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Hitelesitesek");
+                    b.ToTable("Hitelesitesek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.HitelesitesCsoport", b =>
@@ -1116,7 +1116,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("FoEszkozTipusId");
 
-                    b.ToTable("HitelesitesCsoportok");
+                    b.ToTable("HitelesitesCsoportok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.HitelesitesCsoportTag", b =>
@@ -1150,7 +1150,7 @@ namespace BiztvillCRM.Data.Migrations
                     b.HasIndex("HitelesitesCsoportId", "EszkozTipusId")
                         .IsUnique();
 
-                    b.ToTable("HitelesitesCsoportTagok");
+                    b.ToTable("HitelesitesCsoportTagok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.JegyzokonyvSablonTetel", b =>
@@ -1211,7 +1211,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("MeresTipusId");
 
-                    b.ToTable("JegyzokonyvSablonTetelek");
+                    b.ToTable("JegyzokonyvSablonTetelek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Jogszabaly", b =>
@@ -1267,7 +1267,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Jogszabalyok");
+                    b.ToTable("Jogszabalyok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.JogszabalyTag", b =>
@@ -1290,7 +1290,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("JogszabalyTagek");
+                    b.ToTable("JogszabalyTagek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Kalibracio", b =>
@@ -1335,7 +1335,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("EszkozId");
 
-                    b.ToTable("Kalibraciok");
+                    b.ToTable("Kalibraciok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Karbantartas", b =>
@@ -1394,7 +1394,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Karbantartasok");
+                    b.ToTable("Karbantartasok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.KarbantartasTipus", b =>
@@ -1428,7 +1428,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("KarbantartasTipusok");
+                    b.ToTable("KarbantartasTipusok", (string)null);
 
                     b.HasData(
                         new
@@ -1530,7 +1530,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("KepzesTipusId");
 
-                    b.ToTable("Kepzesek");
+                    b.ToTable("Kepzesek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.KepzesSzabaly", b =>
@@ -1612,7 +1612,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("KepzesTipusok");
+                    b.ToTable("KepzesTipusok", (string)null);
 
                     b.HasData(
                         new
@@ -1752,7 +1752,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Kockazatertekelesek");
+                    b.ToTable("Kockazatertekelesek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.KotelezoHitelesites", b =>
@@ -1787,7 +1787,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("KotelezoHitelesitesek");
+                    b.ToTable("KotelezoHitelesitesek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MellekletJegyzokonyv", b =>
@@ -1834,7 +1834,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("MeresId");
 
-                    b.ToTable("MellekletJegyzokonyvek");
+                    b.ToTable("MellekletJegyzokonyvek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Meres", b =>
@@ -1896,7 +1896,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Meresek");
+                    b.ToTable("Meresek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MeresCsoport", b =>
@@ -1932,7 +1932,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("FoMeresTipusId");
 
-                    b.ToTable("MeresCsoportok");
+                    b.ToTable("MeresCsoportok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MeresCsoportTag", b =>
@@ -1966,7 +1966,7 @@ namespace BiztvillCRM.Data.Migrations
                     b.HasIndex("MeresCsoportId", "MeresTipusId")
                         .IsUnique();
 
-                    b.ToTable("MeresCsoportTagok");
+                    b.ToTable("MeresCsoportTagok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MeresTipus", b =>
@@ -2021,7 +2021,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MeresTipusok");
+                    b.ToTable("MeresTipusok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MeresTipusJogszabaly", b =>
@@ -2047,7 +2047,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("MeresTipusId");
 
-                    b.ToTable("MeresTipusJogszabalyok");
+                    b.ToTable("MeresTipusJogszabalyok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MeresTipusKepzesKovetelemeny", b =>
@@ -2120,7 +2120,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("CegId");
 
-                    b.ToTable("Munkaszamok");
+                    b.ToTable("Munkaszamok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MunkaszamSzamlalo", b =>
@@ -2145,7 +2145,7 @@ namespace BiztvillCRM.Data.Migrations
                     b.HasIndex("CegId", "Ev")
                         .IsUnique();
 
-                    b.ToTable("MunkaszamSzamlalok");
+                    b.ToTable("MunkaszamSzamlalok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MunkavedelmiOktatas", b =>
@@ -2204,7 +2204,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("MunkavedelmiOktatasok");
+                    b.ToTable("MunkavedelmiOktatasok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.MunkavedelmiOktatasResztvevo", b =>
@@ -2232,7 +2232,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("MunkavedelmiOktatasId");
 
-                    b.ToTable("MunkavedelmiOktatasResztvevok");
+                    b.ToTable("MunkavedelmiOktatasResztvevok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.SmtpBeallitas", b =>
@@ -2294,7 +2294,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SmtpBeallitasok");
+                    b.ToTable("SmtpBeallitasok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.SugoKategoria", b =>
@@ -2326,7 +2326,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SugoKategoriak");
+                    b.ToTable("SugoKategoriak", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.SugoTema", b =>
@@ -2366,7 +2366,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("SugoKategoriaId");
 
-                    b.ToTable("SugoTemak");
+                    b.ToTable("SugoTemak", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Tanusitvany", b =>
@@ -2409,7 +2409,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Tanusitvanyok");
+                    b.ToTable("Tanusitvanyok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Telephely", b =>
@@ -2457,7 +2457,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Telephelyek");
+                    b.ToTable("Telephelyek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Terminal", b =>
@@ -2501,7 +2501,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("TelephelyId");
 
-                    b.ToTable("Terminalok");
+                    b.ToTable("Terminalok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.TularamvedelemTipus", b =>
@@ -2627,7 +2627,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("CegId");
 
-                    b.ToTable("Ugyfelek");
+                    b.ToTable("Ugyfelek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.UgyfelLekerdezesiToken", b =>
@@ -2661,7 +2661,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("UgyfelLekerdezesiTokenek");
+                    b.ToTable("UgyfelLekerdezesiTokenek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.UzemeltetoAdat", b =>
@@ -2724,7 +2724,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UzemeltetoSablonId");
 
-                    b.ToTable("UzemeltetoAdatok");
+                    b.ToTable("UzemeltetoAdatok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.UzemeltetoSablon", b =>
@@ -2775,7 +2775,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("LetrehozoFelhasznaloId");
 
-                    b.ToTable("UzemeltetoSablonok");
+                    b.ToTable("UzemeltetoSablonok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.UzemeltetoSablonFelhasznalo", b =>
@@ -2814,7 +2814,7 @@ namespace BiztvillCRM.Data.Migrations
                     b.HasIndex("UzemeltetoSablonId", "FelhasznaloId")
                         .IsUnique();
 
-                    b.ToTable("UzemeltetoSablonFelhasznalok");
+                    b.ToTable("UzemeltetoSablonFelhasznalok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.UzemeltetoSablonMezo", b =>
@@ -2860,7 +2860,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UzemeltetoSablonId", "Sorrend");
 
-                    b.ToTable("UzemeltetoSablonMezok");
+                    b.ToTable("UzemeltetoSablonMezok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.VizsgalatiSablon", b =>
@@ -2904,7 +2904,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("MeresTipusId");
 
-                    b.ToTable("VizsgalatiSablonok");
+                    b.ToTable("VizsgalatiSablonok", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.VizsgalatiSablonTetelErtek", b =>
@@ -2932,7 +2932,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("TetelId");
 
-                    b.ToTable("VizsgalatiSablonTetelErtekek");
+                    b.ToTable("VizsgalatiSablonTetelErtekek", (string)null);
                 });
 
             modelBuilder.Entity("BiztvillCRM.Shared.Models.Zonaterkep", b =>
@@ -2991,7 +2991,7 @@ namespace BiztvillCRM.Data.Migrations
 
                     b.HasIndex("UgyfelId");
 
-                    b.ToTable("Zonaterkepek");
+                    b.ToTable("Zonaterkepek", (string)null);
                 });
 
             modelBuilder.Entity("JogszabalyJogszabalyTag", b =>

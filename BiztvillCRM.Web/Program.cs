@@ -120,6 +120,8 @@ builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
+builder.Services.AddScoped<IRbExcelImportService, RbExcelImportService>(); // <-- RB TÍPUS
+builder.Services.AddScoped<IRbPdfService, RbPdfService>(); // <-- RB TÍPUS
 builder.Services.AddSingleton<IFileStorageService>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();
@@ -157,6 +159,7 @@ builder.Services.AddScoped<IMeresCsoportService, MeresCsoportService>();
 builder.Services.AddAuthorizationCore();
 
 builder.Services.AddScoped<IAvkVedelemTipusService, AvkVedelemTipusService>();
+builder.Services.AddScoped<IRbVedelmiModService, RbVedelmiModService>();
 
 // === Authorization policies ===
 builder.Services.AddAuthorizationCore(options =>

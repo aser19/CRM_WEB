@@ -148,7 +148,7 @@
                     <CellTemplate>
                         @{
                             var tipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
-                            var vanMelleklet = _meresIdsWithMelleklet.Contains(context.Item.Id) && tipusKod != "AVK";
+                            var vanMelleklet = _meresIdsWithMelleklet.Contains(context.Item.Id) && tipusKod != "AVK" && tipusKod != "RB";
                         }
                         @if (vanMelleklet)
                         {
@@ -559,6 +559,22 @@
                             ÁVK mérési adatok szerkesztése
                         </MudButton>
                     }
+                    else if (IsOnalloRb)
+                    {
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.WarningAmber"
+                                   FullWidth="true"
+                                   OnClick="MegnyitasRbSzerkesztoAsync">
+                            Rb felülvizsgálati lap szerkesztése
+                        </MudButton>
+                        @if (_szerkesztesAlatt!.Id == 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                A megnyitáskor a mérés automatikusan mentésre kerül.
+                            </MudText>
+                        }
+                    }
                     else
                     {
                         <MudButton Variant="Variant.Filled"
@@ -572,7 +588,7 @@
                 </MudItem>
 
                 @* === MELLÉKLET JEGYZŐKÖNYVEK – csak nem-önálló AVK esetén === *@
-                @if (!IsOnalloAvk && _szerkesztettMellekletek.Count > 0)
+                @if (!IsOnalloAvk && !IsOnalloRb && _szerkesztettMellekletek.Count > 0)
                 {
                     <MudItem xs="12">
                         <MudText Typo="Typo.subtitle2" Class="mb-2 mt-2">
@@ -898,6 +914,42 @@
 
     private void DialogBezarasa() { _dialogNyitva = false; _szerkesztesAlatt = null; }
 
+    /// <summary>
+    /// Rb felülvizsgálati lap megnyitása. Ha a mérés még nincs elmentve (Id == 0),
+    /// előbb elmentjük, hogy a szerkesztő oldal valós MeresId-vel tudjon navigálni.
+    /// </summary>
+    private async Task MegnyitasRbSzerkesztoAsync()
+    {
+        if (_szerkesztesAlatt is null) return;
+
+        if (_szerkesztesAlatt.Id == 0)
+        {
+            if (_datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
+            if (_szerkesztesAlatt.UgyfelId == 0) { Snackbar.Add("Az ügyfél kiválasztása kötelező!", Severity.Warning); return; }
+            if (_szerkesztesAlatt.TelephelyId == 0) { Snackbar.Add("A telephely kiválasztása kötelező!", Severity.Warning); return; }
+            if (_szerkesztesAlatt.MeresTipusId == 0) { Snackbar.Add("A típus kiválasztása kötelező!", Severity.Warning); return; }
+
+            if (_kovetkezoDatum == null)
+                SzamolKovetkezoDatum();
+
+            _szerkesztesAlatt.Datum = _datum.Value;
+            _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+
+            try
+            {
+                await MeresService.CreateAsync(_szerkesztesAlatt);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba a mérés mentése közben: {ex.Message}", Severity.Error);
+                return;
+            }
+        }
+
+        _dialogNyitva = false;
+        Navigation.NavigateTo($"/rb-szerkeszto/meres/{_szerkesztesAlatt.Id}");
+    }
+
     private async Task MentesAsync()
     {
         if (_szerkesztesAlatt is null || _datum is null) { Snackbar.Add("A dátum megadása kötelező!", Severity.Warning); return; }
@@ -1083,6 +1135,12 @@
             return;
         }
 
+        if (m.Tipus == "RB")
+        {
+            Navigation.NavigateTo($"/rb-szerkeszto/{m.Id}");
+            return;
+        }
+
         if (m.Tipus == "HVM")
         {
             Navigation.NavigateTo($"/hvm-szerkeszto/{m.Id}");
@@ -1193,6 +1251,7 @@
     }
 
     private bool IsOnalloAvk => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "AVK";
+    private bool IsOnalloRb => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "RB";
 
     private List<Ceg> _elerhetoCegek = new();
 

@@ -1,0 +1,30 @@
+@using BiztvillCRM.Shared.Models
+
+<MudText Typo="Typo.subtitle2" Class="mt-2 mb-1">@Cim</MudText>
+<MudSimpleTable Dense="true" Hover="true">
+    <thead>
+        <tr>
+            <th>Ellenőrzött tétel</th>
+            <th style="width:110px">Megfelelő</th>
+            <th>Megjegyzés</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var tetel in Tetelek)
+        {
+            <tr>
+                <td>@tetel.Szoveg</td>
+                <td><MudCheckBox @bind-Value="tetel.Megfelelt" Color="Color.Success" Dense="true" /></td>
+                <td><MudTextField @bind-Value="tetel.Megjegyzes" Variant="Variant.Text" Dense="true" /></td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Cim { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public List<RbCheckTetel> Tetelek { get; set; } = new();
+}

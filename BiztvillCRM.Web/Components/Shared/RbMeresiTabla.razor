@@ -1,0 +1,354 @@
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@inject IRbExcelImportService RbExcelImportService
+@inject IRbVedelmiModService RbVedelmiModService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.subtitle1" Class="mb-2">
+    <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-1" />
+    Rb (robbanásbiztos) berendezések felülvizsgálata
+</MudText>
+
+<MudStack Row="true" Spacing="2" Class="mb-3" AlignItems="AlignItems.Center">
+    <MudFileUpload T="IBrowserFile" FilesChanged="ExcelFeltoltve" Accept=".xlsx">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.UploadFile">
+                Excel importálás
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+
+    <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="UjSorHozzaadas">
+        Sor hozzáadása kézzel
+    </MudButton>
+
+    @if (_betoltesFolyamatban)
+    {
+        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+    }
+</MudStack>
+
+@if (!Sorok.Any())
+{
+    <MudAlert Severity="Severity.Info" Dense="true">
+        Nincs még betöltött berendezés. Importálj egy Excel táblát, vagy vegyél fel sorokat kézzel.
+    </MudAlert>
+}
+else
+{
+    @if (_helyisegek.Any())
+    {
+        <MudPaper Class="pa-3 mb-3" Elevation="0" Outlined="true">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.MeetingRoom" Size="Size.Small" Class="mr-1" />
+                Helyiség / elhelyezés szerinti globális besorolás
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+                Add meg egyszer, helyiségenként a Tűzvesz. osztályt és a Zóna besorolást, majd nyomd meg az "Alkalmaz" gombot -
+                az adott elhelyezésű minden sorra átkerül (az Objektum mező is az Elhelyezéssel lesz egyenlő).
+            </MudText>
+            @foreach (var helyiseg in _helyisegek)
+            {
+                <MudGrid Spacing="2" Class="mb-2" AlignItems="Center.Center">
+                    <MudItem xs="12" sm="3"><MudText Typo="Typo.body2"><b>@helyiseg.Elhelyezes</b></MudText></MudItem>
+                    <MudItem xs="12" sm="3"><MudTextField @bind-Value="helyiseg.TuzveszOsztaly" Label="Tűzvesz. osztály" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="3"><MudTextField @bind-Value="helyiseg.ZonaBesorolas" Label="Zóna besorolás" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Check"
+                                   OnClick="@(() => AlkalmazHelyiseg(helyiseg))">
+                            Alkalmaz
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudPaper>
+    }
+
+    <MudExpansionPanels MultiExpansion="true">
+        @foreach (var sor in Sorok)
+        {
+            <MudExpansionPanel>
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText><b>#@sor.Sorsz</b></MudText>
+                        <MudText>@(string.IsNullOrWhiteSpace(sor.Megnevezes) ? "(nincs megnevezés)" : sor.Megnevezes)</MudText>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@sor.Elhelyezes</MudChip>
+                        <MudSpacer />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                       OnClick="@(() => SorTorlese(sor))" />
+                    </MudStack>
+                </TitleContent>
+                <ChildContent>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Elhelyezes" Label="Elhelyezés" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Megnevezes" Label="Megnevezés" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.AramkoriJel" Label="Áramköri megjelölés" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Gyarto" Label="Gyártó" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Tipus" Label="Típus" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" /></MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.IpVedelem" Label="IP védelem" /></MudItem>
+                        <MudItem xs="12" sm="5">
+                            <MudAutocomplete T="string" @bind-Value="sor.VedelmiMod" Label="Védelmi mód"
+                                              SearchFunc="@KeresVedelmiMod" ToStringFunc="@(x => x)"
+                                              CoerceText="true" CoerceValue="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true" CoerceValueOnStateChange="true"
+                                              OnBlur="@(() => VedelmiModElhagyva(sor))" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.EngSzam" Label="Eng. szám" /></MudItem>
+
+                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.Tervjel" Label="Tervjel" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField Value="@sor.Objektum" Label="Objektum" ReadOnly="true" HelperText="A helyiség globális besorolásból (Elhelyezés)" /></MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.CimkeSorszam" Label="Címke sorszám" /></MudItem>
+                        <MudItem xs="12" sm="2">
+                            <MudCheckBox @bind-Value="sor.EvModMeglete" Label="Év mód megfelelő" Color="Color.Success" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="3"><MudTextField Value="@sor.TuzveszOsztaly" Label="Tűzvesz. osztály" ReadOnly="true" HelperText="Helyiség szintű besorolás" /></MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudTextField Value="@sor.ZonaBesorolas" Label="Zóna besorolás" ReadOnly="true" HelperText="Helyiség szintű besorolás" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField Value="@sor.AlkalmazasiCsoportSzamitott" Label="Alkalmazási csop." ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField Value="@sor.HomersOsztalySzamitott" Label="Hőmérs. osztály" ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
+
+                        @if (sor.ZonaMegfelelo.HasValue)
+                        {
+                            <MudItem xs="12">
+                                @if (sor.ZonaMegfelelo.Value)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
+                                        A Védelmi mód megfelel a Zóna besorolásnak
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Error" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">
+                                        A Védelmi mód NEM felel meg a Zóna besorolásnak!
+                                    </MudChip>
+                                }
+                            </MudItem>
+                        }
+                    </MudGrid>
+
+                    <MudDivider Class="my-3" />
+
+                    <RbChecklistSzekcio Cim="Környezeti állapotok" Tetelek="sor.Kornyezeti" />
+                    <RbChecklistSzekcio Cim="A készülék vagy gyártmány állapota" Tetelek="sor.KeszulekAllapota" />
+                    @if (sor.VanExI) { <RbChecklistSzekcio Cim="@("Ex \"i\" gyártmányok további követelményei")" Tetelek="sor.ExI" /> }
+                    @if (sor.VanExD) { <RbChecklistSzekcio Cim="@("Ex \"d\" gyártmányok további követelményei")" Tetelek="sor.ExD" /> }
+                    @if (sor.VanExM) { <RbChecklistSzekcio Cim="@("Ex \"m\" gyártmányok további követelményei")" Tetelek="sor.ExM" /> }
+                    @if (sor.VanExE) { <RbChecklistSzekcio Cim="@("Ex \"e\" gyártmányok további követelményei")" Tetelek="sor.ExE" /> }
+                    @if (sor.VanExP) { <RbChecklistSzekcio Cim="@("Ex \"p\" gyártmányok további követelményei")" Tetelek="sor.ExP" /> }
+
+                    <MudDivider Class="my-3" />
+
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" @bind-Value="sor.VegsoMinosites" Label="Végső minősítés">
+                                <MudSelectItem Value="@("megfelelt")">megfelelt</MudSelectItem>
+                                <MudSelectItem Value="@("nem felelt meg")">nem felelt meg</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="sor.VizsgalatotVegezte" Label="A vizsgálatot végezte" />
+                        </MudItem>
+                    </MudGrid>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public List<RbSor> Sorok { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<RbSor>> SorokChanged { get; set; }
+
+    /// <summary>Alapértelmezett "A vizsgálatot végezte" érték új/importált soroknál (bejelentkezett felhasználó neve).</summary>
+    [Parameter]
+    public string? AlapertelmezettVizsgalo { get; set; }
+
+    private bool _betoltesFolyamatban;
+    private List<RbVedelmiMod> _vedelmiModok = new();
+    private List<RbHelyisegCsoport> _helyisegek = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _vedelmiModok = await RbVedelmiModService.GetAllActiveAsync();
+        }
+        catch (Exception ex)
+        {
+            // Ha az RbVedelmiModok tábla még nincs létrehozva az adatbázisban (SQL script nincs lefuttatva),
+            // ne akadjon meg a teljes komponens - a védelmi mód mező ilyenkor egyszerű szövegbevitelként működik.
+            _vedelmiModok = new List<RbVedelmiMod>();
+            Snackbar.Add("A védelmi mód lista nem elérhető (adatbázis tábla hiányzik?). Kérjük futtassa le az AddRbVedelmiModok.sql szkriptet.", Severity.Warning);
+        }
+
+        BuildHelyisegek();
+    }
+
+    /// <summary>
+    /// Az importált/hozzáadott sorokat "Elhelyezés" szerint helyiség-csoportokba rendezi,
+    /// hogy a Tűzvesz. osztály / Zóna besorolás egyszer, helyiségenként legyen megadható.
+    /// </summary>
+    private void BuildHelyisegek()
+    {
+        var elhelyezesek = Sorok
+            .Select(s => s.Elhelyezes ?? "")
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var ujHelyisegek = new List<RbHelyisegCsoport>();
+        foreach (var elhelyezes in elhelyezesek)
+        {
+            var meglevo = _helyisegek.FirstOrDefault(h => h.Elhelyezes.Equals(elhelyezes, StringComparison.OrdinalIgnoreCase));
+            var elsoSor = Sorok.First(s => (s.Elhelyezes ?? "").Equals(elhelyezes, StringComparison.OrdinalIgnoreCase));
+
+            ujHelyisegek.Add(new RbHelyisegCsoport
+            {
+                Elhelyezes = elhelyezes,
+                TuzveszOsztaly = meglevo?.TuzveszOsztaly ?? elsoSor.TuzveszOsztaly ?? "",
+                ZonaBesorolas = meglevo?.ZonaBesorolas ?? elsoSor.ZonaBesorolas ?? ""
+            });
+        }
+
+        _helyisegek = ujHelyisegek;
+    }
+
+    /// <summary>
+    /// A helyiségre megadott Tűzvesz. osztályt és Zóna besorolást alkalmazza az adott
+    /// Elhelyezésű összes sorra (az Objektum mező is az Elhelyezéssel lesz egyenlő).
+    /// </summary>
+    private void AlkalmazHelyiseg(RbHelyisegCsoport helyiseg)
+    {
+        foreach (var sor in Sorok.Where(s => (s.Elhelyezes ?? "").Equals(helyiseg.Elhelyezes, StringComparison.OrdinalIgnoreCase)))
+        {
+            sor.TuzveszOsztaly = helyiseg.TuzveszOsztaly;
+            sor.ZonaBesorolas = helyiseg.ZonaBesorolas;
+            sor.Objektum = helyiseg.Elhelyezes;
+        }
+
+        Snackbar.Add($"'{helyiseg.Elhelyezes}' besorolása alkalmazva a hozzá tartozó sorokra.", Severity.Success);
+        StateHasChanged();
+    }
+
+    private Task<IEnumerable<string>> KeresVedelmiMod(string? ertek, CancellationToken token)
+    {
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? _vedelmiModok.Select(v => v.Nev)
+            : _vedelmiModok.Where(v => v.Nev.Contains(ertek, StringComparison.OrdinalIgnoreCase)).Select(v => v.Nev);
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>
+    /// Ha a felhasználó olyan védelmi módot ír be, ami még nincs a táblában,
+    /// automatikusan létrehozzuk (felülvizsgálatra várva), amit az admin később jóváhagyhat.
+    /// </summary>
+    private async Task VedelmiModElhagyva(RbSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.VedelmiMod)) return;
+
+        var letezik = _vedelmiModok.Any(v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
+        if (letezik) return;
+
+        try
+        {
+            var ujMod = await RbVedelmiModService.GetOrCreateAsync(sor.VedelmiMod);
+            _vedelmiModok.Add(ujMod);
+            Snackbar.Add($"Új védelmi mód rögzítve: '{ujMod.Nev}' - adminisztrátori jóváhagyásra vár.", Severity.Info);
+        }
+        catch (Exception)
+        {
+            // Ha a t\u00e1bla nem l\u00e9tezik, csendben hagyjuk a szabad sz\u00f6veges \u00e9rt\u00e9ket, ne akassza meg a ment\u00e9st.
+        }
+    }
+
+    private async Task ExcelFeltoltve(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        _betoltesFolyamatban = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            var ujSorok = RbExcelImportService.Beolvasas(memoryStream.ToArray());
+
+            if (!ujSorok.Any())
+            {
+                Snackbar.Add("Nem található beolvasható sor az Excel fájlban.", Severity.Warning);
+                return;
+            }
+
+            foreach (var sor in ujSorok)
+            {
+                if (string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte))
+                    sor.VizsgalatotVegezte = AlapertelmezettVizsgalo ?? "";
+                Sorok.Add(sor);
+
+                // Az Excelben szereplő védelmi módokat is regisztráljuk (felülvizsgálatra várva, ha újak)
+                await VedelmiModElhagyva(sor);
+            }
+
+            SzamozasAktualizalas();
+            await SorokChanged.InvokeAsync(Sorok);
+            BuildHelyisegek();
+
+            Snackbar.Add($"{ujSorok.Count} berendezés sikeresen importálva.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az Excel beolvasása közben: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _betoltesFolyamatban = false;
+            StateHasChanged();
+        }
+    }
+
+    private void UjSorHozzaadas()
+    {
+        Sorok.Add(new RbSor
+        {
+            Sorsz = Sorok.Count + 1,
+            VizsgalatotVegezte = AlapertelmezettVizsgalo ?? ""
+        });
+        BuildHelyisegek();
+        StateHasChanged();
+    }
+
+    private void SorTorlese(RbSor sor)
+    {
+        Sorok.Remove(sor);
+        SzamozasAktualizalas();
+        BuildHelyisegek();
+    }
+
+    private void SzamozasAktualizalas()
+    {
+        for (int i = 0; i < Sorok.Count; i++)
+            Sorok[i].Sorsz = i + 1;
+        StateHasChanged();
+    }
+
+    /// <summary>Egy helyiség/elhelyezés szintű globális besorolás (Tűzvesz. osztály, Zóna besorolás).</summary>
+    private class RbHelyisegCsoport
+    {
+        public string Elhelyezes { get; set; } = "";
+        public string TuzveszOsztaly { get; set; } = "";
+        public string ZonaBesorolas { get; set; } = "";
+    }
+}

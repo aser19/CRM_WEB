@@ -10,6 +10,10 @@
 {
    <AvkMeresiTabla @bind-Sorok="Adatok.AvkSorok" /> 
 }
+else if (TipusKod == "RB")
+{
+   <RbMeresiTabla @bind-Sorok="Adatok.RbSorok" />
+}
 else if (TipusKod == "HVM")
 {
     @* <HvmMeresiTabla @bind-Sorok="Adatok.HvmSorok" /> *@

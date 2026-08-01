@@ -1,0 +1,234 @@
+@page "/admin/rb-vedelmi-modok"
+@rendermode InteractiveServer
+@using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject IRbVedelmiModService TipusService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Rb védelmi módok</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-2" />
+    Rb védelmi módok kezelése
+</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Itt kezelheted az Rb (robbanásbiztos) berendezéseknél használható "Védelmi mód" értékeket (pl. Ex ia IIC T4, Ex d IIB T6).
+    Ha egy felhasználó olyan értéket ad meg, ami még nincs a listában, az automatikusan felkerül ide felülvizsgálatra várva.
+</MudAlert>
+
+@if (_betoltes)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add" OnClick="UjTipusMegnyitas" Class="mb-3">
+        + Új védelmi mód
+    </MudButton>
+
+    <MudTable Items="@_tipusok" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Státusz</MudTh>
+            <MudTh>Védelmi mód</MudTh>
+            <MudTh>Leírás</MudTh>
+            <MudTh>Aktív</MudTh>
+            <MudTh>Műveletek</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{
+                var rowStyle = context.FelulvizsgalasraVar
+                    ? "background-color: #fff3cd; border-left: 4px solid #ff9800;"
+                    : "";
+            }
+            <MudTd DataLabel="Státusz" Style="@rowStyle">
+                @if (context.FelulvizsgalasraVar)
+                {
+                    <MudTooltip Text="Automatikusan létrehozott védelmi mód - felülvizsgálatra vár">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning">
+                            Felülvizsgálat
+                        </MudChip>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                        OK
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Védelmi mód" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.Nev" Variant="Variant.Text"
+                              Margin="Margin.Dense" Required="true" />
+            </MudTd>
+            <MudTd DataLabel="Leírás" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.Leiras" Variant="Variant.Text"
+                              Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd DataLabel="Aktív" Style="@rowStyle">
+                <MudSwitch T="bool" @bind-Value="context.Aktiv" Color="Color.Success" />
+            </MudTd>
+            <MudTd Style="@rowStyle">
+                <MudStack Row="true" Spacing="1">
+                    <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                   Color="Color.Success"
+                                   Size="Size.Small"
+                                   OnClick="@(async () => await MentesAsync(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="@(async () => await TorlesMegerositesAsync(context))" />
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_ujTipusDialogNyitva" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Új Rb védelmi mód
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_ujTipus is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Nev" Label="Védelmi mód megnevezése **"
+                                  Required="true" Variant="Variant.Outlined"
+                                  Placeholder="pl. Ex ia IIC T4" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Leiras" Label="Leírás"
+                                  Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="_ujTipus.Aktiv" Label="Aktív" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="UjTipusDialogBezaras">Mégse</MudButton>
+        <MudButton OnClick="UjTipusMentesAsync" Color="Color.Primary" Variant="Variant.Filled">
+            Létrehozás
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<RbVedelmiMod> _tipusok = [];
+    private RbVedelmiMod? _ujTipus;
+    private bool _betoltes = true;
+    private bool _ujTipusDialogNyitva = false;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltes = true;
+        _tipusok = await TipusService.GetAllAsync();
+        _betoltes = false;
+    }
+
+    private void UjTipusMegnyitas()
+    {
+        _ujTipus = new RbVedelmiMod
+        {
+            Aktiv = true
+        };
+        _ujTipusDialogNyitva = true;
+    }
+
+    private void UjTipusDialogBezaras()
+    {
+        _ujTipusDialogNyitva = false;
+        _ujTipus = null;
+    }
+
+    private async Task UjTipusMentesAsync()
+    {
+        if (_ujTipus is null || string.IsNullOrWhiteSpace(_ujTipus.Nev))
+        {
+            Snackbar.Add("A védelmi mód megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await TipusService.CreateAsync(_ujTipus);
+            Snackbar.Add("Új védelmi mód létrehozva!", Severity.Success);
+            UjTipusDialogBezaras();
+            await BetoltesAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task MentesAsync(RbVedelmiMod tipus)
+    {
+        if (string.IsNullOrWhiteSpace(tipus.Nev))
+        {
+            Snackbar.Add("A védelmi mód megnevezése kötelező!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // Mentéskor automatikusan felülvizsgáltnak jelöljük
+            if (tipus.FelulvizsgalasraVar)
+            {
+                tipus.FelulvizsgalasraVar = false;
+                Snackbar.Add("Védelmi mód felülvizsgálva és mentve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Védelmi mód mentve!", Severity.Success);
+            }
+
+            await TipusService.UpdateAsync(tipus);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task TorlesMegerositesAsync(RbVedelmiMod tipus)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Törlés megerősítése",
+            $"Biztosan törlöd a(z) '{tipus.Nev}' védelmi módot?",
+            yesText: "Törlés", cancelText: "Mégse");
+
+        if (result == true)
+        {
+            try
+            {
+                await TipusService.DeleteAsync(tipus.Id);
+                Snackbar.Add("Védelmi mód törölve.", Severity.Success);
+                await BetoltesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}
