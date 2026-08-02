@@ -77,12 +77,40 @@ else
                         <MudText><b>#@sor.Sorsz</b></MudText>
                         <MudText>@(string.IsNullOrWhiteSpace(sor.Megnevezes) ? "(nincs megnevezés)" : sor.Megnevezes)</MudText>
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@sor.Elhelyezes</MudChip>
+                        @if (sor.VedelmiModGyanus)
+                        {
+                            <MudTooltip Text="@($"A Védelmi mód gyanúsan hasonlít erre: '{sor.VedelmiModGyanusHasonlo}' - lehet, hogy elírás történt")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.ReportProblem">
+                                    Gyanús véd. mód
+                                </MudChip>
+                            </MudTooltip>
+                        }
                         <MudSpacer />
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
                                        OnClick="@(() => SorTorlese(sor))" />
                     </MudStack>
                 </TitleContent>
                 <ChildContent>
+                    @if (sor.VedelmiModGyanus)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                            <MudText Typo="Typo.body2">
+                                A megadott Védelmi mód (<b>@sor.VedelmiMod</b>) gyanúsan hasonlít egy már rögzített értékre:
+                                <b>@sor.VedelmiModGyanusHasonlo</b>. Valószínűleg elgépelés vagy eltérő zárójeltípus/szóköz.
+                            </MudText>
+                            <MudStack Row="true" Spacing="2" Class="mt-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Check"
+                                           OnClick="@(() => ElfogadGyanusJavaslatot(sor))">
+                                    Javított érték elfogadása
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                           OnClick="@(() => sor.VedelmiModGyanusHasonlo = null)">
+                                    Ez helyes, nem elírás
+                                </MudButton>
+                            </MudStack>
+                        </MudAlert>
+                    }
                     <MudGrid Spacing="2">
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Elhelyezes" Label="Elhelyezés" /></MudItem>
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Megnevezes" Label="Megnevezés" /></MudItem>
@@ -282,6 +310,7 @@ else
         if (pontosEgyezes != null)
         {
             sor.VedelmiModAdatok = pontosEgyezes;
+            sor.VedelmiModGyanusHasonlo = null;
             return;
         }
 
@@ -300,6 +329,7 @@ else
             {
                 sor.VedelmiMod = hasonlo.Nev;
                 sor.VedelmiModAdatok = hasonlo;
+                sor.VedelmiModGyanusHasonlo = null;
                 return;
             }
         }
@@ -331,10 +361,12 @@ else
         if (pontosEgyezes != null)
         {
             sor.VedelmiModAdatok = pontosEgyezes;
+            sor.VedelmiModGyanusHasonlo = null;
             return false;
         }
 
-        var vanHasonlo = _vedelmiModok.Any(v => RbVedelmiModHelper.ValoszinulegUgyanaz(v.Nev, sor.VedelmiMod));
+        var hasonlo = _vedelmiModok.FirstOrDefault(v => RbVedelmiModHelper.ValoszinulegUgyanaz(v.Nev, sor.VedelmiMod));
+        sor.VedelmiModGyanusHasonlo = hasonlo?.Nev;
 
         try
         {
@@ -347,7 +379,7 @@ else
             sor.VedelmiModAdatok = null;
         }
 
-        return vanHasonlo;
+        return hasonlo != null;
     }
 
     private async Task ExcelFeltoltve(IBrowserFile file)
@@ -372,6 +404,7 @@ else
             }
 
             var hasonloTalalatSzam = 0;
+            var gyanusSorszamok = new List<int>();
             foreach (var sor in ujSorok)
             {
                 if (string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte))
@@ -380,7 +413,10 @@ else
 
                 // Az Excelben szereplő védelmi módokat is regisztráljuk (felülvizsgálatra várva, ha újak)
                 if (await RegisztralVedelmiModImportnal(sor))
+                {
                     hasonloTalalatSzam++;
+                    gyanusSorszamok.Add(sor.Sorsz);
+                }
             }
 
             SzamozasAktualizalas();
@@ -392,8 +428,8 @@ else
             if (hasonloTalalatSzam > 0)
             {
                 Snackbar.Add(
-                    $"{hasonloTalalatSzam} sor Védelmi mód értéke hasonlít egy már meglévőhöz (pl. zárójeltípus vagy elgépelés eltérhet). " +
-                    "Kérjük ellenőrizze az admin 'Rb védelmi módok' oldalon, hogy nem duplikátumot hozott-e létre.",
+                    $"{hasonloTalalatSzam} sor Védelmi mód értéke gyanús (hasonlít egy már meglévőhöz, pl. zárójeltípus vagy elgépelés eltérhet): " +
+                    $"#{string.Join(", #", gyanusSorszamok)}. Az érintett sorok sárgával vannak jelölve, nyisd meg és ellenőrizd a javasolt értéket.",
                     Severity.Warning);
             }
         }
@@ -406,6 +442,20 @@ else
             _betoltesFolyamatban = false;
             StateHasChanged();
         }
+    }
+
+    /// <summary>
+    /// A felhasználó elfogadja, hogy az importnál/kézi bevitelnél gyanúsnak jelölt Védelmi mód valójában
+    /// elgépelés volt, és a javasolt (már ismert) értékre cseréli.
+    /// </summary>
+    private void ElfogadGyanusJavaslatot(RbSor sor)
+    {
+        if (string.IsNullOrEmpty(sor.VedelmiModGyanusHasonlo)) return;
+
+        sor.VedelmiMod = sor.VedelmiModGyanusHasonlo;
+        sor.VedelmiModAdatok = _vedelmiModok.FirstOrDefault(v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
+        sor.VedelmiModGyanusHasonlo = null;
+        StateHasChanged();
     }
 
     private void UjSorHozzaadas()

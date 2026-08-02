@@ -442,6 +442,14 @@
                             Tovább az AVK adatok kitöltéséhez
                         </MudButton>
                     }
+                    else if (GetAktualisTipusKod() == "RB")
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2RbTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább az Rb felülvizsgálati lap kitöltéséhez
+                        </MudButton>
+                    }
                     else if (IsHordozhatoTipus())
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -483,6 +491,10 @@
                                    EndIcon="@Icons.Material.Filled.ArrowForward">
                             Tovább az AVK adatok kitöltéséhez
                         </MudButton>
+                    }
+                    else if (GetAktualisTipusKod() == "RB")
+                    {
+                        @* Rb: nincs 3. oldal, csak a melléklet kitöltése – a fenti gomb elegendő *@
                     }
                     else if (IsHordozhatoTipus())
                     {
@@ -756,10 +768,14 @@
 
     // Szűrt lista property
     // A meglévő SzurtTipusok property helyett (609-610. sor)
+    // FONTOS: a MellekletTipusKod meglétét NEM szabad kizáró feltételként használni,
+    // mert az önálló főjegyzőkönyvek (pl. RB, AVK) is rendelkeznek MellekletTipusKod-dal
+    // (ez irányítja a wizardot a megfelelő szerkesztőhöz), miközben FoMeres = true marad.
+    // A valódi kiegészítő mellékletek (pl. HVM) FoMeres = false-szal különböztethetők meg.
     private IEnumerable<MeresTipus> SzurtTipusok =>
         _mutatAlmereseketIs
             ? _osszesTipus
-            : _osszesTipus.Where(t => t.FoMeres && string.IsNullOrEmpty(t.MellekletTipusKod));
+            : _osszesTipus.Where(t => t.FoMeres);
     private List<Ugyfel> _ugyfelek = [];
     private List<Telephely> _telephelyek = [];
     private List<Telephely> _szurtTelephelyek = [];
@@ -1802,6 +1818,55 @@
             }
 
             Navigation.NavigateTo($"/idoszakos-vbf/{meresId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    /// <summary>Rb típus esetén a mérés mentése után közvetlenül az Rb felülvizsgálati lap szerkesztőjébe navigál
+    /// (nem az időszakos VBF formát vagy a főjegyzőkönyv "általános" lépéseit jeleníti meg).</summary>
+    private async Task Lepes2RbTovabbAsync()
+    {
+        _feldolgozas = true;
+        StateHasChanged();
+        try
+        {
+            int meresId;
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    meresId = _ujonnanMentettMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+                }
+                else
+                {
+                    var ujMeres = await MeresService.CreateAsync(new Meres
+                    {
+                        UgyfelId              = _kivalasztottUgyfelId,
+                        TelephelyId           = _kivalasztottTelephelyId,
+                        MeresTipusId          = _kivalasztottTipusId,
+                        Datum                 = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz          = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    });
+                    meresId = ujMeres.Id;
+                    _ujonnanMentettMeresId = meresId;
+                }
+            }
+            else
+            {
+                meresId = MeresId.Value;
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+            }
+
+            Navigation.NavigateTo($"/rb-szerkeszto/meres/{meresId}");
         }
         catch (Exception ex)
         {

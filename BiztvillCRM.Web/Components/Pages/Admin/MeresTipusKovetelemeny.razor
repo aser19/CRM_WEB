@@ -66,8 +66,14 @@ else
                             <MudTextField @bind-Value="tipus.Leiras" Label="Leírás" 
                                           Lines="2" Variant="Variant.Outlined" />
                         </MudItem>
-                        <MudItem xs="12">
+                        <MudItem xs="12" md="6">
                             <MudSwitch @bind-Value="tipus.Aktiv" Label="Aktív" Color="Color.Success" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSwitch @bind-Value="tipus.FoMeres" Label="Főmérés (önálló jegyzőkönyvként választható)" Color="Color.Primary" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Ha kikapcsolod, a típus csak kiegészítő mellékletként (pl. Hurokimpedancia) érhető el, nem választható a főmenüből.
+                            </MudText>
                         </MudItem>
                     </MudGrid>
 
@@ -276,6 +282,9 @@ else
                     <MudNumericField @bind-Value="_ujTipus.ErvenyessegHonap" 
                                      Label="Érvényesség (hónap)" Min="0" Max="120" 
                                      Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_ujTipus.FoMeres" Label="Főmérés (önálló jegyzőkönyvként választható)" Color="Color.Primary" />
                 </MudItem>
             </MudGrid>
         }

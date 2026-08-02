@@ -67,6 +67,16 @@ public class RbSor
     /// </summary>
     public RbVedelmiMod? VedelmiModAdatok { get; set; }
 
+    /// <summary>
+    /// Ha a "Védelmi mód" mező értéke gyanúsan hasonlít egy már ismert/rögzített bejegyzésre (valószínűleg
+    /// elgépelés vagy eltérő zárójel/szóköz), itt tárolódik a javasolt (hasonló) érték, hogy a felhasználói
+    /// felületen sorra bontva megjelölhessük, hol történt a feltételezett elírás. Null, ha nincs ilyen gyanú.
+    /// </summary>
+    public string? VedelmiModGyanusHasonlo { get; set; }
+
+    /// <summary>Igaz, ha ennél a sornál a Védelmi mód értéke gyanús (lásd <see cref="VedelmiModGyanusHasonlo"/>).</summary>
+    public bool VedelmiModGyanus => !string.IsNullOrEmpty(VedelmiModGyanusHasonlo);
+
     /// <summary>Az "Alkalmazási csoport" (gázcsoport: I, IIA, IIB, IIC) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva.</summary>
     public string AlkalmazasiCsoportSzamitott =>
         !string.IsNullOrWhiteSpace(VedelmiModAdatok?.Gazcsoport)
