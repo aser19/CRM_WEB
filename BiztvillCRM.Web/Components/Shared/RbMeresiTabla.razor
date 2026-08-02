@@ -3,6 +3,7 @@
 @inject IRbExcelImportService RbExcelImportService
 @inject IRbVedelmiModService RbVedelmiModService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudText Typo="Typo.subtitle1" Class="mb-2">
     <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-1" />
@@ -191,6 +192,21 @@ else
         }
 
         BuildHelyisegek();
+        FrissitVedelmiModAdatok();
+    }
+
+    /// <summary>
+    /// Minden meglévő sorhoz hozzárendeli a betöltött RbVedelmiMod egyértelműsítő tábla megfelelő bejegyzését
+    /// (ha van pontos névegyezés), hogy az Alkalmazási csop. / Hőmérs. oszt. / Zóna megfelelőség
+    /// a struktúrált adatokból, ne csak a szabad szöveges regex-elemzésből származzon.
+    /// </summary>
+    private void FrissitVedelmiModAdatok()
+    {
+        foreach (var sor in Sorok)
+        {
+            sor.VedelmiModAdatok = _vedelmiModok.FirstOrDefault(
+                v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     /// <summary>
@@ -252,23 +268,86 @@ else
     /// Ha a felhasználó olyan védelmi módot ír be, ami még nincs a táblában,
     /// automatikusan létrehozzuk (felülvizsgálatra várva), amit az admin később jóváhagyhat.
     /// </summary>
+    /// <summary>
+    /// Ha a felhasználó olyan védelmi módot ír be, ami még nincs a táblában,
+    /// megvizsgáljuk, hogy nem egy már meglévő bejegyzés apró eltérése-e (pl. zárójeltípus, elgépelés).
+    /// Ha igen, rákérdezünk, hogy a meglévőt akarta-e választani, mielőtt új, felülvizsgálatra váró
+    /// bejegyzést hoznánk létre.
+    /// </summary>
     private async Task VedelmiModElhagyva(RbSor sor)
     {
         if (string.IsNullOrWhiteSpace(sor.VedelmiMod)) return;
 
-        var letezik = _vedelmiModok.Any(v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
-        if (letezik) return;
+        var pontosEgyezes = _vedelmiModok.FirstOrDefault(v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
+        if (pontosEgyezes != null)
+        {
+            sor.VedelmiModAdatok = pontosEgyezes;
+            return;
+        }
+
+        var hasonlo = _vedelmiModok.FirstOrDefault(v => RbVedelmiModHelper.ValoszinulegUgyanaz(v.Nev, sor.VedelmiMod));
+        if (hasonlo != null)
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Hasonló védelmi mód található",
+                $"A megadott érték: '{sor.VedelmiMod}'{Environment.NewLine}" +
+                $"Egy hasonló, már rögzített védelmi mód létezik: '{hasonlo.Nev}'.{Environment.NewLine}{Environment.NewLine}" +
+                "Elgépelte, és a meglévőt szerette volna kiválasztani?",
+                yesText: $"Igen, ezt: '{hasonlo.Nev}'",
+                noText: "Nem, ez egy új védelmi mód");
+
+            if (result == true)
+            {
+                sor.VedelmiMod = hasonlo.Nev;
+                sor.VedelmiModAdatok = hasonlo;
+                return;
+            }
+        }
 
         try
         {
             var ujMod = await RbVedelmiModService.GetOrCreateAsync(sor.VedelmiMod);
             _vedelmiModok.Add(ujMod);
+            sor.VedelmiModAdatok = ujMod;
             Snackbar.Add($"Új védelmi mód rögzítve: '{ujMod.Nev}' - adminisztrátori jóváhagyásra vár.", Severity.Info);
         }
         catch (Exception)
         {
+            sor.VedelmiModAdatok = null;
             // Ha a t\u00e1bla nem l\u00e9tezik, csendben hagyjuk a szabad sz\u00f6veges \u00e9rt\u00e9ket, ne akassza meg a ment\u00e9st.
         }
+    }
+
+    /// <summary>
+    /// Excel tömeges importnál a soronkénti dialógusos rákérdezés nem praktikus, ezért itt
+    /// csendben regisztráljuk az új értéket, de számoljuk, ha egy hasonló (valószínűleg elgépelt/
+    /// zárójel-eltérő) bejegyzés is szerepel, hogy import után egy összesített figyelmeztetést adjunk.
+    /// </summary>
+    private async Task<bool> RegisztralVedelmiModImportnal(RbSor sor)
+    {
+        if (string.IsNullOrWhiteSpace(sor.VedelmiMod)) return false;
+
+        var pontosEgyezes = _vedelmiModok.FirstOrDefault(v => v.Nev.Equals(sor.VedelmiMod, StringComparison.OrdinalIgnoreCase));
+        if (pontosEgyezes != null)
+        {
+            sor.VedelmiModAdatok = pontosEgyezes;
+            return false;
+        }
+
+        var vanHasonlo = _vedelmiModok.Any(v => RbVedelmiModHelper.ValoszinulegUgyanaz(v.Nev, sor.VedelmiMod));
+
+        try
+        {
+            var ujMod = await RbVedelmiModService.GetOrCreateAsync(sor.VedelmiMod);
+            _vedelmiModok.Add(ujMod);
+            sor.VedelmiModAdatok = ujMod;
+        }
+        catch (Exception)
+        {
+            sor.VedelmiModAdatok = null;
+        }
+
+        return vanHasonlo;
     }
 
     private async Task ExcelFeltoltve(IBrowserFile file)
@@ -292,6 +371,7 @@ else
                 return;
             }
 
+            var hasonloTalalatSzam = 0;
             foreach (var sor in ujSorok)
             {
                 if (string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte))
@@ -299,7 +379,8 @@ else
                 Sorok.Add(sor);
 
                 // Az Excelben szereplő védelmi módokat is regisztráljuk (felülvizsgálatra várva, ha újak)
-                await VedelmiModElhagyva(sor);
+                if (await RegisztralVedelmiModImportnal(sor))
+                    hasonloTalalatSzam++;
             }
 
             SzamozasAktualizalas();
@@ -307,6 +388,14 @@ else
             BuildHelyisegek();
 
             Snackbar.Add($"{ujSorok.Count} berendezés sikeresen importálva.", Severity.Success);
+
+            if (hasonloTalalatSzam > 0)
+            {
+                Snackbar.Add(
+                    $"{hasonloTalalatSzam} sor Védelmi mód értéke hasonlít egy már meglévőhöz (pl. zárójeltípus vagy elgépelés eltérhet). " +
+                    "Kérjük ellenőrizze az admin 'Rb védelmi módok' oldalon, hogy nem duplikátumot hozott-e létre.",
+                    Severity.Warning);
+            }
         }
         catch (Exception ex)
         {

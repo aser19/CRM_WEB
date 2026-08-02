@@ -59,6 +59,9 @@ public class RbVedelmiModService : IRbVedelmiModService
             Aktiv = true,
             FelulvizsgalasraVar = true,
             Leiras = "Automatikusan létrehozott védelmi mód - felülvizsgálatra vár",
+            Gazcsoport = RbVedelmiModHelper.MeghatarozGazcsoport(nev),
+            Porcsoport = RbVedelmiModHelper.MeghatarozPorcsoport(nev),
+            HomersOsztaly = RbVedelmiModHelper.MeghatarozHomersOsztaly(nev),
             Letrehozva = DateTime.Now
         };
 

@@ -35,6 +35,10 @@ else
         <HeaderContent>
             <MudTh>Státusz</MudTh>
             <MudTh>Védelmi mód</MudTh>
+            <MudTh>Gázcsoport</MudTh>
+            <MudTh>Porcsoport</MudTh>
+            <MudTh>Hőmérs. osztály</MudTh>
+            <MudTh>Engedélyezett zónák</MudTh>
             <MudTh>Leírás</MudTh>
             <MudTh>Aktív</MudTh>
             <MudTh>Műveletek</MudTh>
@@ -64,6 +68,22 @@ else
             <MudTd DataLabel="Védelmi mód" Style="@rowStyle">
                 <MudTextField T="string" @bind-Value="context.Nev" Variant="Variant.Text"
                               Margin="Margin.Dense" Required="true" />
+            </MudTd>
+            <MudTd DataLabel="Gázcsoport" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.Gazcsoport" Variant="Variant.Text"
+                              Margin="Margin.Dense" Placeholder="pl. IIC" />
+            </MudTd>
+            <MudTd DataLabel="Porcsoport" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.Porcsoport" Variant="Variant.Text"
+                              Margin="Margin.Dense" Placeholder="pl. IIIC" />
+            </MudTd>
+            <MudTd DataLabel="Hőmérs. osztály" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.HomersOsztaly" Variant="Variant.Text"
+                              Margin="Margin.Dense" Placeholder="pl. T6 vagy T80°C" />
+            </MudTd>
+            <MudTd DataLabel="Engedélyezett zónák" Style="@rowStyle">
+                <MudTextField T="string" @bind-Value="context.EngedelyezettZonak" Variant="Variant.Text"
+                              Margin="Margin.Dense" Placeholder="pl. 1,2,21,22" />
             </MudTd>
             <MudTd DataLabel="Leírás" Style="@rowStyle">
                 <MudTextField T="string" @bind-Value="context.Leiras" Variant="Variant.Text"
@@ -103,6 +123,22 @@ else
                     <MudTextField T="string" @bind-Value="_ujTipus.Nev" Label="Védelmi mód megnevezése **"
                                   Required="true" Variant="Variant.Outlined"
                                   Placeholder="pl. Ex ia IIC T4" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Gazcsoport" Label="Gázcsoport"
+                                  Placeholder="pl. IIC" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField T="string" @bind-Value="_ujTipus.Porcsoport" Label="Porcsoport"
+                                  Placeholder="pl. IIIC" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField T="string" @bind-Value="_ujTipus.HomersOsztaly" Label="Hőmérséklet osztály"
+                                  Placeholder="pl. T6 vagy T80°C" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_ujTipus.EngedelyezettZonak" Label="Engedélyezett zónák"
+                                  Placeholder="pl. 1,2,21,22" Variant="Variant.Outlined" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField T="string" @bind-Value="_ujTipus.Leiras" Label="Leírás"
