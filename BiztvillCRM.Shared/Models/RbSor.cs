@@ -113,6 +113,34 @@ public class RbSor
             return RbZonaMegfeleltetesTablazat.Megfelel(ZonaBesorolas, VedelmiMod);
         }
     }
+
+    /// <summary>
+    /// A sor kitöltéséhez kötelezőnek számító mezők neveinek listája, amelyek jelenleg üresek/hiányoznak.
+    /// Üres lista, ha minden kötelező adat ki van töltve.
+    /// </summary>
+    public List<string> HianyzoKotelezoMezok
+    {
+        get
+        {
+            var hianyzok = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(Elhelyezes)) hianyzok.Add("Elhelyezés");
+            if (string.IsNullOrWhiteSpace(Megnevezes)) hianyzok.Add("Eszköz neve (Megnevezés)");
+            if (string.IsNullOrWhiteSpace(Gyarto)) hianyzok.Add("Gyártó");
+            if (string.IsNullOrWhiteSpace(Tipus)) hianyzok.Add("Típus");
+            if (string.IsNullOrWhiteSpace(GyariSzam)) hianyzok.Add("Gyári szám");
+            if (string.IsNullOrWhiteSpace(VedelmiMod)) hianyzok.Add("Védelmi mód");
+            if (string.IsNullOrWhiteSpace(EngSzam)) hianyzok.Add("Eng. szám (vizsgáló állomás)");
+            if (string.IsNullOrWhiteSpace(TuzveszOsztaly)) hianyzok.Add("Tűzvesz. osztály");
+            if (string.IsNullOrWhiteSpace(ZonaBesorolas)) hianyzok.Add("Zóna besorolás");
+            if (string.IsNullOrWhiteSpace(VizsgalatotVegezte)) hianyzok.Add("A vizsgálatot végezte (felülvizsgáló)");
+
+            return hianyzok;
+        }
+    }
+
+    /// <summary>Igaz, ha a sornál legalább egy kötelező mező hiányzik.</summary>
+    public bool VanHianyzoAdat => HianyzoKotelezoMezok.Count > 0;
 }
 
 
@@ -128,8 +156,8 @@ public class RbCheckTetel
 public static class RbVedelmiModHelper
 {
     private static readonly System.Text.RegularExpressions.Regex ModKodMinta = new(
-        @"(?:Ex|Eex|EEx)\s+([a-z]{1,3})\b",
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        @"(?:(?i:Ex|Eex|EEx))\s+([a-z]{1,3})\b",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>Gázcsoport minta: IIC, IIB, IIA vagy önálló I (bányászati). A hosszabb egyezést (IIC/IIB/IIA) kell előnyben részesíteni.</summary>
     private static readonly System.Text.RegularExpressions.Regex GazcsoportMinta = new(
@@ -348,8 +376,8 @@ public static class RbZonaMegfeleltetesTablazat
     };
 
     private static readonly System.Text.RegularExpressions.Regex ModBetukMinta = new(
-        @"(?:Ex|Eex|EEx)\s+([a-z]{1,3})\b",
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        @"(?:(?i:Ex|Eex|EEx))\s+([a-z]{1,3})\b",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
     /// Kinyeri a zónaszámot egy "Zóna besorolás" szövegből (pl. "1. zóna", "Zóna 1", "21").

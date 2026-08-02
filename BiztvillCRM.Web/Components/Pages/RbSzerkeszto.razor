@@ -8,6 +8,8 @@
 @inject IMeresTipusService MeresTipusService
 @inject ITenantService TenantService
 @inject ICegService CegService
+@inject ITelephelyService TelephelyService
+@inject IFelulvizsgaloService FelulvizsgaloService
 @inject IRbPdfService RbPdfService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
@@ -50,11 +52,22 @@ else
             <MudItem xs="12" md="6"><MudTextField Value="@_adatok.CegNev" Label="Cég neve" ReadOnly="true" /></MudItem>
             <MudItem xs="12" md="6"><MudTextField Value="@_adatok.CegCim" Label="Cég címe" ReadOnly="true" /></MudItem>
             <MudItem xs="12" md="6"><MudTextField Value="@_jegyzokonyvSzam" Label="Jegyzőkönyv szám" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="int?" Value="@_kivalasztottFelulvizsgaloId" ValueChanged="@OnFelulvizsgaloValtozasAsync"
+                           Label="Felülvizsgáló neve" Clearable="true">
+                    @foreach (var f in _jogosultFelulvizsgalok)
+                    {
+                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
         </MudGrid>
     </MudPaper>
 
     <MudPaper Class="pa-4">
-        <RbMeresiTabla @bind-Sorok="_adatok.RbSorok" AlapertelmezettVizsgalo="@_adatok.FelulvizsgaloNev" />
+        <RbMeresiTabla @bind-Sorok="_adatok.RbSorok" AlapertelmezettVizsgalo="@_adatok.FelulvizsgaloNev"
+                       MegrendeloTelephely="@_megrendeloTelephely"
+                       JogosultFelulvizsgalok="@(_jogosultFelulvizsgalok.Select(f => f.Nev).ToList())" />
 
         <MudDivider Class="my-4" />
 
@@ -90,6 +103,9 @@ else
     private bool _feldolgozas;
     private bool _onalloMod;
     private string _jegyzokonyvSzam = "";
+    private string _megrendeloTelephely = "";
+    private List<Felulvizsgalo> _jogosultFelulvizsgalok = new();
+    private int? _kivalasztottFelulvizsgaloId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,12 +168,65 @@ else
         }
 
         await BetoltCegAdatokAsync();
+        await BetoltFelulvizsgalokAsync();
+        await BetoltMegrendeloTelephelyAsync();
 
         if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
             _adatok.FelulvizsgaloNev = TenantService.GetCurrentUserName() ?? "";
 
+        _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
+            .FirstOrDefault(f => f.Nev.Equals(_adatok.FelulvizsgaloNev, StringComparison.OrdinalIgnoreCase))?.Id;
+
         _adatok.RbSorok ??= new List<RbSor>();
         _betoltes = false;
+    }
+
+    /// <summary>Betölti a céghez tartozó aktív felülvizsgálókat, hogy a tényleges vizsgáló személy választható legyen (ne csak a bejelentkezett felhasználónév).</summary>
+    private async Task BetoltFelulvizsgalokAsync()
+    {
+        try
+        {
+            _jogosultFelulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+        }
+        catch
+        {
+            _jogosultFelulvizsgalok = new List<Felulvizsgalo>();
+        }
+    }
+
+    /// <summary>A Megrendelő telephelyét tölti be (Meres.TelephelyId alapján), amit az Objektum mező használ.</summary>
+    private async Task BetoltMegrendeloTelephelyAsync()
+    {
+        try
+        {
+            var telephelyId = _onalloMod ? _onalloMeres?.TelephelyId : _foMeres?.TelephelyId;
+            if (telephelyId is > 0)
+            {
+                var telephely = await TelephelyService.GetByIdAsync(telephelyId.Value);
+                if (telephely != null)
+                    _megrendeloTelephely = telephely.Nev;
+            }
+        }
+        catch
+        {
+            _megrendeloTelephely = "";
+        }
+    }
+
+    private void OnFelulvizsgaloValtozasAsync(int? felulvizsgaloId)
+    {
+        _kivalasztottFelulvizsgaloId = felulvizsgaloId;
+
+        if (felulvizsgaloId.HasValue)
+        {
+            var felulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == felulvizsgaloId.Value);
+            if (felulvizsgalo != null)
+                _adatok.FelulvizsgaloNev = felulvizsgalo.Nev;
+        }
+        else
+        {
+            _adatok.FelulvizsgaloNev = "";
+        }
     }
 
     private async Task BetoltCegAdatokAsync()

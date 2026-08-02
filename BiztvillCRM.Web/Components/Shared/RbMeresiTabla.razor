@@ -71,7 +71,8 @@ else
     <MudExpansionPanels MultiExpansion="true">
         @foreach (var sor in Sorok)
         {
-            <MudExpansionPanel>
+            <MudExpansionPanel Class="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || VanGyariSzamDuplikalva(sor)) ? "border-2 mud-border-error" : null)"
+                               Style="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || VanGyariSzamDuplikalva(sor)) ? "border: 2px solid var(--mud-palette-error);" : null)">
                 <TitleContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudText><b>#@sor.Sorsz</b></MudText>
@@ -82,6 +83,30 @@ else
                             <MudTooltip Text="@($"A Védelmi mód gyanúsan hasonlít erre: '{sor.VedelmiModGyanusHasonlo}' - lehet, hogy elírás történt")">
                                 <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.ReportProblem">
                                     Gyanús véd. mód
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                        @if (sor.ZonaMegfelelo == false)
+                        {
+                            <MudTooltip Text="@($"A megadott Védelmi mód ('{sor.VedelmiMod}') nem alkalmazható a(z) {sor.ZonaBesorolas} zónában!")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Error">
+                                    Zóna/véd. mód ütközés
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                        @if (sor.VanHianyzoAdat)
+                        {
+                            <MudTooltip Text="@($"Hiányzó adatok: {string.Join(", ", sor.HianyzoKotelezoMezok)}")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.ReportGmailerrorred">
+                                    Hiányzó adat
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                        @if (VanGyariSzamDuplikalva(sor))
+                        {
+                            <MudTooltip Text="@($"A gyári szám ('{sor.GyariSzam}') már szerepel egy másik sornál is!")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.ContentCopy">
+                                    Duplikált gyári szám
                                 </MudChip>
                             </MudTooltip>
                         }
@@ -111,33 +136,74 @@ else
                             </MudStack>
                         </MudAlert>
                     }
+                    @if (sor.VanHianyzoAdat)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                            <MudText Typo="Typo.body2">
+                                Hiányzó kötelező adat(ok): <b>@string.Join(", ", sor.HianyzoKotelezoMezok)</b>.
+                            </MudText>
+                        </MudAlert>
+                    }
+                    @if (VanGyariSzamDuplikalva(sor))
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                            <MudText Typo="Typo.body2">
+                                A megadott gyári szám (<b>@sor.GyariSzam</b>) egy másik sornál is szerepel. Kérjük ellenőrizze!
+                            </MudText>
+                        </MudAlert>
+                    }
                     <MudGrid Spacing="2">
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Elhelyezes" Label="Elhelyezés" /></MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudAutocomplete T="string" @bind-Value="sor.Elhelyezes" Label="Elhelyezés"
+                                              SearchFunc="@KeresElhelyezes" ToStringFunc="@(x => x)"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true"
+                                              HelperText="Válassz a fenti helyiséglistából, vagy írj be újat"
+                                              OnBlur="@(() => BuildHelyisegek())" />
+                        </MudItem>
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Megnevezes" Label="Megnevezés" /></MudItem>
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.AramkoriJel" Label="Áramköri megjelölés" /></MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Gyarto" Label="Gyártó" /></MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Tipus" Label="Típus" /></MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudAutocomplete T="string" @bind-Value="sor.Gyarto" Label="Gyártó"
+                                              SearchFunc="@KeresGyarto" ToStringFunc="@(x => x)"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true"
+                                              HelperText="Válassz a listából, vagy írj be új gyártót" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudAutocomplete T="string" @bind-Value="sor.Tipus" Label="Típus"
+                                              SearchFunc="@KeresTipus" ToStringFunc="@(x => x)"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true"
+                                              HelperText="Válassz a listából, vagy írj be új típust" />
+                        </MudItem>
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.IpVedelem" Label="IP védelem" /></MudItem>
                         <MudItem xs="12" sm="5">
                             <MudAutocomplete T="string" @bind-Value="sor.VedelmiMod" Label="Védelmi mód"
                                               SearchFunc="@KeresVedelmiMod" ToStringFunc="@(x => x)"
-                                              CoerceText="true" CoerceValue="true" ResetValueOnEmptyText="true"
-                                              CheckOnBlur="true" CoerceValueOnStateChange="true"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true"
                                               OnBlur="@(() => VedelmiModElhagyva(sor))" />
                         </MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.EngSzam" Label="Eng. szám" /></MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudAutocomplete T="string" @bind-Value="sor.EngSzam" Label="Eng. szám (vizsgáló állomás)"
+                                              SearchFunc="@KeresEngSzam" ToStringFunc="@(x => x)"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true"
+                                              HelperText="Válassz a listából, vagy írj be újat" />
+                        </MudItem>
 
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.Tervjel" Label="Tervjel" /></MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField Value="@sor.Objektum" Label="Objektum" ReadOnly="true" HelperText="A helyiség globális besorolásból (Elhelyezés)" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField Value="@sor.Objektum" Label="Objektum" ReadOnly="true" HelperText="A Megrendelő telephelye" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.CimkeSorszam" Label="Címke sorszám" /></MudItem>
                         <MudItem xs="12" sm="2">
                             <MudCheckBox @bind-Value="sor.EvModMeglete" Label="Év mód megfelelő" Color="Color.Success" />
                         </MudItem>
 
-                        <MudItem xs="12" sm="3"><MudTextField Value="@sor.TuzveszOsztaly" Label="Tűzvesz. osztály" ReadOnly="true" HelperText="Helyiség szintű besorolás" /></MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.TuzveszOsztaly" Label="Tűzvesz. osztály" HelperText="Alapért.: helyiség szerint, itt felülírható" /></MudItem>
                         <MudItem xs="12" sm="3">
-                            <MudTextField Value="@sor.ZonaBesorolas" Label="Zóna besorolás" ReadOnly="true" HelperText="Helyiség szintű besorolás" />
+                            <MudTextField @bind-Value="sor.ZonaBesorolas" Label="Zóna besorolás" HelperText="Alapért.: helyiség szerint, itt felülírható" />
                         </MudItem>
                         <MudItem xs="12" sm="3"><MudTextField Value="@sor.AlkalmazasiCsoportSzamitott" Label="Alkalmazási csop." ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField Value="@sor.HomersOsztalySzamitott" Label="Hőmérs. osztály" ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
@@ -181,7 +247,10 @@ else
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="sor.VizsgalatotVegezte" Label="A vizsgálatot végezte" />
+                            <MudAutocomplete T="string" @bind-Value="sor.VizsgalatotVegezte" Label="A vizsgálatot végezte (felülvizsgáló)"
+                                              SearchFunc="@KeresFelulvizsgalo" ToStringFunc="@(x => x)"
+                                              CoerceText="true" ResetValueOnEmptyText="true"
+                                              CheckOnBlur="true" />
                         </MudItem>
                     </MudGrid>
                 </ChildContent>
@@ -197,13 +266,22 @@ else
     [Parameter]
     public EventCallback<List<RbSor>> SorokChanged { get; set; }
 
-    /// <summary>Alapértelmezett "A vizsgálatot végezte" érték új/importált soroknál (bejelentkezett felhasználó neve).</summary>
+    /// <summary>Alapértelmezett "A vizsgálatot végezte" érték új/importált soroknál (bejelentkezett felülvizsgáló neve).</summary>
     [Parameter]
     public string? AlapertelmezettVizsgalo { get; set; }
+
+    /// <summary>A Megrendelő telephelye (neve/címe) - ez kerül minden sor Objektum mezőjébe.</summary>
+    [Parameter]
+    public string? MegrendeloTelephely { get; set; }
+
+    /// <summary>A mérésre jogosult felülvizsgálók neveinek listája (autocomplete-hez); ha üres, szabad szöveges bevitel marad.</summary>
+    [Parameter]
+    public List<string>? JogosultFelulvizsgalok { get; set; }
 
     private bool _betoltesFolyamatban;
     private List<RbVedelmiMod> _vedelmiModok = new();
     private List<RbHelyisegCsoport> _helyisegek = new();
+    private string? _elozoAlapertelmezettVizsgalo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -221,6 +299,65 @@ else
 
         BuildHelyisegek();
         FrissitVedelmiModAdatok();
+        AlkalmazMegrendeloTelephelyMindenSorra();
+        _elozoAlapertelmezettVizsgalo = AlapertelmezettVizsgalo;
+        AlkalmazAlapertelmezettVizsgaloMindenSorra(elsoAlkalommal: true);
+    }
+
+    protected override void OnParametersSet()
+    {
+        AlkalmazMegrendeloTelephelyMindenSorra();
+        AlkalmazAlapertelmezettVizsgaloMindenSorra(elsoAlkalommal: false);
+    }
+
+    /// <summary>
+    /// Ha a kiválasztott Felülvizsgáló (AlapertelmezettVizsgalo) megváltozik, azokat a sorokat frissíti,
+    /// amelyeknek "A vizsgálatot végezte" mezője még üres, vagy megegyezett a korábbi alapértelmezett
+    /// vizsgáló nevével (így a felhasználó által soronként kézzel felülírt értékeket nem írja felül).
+    /// </summary>
+    private void AlkalmazAlapertelmezettVizsgaloMindenSorra(bool elsoAlkalommal)
+    {
+        if (string.IsNullOrWhiteSpace(AlapertelmezettVizsgalo)) return;
+        if (!elsoAlkalommal && AlapertelmezettVizsgalo == _elozoAlapertelmezettVizsgalo) return;
+
+        var elozoErtek = _elozoAlapertelmezettVizsgalo;
+        foreach (var sor in Sorok)
+        {
+            if (string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte) ||
+                (!string.IsNullOrWhiteSpace(elozoErtek) && sor.VizsgalatotVegezte == elozoErtek))
+            {
+                sor.VizsgalatotVegezte = AlapertelmezettVizsgalo;
+            }
+        }
+
+        _elozoAlapertelmezettVizsgalo = AlapertelmezettVizsgalo;
+    }
+
+    /// <summary>
+    /// Igaz, ha a sor Gyári száma nem üres, nem "-" jel, és ugyanez az érték (whitespace-trimmelve,
+    /// kis/nagybetűtől függetlenül) legalább egy másik sornál is szerepel.
+    /// </summary>
+    private bool VanGyariSzamDuplikalva(RbSor sor)
+    {
+        var ertek = sor.GyariSzam?.Trim();
+        if (string.IsNullOrEmpty(ertek) || ertek == "-") return false;
+
+        return Sorok.Any(masik => masik != sor &&
+            string.Equals(masik.GyariSzam?.Trim(), ertek, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Az Objektum mező minden sornál a Megrendelő telephelyével egyezik meg (nem a helyiség/Elhelyezés csoportból).
+    /// </summary>
+    private void AlkalmazMegrendeloTelephelyMindenSorra()
+    {
+        if (string.IsNullOrWhiteSpace(MegrendeloTelephely)) return;
+
+        foreach (var sor in Sorok)
+        {
+            if (sor.Objektum != MegrendeloTelephely)
+                sor.Objektum = MegrendeloTelephely;
+        }
     }
 
     /// <summary>
@@ -276,10 +413,9 @@ else
         {
             sor.TuzveszOsztaly = helyiseg.TuzveszOsztaly;
             sor.ZonaBesorolas = helyiseg.ZonaBesorolas;
-            sor.Objektum = helyiseg.Elhelyezes;
         }
 
-        Snackbar.Add($"'{helyiseg.Elhelyezes}' besorolása alkalmazva a hozzá tartozó sorokra.", Severity.Success);
+        Snackbar.Add($"'{helyiseg.Elhelyezes}' besorolása alkalmazva a hozzá tartozó sorokra (felülírható).", Severity.Success);
         StateHasChanged();
     }
 
@@ -288,6 +424,61 @@ else
         var talalatok = string.IsNullOrWhiteSpace(ertek)
             ? _vedelmiModok.Select(v => v.Nev)
             : _vedelmiModok.Where(v => v.Nev.Contains(ertek, StringComparison.OrdinalIgnoreCase)).Select(v => v.Nev);
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>Elhelyezés autocomplete: a "fent" (helyiségeknél megadott) globális besorolási listából ajánl, de szabad bevitelt is enged.</summary>
+    private Task<IEnumerable<string>> KeresElhelyezes(string? ertek, CancellationToken token)
+    {
+        var lista = _helyisegek.Select(h => h.Elhelyezes);
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? lista
+            : lista.Where(e => e.Contains(ertek, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>Gyártó autocomplete: a már bevitt Rb sorokból gyűjtött disztinkt gyártó nevekből ajánl, de szabad bevitelt is enged.</summary>
+    private Task<IEnumerable<string>> KeresGyarto(string? ertek, CancellationToken token)
+    {
+        var lista = Sorok.Select(s => s.Gyarto ?? "").Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase);
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? lista
+            : lista.Where(g => g.Contains(ertek, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>Típus autocomplete: a már bevitt Rb sorokból gyűjtött disztinkt típusokból ajánl, de szabad bevitelt is enged.</summary>
+    private Task<IEnumerable<string>> KeresTipus(string? ertek, CancellationToken token)
+    {
+        var lista = Sorok.Select(s => s.Tipus ?? "").Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase);
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? lista
+            : lista.Where(t => t.Contains(ertek, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>Vizsgáló állomás engedélyszám autocomplete: a már bevitt Rb sorokból gyűjtött disztinkt engedélyszámokból ajánl, de szabad bevitelt is enged.</summary>
+    private Task<IEnumerable<string>> KeresEngSzam(string? ertek, CancellationToken token)
+    {
+        var lista = Sorok.Select(s => s.EngSzam ?? "").Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase);
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? lista
+            : lista.Where(e => e.Contains(ertek, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(talalatok);
+    }
+
+    /// <summary>Felülvizsgáló autocomplete: a jogosult felülvizsgálók nevéből ajánl, ha van ilyen lista megadva.</summary>
+    private Task<IEnumerable<string>> KeresFelulvizsgalo(string? ertek, CancellationToken token)
+    {
+        var lista = JogosultFelulvizsgalok ?? new List<string>();
+        var talalatok = string.IsNullOrWhiteSpace(ertek)
+            ? lista.AsEnumerable()
+            : lista.Where(f => f.Contains(ertek, StringComparison.OrdinalIgnoreCase));
 
         return Task.FromResult(talalatok);
     }
@@ -409,6 +600,8 @@ else
             {
                 if (string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte))
                     sor.VizsgalatotVegezte = AlapertelmezettVizsgalo ?? "";
+                if (!string.IsNullOrWhiteSpace(MegrendeloTelephely))
+                    sor.Objektum = MegrendeloTelephely;
                 Sorok.Add(sor);
 
                 // Az Excelben szereplő védelmi módokat is regisztráljuk (felülvizsgálatra várva, ha újak)
@@ -463,7 +656,8 @@ else
         Sorok.Add(new RbSor
         {
             Sorsz = Sorok.Count + 1,
-            VizsgalatotVegezte = AlapertelmezettVizsgalo ?? ""
+            VizsgalatotVegezte = AlapertelmezettVizsgalo ?? "",
+            Objektum = MegrendeloTelephely ?? ""
         });
         BuildHelyisegek();
         StateHasChanged();
