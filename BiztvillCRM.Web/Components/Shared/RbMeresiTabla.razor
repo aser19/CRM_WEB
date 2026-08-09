@@ -68,15 +68,18 @@ else
         </MudPaper>
     }
 
-    <MudExpansionPanels MultiExpansion="true">
+    <MudExpansionPanels MultiExpansion="false">
         @foreach (var sor in Sorok)
         {
-            <MudExpansionPanel Class="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || VanGyariSzamDuplikalva(sor)) ? "border-2 mud-border-error" : null)"
-                               Style="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || VanGyariSzamDuplikalva(sor)) ? "border: 2px solid var(--mud-palette-error);" : null)">
+            <MudExpansionPanel Class="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || _duplikaltGyariSzamuSorok.Contains(sor)) ? "border-2 mud-border-error" : null)"
+                               Style="@((sor.ZonaMegfelelo == false || sor.VanHianyzoAdat || _duplikaltGyariSzamuSorok.Contains(sor)) ? "border: 2px solid var(--mud-palette-error);" : null)">
                 <TitleContent>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" @onclick:stopPropagation="true">
                         <MudText><b>#@sor.Sorsz</b></MudText>
-                        <MudText>@(string.IsNullOrWhiteSpace(sor.Megnevezes) ? "(nincs megnevezés)" : sor.Megnevezes)</MudText>
+                        <MudTextField T="string" @bind-Value="sor.Megnevezes" Placeholder="(nincs megnevezés)"
+                                      Variant="Variant.Text" Margin="Margin.Dense" Immediate="true"
+                                      Class="mud-width-full" Style="min-width: 200px;"
+                                      @onclick:stopPropagation="true" />
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@sor.Elhelyezes</MudChip>
                         @if (sor.VedelmiModGyanus)
                         {
@@ -102,9 +105,9 @@ else
                                 </MudChip>
                             </MudTooltip>
                         }
-                        @if (VanGyariSzamDuplikalva(sor))
+                        @if (_duplikaltGyariSzamuSorok.Contains(sor))
                         {
-                            <MudTooltip Text="@($"A gyári szám ('{sor.GyariSzam}') már szerepel egy másik sornál is!")">
+                            <MudTooltip Text="@($"A gyári szám ('{sor.GyariSzam}') már szerepel a(z) #{string.Join(", #", _duplikaltGyariSzamUtkozoSorszamok.GetValueOrDefault(sor, new List<int>()))} sor(ok)nál is!")">
                                 <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.ContentCopy">
                                     Duplikált gyári szám
                                 </MudChip>
@@ -144,12 +147,19 @@ else
                             </MudText>
                         </MudAlert>
                     }
-                    @if (VanGyariSzamDuplikalva(sor))
+                    @if (_duplikaltGyariSzamuSorok.Contains(sor))
                     {
                         <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
                             <MudText Typo="Typo.body2">
-                                A megadott gyári szám (<b>@sor.GyariSzam</b>) egy másik sornál is szerepel. Kérjük ellenőrizze!
+                                A megadott gyári szám (<b>@sor.GyariSzam</b>) már szerepel a(z)
+                                <b>#@string.Join(", #", _duplikaltGyariSzamUtkozoSorszamok.GetValueOrDefault(sor, new List<int>()))</b>
+                                sor(ok)nál is. Kérjük ellenőrizze!
                             </MudText>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="mt-2"
+                                       StartIcon="@Icons.Material.Filled.Check"
+                                       OnClick="@(() => ElfogadDuplikaltGyariSzam(sor))">
+                                Nyugtázom, ez szándékos egyezés
+                            </MudButton>
                         </MudAlert>
                     }
                     <MudGrid Spacing="2">
@@ -177,7 +187,7 @@ else
                                               CheckOnBlur="true"
                                               HelperText="Válassz a listából, vagy írj be új típust" />
                         </MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" OnBlur="@(() => FrissitDuplikaltGyariSzamok())" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.IpVedelem" Label="IP védelem" /></MudItem>
                         <MudItem xs="12" sm="5">
                             <MudAutocomplete T="string" @bind-Value="sor.VedelmiMod" Label="Védelmi mód"
@@ -282,6 +292,8 @@ else
     private List<RbVedelmiMod> _vedelmiModok = new();
     private List<RbHelyisegCsoport> _helyisegek = new();
     private string? _elozoAlapertelmezettVizsgalo;
+    private HashSet<RbSor> _duplikaltGyariSzamuSorok = new();
+    private Dictionary<RbSor, List<int>> _duplikaltGyariSzamUtkozoSorszamok = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -300,6 +312,7 @@ else
         BuildHelyisegek();
         FrissitVedelmiModAdatok();
         AlkalmazMegrendeloTelephelyMindenSorra();
+        FrissitDuplikaltGyariSzamok();
         _elozoAlapertelmezettVizsgalo = AlapertelmezettVizsgalo;
         AlkalmazAlapertelmezettVizsgaloMindenSorra(elsoAlkalommal: true);
     }
@@ -334,16 +347,61 @@ else
     }
 
     /// <summary>
-    /// Igaz, ha a sor Gyári száma nem üres, nem "-" jel, és ugyanez az érték (whitespace-trimmelve,
-    /// kis/nagybetűtől függetlenül) legalább egy másik sornál is szerepel.
+    /// Újraszámolja, mely sorok Gyári száma duplikált (nem üres, nem "-" jel, whitespace-trimmelve,
+    /// kis/nagybetűtől függetlenül egyezik legalább egy másik sorral, és a felhasználó még nem nyugtázta
+    /// az egyezést). Az eredményt a <see cref="_duplikaltGyariSzamuSorok"/> gyorsítótárban tárolja, hogy a
+    /// render ne végezzen soronként O(n) LINQ keresést (ez 90+ sornál jelentős lassulást okozott).
+    /// A <see cref="_duplikaltGyariSzamUtkozoSorszamok"/> tárolja soronként az ütköző sorok sorszámait,
+    /// hogy a felületen kiírható legyen, melyik sor(ok)ban szerepel még ugyanaz a gyári szám.
+    /// Hívandó: inicializáláskor, Excel importálás után, sor hozzáadás/törlés után,
+    /// és a Gyári szám mező elhagyásakor (OnBlur).
     /// </summary>
-    private bool VanGyariSzamDuplikalva(RbSor sor)
+    private void FrissitDuplikaltGyariSzamok()
     {
-        var ertek = sor.GyariSzam?.Trim();
-        if (string.IsNullOrEmpty(ertek) || ertek == "-") return false;
+        var csoportok = new Dictionary<string, List<RbSor>>(StringComparer.OrdinalIgnoreCase);
 
-        return Sorok.Any(masik => masik != sor &&
-            string.Equals(masik.GyariSzam?.Trim(), ertek, StringComparison.OrdinalIgnoreCase));
+        foreach (var sor in Sorok)
+        {
+            var ertek = sor.GyariSzam?.Trim();
+            if (string.IsNullOrEmpty(ertek) || ertek == "-") continue;
+
+            if (!csoportok.TryGetValue(ertek, out var lista))
+            {
+                lista = new List<RbSor>();
+                csoportok[ertek] = lista;
+            }
+            lista.Add(sor);
+        }
+
+        var ujDuplikaltak = new HashSet<RbSor>();
+        var ujUtkozoSorszamok = new Dictionary<RbSor, List<int>>();
+
+        foreach (var lista in csoportok.Values)
+        {
+            if (lista.Count <= 1) continue;
+
+            foreach (var sor in lista)
+            {
+                ujUtkozoSorszamok[sor] = lista.Where(masik => masik != sor).Select(masik => masik.Sorsz).OrderBy(sz => sz).ToList();
+
+                if (!sor.GyariSzamDuplikaciotElfogadta)
+                    ujDuplikaltak.Add(sor);
+            }
+        }
+
+        _duplikaltGyariSzamuSorok = ujDuplikaltak;
+        _duplikaltGyariSzamUtkozoSorszamok = ujUtkozoSorszamok;
+    }
+
+    /// <summary>
+    /// A felhasználó nyugtázza, hogy a sor gyári száma szándékosan egyezik meg egy másik sorral
+    /// (pl. ugyanazt a berendezést rögzítette több sorban); ezután a duplikáció-jelzés eltűnik erről a sorról.
+    /// </summary>
+    private void ElfogadDuplikaltGyariSzam(RbSor sor)
+    {
+        sor.GyariSzamDuplikaciotElfogadta = true;
+        FrissitDuplikaltGyariSzamok();
+        StateHasChanged();
     }
 
     /// <summary>
@@ -615,6 +673,7 @@ else
             SzamozasAktualizalas();
             await SorokChanged.InvokeAsync(Sorok);
             BuildHelyisegek();
+            FrissitDuplikaltGyariSzamok();
 
             Snackbar.Add($"{ujSorok.Count} berendezés sikeresen importálva.", Severity.Success);
 
@@ -660,6 +719,7 @@ else
             Objektum = MegrendeloTelephely ?? ""
         });
         BuildHelyisegek();
+        FrissitDuplikaltGyariSzamok();
         StateHasChanged();
     }
 
@@ -668,6 +728,7 @@ else
         Sorok.Remove(sor);
         SzamozasAktualizalas();
         BuildHelyisegek();
+        FrissitDuplikaltGyariSzamok();
     }
 
     private void SzamozasAktualizalas()

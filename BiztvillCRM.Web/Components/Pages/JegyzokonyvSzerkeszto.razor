@@ -562,7 +562,12 @@
                     </MudSimpleTable>
                 </MudItem>
 
-                <MudItem xs="12" Class="mt-4">
+                <MudItem xs="12" Class="mt-4 d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.PauseCircle" OnClick="FelbeszakitasEsMentesAsync"
+                               Disabled="_feldolgozas">
+                        Mentés és félbehagyás
+                    </MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
                                StartIcon="@Icons.Material.Filled.Download" OnClick="LetoltesAsync"
                                Disabled="_feldolgozas">
@@ -1239,6 +1244,56 @@
 //            await MellekletekLetrehozasa();
             _mellekletek = await MellekletService.GetByMeresIdAsync(meresId);
             StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba történt: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    /// <summary>A jegyzőkönyv kitöltésének félbehagyása: elmenti az eddig kitöltött adatokat, és a mérés
+    /// státuszát "Folyamatban"-ra állítja, hogy a felhasználó később folytathassa a kitöltést Word letöltés nélkül.</summary>
+    private async Task FelbeszakitasEsMentesAsync()
+    {
+        try
+        {
+            _feldolgozas = true;
+            StateHasChanged();
+
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+                        _ujonnanMentettMeresId.Value, _adatok, MeresStatusz.Folyamatban, _adatok.Eredmeny);
+                }
+                else
+                {
+                    var ujMeres = new Meres
+                    {
+                        UgyfelId = _kivalasztottUgyfelId,
+                        TelephelyId = _kivalasztottTelephelyId,
+                        MeresTipusId = _kivalasztottTipusId,
+                        Datum = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    };
+                    ujMeres = await MeresService.CreateAsync(ujMeres);
+                    _ujonnanMentettMeresId = ujMeres.Id;
+                }
+            }
+            else
+            {
+                await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+                    MeresId.Value, _adatok, MeresStatusz.Folyamatban, _adatok.Eredmeny);
+            }
+
+            Snackbar.Add("A jegyzőkönyv adatai mentve, a mérés 'Folyamatban' státuszba került. Később folytathatod a kitöltést.", Severity.Success);
+            Navigation.NavigateTo("/meresek");
         }
         catch (Exception ex)
         {

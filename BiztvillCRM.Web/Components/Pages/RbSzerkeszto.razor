@@ -2,6 +2,7 @@
 @page "/rb-szerkeszto/meres/{MeresId:int}"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject IMellekletJegyzokonyvService MellekletService
 @inject IMeresService MeresService
@@ -75,11 +76,13 @@ else
             <MudButton Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.ArrowBack"
                        OnClick="Vissza">Vissza</MudButton>
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Error"
-                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
-                       OnClick="PdfLetoltesAsync"
-                       Disabled="@(!_adatok.RbSorok.Any())">PDF letöltése</MudButton>
+            <MudTooltip Text="@(_meresStatusz == MeresStatusz.Elvegezve ? "" : "A PDF csak 'Elvégezve' státuszú mérésnél tölthető le")">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           OnClick="PdfLetoltesAsync"
+                           Disabled="@(!_adatok.RbSorok.Any() || _meresStatusz != MeresStatusz.Elvegezve)">PDF letöltése</MudButton>
+            </MudTooltip>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
@@ -106,6 +109,7 @@ else
     private string _megrendeloTelephely = "";
     private List<Felulvizsgalo> _jogosultFelulvizsgalok = new();
     private int? _kivalasztottFelulvizsgaloId;
+    private MeresStatusz _meresStatusz = MeresStatusz.Tervezett;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,6 +121,7 @@ else
 
             if (_onalloMeres != null)
             {
+                _meresStatusz = _onalloMeres.MeresStatusz;
                 if (!string.IsNullOrEmpty(_onalloMeres.JegyzokonyvAdatokJson))
                 {
                     _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
@@ -145,6 +150,8 @@ else
                 if (_melleklet.MellekletMeresId.HasValue)
                 {
                     var rbMeres = await MeresService.GetByIdAsync(_melleklet.MellekletMeresId.Value);
+                    if (rbMeres != null)
+                        _meresStatusz = rbMeres.MeresStatusz;
                     if (!string.IsNullOrEmpty(rbMeres?.JegyzokonyvAdatokJson))
                     {
                         _adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
@@ -306,6 +313,12 @@ else
 
     private async Task PdfLetoltesAsync()
     {
+        if (_meresStatusz != MeresStatusz.Elvegezve)
+        {
+            Snackbar.Add("A PDF csak 'Elvégezve' státuszú mérésnél tölthető le.", Severity.Warning);
+            return;
+        }
+
         try
         {
             var pdfBytes = RbPdfService.Generalas(

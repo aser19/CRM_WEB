@@ -13,6 +13,7 @@
 @inject ISnackbar Snackbar
 @inject IJegyzokonyvPdfService JegyzokonyvPdfService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
+@inject IRbPdfService RbPdfService
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
@@ -163,13 +164,30 @@
                 </TemplateColumn>
                 <TemplateColumn Title="Műveletek" Sortable="false">
                     <CellTemplate>
+                        @{
+                            var muvTipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
+                            var muvKeszE = context.Item.MeresStatusz == MeresStatusz.Elvegezve;
+                        }
                         <MudStack Row="true" Spacing="1">
-                            <MudTooltip Text="Word jegyzőkönyv">
-                                <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                               Color="Color.Info"
-                                               Size="Size.Small"
-                                               OnClick="() => WordLetoltesAsync(context.Item)" />
-                            </MudTooltip>
+                            @if (muvTipusKod == "RB")
+                            {
+                                <MudTooltip Text="@(muvKeszE ? "Rb felülvizsgálati lap PDF letöltése" : "PDF csak 'Elvégezve' státuszú mérésnél tölthető le")">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   Disabled="@(!muvKeszE)"
+                                                   OnClick="() => RbPdfLetoltesAsync(context.Item)" />
+                                </MudTooltip>
+                            }
+                            else
+                            {
+                                <MudTooltip Text="Word jegyzőkönyv">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   OnClick="() => WordLetoltesAsync(context.Item)" />
+                                </MudTooltip>
+                            }
                             <MudTooltip Text="Email küldése">
                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
                                                Color="Color.Secondary"
@@ -290,11 +308,23 @@
                                     </MudTd>
                                     <MudTd DataLabel="Műveletek">
                                         <MudStack Row="true" Spacing="1">
-                                            <MudTooltip Text="Word jegyzőkönyv">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                                               Color="Color.Info" Size="Size.Small"
-                                                               OnClick="() => WordLetoltesAsync(context)" />
-                                            </MudTooltip>
+                                            @if (tk == "RB")
+                                            {
+                                                <MudTooltip Text="@(context.MeresStatusz == MeresStatusz.Elvegezve ? "Rb felülvizsgálati lap PDF letöltése" : "PDF csak 'Elvégezve' státuszú mérésnél tölthető le")">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                                   Color="Color.Info" Size="Size.Small"
+                                                                   Disabled="@(context.MeresStatusz != MeresStatusz.Elvegezve)"
+                                                                   OnClick="() => RbPdfLetoltesAsync(context)" />
+                                                </MudTooltip>
+                                            }
+                                            else
+                                            {
+                                                <MudTooltip Text="Word jegyzőkönyv">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                                   Color="Color.Info" Size="Size.Small"
+                                                                   OnClick="() => WordLetoltesAsync(context)" />
+                                                </MudTooltip>
+                                            }
                                             <MudTooltip Text="Email küldése">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
                                                                Color="Color.Secondary" Size="Size.Small"
@@ -1040,6 +1070,55 @@
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
             
             Snackbar.Add("Word jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>Rb (robbanásbiztos) mérésekhez a "Használatba vételt megelőző felülvizsgálat" Word sablon helyett
+    /// a valódi Rb felülvizsgálati lap PDF-jét tölti le, a mentett JegyzokonyvAdatokJson (RbSorok) alapján.</summary>
+    private async Task RbPdfLetoltesAsync(Meres meres)
+    {
+        if (meres.MeresStatusz != MeresStatusz.Elvegezve)
+        {
+            Snackbar.Add("A PDF csak 'Elvégezve' státuszú mérésnél tölthető le.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(meres.Id);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.JegyzokonyvAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett Rb felülvizsgálati adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                friss.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null || adatok.RbSorok.Count == 0)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett Rb felülvizsgálati adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var pdfBytes = RbPdfService.Generalas(
+                adatok.RbSorok,
+                adatok.CegNev,
+                adatok.CegCim,
+                adatok.CegWeb,
+                adatok.JegyzokonyvSzam ?? $"RB-{meres.Id:D6}");
+
+            var fileName = $"Rb-Felulvizsgalati-Lap-{(adatok.JegyzokonyvSzam ?? meres.Id.ToString()).Replace("/", "-")}.pdf";
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("Rb felülvizsgálati lap PDF letöltve!", Severity.Success);
         }
         catch (Exception ex)
         {

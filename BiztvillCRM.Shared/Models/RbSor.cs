@@ -14,11 +14,42 @@ public class RbSor
     public string AramkoriJel { get; set; } = "";
     public string Gyarto { get; set; } = "";
     public string Tipus { get; set; } = "";
-    public string GyariSzam { get; set; } = "";
+    private string _gyariSzam = "";
+    /// <summary>A berendezés gyári száma. Beállításakor a korábbi duplikáció-nyugtázás érvényét veszti.</summary>
+    public string GyariSzam
+    {
+        get => _gyariSzam;
+        set
+        {
+            if (_gyariSzam == value) return;
+            _gyariSzam = value;
+            GyariSzamDuplikaciotElfogadta = false;
+        }
+    }
     public string IpVedelem { get; set; } = "";
-    public string VedelmiMod { get; set; } = "";
+
+    /// <summary>
+    /// Igaz, ha a felhasználó nyugtázta, hogy a gyári szám valóban egyezik egy másik sorral
+    /// (pl. tudatosan ugyanazt a berendezést rögzítette kétszer), így a duplikáció-jelzés elrejthető.
+    /// </summary>
+    public bool GyariSzamDuplikaciotElfogadta { get; set; }
+
+    private string _vedelmiMod = "";
+    /// <summary>A Rb védelmi mód jele. Beállításakor a hozzá kapcsolódó (regex-elemzésből származó) gyorsítótárazott mezők érvénytelenítődnek.</summary>
+    public string VedelmiMod
+    {
+        get => _vedelmiMod;
+        set
+        {
+            if (_vedelmiMod == value) return;
+            _vedelmiMod = value;
+            ErvenytelenitiVedelmiModCache();
+        }
+    }
+
     public string EngSzam { get; set; } = "";
     public string Minositas { get; set; } = "megfelelő";
+
 
     // === "Egyedi felülvizsgálati lap" fejléc-specifikus mezők (1. kép) ===
     public string Tervjel { get; set; } = "";
@@ -26,7 +57,20 @@ public class RbSor
     public string CimkeSorszam { get; set; } = "";
 
     public string TuzveszOsztaly { get; set; } = "";
-    public string ZonaBesorolas { get; set; } = "";
+
+    private string _zonaBesorolas = "";
+    /// <summary>A Zóna besorolás szövege. Beállításakor a gyorsítótárazott zóna-megfelelőség érvénytelenítődik.</summary>
+    public string ZonaBesorolas
+    {
+        get => _zonaBesorolas;
+        set
+        {
+            if (_zonaBesorolas == value) return;
+            _zonaBesorolas = value;
+            _zonaMegfeleloCache = null;
+            _zonaMegfeleloSzamitva = false;
+        }
+    }
     public string AlkalmazasiCsoport { get; set; } = "";
     public string HomersOsztaly { get; set; } = "";
 
@@ -50,9 +94,18 @@ public class RbSor
 
     /// <summary>
     /// A "Védelmi mód" oszlop alapján meghatározott releváns Ex védelmi módok (i, d, m, p, e),
-    /// amelyek szerinti checklist szekciókat meg kell jeleníteni.
+    /// amelyek szerinti checklist szekciókat meg kell jeleníteni. Gyorsítótárazott: a regex-elemzés
+    /// csak akkor fut le újra, ha a Védelmi mód szövege ténylegesen megváltozott (lásd <see cref="VedelmiMod"/> setter).
     /// </summary>
-    public HashSet<char> RelevansVedelmiModok => RbVedelmiModHelper.MeghatarozRelevansModok(VedelmiMod);
+    public HashSet<char> RelevansVedelmiModok
+    {
+        get
+        {
+            _relevansVedelmiModokCache ??= RbVedelmiModHelper.MeghatarozRelevansModok(VedelmiMod);
+            return _relevansVedelmiModokCache;
+        }
+    }
+    private HashSet<char>? _relevansVedelmiModokCache;
 
     public bool VanExI => RelevansVedelmiModok.Contains('i');
     public bool VanExD => RelevansVedelmiModok.Contains('d');
@@ -60,12 +113,25 @@ public class RbSor
     public bool VanExE => RelevansVedelmiModok.Contains('e');
     public bool VanExP => RelevansVedelmiModok.Contains('p');
 
+    private RbVedelmiMod? _vedelmiModAdatok;
     /// <summary>
     /// A "Védelmi mód" szöveghez tartozó strukturált egyértelműsítő tábla bejegyzés (ha ismert / admin jóváhagyott).
     /// Ezt a hívó fél (pl. RbMeresiTabla) tölti ki a betöltött RbVedelmiMod szótár alapján; ha nincs egyezés, marad null,
-    /// és a rendszer a regex-alapú tartalék elemzésre esik vissza.
+    /// és a rendszer a regex-alapú tartalék elemzésre esik vissza. Beállításakor a hozzá kapcsolódó gyorsítótárak érvénytelenítődnek.
     /// </summary>
-    public RbVedelmiMod? VedelmiModAdatok { get; set; }
+    public RbVedelmiMod? VedelmiModAdatok
+    {
+        get => _vedelmiModAdatok;
+        set
+        {
+            _vedelmiModAdatok = value;
+            _alkalmazasiCsoportCache = null;
+            _porcsoportCache = null;
+            _homersOsztalyCache = null;
+            _zonaMegfeleloCache = null;
+            _zonaMegfeleloSzamitva = false;
+        }
+    }
 
     /// <summary>
     /// Ha a "Védelmi mód" mező értéke gyanúsan hasonlít egy már ismert/rögzített bejegyzésre (valószínűleg
@@ -77,40 +143,77 @@ public class RbSor
     /// <summary>Igaz, ha ennél a sornál a Védelmi mód értéke gyanús (lásd <see cref="VedelmiModGyanusHasonlo"/>).</summary>
     public bool VedelmiModGyanus => !string.IsNullOrEmpty(VedelmiModGyanusHasonlo);
 
-    /// <summary>Az "Alkalmazási csoport" (gázcsoport: I, IIA, IIB, IIC) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva.</summary>
-    public string AlkalmazasiCsoportSzamitott =>
-        !string.IsNullOrWhiteSpace(VedelmiModAdatok?.Gazcsoport)
-            ? VedelmiModAdatok!.Gazcsoport!
-            : RbVedelmiModHelper.MeghatarozGazcsoport(VedelmiMod);
+    private string? _alkalmazasiCsoportCache;
+    /// <summary>Az "Alkalmazási csoport" (gázcsoport: I, IIA, IIB, IIC) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva. Gyorsítótárazott.</summary>
+    public string AlkalmazasiCsoportSzamitott
+    {
+        get
+        {
+            _alkalmazasiCsoportCache ??= !string.IsNullOrWhiteSpace(VedelmiModAdatok?.Gazcsoport)
+                ? VedelmiModAdatok!.Gazcsoport!
+                : RbVedelmiModHelper.MeghatarozGazcsoport(VedelmiMod);
+            return _alkalmazasiCsoportCache;
+        }
+    }
 
-    /// <summary>A "Porcsoport" (IIIA, IIIB, IIIC) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva.</summary>
-    public string PorcsoportSzamitott =>
-        !string.IsNullOrWhiteSpace(VedelmiModAdatok?.Porcsoport)
-            ? VedelmiModAdatok!.Porcsoport!
-            : RbVedelmiModHelper.MeghatarozPorcsoport(VedelmiMod);
+    private string? _porcsoportCache;
+    /// <summary>A "Porcsoport" (IIIA, IIIB, IIIC) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva. Gyorsítótárazott.</summary>
+    public string PorcsoportSzamitott
+    {
+        get
+        {
+            _porcsoportCache ??= !string.IsNullOrWhiteSpace(VedelmiModAdatok?.Porcsoport)
+                ? VedelmiModAdatok!.Porcsoport!
+                : RbVedelmiModHelper.MeghatarozPorcsoport(VedelmiMod);
+            return _porcsoportCache;
+        }
+    }
 
-    /// <summary>A "Hőmérséklet osztály" (T1-T6 vagy °C érték) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva.</summary>
-    public string HomersOsztalySzamitott =>
-        !string.IsNullOrWhiteSpace(VedelmiModAdatok?.HomersOsztaly)
-            ? VedelmiModAdatok!.HomersOsztaly!
-            : RbVedelmiModHelper.MeghatarozHomersOsztaly(VedelmiMod);
+    private string? _homersOsztalyCache;
+    /// <summary>A "Hőmérséklet osztály" (T1-T6 vagy °C érték) - elsődlegesen az egyértelműsítő táblából, tartalékként a Védelmi mód szövegéből kiolvasva. Gyorsítótárazott.</summary>
+    public string HomersOsztalySzamitott
+    {
+        get
+        {
+            _homersOsztalyCache ??= !string.IsNullOrWhiteSpace(VedelmiModAdatok?.HomersOsztaly)
+                ? VedelmiModAdatok!.HomersOsztaly!
+                : RbVedelmiModHelper.MeghatarozHomersOsztaly(VedelmiMod);
+            return _homersOsztalyCache;
+        }
+    }
 
+    private bool? _zonaMegfeleloCache;
+    private bool _zonaMegfeleloSzamitva;
     /// <summary>
     /// Megvizsgálja, hogy a berendezés Védelmi módja megfelel-e a (helyiségre megadott) Zóna besorolásnak.
     /// Ha az egyértelműsítő táblában van engedélyezett zóna lista megadva, azt veszi elsődlegesen figyelembe;
     /// egyébként az RbZonaMegfeleltetesTablazat alapján, regex-elemzéssel dönt. Null, ha nincs elég adat az összehasonlításhoz.
+    /// Gyorsítótárazott: csak akkor számol újra, ha a ZonaBesorolas, VedelmiMod vagy VedelmiModAdatok ténylegesen megváltozott.
     /// </summary>
     public bool? ZonaMegfelelo
     {
         get
         {
+            if (_zonaMegfeleloSzamitva) return _zonaMegfeleloCache;
+
             var zona = RbZonaMegfeleltetesTablazat.NormalizalZona(ZonaBesorolas);
-            if (string.IsNullOrEmpty(zona)) return null;
+            bool? eredmeny;
+            if (string.IsNullOrEmpty(zona))
+            {
+                eredmeny = null;
+            }
+            else if (VedelmiModAdatok?.EngedelyezettZonakLista is { Count: > 0 } engedelyezettZonak)
+            {
+                eredmeny = engedelyezettZonak.Contains(zona);
+            }
+            else
+            {
+                eredmeny = RbZonaMegfeleltetesTablazat.Megfelel(ZonaBesorolas, VedelmiMod);
+            }
 
-            if (VedelmiModAdatok?.EngedelyezettZonakLista is { Count: > 0 } engedelyezettZonak)
-                return engedelyezettZonak.Contains(zona);
-
-            return RbZonaMegfeleltetesTablazat.Megfelel(ZonaBesorolas, VedelmiMod);
+            _zonaMegfeleloCache = eredmeny;
+            _zonaMegfeleloSzamitva = true;
+            return eredmeny;
         }
     }
 
@@ -141,6 +244,17 @@ public class RbSor
 
     /// <summary>Igaz, ha a sornál legalább egy kötelező mező hiányzik.</summary>
     public bool VanHianyzoAdat => HianyzoKotelezoMezok.Count > 0;
+
+    /// <summary>Érvényteleníti a Védelmi mód szövegétől függő összes gyorsítótárazott (regex-elemzésből származó) mezőt.</summary>
+    private void ErvenytelenitiVedelmiModCache()
+    {
+        _relevansVedelmiModokCache = null;
+        _alkalmazasiCsoportCache = null;
+        _porcsoportCache = null;
+        _homersOsztalyCache = null;
+        _zonaMegfeleloCache = null;
+        _zonaMegfeleloSzamitva = false;
+    }
 }
 
 
