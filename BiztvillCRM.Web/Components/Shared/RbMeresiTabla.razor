@@ -10,6 +10,8 @@
     Rb (robbanásbiztos) berendezések felülvizsgálata
 </MudText>
 
+<RbHibaLista @ref="_hibaLista" Sorok="Sorok" />
+
 <MudStack Row="true" Spacing="2" Class="mb-3" AlignItems="AlignItems.Center">
     <MudFileUpload T="IBrowserFile" FilesChanged="ExcelFeltoltve" Accept=".xlsx">
         <ActivatorContent>
@@ -169,39 +171,42 @@ else
                                               CoerceText="true" ResetValueOnEmptyText="true"
                                               CheckOnBlur="true"
                                               HelperText="Válassz a fenti helyiséglistából, vagy írj be újat"
-                                              OnBlur="@(() => BuildHelyisegek())" />
+                                              OnBlur="@(() => { BuildHelyisegek(); NotifyValtozas(); })" />
                         </MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Megnevezes" Label="Megnevezés" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.Megnevezes" Label="Megnevezés" OnBlur="@(() => NotifyValtozas())" /></MudItem>
                         <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.AramkoriJel" Label="Áramköri megjelölés" /></MudItem>
                         <MudItem xs="12" sm="4">
                             <MudAutocomplete T="string" @bind-Value="sor.Gyarto" Label="Gyártó"
                                               SearchFunc="@KeresGyarto" ToStringFunc="@(x => x)"
                                               CoerceText="true" ResetValueOnEmptyText="true"
                                               CheckOnBlur="true"
-                                              HelperText="Válassz a listából, vagy írj be új gyártót" />
+                                              HelperText="Válassz a listából, vagy írj be új gyártót"
+                                              OnBlur="@(() => NotifyValtozas())" />
                         </MudItem>
                         <MudItem xs="12" sm="4">
                             <MudAutocomplete T="string" @bind-Value="sor.Tipus" Label="Típus"
                                               SearchFunc="@KeresTipus" ToStringFunc="@(x => x)"
                                               CoerceText="true" ResetValueOnEmptyText="true"
                                               CheckOnBlur="true"
-                                              HelperText="Válassz a listából, vagy írj be új típust" />
+                                              HelperText="Válassz a listából, vagy írj be új típust"
+                                              OnBlur="@(() => NotifyValtozas())" />
                         </MudItem>
-                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" OnBlur="@(() => FrissitDuplikaltGyariSzamok())" /></MudItem>
+                        <MudItem xs="12" sm="4"><MudTextField @bind-Value="sor.GyariSzam" Label="Gyári szám" OnBlur="@(() => { FrissitDuplikaltGyariSzamok(); NotifyValtozas(); })" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.IpVedelem" Label="IP védelem" /></MudItem>
                         <MudItem xs="12" sm="5">
                             <MudAutocomplete T="string" @bind-Value="sor.VedelmiMod" Label="Védelmi mód"
                                               SearchFunc="@KeresVedelmiMod" ToStringFunc="@(x => x)"
                                               CoerceText="true" ResetValueOnEmptyText="true"
                                               CheckOnBlur="true"
-                                              OnBlur="@(() => VedelmiModElhagyva(sor))" />
+                                              OnBlur="@(async () => { await VedelmiModElhagyva(sor); await NotifyValtozas(); })" />
                         </MudItem>
                         <MudItem xs="12" sm="4">
                             <MudAutocomplete T="string" @bind-Value="sor.EngSzam" Label="Eng. szám (vizsgáló állomás)"
                                               SearchFunc="@KeresEngSzam" ToStringFunc="@(x => x)"
                                               CoerceText="true" ResetValueOnEmptyText="true"
                                               CheckOnBlur="true"
-                                              HelperText="Válassz a listából, vagy írj be újat" />
+                                              HelperText="Válassz a listából, vagy írj be újat"
+                                              OnBlur="@(() => NotifyValtozas())" />
                         </MudItem>
 
                         <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.Tervjel" Label="Tervjel" /></MudItem>
@@ -211,9 +216,9 @@ else
                             <MudCheckBox @bind-Value="sor.EvModMeglete" Label="Év mód megfelelő" Color="Color.Success" />
                         </MudItem>
 
-                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.TuzveszOsztaly" Label="Tűzvesz. osztály" HelperText="Alapért.: helyiség szerint, itt felülírható" /></MudItem>
+                        <MudItem xs="12" sm="3"><MudTextField @bind-Value="sor.TuzveszOsztaly" Label="Tűzvesz. osztály" HelperText="Alapért.: helyiség szerint, itt felülírható" OnBlur="@(() => NotifyValtozas())" /></MudItem>
                         <MudItem xs="12" sm="3">
-                            <MudTextField @bind-Value="sor.ZonaBesorolas" Label="Zóna besorolás" HelperText="Alapért.: helyiség szerint, itt felülírható" />
+                            <MudTextField @bind-Value="sor.ZonaBesorolas" Label="Zóna besorolás" HelperText="Alapért.: helyiség szerint, itt felülírható" OnBlur="@(() => NotifyValtozas())" />
                         </MudItem>
                         <MudItem xs="12" sm="3"><MudTextField Value="@sor.AlkalmazasiCsoportSzamitott" Label="Alkalmazási csop." ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
                         <MudItem xs="12" sm="3"><MudTextField Value="@sor.HomersOsztalySzamitott" Label="Hőmérs. osztály" ReadOnly="true" HelperText="A Védelmi módból kiolvasva" /></MudItem>
@@ -239,13 +244,13 @@ else
 
                     <MudDivider Class="my-3" />
 
-                    <RbChecklistSzekcio Cim="Környezeti állapotok" Tetelek="sor.Kornyezeti" />
-                    <RbChecklistSzekcio Cim="A készülék vagy gyártmány állapota" Tetelek="sor.KeszulekAllapota" />
-                    @if (sor.VanExI) { <RbChecklistSzekcio Cim="@("Ex \"i\" gyártmányok további követelményei")" Tetelek="sor.ExI" /> }
-                    @if (sor.VanExD) { <RbChecklistSzekcio Cim="@("Ex \"d\" gyártmányok további követelményei")" Tetelek="sor.ExD" /> }
-                    @if (sor.VanExM) { <RbChecklistSzekcio Cim="@("Ex \"m\" gyártmányok további követelményei")" Tetelek="sor.ExM" /> }
-                    @if (sor.VanExE) { <RbChecklistSzekcio Cim="@("Ex \"e\" gyártmányok további követelményei")" Tetelek="sor.ExE" /> }
-                    @if (sor.VanExP) { <RbChecklistSzekcio Cim="@("Ex \"p\" gyártmányok további követelményei")" Tetelek="sor.ExP" /> }
+                    <RbChecklistSzekcio Cim="Környezeti állapotok" Tetelek="sor.Kornyezeti" OnValtozas="NotifyValtozas" />
+                    <RbChecklistSzekcio Cim="A készülék vagy gyártmány állapota" Tetelek="sor.KeszulekAllapota" OnValtozas="NotifyValtozas" />
+                    @if (sor.VanExI) { <RbChecklistSzekcio Cim="@("Ex \"i\" gyártmányok további követelményei")" Tetelek="sor.ExI" OnValtozas="NotifyValtozas" /> }
+                    @if (sor.VanExD) { <RbChecklistSzekcio Cim="@("Ex \"d\" gyártmányok további követelményei")" Tetelek="sor.ExD" OnValtozas="NotifyValtozas" /> }
+                    @if (sor.VanExM) { <RbChecklistSzekcio Cim="@("Ex \"m\" gyártmányok további követelményei")" Tetelek="sor.ExM" OnValtozas="NotifyValtozas" /> }
+                    @if (sor.VanExE) { <RbChecklistSzekcio Cim="@("Ex \"e\" gyártmányok további követelményei")" Tetelek="sor.ExE" OnValtozas="NotifyValtozas" /> }
+                    @if (sor.VanExP) { <RbChecklistSzekcio Cim="@("Ex \"p\" gyártmányok további követelményei")" Tetelek="sor.ExP" OnValtozas="NotifyValtozas" /> }
 
                     <MudDivider Class="my-3" />
 
@@ -287,6 +292,19 @@ else
     /// <summary>A mérésre jogosult felülvizsgálók neveinek listája (autocomplete-hez); ha üres, szabad szöveges bevitel marad.</summary>
     [Parameter]
     public List<string>? JogosultFelulvizsgalok { get; set; }
+
+    /// <summary>Meghívódik, ha bármely sor adatvalidálása vagy checklist tétele változik (pl. a felette lévő hibalista frissítéséhez).</summary>
+    [Parameter]
+    public EventCallback OnValtozas { get; set; }
+
+    private RbHibaLista? _hibaLista;
+
+    private async Task NotifyValtozas()
+    {
+        _hibaLista?.Ujraszamol();
+        StateHasChanged();
+        await OnValtozas.InvokeAsync();
+    }
 
     private bool _betoltesFolyamatban;
     private List<RbVedelmiMod> _vedelmiModok = new();
@@ -692,6 +710,7 @@ else
         finally
         {
             _betoltesFolyamatban = false;
+            _hibaLista?.Ujraszamol();
             StateHasChanged();
         }
     }
@@ -720,6 +739,7 @@ else
         });
         BuildHelyisegek();
         FrissitDuplikaltGyariSzamok();
+        _hibaLista?.Ujraszamol();
         StateHasChanged();
     }
 
@@ -729,6 +749,7 @@ else
         SzamozasAktualizalas();
         BuildHelyisegek();
         FrissitDuplikaltGyariSzamok();
+        _hibaLista?.Ujraszamol();
     }
 
     private void SzamozasAktualizalas()

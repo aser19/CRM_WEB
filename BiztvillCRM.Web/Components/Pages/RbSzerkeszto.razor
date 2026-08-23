@@ -12,6 +12,7 @@
 @inject ITelephelyService TelephelyService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IRbPdfService RbPdfService
+@inject IJogszabalyService JogszabalyService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -65,6 +66,142 @@ else
         </MudGrid>
     </MudPaper>
 
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">Jegyzőkönyv adatai (2. oldal)</MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.VizsgalatTargya" Label="Felülvizsgálat tárgya" Lines="3"
+                              Variant="Variant.Outlined" HelperText="A jegyzőkönyv készítésénél kell szövegesen megadni" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.RbVizsgalatTipusa" Label="Vizsgálat típusa" Lines="3"
+                              Variant="Variant.Outlined" HelperText="A jegyzőkönyv készítésénél kell szövegesen megadni" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="int?" Value="@_kivalasztottAlairoId" ValueChanged="@OnAlairoValtozasAsync"
+                           Label="A felülvizsgálatot végezte (aláíró)" Clearable="true">
+                    @foreach (var f in _jogosultFelulvizsgalok)
+                    {
+                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">A felülvizsgálatnál alkalmazott rendeletek, szabványok</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+            Jelöld ki, mely rendeletek és szabványok jelenjenek meg a jegyzőkönyv "2. A felülvizsgálatnál alkalmazott rendeletek, szabványok, dokumentumok" fejezetében.
+        </MudText>
+        @if (!_rbJogszabalyok.Any())
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Nincsenek "Robbanásbiztos" taggel megjelölt rendeletek/szabványok rögzítve. Vedd fel őket az Admin &gt; Jogszabályok oldalon, "Robbanásbiztos" taggel megjelölve.
+            </MudAlert>
+        }
+        else
+        {
+            var rendeletek = _adatok.KijeloltJogszabalyok.Where(j => !j.IsSzabvany).OrderBy(j => j.Szam).ToList();
+            var szabvanyok = _adatok.KijeloltJogszabalyok.Where(j => j.IsSzabvany).OrderBy(j => j.Szam).ToList();
+
+            @if (rendeletek.Any())
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-1 mt-2">2.1 Rendeletek</MudText>
+                <MudGrid Spacing="1">
+                    @foreach (var r in rendeletek)
+                    {
+                        <MudItem xs="12" md="6" Style="display:flex;align-items:flex-start;">
+                            <MudCheckBox @bind-Value="r.Kivalasztva" Color="Color.Primary" Dense="true">
+                                <span style="font-size:0.8rem;line-height:1.3;"><strong>@r.Szam</strong> – @r.Cim</span>
+                            </MudCheckBox>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+
+            @if (szabvanyok.Any())
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-1 mt-3">2.2 Szabványok</MudText>
+                <MudGrid Spacing="1">
+                    @foreach (var sz in szabvanyok)
+                    {
+                        <MudItem xs="12" md="6" Style="display:flex;align-items:flex-start;">
+                            <MudCheckBox @bind-Value="sz.Kivalasztva" Color="Color.Primary" Dense="true">
+                                <span style="font-size:0.8rem;line-height:1.3;"><strong>@sz.Szam</strong> – @sz.Cim</span>
+                            </MudCheckBox>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">A felülvizsgálat leírása</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+            A jegyzőkönyv "3. A felülvizsgálat leírása" fejezetében megjelenő "Bevezetés" és "A talált állapotok leírása" szövege. Alapértelmezett szöveggel van előtöltve, de szükség esetén módosítható.
+        </MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.RbBevezetes" Label="Bevezetés" Lines="6"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.RbTalaltAllapotok" Label="A talált állapotok leírása" Lines="6"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">3.3.1 Dokumentációk vizsgálata</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+            Jelöld be az alábbi négy kérdésre a jegyzőkönyvben megjelenítendő Igen/Nem választ.
+        </MudText>
+        <MudStack Spacing="2">
+            <MudCheckBox @bind-Value="_adatok.RbAtexTanusitvanyMegvan" Color="Color.Primary" Dense="true">
+                A gyártmány rendelkezik-e ATEX jelzésű tanúsítvánnyal, vagy gyártói nyilatkozattal?
+            </MudCheckBox>
+            <MudCheckBox @bind-Value="_adatok.RbVedelmiModEgyezik" Color="Color.Primary" Dense="true">
+                A gyártmány dokumentációjában feltüntetett védelmi mód egyezik-e az adattáblán szereplő védelmi móddal?
+            </MudCheckBox>
+            <MudCheckBox @bind-Value="_adatok.RbVedelmiModMegfelelTersegbesorolasnak" Color="Color.Primary" Dense="true">
+                A védelmi mód megfelel-e az adatlapon megjelölt térségbesorolásnak?
+            </MudCheckBox>
+            <MudCheckBox @bind-Value="_adatok.RbAlkalmazasiCsoportHomersOsztalyMegfelelo" Color="Color.Primary" Dense="true">
+                A gyártmány alkalmazási csoportja és hőmérsékleti osztálya megfelelő-e?
+            </MudCheckBox>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">4 Minősítés</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+            Az 1-7. szempont alapból "Megfelelő", a 8. (adattábla szerinti védettség) a berendezések zóna-megfelelőségéből
+            és a hibalistából számított. Bármelyik szempont, valamint az összesített ("FŐ") minősítés kézzel felülbírálható.
+        </MudText>
+        <MudGrid>
+            @foreach (var (kulcs, cim) in _minositesSzempontok)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCheckBox T="bool" Value="@ReszMinositesErteke(kulcs)" ValueChanged="@((bool v) => ReszMinositesValtozott(kulcs, v))"
+                                 Color="Color.Primary" Dense="true">
+                        @cim
+                    </MudCheckBox>
+                </MudItem>
+            }
+        </MudGrid>
+        <MudDivider Class="my-3" />
+        <MudCheckBox T="bool" Value="@FoMinositesErteke()" ValueChanged="@((bool v) => _adatok.RbFoMinositesFelulbiralas = v)"
+                     Color="Color.Primary" Dense="true">
+            Összesített ("FŐ") minősítés: megfelel
+        </MudCheckBox>
+        <MudTextField @bind-Value="_adatok.RbMinositesMegjegyzes" Label="Megjegyzés" Lines="4"
+                      Variant="Variant.Outlined" Class="mt-2" />
+    </MudPaper>
+
+
     <MudPaper Class="pa-4">
         <RbMeresiTabla @bind-Sorok="_adatok.RbSorok" AlapertelmezettVizsgalo="@_adatok.FelulvizsgaloNev"
                        MegrendeloTelephely="@_megrendeloTelephely"
@@ -109,7 +246,64 @@ else
     private string _megrendeloTelephely = "";
     private List<Felulvizsgalo> _jogosultFelulvizsgalok = new();
     private int? _kivalasztottFelulvizsgaloId;
+    private int? _kivalasztottAlairoId;
     private MeresStatusz _meresStatusz = MeresStatusz.Tervezett;
+    private List<Jogszabaly> _rbJogszabalyok = new();
+
+    private const string AlapertelmezettBevezetes =
+        "Ezen jegyzőkönyv a felülvizsgálat tárgyát képező tartály/berendezés elemeiként felszerelt robbanásbiztos villamos és nem-villamos berendezések robbanásbiztonság-technikai felülvizsgálatát foglalja össze.\n\n" +
+        "A vizsgálat célja annak megállapítása, hogy a robbanásbiztos készülékek teljesítik-e az adattáblájukon, a gyártói nyilatkozatokban rögzített műszaki paramétereket.\n\n" +
+        "A vizsgálat tárgyát a jegyzőkönyv végén található táblázatban szereplő készülékek egyedi felülvizsgálata, illetve a hozzá tartozó installáció jelentette.";
+
+    private const string AlapertelmezettTalaltAllapotok =
+        "Vizsgálatunk tárgyát a robbanásbiztos kivitelű berendezések robbanásbiztonság-technikai felülvizsgálata képezte.\n\n" +
+        "A készülékek védelmi módja, alkalmazási csoportja és hőmérsékleti osztálya megfelel az adattáblán, a tanúsítványban és a gyártói nyilatkozatban rögzített feltételeknek.\n\n" +
+        "A berendezések adatait a melléklet „Robbanásbiztonság-technikai felülvizsgálati jegyzőkönyv összesítő” tartalmazza.";
+
+    private const string AlapertelmezettMinositesMegjegyzes =
+        "A jelen felülvizsgálati jegyzőkönyv a készítésének dátuma szerinti állapotot rögzíti. A megfelelő állapot fenntartása a mindenkori üzemeltető felelőssége. " +
+        "Amennyiben módosítás vagy kiegészítés (bővítés) történik a jegyzőkönyvben rögzített állapothoz képest, akkor a mindenkori üzemeltető felelőssége, hogy a jegyzőkönyv is megfelelően kiegészítésre kerüljön az érvényes és vonatkozó szabványoknak, előírásoknak megfelelően.";
+
+    private static readonly (string Kulcs, string Cim)[] _minositesSzempontok =
+    {
+        ("1", "Tűz és robbanásveszély elleni védelem"),
+        ("2", "A tokozások épsége, zárhatósága"),
+        ("3", "Kúszóáramutak, légközök"),
+        ("4", "Csavarok és biztosításaik"),
+        ("5", "Kábelek, vezetékek szerelése"),
+        ("6", "Jelölések, felirati táblák"),
+        ("7", "Túlmelegedés, felületi hőmérséklet"),
+        ("8", "Az adattábla szerinti védettség a beépítési hely követelményeinek"),
+    };
+
+    private bool ReszMinositesSzamitottErteke(string kulcs)
+    {
+        if (kulcs != "8") return true;
+
+        var vanNemMegfeloZona = _adatok.RbSorok.Any(s => s.ZonaMegfelelo == false);
+        var vanNemMegfeloChecklistTetel = _adatok.RbSorok.Any(s => ChecklistTetelek(s).Any(t => !t.Megfelelt));
+        return !(vanNemMegfeloZona || vanNemMegfeloChecklistTetel);
+    }
+
+    private static IEnumerable<RbCheckTetel> ChecklistTetelek(RbSor sor)
+    {
+        foreach (var tetel in sor.Kornyezeti) yield return tetel;
+        foreach (var tetel in sor.KeszulekAllapota) yield return tetel;
+        if (sor.VanExI) foreach (var tetel in sor.ExI) yield return tetel;
+        if (sor.VanExD) foreach (var tetel in sor.ExD) yield return tetel;
+        if (sor.VanExM) foreach (var tetel in sor.ExM) yield return tetel;
+        if (sor.VanExE) foreach (var tetel in sor.ExE) yield return tetel;
+        if (sor.VanExP) foreach (var tetel in sor.ExP) yield return tetel;
+    }
+
+    private bool ReszMinositesErteke(string kulcs)
+        => _adatok.RbReszMinositesFelulbiralas.TryGetValue(kulcs, out var felulbiralt) ? felulbiralt : ReszMinositesSzamitottErteke(kulcs);
+
+    private void ReszMinositesValtozott(string kulcs, bool ertek)
+        => _adatok.RbReszMinositesFelulbiralas[kulcs] = ertek;
+
+    private bool FoMinositesErteke()
+        => _adatok.RbFoMinositesFelulbiralas ?? _minositesSzempontok.All(sz => ReszMinositesErteke(sz.Kulcs));
 
     protected override async Task OnInitializedAsync()
     {
@@ -177,12 +371,31 @@ else
         await BetoltCegAdatokAsync();
         await BetoltFelulvizsgalokAsync();
         await BetoltMegrendeloTelephelyAsync();
+        await BetoltRbJogszabalyokAsync();
+
+        if (string.IsNullOrEmpty(_adatok.RbBevezetes))
+            _adatok.RbBevezetes = AlapertelmezettBevezetes;
+        if (string.IsNullOrEmpty(_adatok.RbTalaltAllapotok))
+            _adatok.RbTalaltAllapotok = AlapertelmezettTalaltAllapotok;
+        if (string.IsNullOrEmpty(_adatok.RbMinositesMegjegyzes))
+            _adatok.RbMinositesMegjegyzes = AlapertelmezettMinositesMegjegyzes;
 
         if (string.IsNullOrEmpty(_adatok.FelulvizsgaloNev))
             _adatok.FelulvizsgaloNev = TenantService.GetCurrentUserName() ?? "";
 
         _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
             .FirstOrDefault(f => f.Nev.Equals(_adatok.FelulvizsgaloNev, StringComparison.OrdinalIgnoreCase))?.Id;
+
+        // Az aláíró alapértelmezetten a felülvizsgáló, de kiválasztható más (pl. ellenőr) is.
+        if (string.IsNullOrEmpty(_adatok.RbAlairoNev))
+        {
+            _adatok.RbAlairoNev = _adatok.FelulvizsgaloNev;
+            _adatok.RbAlairoBizonyitvany = _adatok.FelulvizsgaloBizonyitvany;
+            _adatok.RbAlairoBeosztas = "Robb. berendezés kezelője";
+        }
+        _kivalasztottAlairoId = _jogosultFelulvizsgalok
+            .FirstOrDefault(f => f.Nev.Equals(_adatok.RbAlairoNev, StringComparison.OrdinalIgnoreCase))?.Id
+            ?? _kivalasztottFelulvizsgaloId;
 
         _adatok.RbSorok ??= new List<RbSor>();
         _betoltes = false;
@@ -220,6 +433,45 @@ else
         }
     }
 
+    /// <summary>
+    /// Betölti a "Robbanásbiztos" taggel megjelölt rendeleteket/szabványokat, és szinkronizálja a jegyzőkönyvben
+    /// már kiválasztott (_adatok.KijeloltJogszabalyok) elemekkel, hogy az újonnan felvett törzsadatok is
+    /// megjelenjenek a listában (alapértelmezetten nem kiválasztva).
+    /// </summary>
+    private async Task BetoltRbJogszabalyokAsync()
+    {
+        try
+        {
+            var osszes = await JogszabalyService.GetAllAsync();
+            _rbJogszabalyok = osszes
+                .Where(j => j.Aktiv && j.Tagek.Any(t => t.Nev.Equals("Robbanásbiztos", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(j => j.Tipus)
+                .ThenBy(j => j.Szam)
+                .ToList();
+
+            _adatok.KijeloltJogszabalyok ??= new List<KijeloltJogszabaly>();
+
+            foreach (var jsz in _rbJogszabalyok)
+            {
+                if (!_adatok.KijeloltJogszabalyok.Any(k => k.JogszabalyId == jsz.Id))
+                {
+                    _adatok.KijeloltJogszabalyok.Add(new KijeloltJogszabaly
+                    {
+                        JogszabalyId = jsz.Id,
+                        Szam = jsz.Szam,
+                        Cim = jsz.Cim,
+                        Kivalasztva = false,
+                        IsSzabvany = jsz.Tipus == JogszabalyTipus.Szabvany
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a rendeletek/szabványok betöltésekor: {ex.Message}", Severity.Warning);
+        }
+    }
+
     private void OnFelulvizsgaloValtozasAsync(int? felulvizsgaloId)
     {
         _kivalasztottFelulvizsgaloId = felulvizsgaloId;
@@ -233,6 +485,32 @@ else
         else
         {
             _adatok.FelulvizsgaloNev = "";
+        }
+    }
+
+    /// <summary>A felülvizsgálatot ténylegesen aláíró személy kiválasztása (alapértelmezetten a felülvizsgáló, de választható más is, pl. ellenőr).</summary>
+    private void OnAlairoValtozasAsync(int? alairoId)
+    {
+        _kivalasztottAlairoId = alairoId;
+
+        if (alairoId.HasValue)
+        {
+            var alairo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == alairoId.Value);
+            if (alairo != null)
+            {
+                _adatok.RbAlairoNev = alairo.Nev;
+                _adatok.RbAlairoBizonyitvany = string.Join(", ",
+                    alairo.Kepzesek
+                        .Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam))
+                        .Select(k => k.BizonyitvanySzam));
+                _adatok.RbAlairoBeosztas = alairo.LehetEllenor ? "Ellenőr" : "Robb. berendezés kezelője";
+            }
+        }
+        else
+        {
+            _adatok.RbAlairoNev = "";
+            _adatok.RbAlairoBizonyitvany = "";
+            _adatok.RbAlairoBeosztas = "";
         }
     }
 
@@ -321,12 +599,32 @@ else
 
         try
         {
+            var vizsgalatIdopontja = _onalloMod ? _onalloMeres?.Datum : _foMeres?.Datum;
+
             var pdfBytes = RbPdfService.Generalas(
                 _adatok.RbSorok,
                 _adatok.CegNev,
                 _adatok.CegCim,
                 _adatok.CegWeb,
-                _jegyzokonyvSzam);
+                _jegyzokonyvSzam,
+                _adatok.VizsgalatTargya,
+                string.IsNullOrWhiteSpace(_adatok.Megrendelo) ? _megrendeloTelephely : _adatok.Megrendelo,
+                vizsgalatTipusa: _adatok.RbVizsgalatTipusa,
+                vizsgalatHelyszine: _megrendeloTelephely,
+                vizsgalatIdopontja: vizsgalatIdopontja,
+                alairoNev: _adatok.RbAlairoNev,
+                alairoBizonyitvany: _adatok.RbAlairoBizonyitvany,
+                alairoBeosztas: _adatok.RbAlairoBeosztas,
+                kijeloltJogszabalyok: _adatok.KijeloltJogszabalyok,
+                rbBevezetes: _adatok.RbBevezetes,
+                rbTalaltAllapotok: _adatok.RbTalaltAllapotok,
+                rbAtexTanusitvanyMegvan: _adatok.RbAtexTanusitvanyMegvan,
+                rbVedelmiModEgyezik: _adatok.RbVedelmiModEgyezik,
+                rbVedelmiModMegfelelTersegbesorolasnak: _adatok.RbVedelmiModMegfelelTersegbesorolasnak,
+                rbAlkalmazasiCsoportHomersOsztalyMegfelelo: _adatok.RbAlkalmazasiCsoportHomersOsztalyMegfelelo,
+                rbReszMinositesFelulbiralas: _adatok.RbReszMinositesFelulbiralas,
+                rbFoMinositesFelulbiralas: _adatok.RbFoMinositesFelulbiralas,
+                rbMinositesMegjegyzes: _adatok.RbMinositesMegjegyzes);
 
             var fajlNev = $"Rb-Felulvizsgalati-Lap-{_jegyzokonyvSzam.Replace("/", "-")}.pdf";
             await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);

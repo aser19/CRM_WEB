@@ -231,7 +231,7 @@ public class RbSor
             if (string.IsNullOrWhiteSpace(Megnevezes)) hianyzok.Add("Eszköz neve (Megnevezés)");
             if (string.IsNullOrWhiteSpace(Gyarto)) hianyzok.Add("Gyártó");
             if (string.IsNullOrWhiteSpace(Tipus)) hianyzok.Add("Típus");
-            if (string.IsNullOrWhiteSpace(GyariSzam)) hianyzok.Add("Gyári szám");
+            if (string.IsNullOrWhiteSpace(GyariSzam) && GyariSzam?.Trim() != "-") hianyzok.Add("Gyári szám");
             if (string.IsNullOrWhiteSpace(VedelmiMod)) hianyzok.Add("Védelmi mód");
             if (string.IsNullOrWhiteSpace(EngSzam)) hianyzok.Add("Eng. szám (vizsgáló állomás)");
             if (string.IsNullOrWhiteSpace(TuzveszOsztaly)) hianyzok.Add("Tűzvesz. osztály");
@@ -244,6 +244,13 @@ public class RbSor
 
     /// <summary>Igaz, ha a sornál legalább egy kötelező mező hiányzik.</summary>
     public bool VanHianyzoAdat => HianyzoKotelezoMezok.Count > 0;
+
+    /// <summary>Hiányzó kötelező adatok esetén rögzíthető szabad szöveges megjegyzés (pl. pótlás módja).</summary>
+    public string? HianyossagMegjegyzes { get; set; }
+
+    /// <summary>Hiányzó kötelező adatok pótlásának javítási határideje.</summary>
+    public DateTime? HianyossagHatarido { get; set; }
+
 
     /// <summary>Érvényteleníti a Védelmi mód szövegétől függő összes gyorsítótárazott (regex-elemzésből származó) mezőt.</summary>
     private void ErvenytelenitiVedelmiModCache()
@@ -264,6 +271,9 @@ public class RbCheckTetel
     public string Szoveg { get; set; } = "";
     public bool Megfelelt { get; set; } = true;
     public string? Megjegyzes { get; set; }
+
+    /// <summary>A hiba (nem megfelelő tétel) javítására megadott határidő. Csak akkor releváns, ha Megfelelt = false.</summary>
+    public DateTime? Hatarido { get; set; }
 }
 
 /// <summary>Segéd az Rb "Védelmi mód" szöveg alapján a releváns Ex kategóriák (i/d/m/p/e) megállapítására.</summary>

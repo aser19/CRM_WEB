@@ -16,6 +16,54 @@ public class JegyzokonyvAdatok
     public string VizsgaltBerendezes { get; set; } = "";
     public string Megrendelo { get; set; } = "";
     public string VizsgalatIdotartama { get; set; } = "";
+
+    /// <summary>Az Rb "Egyedi felülvizsgálati lap" 2. oldalán megjelenő "Vizsgálat típusa" szabad szöveg (a jegyzőkönyv készítésekor adandó meg).</summary>
+    public string RbVizsgalatTipusa { get; set; } = "";
+
+    /// <summary>Az Rb "A felülvizsgálat leírása" fejezet "Bevezetés" (3.1) szakaszának szövege. Alapértelmezett szöveggel előtöltve, szerkeszthető.</summary>
+    public string RbBevezetes { get; set; } = "";
+
+    /// <summary>Az Rb "A felülvizsgálat leírása" fejezet "A talált állapotok leírása" (3.2) szakaszának szövege. Alapértelmezett szöveggel előtöltve, szerkeszthető.</summary>
+    public string RbTalaltAllapotok { get; set; } = "";
+
+    /// <summary>A "3.3.1 Dokumentációk vizsgálata" fejezet első kérdése: rendelkezik-e ATEX jelzésű tanúsítvánnyal, vagy gyártói nyilatkozattal.</summary>
+    public bool RbAtexTanusitvanyMegvan { get; set; } = true;
+
+    /// <summary>A "3.3.1 Dokumentációk vizsgálata" fejezet második kérdése: a dokumentációban feltüntetett védelmi mód egyezik-e az adattáblán szereplő védelmi móddal.</summary>
+    public bool RbVedelmiModEgyezik { get; set; } = true;
+
+    /// <summary>A "3.3.1 Dokumentációk vizsgálata" fejezet harmadik kérdése: a védelmi mód megfelel-e az adatlapon megjelölt térségbesorolásnak.</summary>
+    public bool RbVedelmiModMegfelelTersegbesorolasnak { get; set; } = true;
+
+    /// <summary>A "3.3.1 Dokumentációk vizsgálata" fejezet negyedik kérdése: a gyártmány alkalmazási csoportja és hőmérsékleti osztálya megfelelő-e.</summary>
+    public bool RbAlkalmazasiCsoportHomersOsztalyMegfelelo { get; set; } = true;
+
+    /// <summary>
+    /// A "4 Minősítés" fejezet 8 részminősítésének kézi felülbírálása. A kulcsok a szempont sorszáma ("1".."8"),
+    /// az érték true = "Megfelelő", false = "Nem megfelelő". Ha egy kulcs hiányzik, az adott szempont a számított
+    /// alapértékkel jelenik meg (az 1-7. szempont alapból "Megfelelő", a 8. a zóna-megfelelőségből számítva,
+    /// kivéve ha ott bármelyik berendezés "nem megfelelt" checklist tétellel rendelkezik, amikor a számított
+    /// alapérték "Nem megfelelő" lesz).
+    /// </summary>
+    public Dictionary<string, bool> RbReszMinositesFelulbiralas { get; set; } = new();
+
+    /// <summary>A "4 Minősítés" fejezet összesített ("FŐ") minősítésének kézi felülbírálása. Null = a 8 rész alapján számított érték érvényes.</summary>
+    public bool? RbFoMinositesFelulbiralas { get; set; }
+
+    /// <summary>A "4 Minősítés" fejezet alatti megjegyzés szövege. Alapértelmezett szöveggel előtöltve, szerkeszthető.</summary>
+    public string RbMinositesMegjegyzes { get; set; } = "";
+
+    /// <summary>Az Rb felülvizsgálatot ténylegesen aláíró személy neve (alapértelmezetten a felülvizsgáló, de választható ellenőr is).</summary>
+    public string RbAlairoNev { get; set; } = "";
+
+    /// <summary>Az Rb felülvizsgálatot aláíró személy bizonyítványszáma.</summary>
+    public string RbAlairoBizonyitvany { get; set; } = "";
+
+    /// <summary>Az Rb aláíró személy beosztása (pl. "Robb. berendezés kezelője" vagy "Ellenőr").</summary>
+    public string RbAlairoBeosztas { get; set; } = "";
+
+    /// <summary>Az Rb felülvizsgálat időpontja (a mérés dátuma).</summary>
+    public DateTime? RbVizsgalatIdopontja { get; set; }
     public string Eredmeny { get; set; } = "";
     public string Megjegyzes { get; set; } = "";
     public string UzemiKisero { get; set; } = "";

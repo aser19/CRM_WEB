@@ -14,7 +14,7 @@
         {
             <tr>
                 <td>@tetel.Szoveg</td>
-                <td><MudCheckBox @bind-Value="tetel.Megfelelt" Color="Color.Success" Dense="true" /></td>
+                <td><MudCheckBox T="bool" Value="@tetel.Megfelelt" ValueChanged="@(v => OnMegfeleltValtozott(tetel, v))" Color="Color.Success" Dense="true" /></td>
                 <td><MudTextField @bind-Value="tetel.Megjegyzes" Variant="Variant.Text" Dense="true" /></td>
             </tr>
         }
@@ -27,4 +27,14 @@
 
     [Parameter, EditorRequired]
     public List<RbCheckTetel> Tetelek { get; set; } = new();
+
+    /// <summary>Meghívódik, ha bármely tétel Megfelelt jelölése megváltozik (pl. a felette lévő hibalista frissítéséhez).</summary>
+    [Parameter]
+    public EventCallback OnValtozas { get; set; }
+
+    private async Task OnMegfeleltValtozott(RbCheckTetel tetel, bool ujErtek)
+    {
+        tetel.Megfelelt = ujErtek;
+        await OnValtozas.InvokeAsync();
+    }
 }

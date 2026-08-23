@@ -1,0 +1,111 @@
+@using BiztvillCRM.Shared.Models
+
+@if (_hibaSorok.Count > 0)
+{
+    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2" Icon="@Icons.Material.Filled.ReportProblem">
+        <b>@_hibaSorok.Count db hiba/hiányosság</b> található a berendezéseknél. Az alábbi táblázatban tekintheted át és javíthatod meg (megjegyzés, javítási határidő).
+    </MudAlert>
+    <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mb-4">
+        <thead>
+            <tr>
+                <th style="width:70px">Sorsz.</th>
+                <th>Berendezés</th>
+                <th>Hiba / nem megfelelő tétel</th>
+                <th>Megjegyzés</th>
+                <th style="width:170px">Javítási határidő</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var hiba in _hibaSorok)
+            {
+                <tr>
+                    <td>#@hiba.Sor.Sorsz</td>
+                    <td>@hiba.Sor.Megnevezes <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">@hiba.Sor.Elhelyezes</MudText></td>
+                    <td>@hiba.Leiras</td>
+                    <td>
+                        <MudTextField T="string" Value="@hiba.Megjegyzes" ValueChanged="@(v => { hiba.Megjegyzes = v; })" Variant="Variant.Text" Dense="true" />
+                    </td>
+                    <td>
+                        <MudDatePicker Date="@hiba.Hatarido" DateChanged="@(d => { hiba.Hatarido = d; })"
+                                       Variant="Variant.Text" Dense="true" Editable="true" DateFormat="yyyy.MM.dd" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public List<RbSor> Sorok { get; set; } = new();
+
+    private sealed class HibaSor
+    {
+        public required RbSor Sor { get; init; }
+        public required string Leiras { get; init; }
+        public string? Megjegyzes { get => _get(); set => _set(value); }
+        public DateTime? Hatarido { get => _getDate(); set => _setDate(value); }
+
+        public required Func<string?> _get;
+        public required Action<string?> _set;
+        public required Func<DateTime?> _getDate;
+        public required Action<DateTime?> _setDate;
+    }
+
+    private List<HibaSor> _hibaSorok = new();
+
+    protected override void OnParametersSet() => Ujraszamol();
+
+    /// <summary>Újraszámolja az összes sor és checklist tétel alapján a hibalistát. Hívandó, ha bármely sor vagy tétel megfelelősége/hiányzó adata megváltozott.</summary>
+    public void Ujraszamol()
+    {
+        var ujLista = new List<HibaSor>();
+
+        foreach (var sor in Sorok)
+        {
+            if (sor.VanHianyzoAdat)
+            {
+                ujLista.Add(new HibaSor
+                {
+                    Sor = sor,
+                    Leiras = $"Hiányzó kötelező adat(ok): {string.Join(", ", sor.HianyzoKotelezoMezok)}",
+                    _get = () => sor.HianyossagMegjegyzes,
+                    _set = v => sor.HianyossagMegjegyzes = v,
+                    _getDate = () => sor.HianyossagHatarido,
+                    _setDate = d => sor.HianyossagHatarido = d
+                });
+            }
+
+            foreach (var (cim, tetelek) in Szekciok(sor))
+            {
+                foreach (var tetel in tetelek)
+                {
+                    if (tetel.Megfelelt) continue;
+
+                    ujLista.Add(new HibaSor
+                    {
+                        Sor = sor,
+                        Leiras = $"[{cim}] {tetel.Szoveg} — nem megfelelő",
+                        _get = () => tetel.Megjegyzes,
+                        _set = v => tetel.Megjegyzes = v,
+                        _getDate = () => tetel.Hatarido,
+                        _setDate = d => tetel.Hatarido = d
+                    });
+                }
+            }
+        }
+
+        _hibaSorok = ujLista;
+    }
+
+    private static IEnumerable<(string Cim, List<RbCheckTetel> Tetelek)> Szekciok(RbSor sor)
+    {
+        yield return ("Környezeti állapotok", sor.Kornyezeti);
+        yield return ("A készülék vagy gyártmány állapota", sor.KeszulekAllapota);
+        if (sor.VanExI) yield return ("Ex \"i\" gyártmányok további követelményei", sor.ExI);
+        if (sor.VanExD) yield return ("Ex \"d\" gyártmányok további követelményei", sor.ExD);
+        if (sor.VanExM) yield return ("Ex \"m\" gyártmányok további követelményei", sor.ExM);
+        if (sor.VanExE) yield return ("Ex \"e\" gyártmányok további követelményei", sor.ExE);
+        if (sor.VanExP) yield return ("Ex \"p\" gyártmányok további követelményei", sor.ExP);
+    }
+}
