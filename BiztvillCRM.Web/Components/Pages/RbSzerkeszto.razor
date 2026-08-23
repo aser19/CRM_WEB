@@ -13,6 +13,7 @@
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IRbPdfService RbPdfService
 @inject IJogszabalyService JogszabalyService
+@inject IFileStorageService FileStorageService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -601,6 +602,28 @@ else
         {
             var vizsgalatIdopontja = _onalloMod ? _onalloMeres?.Datum : _foMeres?.Datum;
 
+            byte[]? cegBelyegzoKep = null;
+            var ceg = await CegService.GetByIdAsync(TenantService.GetCurrentCegId());
+            if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+            {
+                cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+            }
+
+            byte[]? alairoAlairasKep = null;
+            var alairoFelulvizsgalo = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Nev.Equals(_adatok.RbAlairoNev, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(alairoFelulvizsgalo?.AlairasPath))
+            {
+                alairoAlairasKep = await FileStorageService.GetFileBytesAsync(alairoFelulvizsgalo.AlairasPath);
+            }
+
+            var felulvizsgaloAlairasKepek = new Dictionary<string, byte[]>();
+            foreach (var f in _jogosultFelulvizsgalok.Where(f => !string.IsNullOrWhiteSpace(f.AlairasPath)))
+            {
+                var kep = await FileStorageService.GetFileBytesAsync(f.AlairasPath);
+                if (kep != null)
+                    felulvizsgaloAlairasKepek[f.Nev] = kep;
+            }
+
             var pdfBytes = RbPdfService.Generalas(
                 _adatok.RbSorok,
                 _adatok.CegNev,
@@ -624,7 +647,10 @@ else
                 rbAlkalmazasiCsoportHomersOsztalyMegfelelo: _adatok.RbAlkalmazasiCsoportHomersOsztalyMegfelelo,
                 rbReszMinositesFelulbiralas: _adatok.RbReszMinositesFelulbiralas,
                 rbFoMinositesFelulbiralas: _adatok.RbFoMinositesFelulbiralas,
-                rbMinositesMegjegyzes: _adatok.RbMinositesMegjegyzes);
+                rbMinositesMegjegyzes: _adatok.RbMinositesMegjegyzes,
+                cegBelyegzoKep: cegBelyegzoKep,
+                alairoAlairasKep: alairoAlairasKep,
+                felulvizsgaloAlairasKepek: felulvizsgaloAlairasKepek);
 
             var fajlNev = $"Rb-Felulvizsgalati-Lap-{_jegyzokonyvSzam.Replace("/", "-")}.pdf";
             await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);

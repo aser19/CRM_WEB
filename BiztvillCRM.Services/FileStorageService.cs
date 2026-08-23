@@ -229,6 +229,89 @@ public class FileStorageService : IFileStorageService
         }
     }
 
+    public async Task<string?> SaveCegFileAsync(
+        Stream fileStream,
+        string fileName,
+        string cegNev,
+        string category,
+        string[] allowedExtensions,
+        int maxSizeMB = 5)
+    {
+        try
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                _logger.LogWarning("Nem engedélyezett fájlkiterjesztés: {Extension}", extension);
+                return null;
+            }
+
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            if (memoryStream.Length > maxSizeMB * 1024 * 1024)
+            {
+                _logger.LogWarning("A fájl túl nagy: {Size} MB", memoryStream.Length / 1024 / 1024);
+                return null;
+            }
+
+            // Mappa struktúra létrehozása: Uploads\CégNév\_Ceg\Kategória
+            var safeCegNev = MakeSafeFileName(cegNev);
+            var safeCategory = MakeSafeFileName(category);
+
+            var directoryPath = Path.Combine(_uploadsPath, safeCegNev, "_Ceg", safeCategory);
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var safeFileName = MakeSafeFileName(Path.GetFileNameWithoutExtension(fileName));
+            var uniqueFileName = $"{timestamp}_{safeFileName}{extension}";
+            var fullPath = Path.Combine(directoryPath, uniqueFileName);
+
+            using (var fileStreamOut = new FileStream(fullPath, FileMode.Create))
+            {
+                memoryStream.Position = 0;
+                await memoryStream.CopyToAsync(fileStreamOut);
+            }
+
+            var relativePath = Path.Combine(safeCegNev, "_Ceg", safeCategory, uniqueFileName);
+            _logger.LogInformation("Cég fájl sikeresen mentve: {Path}", relativePath);
+
+            return relativePath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hiba a cég fájl mentése során: {FileName}", fileName);
+            return null;
+        }
+    }
+
+    public async Task<byte[]?> GetFileBytesAsync(string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return null;
+
+        try
+        {
+            var fullPath = Path.Combine(_uploadsPath, relativePath);
+            if (!File.Exists(fullPath))
+            {
+                _logger.LogWarning("A fájl nem létezik: {Path}", relativePath);
+                return null;
+            }
+
+            return await File.ReadAllBytesAsync(fullPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hiba a fájl beolvasása során: {Path}", relativePath);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Biztonságos fájlnév/mappanév készítése (nem engedélyezett karakterek eltávolítása)
     /// </summary>

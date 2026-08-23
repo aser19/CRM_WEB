@@ -33,11 +33,15 @@ public interface IRbPdfService
     /// <param name="rbReszMinositesFelulbiralas">A "4 Minősítés" fejezet 8 részminősítésének kézi felülbírálása (kulcs: "1"."8", érték: true = Megfelelő).</param>
     /// <param name="rbFoMinositesFelulbiralas">A "4 Minősítés" fejezet összesített minősítésének kézi felülbírálása. Null esetén a 8 rész alapján számított érték kerül felhasználásra.</param>
     /// <param name="rbMinositesMegjegyzes">A "4 Minősítés" fejezet alatti megjegyzés szövege. Ha nincs megadva, alapértelmezett szöveg kerül a PDF-be.</param>
+    /// <param name="cegBelyegzoKep">A kiállító cég bélyegzőjének képe (byte tömb), ha rögzítve van. Ha meg van adva, minden aláírás blokk mellett megjelenik.</param>
+    /// <param name="alairoAlairasKep">Az aláíró (2. oldali "Auditor") személy aláírás képe (byte tömb), ha rögzítve van.</param>
+    /// <param name="felulvizsgaloAlairasKepek">A soronkénti "felülvizsgálatot végezte" aláírók aláírás képei, kulcs a felülvizsgáló neve (a RbSor.VizsgalatotVegezte mezővel egyezően).</param>
     byte[] Generalas(List<RbSor> sorok, string cegNev, string cegCim, string cegWeb, string jegyzokonyvSzam, string? targyLeiras = null, string? megrendeloNev = null, DateTime? keszultDatum = null,
         string? vizsgalatTipusa = null, string? vizsgalatHelyszine = null, DateTime? vizsgalatIdopontja = null,
         string? alairoNev = null, string? alairoBizonyitvany = null, string? alairoBeosztas = null,
         List<KijeloltJogszabaly>? kijeloltJogszabalyok = null, string? rbBevezetes = null, string? rbTalaltAllapotok = null,
         bool rbAtexTanusitvanyMegvan = true, bool rbVedelmiModEgyezik = true,
         bool rbVedelmiModMegfelelTersegbesorolasnak = true, bool rbAlkalmazasiCsoportHomersOsztalyMegfelelo = true,
-        Dictionary<string, bool>? rbReszMinositesFelulbiralas = null, bool? rbFoMinositesFelulbiralas = null, string? rbMinositesMegjegyzes = null);
+        Dictionary<string, bool>? rbReszMinositesFelulbiralas = null, bool? rbFoMinositesFelulbiralas = null, string? rbMinositesMegjegyzes = null,
+        byte[]? cegBelyegzoKep = null, byte[]? alairoAlairasKep = null, Dictionary<string, byte[]>? felulvizsgaloAlairasKepek = null);
 }

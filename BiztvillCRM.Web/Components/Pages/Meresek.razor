@@ -20,6 +20,8 @@
 @inject NavigationManager Navigation
 @inject IMellekletJegyzokonyvService MellekletService
 @inject ICegService CegService
+@inject IFelulvizsgaloService FelulvizsgaloService
+@inject IFileStorageService FileStorageService
 @inject ILejaroOsszefoglaloService LejaroOsszefoglaloService
 @inject IExportService ExportService
 
@@ -1106,12 +1108,58 @@
                 return;
             }
 
+            byte[]? cegBelyegzoKep = null;
+            var ceg = await CegService.GetByIdAsync(TenantService.GetCurrentCegId());
+            if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+            {
+                cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+            }
+
+            var jogosultFelulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+
+            byte[]? alairoAlairasKep = null;
+            var alairoFelulvizsgalo = jogosultFelulvizsgalok.FirstOrDefault(f => f.Nev.Equals(adatok.RbAlairoNev, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(alairoFelulvizsgalo?.AlairasPath))
+            {
+                alairoAlairasKep = await FileStorageService.GetFileBytesAsync(alairoFelulvizsgalo.AlairasPath);
+            }
+
+            var felulvizsgaloAlairasKepek = new Dictionary<string, byte[]>();
+            foreach (var f in jogosultFelulvizsgalok.Where(f => !string.IsNullOrWhiteSpace(f.AlairasPath)))
+            {
+                var kep = await FileStorageService.GetFileBytesAsync(f.AlairasPath);
+                if (kep != null)
+                    felulvizsgaloAlairasKepek[f.Nev] = kep;
+            }
+
             var pdfBytes = RbPdfService.Generalas(
                 adatok.RbSorok,
                 adatok.CegNev,
                 adatok.CegCim,
                 adatok.CegWeb,
-                adatok.JegyzokonyvSzam ?? $"RB-{meres.Id:D6}");
+                adatok.JegyzokonyvSzam ?? $"RB-{meres.Id:D6}",
+                targyLeiras: adatok.VizsgalatTargya,
+                megrendeloNev: string.IsNullOrWhiteSpace(adatok.Megrendelo) ? null : adatok.Megrendelo,
+                keszultDatum: meres.Datum,
+                vizsgalatTipusa: adatok.RbVizsgalatTipusa,
+                vizsgalatHelyszine: adatok.VizsgalatHelye,
+                vizsgalatIdopontja: meres.Datum,
+                alairoNev: adatok.RbAlairoNev,
+                alairoBizonyitvany: adatok.RbAlairoBizonyitvany,
+                alairoBeosztas: adatok.RbAlairoBeosztas,
+                kijeloltJogszabalyok: adatok.KijeloltJogszabalyok,
+                rbBevezetes: adatok.RbBevezetes,
+                rbTalaltAllapotok: adatok.RbTalaltAllapotok,
+                rbAtexTanusitvanyMegvan: adatok.RbAtexTanusitvanyMegvan,
+                rbVedelmiModEgyezik: adatok.RbVedelmiModEgyezik,
+                rbVedelmiModMegfelelTersegbesorolasnak: adatok.RbVedelmiModMegfelelTersegbesorolasnak,
+                rbAlkalmazasiCsoportHomersOsztalyMegfelelo: adatok.RbAlkalmazasiCsoportHomersOsztalyMegfelelo,
+                rbReszMinositesFelulbiralas: adatok.RbReszMinositesFelulbiralas,
+                rbFoMinositesFelulbiralas: adatok.RbFoMinositesFelulbiralas,
+                rbMinositesMegjegyzes: adatok.RbMinositesMegjegyzes,
+                cegBelyegzoKep: cegBelyegzoKep,
+                alairoAlairasKep: alairoAlairasKep,
+                felulvizsgaloAlairasKepek: felulvizsgaloAlairasKepek);
 
             var fileName = $"Rb-Felulvizsgalati-Lap-{(adatok.JegyzokonyvSzam ?? meres.Id.ToString()).Replace("/", "-")}.pdf";
 

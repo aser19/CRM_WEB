@@ -13,6 +13,10 @@ namespace BiztvillCRM.Services;
 /// </summary>
 public class RbPdfService : IRbPdfService
 {
+    private byte[]? _cegBelyegzoKep;
+    private byte[]? _alairoAlairasKep;
+    private Dictionary<string, byte[]>? _felulvizsgaloAlairasKepek;
+
     public RbPdfService()
     {
         QuestPDF.Settings.License = LicenseType.Community;
@@ -24,8 +28,13 @@ public class RbPdfService : IRbPdfService
         List<KijeloltJogszabaly>? kijeloltJogszabalyok = null, string? rbBevezetes = null, string? rbTalaltAllapotok = null,
         bool rbAtexTanusitvanyMegvan = true, bool rbVedelmiModEgyezik = true,
         bool rbVedelmiModMegfelelTersegbesorolasnak = true, bool rbAlkalmazasiCsoportHomersOsztalyMegfelelo = true,
-        Dictionary<string, bool>? rbReszMinositesFelulbiralas = null, bool? rbFoMinositesFelulbiralas = null, string? rbMinositesMegjegyzes = null)
+        Dictionary<string, bool>? rbReszMinositesFelulbiralas = null, bool? rbFoMinositesFelulbiralas = null, string? rbMinositesMegjegyzes = null,
+        byte[]? cegBelyegzoKep = null, byte[]? alairoAlairasKep = null, Dictionary<string, byte[]>? felulvizsgaloAlairasKepek = null)
     {
+        _cegBelyegzoKep = cegBelyegzoKep;
+        _alairoAlairasKep = alairoAlairasKep;
+        _felulvizsgaloAlairasKepek = felulvizsgaloAlairasKepek;
+
         var keszult = keszultDatum ?? DateTime.Today;
 
         return Document.Create(container =>
@@ -237,9 +246,20 @@ public class RbPdfService : IRbPdfService
                 row.RelativeItem();
                 row.RelativeItem().Column(c =>
                 {
-                    c.Item().AlignCenter().PaddingBottom(4).Text("……………………………..");
+                    if (_alairoAlairasKep != null)
+                    {
+                        c.Item().AlignCenter().Height(30).Image(_alairoAlairasKep).FitArea();
+                    }
+                    else
+                    {
+                        c.Item().AlignCenter().PaddingBottom(4).Text("……………………………..");
+                    }
                     c.Item().AlignCenter().Text(alairoNev ?? "").Bold().FontSize(10);
                     c.Item().AlignCenter().Text("Auditor").FontSize(9).FontColor(Colors.Grey.Darken1);
+                    if (_cegBelyegzoKep != null)
+                    {
+                        c.Item().AlignCenter().PaddingTop(6).Height(30).Image(_cegBelyegzoKep).FitArea();
+                    }
                 });
             });
         });
@@ -1318,16 +1338,32 @@ public class RbPdfService : IRbPdfService
 
     private void Alairas(IContainer container, RbSor sor)
     {
+        byte[]? alairasKep = null;
+        if (_felulvizsgaloAlairasKepek != null && !string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte))
+            _felulvizsgaloAlairasKepek.TryGetValue(sor.VizsgalatotVegezte, out alairasKep);
+
         container.Row(row =>
         {
             row.RelativeItem().Column(col =>
             {
-                col.Item().AlignCenter().PaddingBottom(15).Text("________________________");
+                if (alairasKep != null)
+                {
+                    col.Item().AlignCenter().Height(30).Image(alairasKep).FitArea();
+                }
+                else
+                {
+                    col.Item().AlignCenter().PaddingBottom(15).Text("________________________");
+                }
                 col.Item().AlignCenter().Text(string.IsNullOrWhiteSpace(sor.VizsgalatotVegezte) ? "A vizsgálatot végezte" : sor.VizsgalatotVegezte);
                 col.Item().AlignCenter().Text("felülvizsgáló").FontSize(8).FontColor(Colors.Grey.Darken1);
+                if (_cegBelyegzoKep != null)
+                {
+                    col.Item().AlignCenter().PaddingTop(6).Height(30).Image(_cegBelyegzoKep).FitArea();
+                }
             });
         });
     }
+
 
     private void Lablec(IContainer container)
     {

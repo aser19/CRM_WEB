@@ -88,6 +88,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
         existing.Telefon = felulvizsgalo.Telefon;
         existing.Megjegyzes = felulvizsgalo.Megjegyzes;
         existing.Aktiv = felulvizsgalo.Aktiv;
+        existing.AlairasPath = felulvizsgalo.AlairasPath;
         existing.Modositva = DateTime.Now;
         
         if (tenantService.IsInRole(FelhasznaloSzerepkor.Admin))

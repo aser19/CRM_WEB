@@ -30,6 +30,7 @@ public class MeresJegyzokonyvAdatok
     public string? UgyfelKepviseloNeve { get; set; }
     public byte[]? MeroAlairasKep { get; set; }
     public byte[]? UgyfelAlairasKep { get; set; }
+    public byte[]? CegBelyegzoKep { get; set; }
 }
 
 public class MertErtek

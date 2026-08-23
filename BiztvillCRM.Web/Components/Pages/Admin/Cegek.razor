@@ -12,6 +12,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject IFileStorageService FileStorageService
 
 <PageTitle>Cégek kezelése - Biztovill CRM</PageTitle>
 
@@ -134,6 +135,35 @@
             <div class="mb-3">
                 <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
             </div>
+
+            <!-- Cégbélyegző szekció -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Approval" Class="mr-1" />
+                    Cégbélyegző
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                    Ha fel van töltve, a jegyzőkönyvek/PDF-ek aláírás blokkjaiban automatikusan megjelenik.
+                </MudText>
+                @if (!string.IsNullOrWhiteSpace(_szerkesztettCeg.BelyegzoPath))
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+                        <MudText Typo="Typo.caption">Bélyegző feltöltve: @Path.GetFileName(_szerkesztettCeg.BelyegzoPath)</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="BelyegzoTorlese" Title="Bélyegző törlése" />
+                    </MudStack>
+                }
+                <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png" MaximumFileCount="1"
+                               FilesChanged="BelyegzoKivalasztasa">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload">
+                            Bélyegző választása
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudItem>
 
             <MudItem xs="12" md="4">
                 <MudTextField @bind-Value="_szerkesztettCeg.MatricaElotag" 
@@ -302,6 +332,7 @@
     private bool _validacioMutatasa;
     private Ceg? _szerkesztettCeg;
     private TevekenysegTipus _eredetiTevekenyseg = TevekenysegTipus.Nincs;
+    private IBrowserFile? _kivalasztottBelyegzo;
 
     private IEnumerable<CegListaElem> _szurtLista
     {
@@ -387,6 +418,7 @@
         _szerkesztettCeg = new Ceg();
         _ujCeg = true;
         _validacioMutatasa = false;
+        _kivalasztottBelyegzo = null;
         _dialogLatszik = true;
     }
 
@@ -410,10 +442,12 @@
             NavPassword = ceg.NavPassword,
             NavXmlSignKey = ceg.NavXmlSignKey,
             NavTaxNumber = ceg.NavTaxNumber,
-            NavTesztKornyezet = ceg.NavTesztKornyezet
+            NavTesztKornyezet = ceg.NavTesztKornyezet,
+            BelyegzoPath = ceg.BelyegzoPath
         };
         _ujCeg = false;
         _validacioMutatasa = false;
+        _kivalasztottBelyegzo = null;
         _dialogLatszik = true;
         _eredetiTevekenyseg = ceg.Tevekenyseg;
     }
@@ -423,6 +457,20 @@
         _dialogLatszik = false;
         _szerkesztettCeg = null;
         _validacioMutatasa = false;
+    }
+
+    private void BelyegzoKivalasztasa(IBrowserFile file)
+    {
+        _kivalasztottBelyegzo = file;
+    }
+
+    private async Task BelyegzoTorlese()
+    {
+        if (_szerkesztettCeg?.BelyegzoPath != null)
+        {
+            await FileStorageService.DeleteFileAsync(_szerkesztettCeg.BelyegzoPath);
+            _szerkesztettCeg.BelyegzoPath = null;
+        }
     }
 
     private async Task MentesAsync()
@@ -472,6 +520,32 @@
                 _szerkesztettCeg.MatricaElotag = null;
             else
                 _szerkesztettCeg.MatricaElotag = _szerkesztettCeg.MatricaElotag.ToUpperInvariant();
+
+            // Bélyegző feltöltése, ha van kiválasztva
+            if (_kivalasztottBelyegzo != null)
+            {
+                using var stream = _kivalasztottBelyegzo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var path = await FileStorageService.SaveCegFileAsync(
+                    stream,
+                    _kivalasztottBelyegzo.Name,
+                    _szerkesztettCeg.Nev,
+                    "belyegzo",
+                    new[] { ".jpg", ".jpeg", ".png" },
+                    5);
+
+                if (path != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(_szerkesztettCeg.BelyegzoPath))
+                    {
+                        await FileStorageService.DeleteFileAsync(_szerkesztettCeg.BelyegzoPath);
+                    }
+                    _szerkesztettCeg.BelyegzoPath = path;
+                }
+                else
+                {
+                    Snackbar.Add("A bélyegző feltöltése sikertelen!", Severity.Warning);
+                }
+            }
 
             if (_ujCeg)
             {

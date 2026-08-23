@@ -9,10 +9,16 @@ namespace BiztvillCRM.Services;
 public class JegyzokonyvPdfService : IJegyzokonyvPdfService
 {
     private readonly IMeresService _meresService;
+    private readonly ITenantService _tenantService;
+    private readonly ICegService _cegService;
+    private readonly IFileStorageService _fileStorageService;
 
-    public JegyzokonyvPdfService(IMeresService meresService)
+    public JegyzokonyvPdfService(IMeresService meresService, ITenantService tenantService, ICegService cegService, IFileStorageService fileStorageService)
     {
         _meresService = meresService;
+        _tenantService = tenantService;
+        _cegService = cegService;
+        _fileStorageService = fileStorageService;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -35,6 +41,12 @@ public class JegyzokonyvPdfService : IJegyzokonyvPdfService
             Eredmeny = meres.Eredmeny,
             Megjegyzes = meres.Megjegyzes
         };
+
+        var ceg = await _cegService.GetByIdAsync(_tenantService.GetCurrentCegId());
+        if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+        {
+            adatok.CegBelyegzoKep = await _fileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+        }
 
         return Generalas(adatok);
     }
@@ -219,16 +231,36 @@ public class JegyzokonyvPdfService : IJegyzokonyvPdfService
         {
             row.RelativeItem().Column(col =>
             {
-                col.Item().AlignCenter().PaddingBottom(40).Text("________________________");
+                if (adatok.MeroAlairasKep != null)
+                {
+                    col.Item().AlignCenter().Height(25).Image(adatok.MeroAlairasKep).FitArea();
+                    col.Item().PaddingBottom(4);
+                }
+                else
+                {
+                    col.Item().AlignCenter().PaddingBottom(40).Text("________________________");
+                }
                 col.Item().AlignCenter().Text(adatok.MeroNeve ?? "Mérést végezte");
                 col.Item().AlignCenter().Text("mérőbiztos").FontSize(9).FontColor(Colors.Grey.Darken1);
+                if (adatok.CegBelyegzoKep != null)
+                {
+                    col.Item().AlignCenter().PaddingTop(6).Height(25).Image(adatok.CegBelyegzoKep).FitArea();
+                }
             });
 
             row.ConstantItem(50); // Térköz
 
             row.RelativeItem().Column(col =>
             {
-                col.Item().AlignCenter().PaddingBottom(40).Text("________________________");
+                if (adatok.UgyfelAlairasKep != null)
+                {
+                    col.Item().AlignCenter().Height(50).Image(adatok.UgyfelAlairasKep).FitArea();
+                    col.Item().PaddingBottom(4);
+                }
+                else
+                {
+                    col.Item().AlignCenter().PaddingBottom(40).Text("________________________");
+                }
                 col.Item().AlignCenter().Text(adatok.UgyfelKepviseloNeve ?? "Ügyfél képviselője");
                 col.Item().AlignCenter().Text("megrendelő").FontSize(9).FontColor(Colors.Grey.Darken1);
             });

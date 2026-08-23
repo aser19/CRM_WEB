@@ -67,4 +67,28 @@ public interface IFileStorageService
         string category,
         string[] allowedExtensions,
         int maxSizeMB = 10);
+
+    /// <summary>
+    /// Cég-szintű fájl mentése (pl. bélyegző kép), strukturált mappába (Cég\_Ceg\kategória)
+    /// </summary>
+    /// <param name="fileStream">Fájl stream</param>
+    /// <param name="fileName">Fájl neve</param>
+    /// <param name="cegNev">Cég neve</param>
+    /// <param name="category">Kategória (pl.: "belyegzo")</param>
+    /// <param name="allowedExtensions">Engedélyezett fájlkiterjesztések</param>
+    /// <param name="maxSizeMB">Maximum fájlméret MB-ban</param>
+    /// <returns>Relatív fájl elérési út vagy null hiba esetén</returns>
+    Task<string?> SaveCegFileAsync(
+        Stream fileStream,
+        string fileName,
+        string cegNev,
+        string category,
+        string[] allowedExtensions,
+        int maxSizeMB = 5);
+
+    /// <summary>
+    /// Fájl beolvasása byte tömbként (pl. PDF-be illesztéshez)
+    /// </summary>
+    /// <param name="relativePath">Relatív fájl elérési út</param>
+    Task<byte[]?> GetFileBytesAsync(string? relativePath);
 }

@@ -40,4 +40,8 @@ public class Ceg
     public string? NavXmlSignKey { get; set; }    // titkosítva tárolva
     public string? NavTaxNumber { get; set; }     // 8 jegyű adószám
     public bool NavTesztKornyezet { get; set; } = true; // false = éles
+
+    /// <summary>Cégbélyegző kép fájl elérési útja (relatív a Uploads mappához). Ha ki van töltve, a jegyzőkönyvekben/PDF-ekben az aláírás mellett megjelenik.</summary>
+    public string? BelyegzoPath { get; set; }
+
 }
