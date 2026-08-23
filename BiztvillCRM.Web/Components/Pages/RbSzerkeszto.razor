@@ -515,8 +515,16 @@ else
         }
     }
 
+    /// <summary>
+    /// A kiállító cég adatait csak első alkalommal (amikor a jegyzőkönyvhöz még nincs elmentett cégnév) tölti be.
+    /// Ha már van elmentett érték (a jegyzőkönyv korábban el lett mentve), azt nem írja felül, így egy
+    /// utólagos ügyfél-cég átsorolás nem módosítja a már elkészült jegyzőkönyvek kiállító adatait.
+    /// </summary>
     private async Task BetoltCegAdatokAsync()
     {
+        if (!string.IsNullOrWhiteSpace(_adatok.CegNev))
+            return; // Már van elmentett (historikus) cégadat - nem írjuk felül.
+
         try
         {
             var cegId = TenantService.GetCurrentCegId();
@@ -525,6 +533,7 @@ else
                 var ceg = await CegService.GetByIdAsync(cegId);
                 if (ceg != null)
                 {
+                    _adatok.CegId = ceg.Id;
                     _adatok.CegNev = ceg.Nev ?? "";
                     _adatok.CegCim = ceg.Cim ?? "";
                     _adatok.CegWeb = ceg.Weboldal ?? ceg.Email ?? "";
@@ -603,7 +612,8 @@ else
             var vizsgalatIdopontja = _onalloMod ? _onalloMeres?.Datum : _foMeres?.Datum;
 
             byte[]? cegBelyegzoKep = null;
-            var ceg = await CegService.GetByIdAsync(TenantService.GetCurrentCegId());
+            var belyegzoCegId = _adatok.CegId > 0 ? _adatok.CegId : TenantService.GetCurrentCegId();
+            var ceg = await CegService.GetByIdAsync(belyegzoCegId);
             if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
             {
                 cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);

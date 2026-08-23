@@ -1109,7 +1109,8 @@
             }
 
             byte[]? cegBelyegzoKep = null;
-            var ceg = await CegService.GetByIdAsync(TenantService.GetCurrentCegId());
+            var belyegzoCegId = adatok.CegId > 0 ? adatok.CegId : TenantService.GetCurrentCegId();
+            var ceg = await CegService.GetByIdAsync(belyegzoCegId);
             if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
             {
                 cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);

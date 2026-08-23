@@ -7,6 +7,8 @@ public class JegyzokonyvAdatok
     /// <summary>Hányszor lett a lezárt jegyzőkönyv újra szerkesztve és mentve.</summary>
     public int ModositasokSzama { get; set; } = 0;
 
+    /// <summary>A jegyzőkönyv első mentésekor érvényes kiállító cég azonosítója (historikus rögzítés - a bélyegzőkép is ehhez a céghez tartozik, még ha az ügyfelet később másik céghez sorolják is).</summary>
+    public int CegId { get; set; }
     public string CegNev { get; set; } = "";
     public string CegCim { get; set; } = "";
     public string CegWeb { get; set; } = "";
