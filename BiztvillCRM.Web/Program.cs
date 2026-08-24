@@ -115,6 +115,8 @@ builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
     var sablonService = sp.GetRequiredService<ISablonService>();
     return new JegyzokonyvWordService(meresService, tenantService, cegService, sablonService);
 }); // <-- ÚJ SZOLGÁLTATÁS
+builder.Services.AddScoped<IHvmPdfService, HvmPdfService>();
+builder.Services.AddScoped<IVbfPdfService, VbfPdfService>();
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS

@@ -14,6 +14,7 @@
 @inject IJegyzokonyvPdfService JegyzokonyvPdfService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
 @inject IRbPdfService RbPdfService
+@inject IHvmPdfService HvmPdfService
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
@@ -651,7 +652,7 @@
                                             <MudIconButton Icon="@Icons.Material.Filled.Download"
                                                            Color="Color.Success"
                                                            Size="Size.Small"
-                                                           Title="Word letöltése"
+                                                           Title="@(m.Tipus == "HVM" ? "PDF letöltése" : "Word letöltése")"
                                                            OnClick="@(async () => await MellekletWordLetoltes(m))" />
                                         }
                                         <MudButton Variant="Variant.Outlined"
@@ -1331,7 +1332,14 @@
         // Ha nincs még MellekletMeresId: a szerkesztőt kell előbb megnyitni (MEGNYITÁS gomb)
         if (!melleklet.MellekletMeresId.HasValue)
         {
-            Snackbar.Add("A Word letöltéshez először nyissa meg a melléklet szerkesztőjét (MEGNYITÁS gomb) és mentse el az adatokat!", Severity.Warning);
+            Snackbar.Add("A letöltéshez először nyissa meg a melléklet szerkesztőjét (MEGNYITÁS gomb) és mentse el az adatokat!", Severity.Warning);
+            return;
+        }
+
+        // HVM esetén a PDF service-t használjuk (a Word sablon helyett)
+        if (melleklet.Tipus == "HVM")
+        {
+            await MellekletHvmPdfLetoltes(melleklet);
             return;
         }
 
@@ -1339,12 +1347,6 @@
         {
             var mellekletTipus = _tipusok.FirstOrDefault(t => t.MellekletTipusKod == melleklet.Tipus);
             var sablonId = mellekletTipus?.SablonId;
-
-            // HVM esetén alapértelmezett sablon, ha nincs beállítva
-            if (melleklet.Tipus == "HVM" && string.IsNullOrEmpty(sablonId))
-            {
-                sablonId = "Hibavédelem_csakmeres";
-            }
 
             if (string.IsNullOrEmpty(sablonId))
             {
@@ -1376,6 +1378,29 @@
                 Snackbar.Add("Word dokumentum nem generálható (sablon hiányzik?).", Severity.Warning);
         }
         catch (Exception ex) { Snackbar.Add($"Word letöltés hiba: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task MellekletHvmPdfLetoltes(MellekletJegyzokonyv melleklet)
+    {
+        try
+        {
+            var friss = await MellekletService.GetByIdAsync(melleklet.Id);
+            var adatok = new HvmAdatok();
+            if (!string.IsNullOrEmpty(friss?.AdatokJson))
+                adatok = System.Text.Json.JsonSerializer.Deserialize<HvmAdatok>(friss.AdatokJson) ?? new HvmAdatok();
+
+            var pdfBytes = await HvmPdfService.GeneralasAsync(melleklet.MellekletMeresId!.Value, adatok);
+
+            if (pdfBytes is { Length: > 0 })
+            {
+                var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.pdf";
+                await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);
+                Snackbar.Add("Letöltés indult!", Severity.Success);
+            }
+            else
+                Snackbar.Add("PDF dokumentum nem generálható.", Severity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"PDF letöltés hiba: {ex.Message}", Severity.Error); }
     }
 
     private bool IsOnalloAvk => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "AVK";

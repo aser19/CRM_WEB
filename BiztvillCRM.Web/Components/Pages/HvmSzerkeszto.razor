@@ -10,7 +10,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IJegyzokonyvWordService JegyzokonyvWordService
+@inject IHvmPdfService HvmPdfService
 
 <PageTitle>Hibavédelmi mérési jegyzőkönyv</PageTitle>
 
@@ -137,7 +137,7 @@ else
                    StartIcon="@Icons.Material.Filled.Download"
                    OnClick="LetoltesAsync"
                    Disabled="_feldolgozas">
-            @(_feldolgozas ? "Generálás..." : "Letöltés (Word)")
+            @(_feldolgozas ? "Generálás..." : "Letöltés (PDF)")
         </MudButton>
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
@@ -315,13 +315,13 @@ else
                 return;
             }
 
-            // 3. Word dokumentum generálása
-            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, "Hibavédelem_csakmeres");
+            // 3. PDF dokumentum generálása
+            var pdfBytes = await HvmPdfService.GeneralasAsync(meresId, _adatok);
 
             // 4. Letöltés JavaScript segítségével
             await JS.InvokeVoidAsync("downloadFile", 
-                $"HVM_{_melleklet?.Szam ?? "jegyzokonyv"}.docx", 
-                Convert.ToBase64String(wordBytes));
+                $"HVM_{_melleklet?.Szam ?? "jegyzokonyv"}.pdf", 
+                Convert.ToBase64String(pdfBytes));
 
             Snackbar.Add("Letöltés indult!", Severity.Success);
         }

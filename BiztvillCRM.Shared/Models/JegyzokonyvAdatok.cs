@@ -236,6 +236,8 @@ public class JegyzokonyvAdatok
     public string Dokumentaciok { get; set; } = "";                           // max 150 karakter
 
     // === JOGSZABÁLYOK (4. oldal) ===
+    // A meglévő Jogszabaly törzsadat + JogszabalyTag rendszerből töltjük be (lásd RbSzerkeszto.razor mintáját),
+    // egy VBF-hez rendelt taggel szűrve. Csak a Kivalasztva=true elemek kerülnek a PDF-be.
     public List<KijeloltJogszabaly> KijeloltJogszabalyok { get; set; } = new();
 
     // === 5. OLDAL – MSZ HD 60364-6 ELLENŐRZÉSEK ===
