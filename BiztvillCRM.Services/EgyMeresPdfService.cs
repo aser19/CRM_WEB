@@ -110,7 +110,105 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 page.Content().Element(c => Tartalom(c, meresiPontok, avkSorok, adatok, jkvSzam, cegNev, cegCim,
                     vizsgalatHelye, meresIdeje, jegyzokonyvKeszultDatum, jogosultsagIgazolas, kovetkezoFelulvizsgalatDatum, vanAvk));
             });
+
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1.2f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(8).FontFamily("Arial"));
+                page.Content().Element(TajekoztatoOldal);
+            });
         }).GeneratePdf();
+    }
+
+    private void TajekoztatoOldal(IContainer container)
+    {
+        container.Column(col =>
+        {
+            col.Spacing(4);
+
+            col.Item().AlignCenter().Text("ÚTMUTATÓ A MEGRENDELŐNEK").Bold().FontSize(11);
+            col.Item().AlignCenter().Text("E dokumentáció fontos és értékes dokumentum, amelyet meg kell őrizni.").Bold();
+
+            col.Item().PaddingTop(4).Text(
+                "Jelen dokumentum megfelel a 40/2017. (XII. 4.) NGM rendelet 2. §-33. pontjának, villamos biztonsági felülvizsgálat, a villamos berendezések olyan részletes, a mérésekkel és azok kiszámított eredményének kiértékelésével is alátámasztott, " +
+                "különleges erősségű villamos szakképzettséget igénylő ellenőrzése, amely alkalmas arra, hogy kimutassa, teljesíti-e az a vonatkozó szabványok vagy azokkal egyenértékű műszaki megoldásokat tartalmazó műszaki előírások, valamint egyéb " +
+                "kritérium, továbbá a villamos berendezések élet- és vagyonbiztonsági szempontból lényeges, teljes körű felülvizsgálat, amely magába foglalja a villamos berendezések szerkezetének elleni védelmének és az általános szabványos " +
+                "állapotának (tűzvédelmi jellegű) vizsgálat – 27/2020. (VII. 16.) ITM rendelet általi módosítás.");
+
+            col.Item().PaddingTop(6).Text("TULAJDONOS, ÜZEMELTETŐ, FELELŐS VEZETŐ, FELHASZNÁLÓ KÖTELESSÉGEI:").Bold();
+
+            col.Item().Text("• Tárgyi villamos berendezés rendeltetésszerű használata, illetve ennek biztosítása kötelező");
+            col.Item().Text("• Tárgyi villamos berendezés időszakos karbantartása és a tárgyi villamos berendezésre vonatkozó jogszabályok előírt felülvizsgálatok és ellenőrzések elvégzése, illetve elvégeztetése kötelező");
+            col.Item().Text("• Tárgyi villamos berendezésen villamos szakképzettséget igénylő beavatkozást, változtatást, felújítást, karbantartást és egyéb tevékenységet csak villamosan szakképzett és arra felhatalmazott személy végezhet a hatályos jogszabályok előírásainak és vonatkozó szabványok betartásával");
+            col.Item().Text("• Tárgyi villamos berendezés történt bármilyen szakszerű változtatás után az érintett szakaszon és a változtatás által érintésvédelmi szempontból érintett, már meglévő szakaszon az előírt érintésvédelemmel kapcsolatos vizsgálatokat el kell végezni – az erre vonatkozó jogszabályokat és előírásokat, illetve ezek változását nyomon kell követni és be kell tartani, illetve tartatni.");
+            col.Item().Text("• 40/2017. (XII. 4.) NGM rendelet az összekötő és felhasználói berendezésekről, valamint a potenciálisan robbanásveszélyes közegben működő villamos berendezésekről és védelmi rendszerekről");
+            col.Item().Text("• 10/2016. (IV. 5.) NGM rendelet 19. § előírásaink betartása – amennyiben vonatkoznak");
+            col.Item().Text("• 54/2014. (XII. 5.) BM rendeletben foglalt vonatkozó követelmények, előírások megtartása");
+            col.Item().Text("• Létesítmény felelős vezetője pluszkövetelményeket megszabhat");
+
+            col.Item().PaddingTop(6).Text("A felülvizsgálattal kapcsolatos előírások:").Bold();
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(3);
+                    c.ConstantColumn(20);
+                    c.RelativeColumn(7);
+                });
+                void Sor(string rendelet, string leiras)
+                {
+                    table.Cell().Text(rendelet);
+                    table.Cell().AlignCenter().Text("→");
+                    table.Cell().Text(leiras);
+                }
+                Sor("1995. évi XXVIII. törvény", "a nemzeti szabványosításról, módosította: 2011. évi CXII. törvény");
+                Sor("191/2009. (IX.-15.) Korm. rendelet", "az építőipari kivitelezési tevékenységről");
+                Sor("34/2021. (VII.-26.) ITM rendelet", "egyes ipari és kereskedelmi tevékenységek gyakorlásához szükséges képesítésekről, valamint egyes műszaki szabályozási tárgyú miniszteri rendeletek módosításáról");
+                Sor("10/2016. (IV.-5.) NGM rendelet", "a munkaeszközök és használatuk biztonsági és egészségügyi követelményeinek minimális szintjéről");
+                Sor("40/2017. (XII.-4.) NGM rendelet", "az összekötő és felhasználói berendezésekről, valamint a potenciálisan robbanásveszélyes közegben működő villamos berendezésekről és védelmi rendszerekről");
+                Sor("54/2014. (XII.-5.) BM rendelet", "az Országos Tűzvédelmi Szabályzatról");
+            });
+
+            col.Item().PaddingTop(6).Text("A felülvizsgálattal kapcsolatos főbb szabványok:").Bold();
+            col.Item().Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(3);
+                    c.ConstantColumn(20);
+                    c.RelativeColumn(7);
+                });
+                void Sor(string szabvany, string leiras)
+                {
+                    table.Cell().Text(szabvany);
+                    table.Cell().AlignCenter().Text("→");
+                    table.Cell().Text(leiras);
+                }
+                Sor("MSZ 1585:2016", "Villamos berendezések üzemeltetése");
+                Sor("MSZ EN 61557-1:2007", "Általános követelmények");
+                Sor("MSZ HD 60364-1:2009", "Alapelvek, általános jellemzők elemzése, fogalmak");
+                Sor("MSZ EN 61140:2016", "Az áramütés elleni védelem. A villamos berendezésekre és a villamos berendezésekre vonatkozó közös szempontok");
+                Sor("MSZ 10900:2009", "Kisfeszültségű villamos berendezések időszakos (tűzvédelmi) ellenőrzése");
+            });
+
+            col.Item().PaddingTop(6).Text("1) Ennek az állapotfelmérő dokumentációnak az a célja, hogy lehetőség szerint megállapítsa azt, hogy az adott villamos berendezés a további működés szempontjából kielégítő állapotban van vagy sem. A dokumentáció azonosít minden olyan károsodást, állagromlást, hibát és/vagy vagy állapotot, amely növelheti a veszélyt.");
+            col.Item().Text("2) A dokumentáció megrendelő személy kap a dokumentációból egy eredeti példányt és a felülvizsgáló megtart egy másodpéldányt.");
+            col.Item().Text("3) Az eredeti dokumentációt biztonságos helyen meg kell őrizni, és minden olyan személynek a rendelkezésre kell bocsátani, aki a jövőben a villamos berendezést felülvizsgálja vagy azon munkát végez. Ha az ingatlan megüresedik, akkor ezt a dokumentációt az új tulajdonosnak/bérlővel meg kell ismertetni a villamos berendezésnek a dokumentáció szerinti állapotának releváns egyveit.");
+            col.Item().Text("4) A fontos hogy teljes mértékben azonosítani a berendezésnek azt a kiterjedését, amelyre a dokumentáció vonatkozik, valamint a felülvizsgálat esetleges korlátozásait. A felülvizsgálónak ezekről a dokumentációt megrendelő személlyel is más érdekelt felekkel (engedélyező hatóság, biztosítótársaság, jelzálog-hitelező is hasonlók) meg kell állapodnia még a felülvizsgálat elvégzése előtt.");
+            col.Item().Text("5) A felülvizsgálat során előfordulhatnak olyan üzemeltetési korlátozások, mint pl. a berendezés vagy a szerkezetek egyes részeinek a hozzáférhetetlensége. A felülvizsgáló ezeket a dokumentációban feltünteti.");
+            col.Item().Text("6) A „Veszély áll fenn” észrevétele azt jelenti, hogy a berendezés használata veszélyes, és javasolt, hogy kompetens személy sürgősen végezze el a hibajavítást.");
+            col.Item().Text("7) A „Potenciálisan veszélyes” észrevétel azt jelenti, hogy a berendezés használata veszélyes lehet, és javasolt, hogy kompetens személy a hibajavítást megvizsgálja és elvégezze a hibajavítást.");
+            col.Item().Text("8) Ha a dokumentáció további vizsgálatot ír elő, mert a felülvizsgálat olyan nyilvánvaló hiányosságot tárt fel, amely azt bizonyítja, hogy egy adott szemrevételezés kiterjedése és korlátozásai miatt nem lehet teljes mértékben azonosítani, akkor ilyen esetekben haladéktalanul további vizsgálatra van szükség a nyilvánvaló hiányosság természetének és mértékének megállapítására.");
+            col.Item().Text("9) Biztonsági okokból a villamos berendezés megfelelő időközönként kompetens személynek ismételten felül kell vizsgálnia. A következő felülvizsgálat javasolt időpontja a dokumentációban fel van tüntetve.");
+
+            col.Item().PaddingTop(6).Text(
+                "Jelen dokumentum elkészítése során betartotta a 40/2017. (XII. 4.) NGM rendelet Villamos biztonsági szabályzatának 1.13.4. pontját, mely szerint: „A villamos berendezés felülvizsgálata a felülvizsgálat idején érvényes vonatkozó " +
+                "műszaki követelmény szerint történik”. A villamos berendezések minősítése a létesítés idején érvényes vonatkozó műszaki követelmény szerint történik.");
+            col.Item().Text(
+                "A rendelet 1.13.5 pontja kijelenti: „Az e rendelet hatálybalépése előtt létesített – a vizsgálatkor érvényes műszaki előírásoknak meg nem felelő – berendezés esetében a felülvizsgálat során tapasztalt hiányosságot pótolható a villamos " +
+                "biztonsági felülvizsgálat végzője által a minősítő iratban meghatározott időpontban, ennek hiányában a villamos berendezés soron következő felülvizsgálata idején érvényes vonatkozó követelményeknek megfelelően végzendő el”.");
+        });
     }
 
     private static DateTime? SzamitottKovetkezoFelulvizsgalat(DateTime meresIdeje, string? idoszak)
