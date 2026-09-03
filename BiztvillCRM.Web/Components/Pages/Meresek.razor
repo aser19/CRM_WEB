@@ -200,6 +200,12 @@
                                                        Size="Size.Small"
                                                        OnClick="() => EgyMeresPdfLetoltesAsync(context.Item)" />
                                     </MudTooltip>
+                                    <MudTooltip Text="Jegyzőkönyv küldése emailben (megrendelő + felülvizsgáló)">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                                       Color="Color.Secondary"
+                                                       Size="Size.Small"
+                                                       OnClick="() => JkvEmailDialogusMegnyitasa(context.Item)" />
+                                    </MudTooltip>
                                 }
                             }
                             <MudTooltip Text="Email küldése">
@@ -347,6 +353,11 @@
                                                         <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
                                                                        Color="Color.Info" Size="Size.Small"
                                                                        OnClick="() => EgyMeresPdfLetoltesAsync(context)" />
+                                                    </MudTooltip>
+                                                    <MudTooltip Text="Jegyzőkönyv küldése emailben (megrendelő + felülvizsgáló)">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                                                       Color="Color.Secondary" Size="Size.Small"
+                                                                       OnClick="() => JkvEmailDialogusMegnyitasa(context)" />
                                                     </MudTooltip>
                                                 }
                                             }
@@ -506,10 +517,45 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="_jkvEmailDialogNyitva"
+           Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Send" Class="mr-2" />
+            Jegyzőkönyv küldése emailben
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_jkvEmailMeres is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <b>@_jkvEmailMeres.Ugyfel?.Nev</b> – @_jkvEmailMeres.MeresTipus?.Nev<br />
+                A jegyzőkönyv PDF-ként kerül csatolásra az emailhez.
+            </MudAlert>
+
+            <MudTextField @bind-Value="_jkvEmailCimzett" Label="Megrendelő képviselőjének email címe *" Required="true"
+                          InputType="InputType.Email" Class="mb-3"
+                          HelperText="Az ügyfél vagy telephely email címe" />
+
+            <MudTextField @bind-Value="_jkvEmailCc" Label="Másolat (CC) – felülvizsgálatot végző"
+                          InputType="InputType.Email"
+                          HelperText="Automatikusan kitöltve a felülvizsgáló email címével, ha van megadva" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _jkvEmailDialogNyitva = false">Mégse</MudButton>
+        <MudButton OnClick="JkvEmailKuldesAsync" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@_jkvEmailKuldes"
+                   StartIcon="@Icons.Material.Filled.Send">
+            @(_jkvEmailKuldes ? "Küldés..." : "Küldés")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 <MudDialog @bind-Visible="_inaktivDialogNyitva" Options="_dialogOptions">
     <TitleContent><MudText Typo="Typo.h6">Inaktív mérések</MudText></TitleContent>
     <DialogContent>
-        @if (_inaktivBetoltes)
+
         {
             <MudProgressLinear Indeterminate="true" />
         }
@@ -729,6 +775,13 @@
     private bool _osszefoglaloMod = false;
     private bool _osszefoglaloToltes = false;
     private LejaroOsszefoglalo? _emailOsszefoglalo;
+
+    // Jegyzőkönyv PDF küldése emailben (megrendelő + CC felülvizsgáló)
+    private bool _jkvEmailDialogNyitva = false;
+    private bool _jkvEmailKuldes = false;
+    private Meres? _jkvEmailMeres;
+    private string _jkvEmailCimzett = "";
+    private string _jkvEmailCc = "";
 
     // Inaktív mérések
     private bool _inaktivDialogNyitva = false;
@@ -1245,8 +1298,7 @@
     }
 
     private async Task EmailKuldesDialogusMegnyitasa(Meres meres)
-    {
-        _emailMeres = meres;
+    {        _emailMeres = meres;
         _kivalasztottEmailTipus = EmailErtesitesTipus.MeresLejarat30Nap;
         _emailCimzett = meres.Telephely?.Email ?? meres.Ugyfel?.Email ?? "";
         _osszefoglaloMod = false;
@@ -1314,6 +1366,106 @@
         finally
         {
             _emailKuldes = false;
+        }
+    }
+
+    private async Task JkvEmailDialogusMegnyitasa(Meres meres)
+    {
+        _jkvEmailMeres = meres;
+        _jkvEmailCimzett = meres.Telephely?.Email ?? meres.Ugyfel?.Email ?? "";
+        _jkvEmailCc = "";
+
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(meres.Id);
+            if (!string.IsNullOrWhiteSpace(friss?.JegyzokonyvAdatokJson))
+            {
+                var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    friss.JegyzokonyvAdatokJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (!string.IsNullOrWhiteSpace(adatok?.FelulvizsgaloNev))
+                {
+                    var felulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+                    var felulvizsgalo = felulvizsgalok.FirstOrDefault(f => f.Nev == adatok.FelulvizsgaloNev);
+                    if (!string.IsNullOrWhiteSpace(felulvizsgalo?.Email))
+                    {
+                        _jkvEmailCc = felulvizsgalo.Email;
+                    }
+                }
+            }
+        }
+        catch { /* nem kritikus, a felhasználó manuálisan is megadhatja a CC-t */ }
+
+        _jkvEmailDialogNyitva = true;
+    }
+
+    private async Task JkvEmailKuldesAsync()
+    {
+        if (_jkvEmailMeres is null || string.IsNullOrWhiteSpace(_jkvEmailCimzett))
+        {
+            Snackbar.Add("Kérjük adja meg a megrendelő email címét!", Severity.Warning);
+            return;
+        }
+
+        _jkvEmailKuldes = true;
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(_jkvEmailMeres.Id);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.JegyzokonyvAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                friss.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var pdfBytes = await EgyMeresPdfService.GeneralasAsync(_jkvEmailMeres.Id, adatok);
+            var jkvSzam = !string.IsNullOrWhiteSpace(adatok.JegyzokonyvSzam)
+                ? adatok.JegyzokonyvSzam
+                : $"meres_{_jkvEmailMeres.Id:D6}";
+            var fileName = $"{string.Join("_", jkvSzam.Split(Path.GetInvalidFileNameChars()))}.pdf";
+
+            var targy = $"Villamos biztonsági felülvizsgálati jegyzőkönyv – {jkvSzam}";
+            var szoveg = $"Tisztelt Partnerünk!<br/><br/>" +
+                         $"Mellékelten megküldjük a(z) <b>{jkvSzam}</b> számú felülvizsgálati jegyzőkönyvet.<br/><br/>" +
+                         $"Üdvözlettel,<br/>{adatok.CegNev}";
+
+            var siker = await EmailKuldoService.KuldCsatolmannyalAsync(
+                _jkvEmailCimzett,
+                targy,
+                szoveg,
+                new[] { (fileName, pdfBytes) },
+                cc: string.IsNullOrWhiteSpace(_jkvEmailCc) ? null : _jkvEmailCc,
+                cegId: _cegId,
+                meresId: _jkvEmailMeres.Id);
+
+            if (siker)
+            {
+                Snackbar.Add($"Jegyzőkönyv elküldve emailben: {_jkvEmailCimzett}" +
+                    (string.IsNullOrWhiteSpace(_jkvEmailCc) ? "" : $" (CC: {_jkvEmailCc})"), Severity.Success);
+                _jkvEmailDialogNyitva = false;
+            }
+            else
+            {
+                Snackbar.Add("Email küldése sikertelen! Ellenőrizd az SMTP beállításokat.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _jkvEmailKuldes = false;
         }
     }
 

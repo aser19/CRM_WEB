@@ -81,6 +81,81 @@ public class EmailKuldoService : IEmailKuldoService
         return naplo.Sikeres;
     }
 
+    public async Task<bool> KuldCsatolmannyalAsync(
+        string cimzett,
+        string targy,
+        string szoveg,
+        IEnumerable<(string FileName, byte[] Content)> csatolmanyok,
+        string? cc = null,
+        int? cegId = null,
+        int? meresId = null)
+    {
+        var smtp = await _context.SmtpBeallitasok.FirstOrDefaultAsync();
+        if (smtp is null || !smtp.Aktiv)
+        {
+            _logger.LogWarning("SMTP nincs konfigurálva vagy inaktív.");
+            return false;
+        }
+
+        var naplo = new EmailKuldesNaplo
+        {
+            Kuldve = DateTime.UtcNow,
+            CegId = cegId,
+            Cimzett = cimzett,
+            Targy = targy,
+            MeresId = meresId
+        };
+
+        try
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(smtp.KuldoNev, smtp.KuldoEmail));
+            message.To.Add(MailboxAddress.Parse(cimzett));
+            if (!string.IsNullOrWhiteSpace(cc))
+            {
+                foreach (var ccCim in cc.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    message.Cc.Add(MailboxAddress.Parse(ccCim));
+                }
+            }
+            message.Subject = targy;
+
+            var builder = new BodyBuilder { HtmlBody = szoveg };
+            foreach (var (fileName, content) in csatolmanyok)
+            {
+                builder.Attachments.Add(fileName, content);
+            }
+            message.Body = builder.ToMessageBody();
+
+            using var client = new SmtpClient();
+
+            var secureSocketOptions = GetSecureSocketOptions(smtp);
+            await client.ConnectAsync(smtp.SzerverCim, smtp.Port, secureSocketOptions);
+
+            if (!string.IsNullOrEmpty(smtp.FelhasznaloNev))
+            {
+                await client.AuthenticateAsync(smtp.FelhasznaloNev, smtp.Jelszo);
+            }
+
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
+
+            naplo.Sikeres = true;
+            _logger.LogInformation("Email csatolmánnyal sikeresen elküldve: {Cimzett}", cimzett);
+        }
+        catch (Exception ex)
+        {
+            naplo.Sikeres = false;
+            naplo.Hiba = ex.Message;
+            _logger.LogError(ex, "Email csatolmánnyal küldés sikertelen: {Cimzett}", cimzett);
+        }
+
+        _context.EmailKuldesNaplok.Add(naplo);
+        await _context.SaveChangesAsync();
+
+        return naplo.Sikeres;
+    }
+
     public async Task<bool> KuldSablonbolAsync(
         EmailErtesitesTipus tipus,
         string cimzett,
