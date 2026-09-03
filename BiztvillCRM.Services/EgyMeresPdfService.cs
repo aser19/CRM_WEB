@@ -123,20 +123,20 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
     private void TajekoztatoOldal(IContainer container)
     {
-        container.Column(col =>
+        container.DefaultTextStyle(x => x.FontSize(6.3f).LineHeight(1.05f)).Column(col =>
         {
-            col.Spacing(4);
+            col.Spacing(2);
 
-            col.Item().AlignCenter().Text("ÚTMUTATÓ A MEGRENDELŐNEK").Bold().FontSize(11);
+            col.Item().AlignCenter().Text("ÚTMUTATÓ A MEGRENDELŐNEK").Bold().FontSize(9);
             col.Item().AlignCenter().Text("E dokumentáció fontos és értékes dokumentum, amelyet meg kell őrizni.").Bold();
 
-            col.Item().PaddingTop(4).Text(
+            col.Item().PaddingTop(2).Text(
                 "Jelen dokumentum megfelel a 40/2017. (XII. 4.) NGM rendelet 2. §-33. pontjának, villamos biztonsági felülvizsgálat, a villamos berendezések olyan részletes, a mérésekkel és azok kiszámított eredményének kiértékelésével is alátámasztott, " +
                 "különleges erősségű villamos szakképzettséget igénylő ellenőrzése, amely alkalmas arra, hogy kimutassa, teljesíti-e az a vonatkozó szabványok vagy azokkal egyenértékű műszaki megoldásokat tartalmazó műszaki előírások, valamint egyéb " +
                 "kritérium, továbbá a villamos berendezések élet- és vagyonbiztonsági szempontból lényeges, teljes körű felülvizsgálat, amely magába foglalja a villamos berendezések szerkezetének elleni védelmének és az általános szabványos " +
                 "állapotának (tűzvédelmi jellegű) vizsgálat – 27/2020. (VII. 16.) ITM rendelet általi módosítás.");
 
-            col.Item().PaddingTop(6).Text("TULAJDONOS, ÜZEMELTETŐ, FELELŐS VEZETŐ, FELHASZNÁLÓ KÖTELESSÉGEI:").Bold();
+            col.Item().PaddingTop(3).Text("TULAJDONOS, ÜZEMELTETŐ, FELELŐS VEZETŐ, FELHASZNÁLÓ KÖTELESSÉGEI:").Bold();
 
             col.Item().Text("• Tárgyi villamos berendezés rendeltetésszerű használata, illetve ennek biztosítása kötelező");
             col.Item().Text("• Tárgyi villamos berendezés időszakos karbantartása és a tárgyi villamos berendezésre vonatkozó jogszabályok előírt felülvizsgálatok és ellenőrzések elvégzése, illetve elvégeztetése kötelező");
@@ -147,7 +147,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
             col.Item().Text("• 54/2014. (XII. 5.) BM rendeletben foglalt vonatkozó követelmények, előírások megtartása");
             col.Item().Text("• Létesítmény felelős vezetője pluszkövetelményeket megszabhat");
 
-            col.Item().PaddingTop(6).Text("A felülvizsgálattal kapcsolatos előírások:").Bold();
+            col.Item().PaddingTop(3).Text("A felülvizsgálattal kapcsolatos előírások:").Bold();
             col.Item().Table(table =>
             {
                 table.ColumnsDefinition(c =>
@@ -170,7 +170,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 Sor("54/2014. (XII.-5.) BM rendelet", "az Országos Tűzvédelmi Szabályzatról");
             });
 
-            col.Item().PaddingTop(6).Text("A felülvizsgálattal kapcsolatos főbb szabványok:").Bold();
+            col.Item().PaddingTop(3).Text("A felülvizsgálattal kapcsolatos főbb szabványok:").Bold();
             col.Item().Table(table =>
             {
                 table.ColumnsDefinition(c =>
@@ -192,17 +192,17 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 Sor("MSZ 10900:2009", "Kisfeszültségű villamos berendezések időszakos (tűzvédelmi) ellenőrzése");
             });
 
-            col.Item().PaddingTop(6).Text("1) Ennek az állapotfelmérő dokumentációnak az a célja, hogy lehetőség szerint megállapítsa azt, hogy az adott villamos berendezés a további működés szempontjából kielégítő állapotban van vagy sem. A dokumentáció azonosít minden olyan károsodást, állagromlást, hibát és/vagy vagy állapotot, amely növelheti a veszélyt.");
+            col.Item().PaddingTop(3).Text("1) Ennek az állapotfelmérő dokumentációnak az a célja, hogy lehetőség szerint megállapítsa azt, hogy az adott villamos berendezés a további működés szempontjából kielégítő állapotban van vagy sem. A dokumentáció azonosít minden olyan károsodást, állagromlást, hibát és/vagy vagy állapotot, amely növelheti a veszélyt.");
             col.Item().Text("2) A dokumentáció megrendelő személy kap a dokumentációból egy eredeti példányt és a felülvizsgáló megtart egy másodpéldányt.");
             col.Item().Text("3) Az eredeti dokumentációt biztonságos helyen meg kell őrizni, és minden olyan személynek a rendelkezésre kell bocsátani, aki a jövőben a villamos berendezést felülvizsgálja vagy azon munkát végez. Ha az ingatlan megüresedik, akkor ezt a dokumentációt az új tulajdonosnak/bérlővel meg kell ismertetni a villamos berendezésnek a dokumentáció szerinti állapotának releváns egyveit.");
-            col.Item().Text("4) A fontos hogy teljes mértékben azonosítani a berendezésnek azt a kiterjedését, amelyre a dokumentáció vonatkozik, valamint a felülvizsgálat esetleges korlátozásait. A felülvizsgálónak ezekről a dokumentációt megrendelő személlyel is más érdekelt felekkel (engedélyező hatóság, biztosítótársaság, jelzálog-hitelező is hasonlók) meg kell állapodnia még a felülvizsgálat elvégzése előtt.");
+            col.Item().Text("4) Fontos teljes mértékben azonosítani a berendezésnek azt a kiterjedését, amelyre a dokumentáció vonatkozik, valamint a felülvizsgálat esetleges korlátozásait. A felülvizsgálónak ezekről a dokumentációt megrendelő személlyel és más érdekelt felekkel (engedélyező hatóság, biztosítótársaság, jelzálog-hitelező és hasonlók) meg kell állapodnia még a felülvizsgálat elvégzése előtt.");
             col.Item().Text("5) A felülvizsgálat során előfordulhatnak olyan üzemeltetési korlátozások, mint pl. a berendezés vagy a szerkezetek egyes részeinek a hozzáférhetetlensége. A felülvizsgáló ezeket a dokumentációban feltünteti.");
-            col.Item().Text("6) A „Veszély áll fenn” észrevétele azt jelenti, hogy a berendezés használata veszélyes, és javasolt, hogy kompetens személy sürgősen végezze el a hibajavítást.");
-            col.Item().Text("7) A „Potenciálisan veszélyes” észrevétel azt jelenti, hogy a berendezés használata veszélyes lehet, és javasolt, hogy kompetens személy a hibajavítást megvizsgálja és elvégezze a hibajavítást.");
+            col.Item().Text("6) A „Veszély áll fenn” észrevétele azt jelenti, hogy a berendezés használata veszélyes, és javasolt, hogy a kompetens személy sürgősen végezze el a hibajavítást.");
+            col.Item().Text("7) A „Potenciálisan veszélyes” észrevétel azt jelenti, hogy a berendezés használata veszélyes lehet, és javasolt, hogy a kompetens személy a hibajavítást megvizsgálja és elvégezze a hibajavítást.");
             col.Item().Text("8) Ha a dokumentáció további vizsgálatot ír elő, mert a felülvizsgálat olyan nyilvánvaló hiányosságot tárt fel, amely azt bizonyítja, hogy egy adott szemrevételezés kiterjedése és korlátozásai miatt nem lehet teljes mértékben azonosítani, akkor ilyen esetekben haladéktalanul további vizsgálatra van szükség a nyilvánvaló hiányosság természetének és mértékének megállapítására.");
             col.Item().Text("9) Biztonsági okokból a villamos berendezés megfelelő időközönként kompetens személynek ismételten felül kell vizsgálnia. A következő felülvizsgálat javasolt időpontja a dokumentációban fel van tüntetve.");
 
-            col.Item().PaddingTop(6).Text(
+            col.Item().PaddingTop(3).Text(
                 "Jelen dokumentum elkészítése során betartotta a 40/2017. (XII. 4.) NGM rendelet Villamos biztonsági szabályzatának 1.13.4. pontját, mely szerint: „A villamos berendezés felülvizsgálata a felülvizsgálat idején érvényes vonatkozó " +
                 "műszaki követelmény szerint történik”. A villamos berendezések minősítése a létesítés idején érvényes vonatkozó műszaki követelmény szerint történik.");
             col.Item().Text(
@@ -374,6 +374,27 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
     private void MeresiPontokTablazat(IContainer container, List<MeresiPontSor> meresiPontok)
     {
+        // Dinamikus sőrőméretés: sok mérési pont esetén kisebb padding és betűméret, hogy minden ráférjen az oldalra.
+        var sorokSzama = meresiPontok.Count + meresiPontok.Select(p => p.HelyisegNev).Distinct().Count(n => !string.IsNullOrWhiteSpace(n));
+        float cellaPadding;
+        float betuMeret = 7f;
+        if (sorokSzama > 40)
+        {
+            cellaPadding = 1f;
+        }
+        else if (sorokSzama > 28)
+        {
+            cellaPadding = 1.5f;
+        }
+        else if (sorokSzama > 18)
+        {
+            cellaPadding = 2f;
+        }
+        else
+        {
+            cellaPadding = 3f;
+        }
+
         container.Table(table =>
         {
             table.ColumnsDefinition(c =>
@@ -390,14 +411,14 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
             table.Header(header =>
             {
-                FejlecCella(header, "MÉRÉSI PONT HELYE, MEGNEVEZÉSE, EGYÉB KÖZLENDŐ ADAT\n(vezeték adatai, áramkör tervjele stb.)");
-                FejlecCella(header, "MÓD/OSZT");
-                FejlecCella(header, "KIOLDÓSZERV-TÚLÁRAMVÉDELMI SZERV\nHelye");
-                FejlecCella(header, "KIOLDÓSZERV-TÚLÁRAMVÉDELMI SZERV\nTípus (In, kar.)");
-                FejlecCella(header, "ÁVK");
-                FejlecCella(header, "PE folyt.");
-                FejlecCella(header, "ÉRTÉK [Ω]");
-                FejlecCella(header, "MINŐSÍTÉS");
+                FejlecCella(header, "MÉRÉSI PONT HELYE, MEGNEVEZÉSE, EGYÉB KÖZLENDŐ ADAT\n(vezeték adatai, áramkör tervjele stb.)", cellaPadding, betuMeret);
+                FejlecCella(header, "MÓD/OSZT", cellaPadding, betuMeret);
+                FejlecCella(header, "KIOLDÓSZERV-TÚLÁRAMVÉDELMI SZERV\nHelye", cellaPadding, betuMeret);
+                FejlecCella(header, "KIOLDÓSZERV-TÚLÁRAMVÉDELMI SZERV\nTípus (In, kar.)", cellaPadding, betuMeret);
+                FejlecCella(header, "ÁVK", cellaPadding, betuMeret);
+                FejlecCella(header, "PE folyt.", cellaPadding, betuMeret);
+                FejlecCella(header, "ÉRTÉK [Ω]", cellaPadding, betuMeret);
+                FejlecCella(header, "MINŐSÍTÉS", cellaPadding, betuMeret);
             });
 
             string? aktualisHelyiseg = null;
@@ -407,23 +428,23 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 {
                     aktualisHelyiseg = mp.HelyisegNev;
                     table.Cell().ColumnSpan(8).Background(Colors.Grey.Lighten2).BorderTop(1).BorderBottom(1)
-                        .BorderColor(Colors.Grey.Darken1).Padding(3)
-                        .Text($"Helyiség: {aktualisHelyiseg}").Bold().FontSize(8);
+                        .BorderColor(Colors.Grey.Darken1).Padding(cellaPadding)
+                        .Text($"Helyiség: {aktualisHelyiseg}").Bold().FontSize(betuMeret + 1);
                 }
 
                 var megfelelt = string.Equals(mp.Minosites, "MEGFELELT", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(mp.Minosites, "MEGFELEL", StringComparison.OrdinalIgnoreCase);
                 var hatterSzin = megfelelt ? Colors.White : Colors.Red.Lighten4;
 
-                SorCella(table, mp.MeresiPontHelye, hatterSzin);
-                SorCella(table, mp.Modszer, hatterSzin);
-                SorCella(table, mp.TularamvedelemHelye, hatterSzin);
-                SorCella(table, mp.TularamvedelemTipusa, hatterSzin);
-                SorCella(table, mp.AVKCsatolva ? "✓" : "✗", hatterSzin);
-                SorCella(table, mp.PEFolytMegfelelt ? "✓" : "✗", hatterSzin);
-                SorCella(table, mp.MertHurokimpedancia?.ToString("F2") ?? mp.ErtekOhm ?? "", hatterSzin);
-                table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(3)
-                    .Text(mp.Minosites)
+                SorCella(table, mp.MeresiPontHelye, hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.Modszer, hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.TularamvedelemHelye, hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.TularamvedelemTipusa, hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.AVKCsatolva ? "✓" : "✗", hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.PEFolytMegfelelt ? "✓" : "✗", hatterSzin, cellaPadding, betuMeret);
+                SorCella(table, mp.MertHurokimpedancia?.ToString("F2") ?? mp.ErtekOhm ?? "", hatterSzin, cellaPadding, betuMeret);
+                table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(cellaPadding)
+                    .Text(mp.Minosites).FontSize(betuMeret)
                     .FontColor(megfelelt ? Colors.Green.Darken2 : Colors.Red.Darken2);
             }
         });
@@ -492,13 +513,13 @@ public class EgyMeresPdfService : IEgyMeresPdfService
         });
     }
 
-    private void FejlecCella(TableCellDescriptor header, string szoveg)
+    private void FejlecCella(TableCellDescriptor header, string szoveg, float padding = 3f, float betuMeret = 7f)
     {
-        header.Cell().Background(Colors.Grey.Lighten2).Padding(3).Text(szoveg).Bold().FontSize(7);
+        header.Cell().Background(Colors.Grey.Lighten2).Padding(padding).Text(szoveg).Bold().FontSize(betuMeret);
     }
 
-    private void SorCella(TableDescriptor table, string szoveg, string hatterSzin)
+    private void SorCella(TableDescriptor table, string szoveg, string hatterSzin, float padding = 3f, float betuMeret = 7f)
     {
-        table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(szoveg ?? "").FontSize(7);
+        table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(padding).Text(szoveg ?? "").FontSize(betuMeret);
     }
 }
