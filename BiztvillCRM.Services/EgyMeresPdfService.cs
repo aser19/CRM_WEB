@@ -60,6 +60,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
             : $"EGYM-{meresId:D6}/{DateTime.Now:yyyy}";
         var vizsgalatHelye = !string.IsNullOrWhiteSpace(adatok.VizsgalatHelye) ? adatok.VizsgalatHelye : meres?.Telephely?.Cim ?? "";
         var meresIdeje = meres?.Datum ?? DateTime.Today;
+        var jegyzokonyvKeszultDatum = meres?.Letrehozva ?? meresIdeje;
         var meresiPontok = adatok.MeresiPontok ?? new List<MeresiPontSor>();
         var avkSorok = adatok.AvkSorok ?? new List<AvkSor>();
         var vanAvk = avkSorok.Any() || meresiPontok.Any(p => p.AVKCsatolva);
@@ -107,7 +108,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 page.DefaultTextStyle(x => x.FontSize(8).FontFamily("Arial"));
 
                 page.Content().Element(c => Tartalom(c, meresiPontok, avkSorok, adatok, jkvSzam, cegNev, cegCim,
-                    vizsgalatHelye, meresIdeje, jogosultsagIgazolas, kovetkezoFelulvizsgalatDatum, vanAvk));
+                    vizsgalatHelye, meresIdeje, jegyzokonyvKeszultDatum, jogosultsagIgazolas, kovetkezoFelulvizsgalatDatum, vanAvk));
             });
         }).GeneratePdf();
     }
@@ -129,7 +130,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
     private void Tartalom(IContainer container, List<MeresiPontSor> meresiPontok, List<AvkSor> avkSorok,
         JegyzokonyvAdatok adatok, string jkvSzam, string cegNev, string cegCim, string vizsgalatHelye,
-        DateTime meresIdeje, string jogosultsagIgazolas, DateTime? kovetkezoFelulvizsgalat, bool vanAvk)
+        DateTime meresIdeje, DateTime jegyzokonyvKeszultDatum, string jogosultsagIgazolas, DateTime? kovetkezoFelulvizsgalat, bool vanAvk)
     {
         container.Border(1).BorderColor(Colors.Black).Column(col =>
         {
@@ -228,8 +229,12 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
             col.Item().BorderTop(1).BorderColor(Colors.Black).Row(row =>
             {
-                row.RelativeItem(1).BorderRight(1).BorderColor(Colors.Black).Padding(4)
-                    .Text($"Kelt: {DateTime.Today:yyyy.MM.dd}");
+                row.RelativeItem(1).BorderRight(1).BorderColor(Colors.Black).Padding(4).Column(c =>
+                {
+                    c.Item().Text($"Kelt: {jegyzokonyvKeszultDatum:yyyy.MM.dd}");
+                    c.Item().Text($"Mérés ideje: {meresIdeje:yyyy.MM.dd}");
+                    c.Item().Text($"Letöltés időpontja: {DateTime.Today:yyyy.MM.dd}");
+                });
                 row.RelativeItem(1).BorderRight(1).BorderColor(Colors.Black).Padding(4)
                     .Text($"Munkaszám: {jkvSzam}");
                 row.RelativeItem(1).BorderRight(1).BorderColor(Colors.Black).Padding(4)
