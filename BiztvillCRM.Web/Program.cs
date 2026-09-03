@@ -117,6 +117,7 @@ builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
 }); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IHvmPdfService, HvmPdfService>();
 builder.Services.AddScoped<IVbfPdfService, VbfPdfService>();
+builder.Services.AddScoped<IEgyMeresPdfService, EgyMeresPdfService>();
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
@@ -320,14 +321,14 @@ app.MapPost("/account/login", async (HttpContext ctx, SignInManager<Felhasznalo>
 
     logger.LogWarning("Hibás jelszó: {UsernameOrEmail}", usernameOrEmail);
     return Results.Redirect("/bejelentkezes?hiba=hibas");
-}).AllowAnonymous();  // <-- HOZZÁADVA
+}).AllowAnonymous().DisableAntiforgery();  // <-- HOZZÁADVA
 
 // --- Kijelentkezési endpoint ---
 app.MapGet("/account/logout", async (HttpContext ctx, SignInManager<Felhasznalo> signInManager) =>
 {
     await signInManager.SignOutAsync();
     return Results.Redirect("/bejelentkezes");
-}).AllowAnonymous();  // <-- HOZZÁADVA
+}).AllowAnonymous().DisableAntiforgery();  // <-- HOZZÁADVA
 
 app.Run();
 

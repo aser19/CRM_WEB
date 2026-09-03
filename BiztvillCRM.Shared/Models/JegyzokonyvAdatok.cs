@@ -139,6 +139,13 @@ public class JegyzokonyvAdatok
     public string? KovetkezoFelulvizsgalatTipus { get; set; } = null;
     public string KovetkezoFelulvizsgalatEgyeb { get; set; } = "";
     public DateTime? KovetkezoFelulvizsgalatDatum { get; set; }
+
+    /// <summary>
+    /// Az "Egy mérés" jegyzőkönyv következő felülvizsgálatának jogszabály szerinti időszaka.
+    /// Lehetséges értékek: "3honap", "6honap", "9honap", "1ev", "3ev", "6ev", "9ev".
+    /// A mérés dátumához hozzáadva adja a jogszabály szerinti következő felülvizsgálati időpontot.
+    /// </summary>
+    public string? KovetkezoFelulvizsgalatEgyMeresIdoszak { get; set; }
     
     public string? HataridoTipus { get; set; } = null;
     public string HataridoEgyeb { get; set; } = "";

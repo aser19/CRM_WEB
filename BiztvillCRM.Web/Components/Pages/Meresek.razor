@@ -15,6 +15,7 @@
 @inject IJegyzokonyvWordService JegyzokonyvWordService
 @inject IRbPdfService RbPdfService
 @inject IHvmPdfService HvmPdfService
+@inject IEgyMeresPdfService EgyMeresPdfService
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
@@ -170,6 +171,7 @@
                         @{
                             var muvTipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
                             var muvKeszE = context.Item.MeresStatusz == MeresStatusz.Elvegezve;
+                            var muvEgyMeres = IsEgyMeresTipusId(context.Item.MeresTipusId);
                         }
                         <MudStack Row="true" Spacing="1">
                             @if (muvTipusKod == "RB")
@@ -190,6 +192,15 @@
                                                    Size="Size.Small"
                                                    OnClick="() => WordLetoltesAsync(context.Item)" />
                                 </MudTooltip>
+                                @if (muvEgyMeres)
+                                {
+                                    <MudTooltip Text="PDF jegyzőkönyv">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       OnClick="() => EgyMeresPdfLetoltesAsync(context.Item)" />
+                                    </MudTooltip>
+                                }
                             }
                             <MudTooltip Text="Email küldése">
                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
@@ -310,6 +321,9 @@
                                         }
                                     </MudTd>
                                     <MudTd DataLabel="Műveletek">
+                                        @{
+                                            var sorEgyMeres = IsEgyMeresTipusId(context.MeresTipusId);
+                                        }
                                         <MudStack Row="true" Spacing="1">
                                             @if (tk == "RB")
                                             {
@@ -327,6 +341,14 @@
                                                                    Color="Color.Info" Size="Size.Small"
                                                                    OnClick="() => WordLetoltesAsync(context)" />
                                                 </MudTooltip>
+                                                @if (sorEgyMeres)
+                                                {
+                                                    <MudTooltip Text="PDF jegyzőkönyv">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                                       Color="Color.Info" Size="Size.Small"
+                                                                       OnClick="() => EgyMeresPdfLetoltesAsync(context)" />
+                                                    </MudTooltip>
+                                                }
                                             }
                                             <MudTooltip Text="Email küldése">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
@@ -1068,11 +1090,57 @@
         {
             var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meres.Id);
             var fileName = $"jegyzokonyv_{meres.Id:D6}_{DateTime.Now:yyyyMMdd}.docx";
-            
+
             using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
-            
+
             Snackbar.Add("Word jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>Megállapítja, hogy a megadott méréstípus az "Egy mérés" (EGY_MERES sablon) típusú-e, amelyhez a Word mellett PDF is letölthető.</summary>
+    private bool IsEgyMeresTipusId(int meresTipusId)
+    {
+        var tipus = _tipusok.FirstOrDefault(t => t.Id == meresTipusId);
+        return tipus?.SablonId == "EGY_MERES"
+            || (tipus?.Nev?.Contains("Egy mérés", StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private async Task EgyMeresPdfLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(meres.Id);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.JegyzokonyvAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                friss.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var pdfBytes = await EgyMeresPdfService.GeneralasAsync(meres.Id, adatok);
+            var jkvSzamFajlnevhez = !string.IsNullOrWhiteSpace(adatok.JegyzokonyvSzam)
+                ? string.Join("_", adatok.JegyzokonyvSzam.Split(Path.GetInvalidFileNameChars()))
+                : $"meres_{meres.Id:D6}";
+            var fileName = $"{jkvSzamFajlnevhez}.pdf";
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
         }
         catch (Exception ex)
         {

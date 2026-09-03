@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJegyzokonyvWordService WordService
+@inject IEgyMeresPdfService PdfService
 @inject IJSRuntime JS
 
 <PageTitle>"Egy mérés" szerkesztő</PageTitle>
@@ -67,6 +68,20 @@ else
                 <MudTextField Value="@(_meres.Datum.ToString("yyyy.MM.dd"))"
                               Label="Mérés dátuma" ReadOnly="true" Variant="Variant.Outlined" />
             </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" @bind-Value="_adatok.KovetkezoFelulvizsgalatEgyMeresIdoszak"
+                           Label="Következő felülvizsgálat időszaka"
+                           Variant="Variant.Outlined"
+                           Clearable="true">
+                    <MudSelectItem T="string" Value="@("3honap")">3 hónap</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("6honap")">6 hónap</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("9honap")">9 hónap</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("1ev")">1 év</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("3ev")">3 év</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("6ev")">6 év</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("9ev")">9 év</MudSelectItem>
+                </MudSelect>
+            </MudItem>
         </MudGrid>
     </MudPaper>
 
@@ -113,6 +128,13 @@ else
                    OnClick="MentesEsLetoltesAsync"
                    Disabled="_feldolgozas">
             @(_feldolgozas ? "..." : "Mentés + Word")
+        </MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Info"
+                   StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   OnClick="MentesEsLetoltesPdfAsync"
+                   Disabled="_feldolgozas">
+            @(_feldolgozas ? "..." : "Mentés + PDF")
         </MudButton>
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
@@ -265,6 +287,41 @@ else
             await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 wordBytes);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+            StateHasChanged(); // ← UI mindig felébred
+        }
+    }
+
+    private async Task MentesEsLetoltesPdfAsync()
+    {
+        try
+        {
+            if (!ValidacioOk())
+                return;
+
+            _feldolgozas = true;
+            StateHasChanged();
+
+            await StatuszFrissitesAMeresAdatokAlapjanAsync();
+            Snackbar.Add("Mentve!", Severity.Success);
+
+            byte[] pdfBytes;
+            try { pdfBytes = await PdfService.GeneralasAsync(MeresId, _adatok); }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Hiba a PDF generálása során: {ex.Message}", Severity.Error);
+                return;
+            }
+
+            var fajlNev = $"EgyMeres_{_adatok.JegyzokonyvSzam?.Replace("/", "-") ?? MeresId.ToString()}.pdf";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);
         }
         catch (Exception ex)
         {

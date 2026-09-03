@@ -38,7 +38,8 @@
     {
         @foreach (var helyisegCsoport in MeresiPontok
             .GroupBy(p => string.IsNullOrWhiteSpace(p.HelyisegNev) ? "(Helyiség nélkül)" : p.HelyisegNev)
-            .OrderBy(g => g.Key))
+            .OrderByDescending(g => !string.IsNullOrEmpty(_aktualisHelyisegNev) && g.Key == _aktualisHelyisegNev)
+            .ThenBy(g => g.Key))
         {
             @* Helyiség fejléc – csak nem-EgyMeresMod esetén *@
             @if (!EgyMeresMod)
