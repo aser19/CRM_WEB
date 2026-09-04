@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IHvmPdfService HvmPdfService
+@inject IFelulvizsgaloService FelulvizsgaloService
 
 <PageTitle>Hibavédelmi mérési jegyzőkönyv</PageTitle>
 
@@ -60,6 +61,37 @@ else
                                Label="Mérés ideje"
                                Variant="Variant.Outlined"
                                DateFormat="yyyy.MM.dd" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDatePicker @bind-Date="_keszitesDatum"
+                               Label="Készítés dátuma"
+                               Variant="Variant.Outlined"
+                               DateFormat="yyyy.MM.dd" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.KapcsolatTarto"
+                              Label="Kapcsolattartó"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.UzemiKisero"
+                              Label="Belső azonosító szám"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudSelect T="int?"
+                           Value="_kivalasztottFelulvizsgaloId"
+                           ValueChanged="OnFelulvizsgaloValtozasAsync"
+                           Label="Felülvizsgáló"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem T="int?" Value="null">-- Válassz --</MudSelectItem>
+                    @foreach (var f in _felulvizsgalok)
+                    {
+                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="12">
@@ -176,6 +208,18 @@ else
 
     private List<Eszkoz> _muszerek = new();
     private List<int?> _kivalasztottMuszerIds = new() { null, null, null };
+    private List<Felulvizsgalo> _felulvizsgalok = new();
+    private int? _kivalasztottFelulvizsgaloId;
+
+    private async Task OnFelulvizsgaloValtozasAsync(int? felulvizsgaloId)
+    {
+        _kivalasztottFelulvizsgaloId = felulvizsgaloId;
+        var felulvizsgalo = felulvizsgaloId.HasValue
+            ? _felulvizsgalok.FirstOrDefault(f => f.Id == felulvizsgaloId.Value)
+            : null;
+        _adatok.FelulvizsgaloNev = felulvizsgalo?.Nev ?? "";
+        await Task.CompletedTask;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -184,6 +228,8 @@ else
         _muszerek = osszes.Where(e => e.Kategoria?.Contains("műszer", StringComparison.OrdinalIgnoreCase) == true
                                    || e.Kategoria?.Contains("mérő", StringComparison.OrdinalIgnoreCase) == true).ToList();
         if (!_muszerek.Any()) _muszerek = osszes; // ha nincs szűrés, mutasson mindent
+
+        _felulvizsgalok = await FelulvizsgaloService.GetAllAsync();
 
         _melleklet = await MellekletService.GetByIdAsync(MellekletId);
         if (_melleklet != null)
@@ -202,10 +248,26 @@ else
                 _kivalasztottMuszerIds = _adatok.Muszerek.Select(m => m.EszkozId).ToList();
                 if (foMeres != null && _adatok.MeresIdeje == DateTime.Today)
                     _adatok.MeresIdeje = foMeres.Datum;
+
+                // Ha az egyes fejléc mezők még üresek (régebbi mentés), pótoljuk a főjegyzőkönyvből.
+                if (string.IsNullOrWhiteSpace(_adatok.CegNev)) _adatok.CegNev = _foAdatok.CegNev;
+                if (string.IsNullOrWhiteSpace(_adatok.CegCim)) _adatok.CegCim = _foAdatok.CegCim;
+                if (string.IsNullOrWhiteSpace(_adatok.KapcsolatTarto)) _adatok.KapcsolatTarto = _foAdatok.KapcsolatTarto;
+                if (string.IsNullOrWhiteSpace(_adatok.UzemiKisero)) _adatok.UzemiKisero = _foAdatok.UzemiKisero;
+                if (string.IsNullOrWhiteSpace(_adatok.MeresiRendszerTipus)) _adatok.MeresiRendszerTipus = _foAdatok.MeresiRendszerTipus ?? "TN";
+                if (string.IsNullOrWhiteSpace(_adatok.FelulvizsgaloNev)) _adatok.FelulvizsgaloNev = _foAdatok.FelulvizsgaloNev;
+                if (string.IsNullOrWhiteSpace(_adatok.MeresHelye)) _adatok.MeresHelye = _foAdatok.VizsgalatHelye;
             }
             else
             {
                 _adatok.Munkaszam = _melleklet.Szam;
+                _adatok.CegNev = _foAdatok.CegNev;
+                _adatok.CegCim = _foAdatok.CegCim;
+                _adatok.KapcsolatTarto = _foAdatok.KapcsolatTarto;
+                _adatok.UzemiKisero = _foAdatok.UzemiKisero;
+                _adatok.MeresiRendszerTipus = _foAdatok.MeresiRendszerTipus ?? "TN";
+                _adatok.FelulvizsgaloNev = _foAdatok.FelulvizsgaloNev;
+                _adatok.MeresHelye = _foAdatok.VizsgalatHelye;
                 if (foMeres != null)
                 {
                     _adatok.MeresIdeje = foMeres.Datum;
@@ -229,6 +291,13 @@ else
                 }
             }
         }
+
+        if (!string.IsNullOrWhiteSpace(_adatok.FelulvizsgaloNev))
+        {
+            _kivalasztottFelulvizsgaloId = _felulvizsgalok
+                .FirstOrDefault(f => f.Nev == _adatok.FelulvizsgaloNev)?.Id;
+        }
+
         _betoltes = false;
     }
 

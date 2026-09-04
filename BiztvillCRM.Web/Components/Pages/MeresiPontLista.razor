@@ -82,6 +82,9 @@
                                       Lines="2"
                                       Placeholder="pl. Daf-102-YM-J-3G2.5mm²-F24" />
                     </MudTd>
+                    @{
+                        var ephMod = context.Modszer == "EPH";
+                    }
                     <MudTd DataLabel="MÓD / OSZTÁLY">
                         <MudSelect T="string"
                                    Value="@context.Modszer"
@@ -104,6 +107,7 @@
                                          Variant="Variant.Text"
                                          Margin="Margin.Dense"
                                          Placeholder="EO3"
+                                         Disabled="@ephMod"
                                          Clearable="true"
                                          ResetValueOnEmptyText="false"
                                          CoerceText="true"
@@ -117,6 +121,7 @@
                                          Variant="Variant.Text"
                                          Margin="Margin.Dense"
                                          Placeholder="TDK-C16"
+                                         Disabled="@ephMod"
                                          Clearable="true"
                                          ResetValueOnEmptyText="false"
                                          CoerceText="false"
@@ -197,11 +202,21 @@
                             var chipMinosites = (chipPeTiltott && context.PEFolytMegfelelt)
                                 ? "NEM FELELT MEG"
                                 : context.Minosites;
+                            var chipFigyelmeztet = context.MinositesFigyelmeztetes && chipMinosites == "MEGFELELT";
+                            var chipEphAtirhato = context.Modszer == "EPH";
                         }
                         <MudChip T="string"
                                  Text="@chipMinosites"
                                  Size="Size.Small"
-                                 Color="@(chipMinosites == "MEGFELELT" ? Color.Success : Color.Error)" />
+                                 Color="@(chipFigyelmeztet ? Color.Warning : (chipMinosites == "MEGFELELT" ? Color.Success : Color.Error))"
+                                 OnClick="@(() => { if (chipEphAtirhato) OnEphMinositesAtirasa(context); })"
+                                 Style="@(chipEphAtirhato ? "cursor:pointer;" : null)" />
+                        @if (chipFigyelmeztet)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.PriorityHigh"
+                                     Color="Color.Warning" Size="Size.Small"
+                                     Title="Figyelem: 2-10 Ω közötti érték (EPH)!" />
+                        }
                     </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -470,6 +485,13 @@
 
         foreach (var pont in MeresiPontok)
         {
+            if (pont.Modszer == "EPH")
+            {
+                // EPH minősítését az OnHurokimpedanciaChanged / OnEphMinositesAtirasa kezeli,
+                // a manuális felülbírálás miatt itt nem számoljuk újra.
+                continue;
+            }
+
             var mod = _modOsztalyok.FirstOrDefault(m => m.Nev == pont.Modszer);
             bool peTiltott = mod != null && !mod.VanPeFolyt;
 
@@ -598,8 +620,13 @@
 
     private async Task SzamolMinositest(MeresiPontSor pont)
     {
-        if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
+        if (pont.Modszer == "EPH")
         {
+            EphMinositesSzamitas(pont);
+        }
+        else if (pont.MertHurokimpedancia.HasValue && !string.IsNullOrEmpty(pont.TularamvedelemTipusa))
+        {
+            pont.MinositesFigyelmeztetes = false;
             pont.Minosites = await TularamvedelemService.SzamolMinositestAsync(
                 pont.TularamvedelemTipusa,
                 pont.MertHurokimpedancia.Value);
@@ -608,7 +635,64 @@
         else
         {
             // Ha törölték az értéket → alaphelyzetbe
+            pont.MinositesFigyelmeztetes = false;
             pont.Minosites = "MEGFELELT";
+        }
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// EPH (kiegyenlítő védelem) minősítés-szabály:
+    /// - &lt;2Ω  → MEGFELELT
+    /// - 2-10Ω → MEGFELELT, de figyelmeztetéssel ("!")
+    /// - &gt;10Ω → NEM FELELT MEG (kézzel felülbírálható)
+    /// </summary>
+    private void EphMinositesSzamitas(MeresiPontSor pont)
+    {
+        pont.ErtekOhm = pont.MertHurokimpedancia?.ToString("F2") ?? "";
+
+        if (!pont.MertHurokimpedancia.HasValue)
+        {
+            pont.MinositesFigyelmeztetes = false;
+            pont.Minosites = "MEGFELELT";
+            return;
+        }
+
+        var ertek = pont.MertHurokimpedancia.Value;
+
+        if (ertek < 2m)
+        {
+            pont.MinositesFigyelmeztetes = false;
+            pont.Minosites = "MEGFELELT";
+        }
+        else if (ertek <= 10m)
+        {
+            pont.MinositesFigyelmeztetes = true;
+            pont.Minosites = "MEGFELELT";
+        }
+        else
+        {
+            pont.MinositesFigyelmeztetes = false;
+            pont.Minosites = "NEM FELELT MEG";
+        }
+    }
+
+    /// <summary>
+    /// EPH módnál a Minősítés chip-re kattintva kézzel felülbírálható
+    /// a "NEM FELELT MEG" ↔ "MEGFELELT" állapot (10Ω feletti érték esetén is).
+    /// </summary>
+    private async Task OnEphMinositesAtirasa(MeresiPontSor pont)
+    {
+        if (pont.Minosites == "NEM FELELT MEG")
+        {
+            pont.Minosites = "MEGFELELT";
+            pont.MinositesFigyelmeztetes = true;
+        }
+        else
+        {
+            EphMinositesSzamitas(pont);
         }
 
         await OnChange.InvokeAsync();
@@ -808,6 +892,16 @@
                 pont.AVKCsatolva = false;
             if (!modOsztaly.VanPeFolyt)
                 pont.PEFolytMegfelelt = false;
+        }
+
+        if (ujModszer == "EPH")
+        {
+            // EPH-nál a Túláramvédelem hely/típus nem értelmezhető, PE default pipálva
+            pont.TularamvedelemHelye = "";
+            pont.TularamvedelemTipusa = "";
+            pont.AVKCsatolva = false;
+            pont.PEFolytMegfelelt = true;
+            EphMinositesSzamitas(pont);
         }
 
         await OnChange.InvokeAsync();

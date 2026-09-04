@@ -21,6 +21,12 @@ public class MeresiPontSor
     public string Megjegyzes { get; set; } = "";
     public string HelyisegNev { get; set; } = "";
 
+    /// <summary>
+    /// EPH (kiegyenlítő védelem) módnál igaz, ha a mért érték 2 és 10 Ω között van
+    /// (MEGFELELT, de figyelmeztetést igényel).
+    /// </summary>
+    public bool MinositesFigyelmeztetes { get; set; } = false;
+
     // ============================================================
     // Számított property-k (Zs ≤ U0 * α / Ia)
     // ============================================================
@@ -111,16 +117,20 @@ public class MeresiPontSor
     public bool TeljeskituoltE =>
            !string.IsNullOrWhiteSpace(MeresiPontHelye) &&
            !string.IsNullOrWhiteSpace(Modszer) &&
-           !string.IsNullOrWhiteSpace(TularamvedelemHelye) &&
-           !string.IsNullOrWhiteSpace(TularamvedelemTipusa) &&
+           (Modszer == "EPH" ||
+               (!string.IsNullOrWhiteSpace(TularamvedelemHelye) &&
+                !string.IsNullOrWhiteSpace(TularamvedelemTipusa))) &&
            (MertHurokimpedancia.HasValue || !string.IsNullOrWhiteSpace(ErtekOhm));
 
     public IEnumerable<string> HianyzoPontok()
     {
         if (string.IsNullOrWhiteSpace(MeresiPontHelye)) yield return "Mérési pont helye";
         if (string.IsNullOrWhiteSpace(Modszer)) yield return "Módszer/Osztály";
-        if (string.IsNullOrWhiteSpace(TularamvedelemHelye)) yield return "Túláramvédelem helye";
-        if (string.IsNullOrWhiteSpace(TularamvedelemTipusa)) yield return "Túláramvédelem típusa";
+        if (Modszer != "EPH")
+        {
+            if (string.IsNullOrWhiteSpace(TularamvedelemHelye)) yield return "Túláramvédelem helye";
+            if (string.IsNullOrWhiteSpace(TularamvedelemTipusa)) yield return "Túláramvédelem típusa";
+        }
         if (!MertHurokimpedancia.HasValue && string.IsNullOrWhiteSpace(ErtekOhm))
             yield return "Érték [Ω]";
     }

@@ -34,6 +34,24 @@ public class HvmAdatok
     public string FelelosVegzettseg { get; set; } = "felülvizsgáló";
     public string FelelosBizonyitvany { get; set; } = "";
 
+    /// <summary>Kiállító cég neve (az "Egy mérés" jegyzőkönyv stílusához, a fejlécben jelenik meg).</summary>
+    public string CegNev { get; set; } = "";
+
+    /// <summary>Kiállító cég címe (az "Egy mérés" jegyzőkönyv stílusához, a fejlécben jelenik meg).</summary>
+    public string CegCim { get; set; } = "";
+
+    /// <summary>Kapcsolattartó neve (a főjegyzőkönyvből átvéve).</summary>
+    public string KapcsolatTarto { get; set; } = "";
+
+    /// <summary>Belső azonosító szám (a főjegyzőkönyvből átvéve).</summary>
+    public string UzemiKisero { get; set; } = "";
+
+    /// <summary>Hálózat típusa (pl. TN, TT, IT) – a főjegyzőkönyvből átvéve.</summary>
+    public string MeresiRendszerTipus { get; set; } = "TN";
+
+    /// <summary>Felelős felülvizsgáló neve (aláírás/bélyegző kereséséhez az IFelulvizsgaloService-ben).</summary>
+    public string FelulvizsgaloNev { get; set; } = "";
+
     // Segítő
     public string SegitoNev { get; set; } = "";
     public string SegitoVegzettseg { get; set; } = "";
