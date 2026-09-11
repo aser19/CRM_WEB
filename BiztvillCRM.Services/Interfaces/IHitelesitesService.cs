@@ -4,7 +4,7 @@ namespace BiztvillCRM.Services.Interfaces;
 
 public interface IHitelesitesService
 {
-    Task<List<Hitelesites>> GetAllAsync();
+    Task<List<Hitelesites>> GetAllAsync(bool includeInaktivak = false);
     Task<List<Hitelesites>> GetInaktivakAsync();
     Task<Hitelesites?> GetByIdAsync(int id);
     Task<Hitelesites> CreateAsync(Hitelesites hitelesites);
@@ -20,4 +20,15 @@ public interface IHitelesitesService
     /// Inaktívvá tesz egy hitelesítést.
     /// </summary>
     Task InaktivvaTesz(int hitelesitesId);
+
+    /// <summary>
+    /// Be- vagy kikapcsolja egy hitelesítés aktív állapotát.
+    /// </summary>
+    Task AktivAllapotValtasAsync(int hitelesitesId, bool aktiv);
+
+    /// <summary>
+    /// Ellenőrzi, hogy létezik-e ugyanazokkal az adatokkal (ügyfél, telephely, eszköztípus, eszközazonosító) rendelkező,
+    /// az adott hitelesítésnél frissőbb dátumú aktív hitelesítés.
+    /// </summary>
+    Task<bool> VanFrissebbAktivAsync(int hitelesitesId);
 }

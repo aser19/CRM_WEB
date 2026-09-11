@@ -11,4 +11,11 @@ public class MeresTipusJogszabaly
 
     /// <summary>Megjelenítési sorrend a dokumentumban</summary>
     public int Sorrend { get; set; } = 0;
+
+    /// <summary>
+    /// Ha true, a jogszabály/szabvány alapértelmezetten kijelölve jelenik meg
+    /// a jegyzőkönyv írásakor. Ha false, hozzá van rendelve a méréstípushoz,
+    /// de a jegyzőkönyv írásakor alapból nincs kipipálva.
+    /// </summary>
+    public bool AlapertelmezettKivalasztva { get; set; } = true;
 }

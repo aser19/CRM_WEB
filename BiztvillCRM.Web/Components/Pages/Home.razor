@@ -35,7 +35,7 @@ else
 else
 {
     @* Villamos mérés szekció - csak ha van Meresek modul *@
-    @if (_hasModulMeresek && _aktivTevekenysegek.Contains(TevekenysegTipus.VillanosMeres))
+    @if (_hasModulMeresek)
     {
         <MudText Typo="Typo.h6" Class="mb-2 mt-4" Color="Color.Primary">
             <MudIcon Icon="@Icons.Material.Filled.ElectricBolt" Class="mr-2" />
@@ -45,12 +45,12 @@ else
         <MudGrid Class="mb-4">
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Class="pa-4 stat-card" Elevation="2" 
-                          @onclick="@(() => NavigateTo($"/ugyfelek?tevekenyseg={(int)TevekenysegTipus.VillanosMeres}"))">
+                          @onclick="@(() => NavigateTo("/ugyfelek"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Ügyfelek</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.VillanosMeres).UgyfelekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_meresStat.UgyfelekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -65,7 +65,7 @@ else
                         <MudIcon Icon="@Icons.Material.Filled.Speed" Color="Color.Info" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Mérések</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.VillanosMeres).MeresekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_meresStat.MeresekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -74,14 +74,14 @@ else
             </MudItem>
 
             <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="@GetStatCardClass(GetStatisztika(TevekenysegTipus.VillanosMeres).LejaroMeresekSzama, true)" 
+                <MudPaper Class="@GetStatCardClass(_meresStat.LejaroMeresekSzama, true)" 
                           Elevation="2" 
                           @onclick="@(() => NavigateTo("/meresek?szuro=lejaro"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (60 nap)</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.VillanosMeres).LejaroMeresekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_meresStat.LejaroMeresekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -90,14 +90,14 @@ else
             </MudItem>
 
             <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="@GetStatCardClass(GetStatisztika(TevekenysegTipus.VillanosMeres).LejartMeresekSzama, false)" 
+                <MudPaper Class="@GetStatCardClass(_meresStat.LejartMeresekSzama, false)" 
                           Elevation="2" 
                           @onclick="@(() => NavigateTo("/meresek?szuro=lejart"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Lejárt</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.VillanosMeres).LejartMeresekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_meresStat.LejartMeresekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -108,7 +108,7 @@ else
     }
 
     @* Benzinkúttechnika szekció - csak ha van Hitelesitesek modul *@
-    @if (_hasModulHitelesitesek && _aktivTevekenysegek.Contains(TevekenysegTipus.Benzinkuttechnika))
+    @if (_hasModulHitelesitesek)
     {
         <MudText Typo="Typo.h6" Class="mb-2 mt-4" Color="Color.Secondary">
             <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" Class="mr-2" />
@@ -118,12 +118,12 @@ else
         <MudGrid Class="mb-4">
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Class="pa-4 stat-card" Elevation="2" 
-                          @onclick="@(() => NavigateTo($"/ugyfelek?tevekenyseg={(int)TevekenysegTipus.Benzinkuttechnika}"))">
+                          @onclick="@(() => NavigateTo("/ugyfelek"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Ügyfelek</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.Benzinkuttechnika).UgyfelekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_hitelesitesStat.UgyfelekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -138,7 +138,7 @@ else
                         <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Secondary" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Hitelesítések</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.Benzinkuttechnika).HitelesitesekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_hitelesitesStat.HitelesitesekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -147,14 +147,14 @@ else
             </MudItem>
 
             <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="@GetStatCardClass(GetStatisztika(TevekenysegTipus.Benzinkuttechnika).LejaroHitelesitesekSzama, true)" 
+                <MudPaper Class="@GetStatCardClass(_hitelesitesStat.LejaroHitelesitesekSzama, true)" 
                           Elevation="2" 
                           @onclick="@(() => NavigateTo("/hitelesitesek?szuro=lejaro"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Lejáró (60 nap)</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.Benzinkuttechnika).LejaroHitelesitesekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_hitelesitesStat.LejaroHitelesitesekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -163,14 +163,14 @@ else
             </MudItem>
 
             <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="@GetStatCardClass(GetStatisztika(TevekenysegTipus.Benzinkuttechnika).LejartHitelesitesekSzama, false)" 
+                <MudPaper Class="@GetStatCardClass(_hitelesitesStat.LejartHitelesitesekSzama, false)" 
                           Elevation="2" 
                           @onclick="@(() => NavigateTo("/hitelesitesek?szuro=lejart"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Lejárt</MudText>
-                            <MudText Typo="Typo.h5">@GetStatisztika(TevekenysegTipus.Benzinkuttechnika).LejartHitelesitesekSzama</MudText>
+                            <MudText Typo="Typo.h5">@_hitelesitesStat.LejartHitelesitesekSzama</MudText>
                         </MudStack>
                         <MudSpacer />
                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="stat-card-arrow" />
@@ -192,7 +192,7 @@ else
             <!-- Ügyfelek -->
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Class="pa-4 stat-card" Elevation="2" 
-                          @onclick="@(() => NavigateTo($"/ugyfelek?tevekenyseg={(int)TevekenysegTipus.Munkavédelem}"))">
+                          @onclick="@(() => NavigateTo("/ugyfelek"))">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
                         <MudStack Spacing="0">
@@ -522,9 +522,6 @@ else
 @code {
     private bool _betoltes = true;
     private bool _uzemeltetoAtiranyitas = false;
-    private TevekenysegTipus _cegTevekenyseg = TevekenysegTipus.Nincs;
-    private List<TevekenysegTipus> _aktivTevekenysegek = new();
-    private Dictionary<TevekenysegTipus, DashboardStatisztika> _statisztikak = new();
 
     // Modulok
     private bool _hasModulMeresek;
@@ -536,6 +533,10 @@ else
     private List<Hitelesites> _lejaroHitelesitesek = new();
     private List<MunkavedelmiOktatas> _lejaroOktatasok = new();
     private List<UzemeltetoAdat> _esedekesUzemeltetoAdatok = new();
+
+    // Mérés / hitelesítés statisztika
+    private DashboardStatisztika _meresStat = new();
+    private DashboardStatisztika _hitelesitesStat = new();
 
     // Munkavédelem statisztika
     private MunkavedelemStatisztika _munkavedelemStat = new();
@@ -601,16 +602,6 @@ else
             var ceg = await CegService.GetByIdAsync(cegId);
             Logger.LogInformation("Cég betöltve: {CegNev}", ceg?.Nev ?? "NULL");
 
-            _cegTevekenyseg = ceg?.Tevekenyseg ?? TevekenysegTipus.Nincs;
-
-            _aktivTevekenysegek = new List<TevekenysegTipus>();
-            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
-                _aktivTevekenysegek.Add(TevekenysegTipus.VillanosMeres);
-            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
-                _aktivTevekenysegek.Add(TevekenysegTipus.Benzinkuttechnika);
-            if (_cegTevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
-                _aktivTevekenysegek.Add(TevekenysegTipus.Munkavédelem);
-
             var ma = DateTime.Today;
             var harmincNapMulva = ma.AddDays(60);
 
@@ -626,13 +617,13 @@ else
             // Melléklet mérések kiszűrése – csak a fő jegyzőkönyvek számítanak
             var mellekletMeresIds = await MellekletJegyzokonyvService.GetMellekletMeresIdsAsync();
 
-            var tevekenysegUgyfelek = ugyfelek.Where(u => u.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres)).ToList();
+            var tevekenysegUgyfelek = ugyfelek;
             var tevekenysegUgyfelIds = tevekenysegUgyfelek.Select(u => u.Id).ToHashSet();
             var tevekenysegMeresek = meresek
                 .Where(m => tevekenysegUgyfelIds.Contains(m.UgyfelId) && !mellekletMeresIds.Contains(m.Id))
                 .ToList();
 
-            _statisztikak[TevekenysegTipus.VillanosMeres] = new DashboardStatisztika
+            _meresStat = new DashboardStatisztika
             {
                 UgyfelekSzama = tevekenysegUgyfelek.Count,
                 MeresekSzama = tevekenysegMeresek.Count,
@@ -654,9 +645,9 @@ else
         if (_hasModulHitelesitesek)
         {
             var hitelesitesek = await HitelesitesService.GetAllAsync();
-            var tevekenysegUgyfelek = ugyfelek.Where(u => u.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika)).ToList();
+            var tevekenysegUgyfelek = ugyfelek;
 
-            _statisztikak[TevekenysegTipus.Benzinkuttechnika] = new DashboardStatisztika
+            _hitelesitesStat = new DashboardStatisztika
             {
                 UgyfelekSzama = tevekenysegUgyfelek.Count,
                 HitelesitesekSzama = hitelesitesek.Count,
@@ -675,7 +666,7 @@ else
         if (_hasModulMunkavedelem)
         {
             var oktatasok = await MunkavedelmiOktatasService.GetAllAsync();
-            var munkavedelemUgyfelek = ugyfelek.Where(u => u.Tevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem)).ToList();
+            var munkavedelemUgyfelek = ugyfelek;
             
             _munkavedelemStat = new MunkavedelemStatisztika
             {
@@ -734,11 +725,6 @@ else
         // NE dobjuk tovább a hibát, hanem csak logoljuk
     }
 }
-
-    private DashboardStatisztika GetStatisztika(TevekenysegTipus tevekenyseg)
-    {
-        return _statisztikak.TryGetValue(tevekenyseg, out var stat) ? stat : new DashboardStatisztika();
-    }
 
     private static string GetStatCardClass(int count, bool isWarning)
     {

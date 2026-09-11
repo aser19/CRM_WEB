@@ -76,7 +76,10 @@
             <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
         </MudSelect>
         <MudSpacer />
-        <MudSpacer />
+        <MudTooltip Text="@(_mutatInaktivakat ? "Inaktívak elrejtése" : "Inaktívak megjelenítése is")">
+            <MudCheckBox T="bool" Value="_mutatInaktivakat" ValueChanged="MutatInaktivakatValtasAsync"
+                         Label="Inaktívak is" Color="Color.Warning" Dense="true" />
+        </MudTooltip>
         <MudTooltip Text="@(_csoportositott ? "Lista nézet" : "Csoportosítás ügyfél szerint")">
             <MudIconButton Icon="@(_csoportositott ? Icons.Material.Filled.TableRows : Icons.Material.Filled.GroupWork)"
                            Color="@(_csoportositott ? Color.Primary : Color.Default)"
@@ -268,6 +271,12 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                                        Color="Color.Secondary" Size="Size.Small"
                                                        OnClick="() => MasolasMegnyitasa(context.Item)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="@(context.Item.Aktiv ? "Inaktiválás" : "Aktiválás")">
+                                        <MudIconButton Icon="@(context.Item.Aktiv ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                                       Color="@(context.Item.Aktiv ? Color.Success : Color.Default)"
+                                                       Size="Size.Small"
+                                                       OnClick="() => AktivValtasAsync(context.Item)" />
                                     </MudTooltip>
                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => TorlesMegerosites(context.Item)" />
@@ -464,6 +473,12 @@
                                                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                                                    Color="Color.Secondary" Size="Size.Small"
                                                                    OnClick="() => MasolasMegnyitasa(context)" />
+                                                </MudTooltip>
+                                                <MudTooltip Text="@(context.Aktiv ? "Inaktiválás" : "Aktiválás")">
+                                                    <MudIconButton Icon="@(context.Aktiv ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                                                   Color="@(context.Aktiv ? Color.Success : Color.Default)"
+                                                                   Size="Size.Small"
+                                                                   OnClick="() => AktivValtasAsync(context)" />
                                                 </MudTooltip>
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                                Color="Color.Primary" Size="Size.Small"
@@ -1298,6 +1313,7 @@
         : Enumerable.Empty<Telephely>();
 
         private string? _datumSzuro;
+        private bool _mutatInaktivakat = false;
 
     private IEnumerable<Hitelesites> _szurtLista
     {
@@ -1447,8 +1463,44 @@ private bool _eszkozAzonositoDuplikalva =>
     private async Task BetoltesAsync() 
     { 
         _betoltes = true; 
-        _lista = await HitelesitesService.GetAllAsync(); 
+        _lista = await HitelesitesService.GetAllAsync(includeInaktivak: _mutatInaktivakat); 
         _betoltes = false; 
+    }
+
+    private async Task MutatInaktivakatValtasAsync(bool ertek)
+    {
+        _mutatInaktivakat = ertek;
+        await BetoltesAsync();
+    }
+
+    private async Task AktivValtasAsync(Hitelesites hitelesites)
+    {
+        try
+        {
+            var ujAktiv = !hitelesites.Aktiv;
+
+            // Ha aktiválunk (inaktívból aktívba), ellenőrizzük, hogy van-e frissebb aktív adat
+            if (ujAktiv)
+            {
+                var vanFrissebb = await HitelesitesService.VanFrissebbAktivAsync(hitelesites.Id);
+                if (vanFrissebb)
+                {
+                    var folytatas = await DialogService.ShowMessageBox(
+                        "Figyelmeztetés",
+                        "Van frissebb adat, biztosan újra akarja aktiválni?",
+                        yesText: "Igen, aktiválás", cancelText: "Mégse");
+                    if (folytatas != true) return;
+                }
+            }
+
+            await HitelesitesService.AktivAllapotValtasAsync(hitelesites.Id, ujAktiv);
+            hitelesites.Aktiv = ujAktiv;
+            Snackbar.Add(hitelesites.Aktiv ? "Hitelesítés aktiválva." : "Hitelesítés inaktiválva.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az állapot módosításakor: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task InaktivakMegnyitasa()

@@ -1,5 +1,6 @@
 @page "/hvm-szerkeszto/{MellekletId:int}"
 @rendermode InteractiveServer
+@implements IDisposable
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Services
@@ -12,6 +13,7 @@
 @inject IJSRuntime JS
 @inject IHvmPdfService HvmPdfService
 @inject IFelulvizsgaloService FelulvizsgaloService
+@inject IDialogService DialogService
 
 <PageTitle>Hibavédelmi mérési jegyzőkönyv</PageTitle>
 
@@ -160,24 +162,36 @@ else
                      EgyszeruMod="true" />
 
     @* === GOMBOK === *@
-    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mb-4">
-        <MudButton Variant="Variant.Outlined"
-                   StartIcon="@Icons.Material.Filled.ArrowBack"
-                   OnClick="Vissza">Vissza</MudButton>
-        <MudButton Variant="Variant.Outlined"
-                   Color="Color.Info"
-                   StartIcon="@Icons.Material.Filled.Download"
-                   OnClick="LetoltesAsync"
-                   Disabled="_feldolgozas">
-            @(_feldolgozas ? "Generálás..." : "Letöltés (PDF)")
-        </MudButton>
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Save"
-                   OnClick="MentesEsBezarAsync"
-                   Disabled="_feldolgozas">
-            @(_feldolgozas ? "Mentés..." : "Mentés és bezár")
-        </MudButton>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        @if (_utolsoAutoMentes.HasValue)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Automatikusan mentve: @_utolsoAutoMentes.Value.ToString("HH:mm:ss")
+            </MudText>
+        }
+        else
+        {
+            <MudText></MudText>
+        }
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="VisszaMegerositessel">Vissza</MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       OnClick="LetoltesAsync"
+                       Disabled="_feldolgozas">
+                @(_feldolgozas ? "Generálás..." : "Letöltés (PDF)")
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="MentesEsBezarAsync"
+                       Disabled="_feldolgozas">
+                @(_feldolgozas ? "Mentés..." : "Mentés és bezár")
+            </MudButton>
+        </MudStack>
     </MudStack>
 }
 
@@ -189,6 +203,11 @@ else
     private JegyzokonyvAdatok _foAdatok = new();   // ← főjgyk-ból betöltött, csak olvasható
     private bool _betoltes = true;
     private bool _feldolgozas = false;
+
+    // ÚJ: automatikus mentés / "pillanatfelvétel"
+    private System.Threading.Timer? _autoMentesTimer;
+    private DateTime? _utolsoAutoMentes;
+    private bool _autoMentesFolyamatban;
 
     private DateTime? _meresIdeje
     {
@@ -299,6 +318,54 @@ else
         }
 
         _betoltes = false;
+
+        // ÚJ: 2 percenkénti automatikus "pillanatfelvétel" mentés indítása
+        _autoMentesTimer = new System.Threading.Timer(async _ => await AutoMentesAsync(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>Periodikusan (2 percenként) elmenti a HVM melléklet aktuális állapotát, "Kész" jelölés nélkül,
+    /// anélkül, hogy a felhasználót elnavigálná az oldalról.</summary>
+    private async Task AutoMentesAsync()
+    {
+        if (_autoMentesFolyamatban || _feldolgozas || _melleklet == null)
+            return;
+
+        try
+        {
+            _autoMentesFolyamatban = true;
+            var json = System.Text.Json.JsonSerializer.Serialize(_adatok);
+            await MellekletService.MentAdatokAsync(MellekletId, json, kesz: false);
+            _utolsoAutoMentes = DateTime.Now;
+        }
+        catch
+        {
+            // Az automatikus mentés hibáját nem szükséges megszakítani a felhasználó munkáját - csendben kihagyjuk.
+        }
+        finally
+        {
+            _autoMentesFolyamatban = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>A "Vissza" gomb: megerősítés után navigál vissza, mentés nélkül.</summary>
+    private async Task VisszaMegerositessel()
+    {
+        var eredmeny = await DialogService.ShowMessageBox(
+            "Vissza",
+            "Biztosan kilépsz mentés nélkül? Az automatikus mentés óta végzett változtatások elveszhetnek.",
+            yesText: "Igen, kilépek",
+            cancelText: "Mégse");
+
+        if (eredmeny == true)
+        {
+            Vissza();
+        }
+    }
+
+    public void Dispose()
+    {
+        _autoMentesTimer?.Dispose();
     }
 
     private async Task MentesEsBezarAsync()

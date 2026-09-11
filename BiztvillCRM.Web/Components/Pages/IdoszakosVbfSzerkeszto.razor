@@ -21,6 +21,7 @@
 @inject IJSRuntime JS
 @inject IVizsgalatiSablonService VizsgalatiSablonService	
 @inject IJogszabalyService JogszabalyService
+@inject IDialogService DialogService
 
 <PageTitle>Időszakos VBF szerkesztő</PageTitle>
 
@@ -290,35 +291,35 @@ else
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudCheckBox T="bool" Value="_adatok.MellekletHibavedelem"
-								 ValueChanged="@((bool v) => { _adatok.MellekletHibavedelem = v; GeneraltMellekletSzamok(); })"
+								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "HVM", val => _adatok.MellekletHibavedelem = val))"
 								 Label="Hibavédelmi jgyk (Hurok)" Color="Color.Primary" />
 					@if (_adatok.MellekletHibavedelem)
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.HibavedelmiJkv</MudText> }
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudCheckBox T="bool" Value="_adatok.MellekletAvk"
-								 ValueChanged="@((bool v) => { _adatok.MellekletAvk = v; GeneraltMellekletSzamok(); })"
+								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "AVK", val => _adatok.MellekletAvk = val))"
 								 Label="Áramvédő kapcsolók" Color="Color.Primary" />
 					@if (_adatok.MellekletAvk)
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.AvkJegyzokonyv</MudText> }
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudCheckBox T="bool" Value="_adatok.MellekletSzigeteles"
-								 ValueChanged="@((bool v) => { _adatok.MellekletSzigeteles = v; GeneraltMellekletSzamok(); })"
+								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "SZI", val => _adatok.MellekletSzigeteles = val))"
 								 Label="Szigetelés ellenállás mérés" Color="Color.Primary" />
 					@if (_adatok.MellekletSzigeteles)
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.SzigetelesiJkv</MudText> }
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudCheckBox T="bool" Value="_adatok.MellekletVillam"
-								 ValueChanged="@((bool v) => { _adatok.MellekletVillam = v; if (v) _adatok.MellekletVillamNem = false; GeneraltMellekletSzamok(); })"
+								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "VVN", val => { _adatok.MellekletVillam = val; if (val) _adatok.MellekletVillamNem = false; }))"
 								 Label="Norma szerinti Villám" Color="Color.Primary" />
 					@if (_adatok.MellekletVillam)
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamJkv</MudText> }
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudCheckBox T="bool" Value="_adatok.MellekletVillamNem"
-								 ValueChanged="@((bool v) => { _adatok.MellekletVillamNem = v; if (v) _adatok.MellekletVillam = false; GeneraltMellekletSzamok(); })"
+								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "VVN-NEM", val => { _adatok.MellekletVillamNem = val; if (val) _adatok.MellekletVillam = false; }))"
 								 Label="Nem norma szerinti Villám" Color="Color.Primary" />
 					@if (_adatok.MellekletVillamNem)
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamNemJkv</MudText> }
@@ -868,7 +869,7 @@ else
 												</MudChip>
 											</MudStack>
 										</MudCardContent>
-										<MudCardActions Class="pa-2">
+										<MudCardActions Class="pa-2 gap-2">
 											<MudButton Variant="Variant.Filled"
 													   Color="@(m.KeszeE ? Color.Default : Color.Primary)"
 													   Size="Size.Small" FullWidth="true"
@@ -876,6 +877,12 @@ else
 													   OnClick="@(() => MellekletMegnyitas(m))">
 												@(m.KeszeE ? "Megtekintés" : "Folytatás / Szerkesztés")
 											</MudButton>
+											@if (!MellekletBepipalva(m.Tipus))
+											{
+												<MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+															   Size="Size.Small" Title="Melléklet törlése"
+															   OnClick="@(() => MellekletTorlesAsync(m))" />
+											}
 										</MudCardActions>
 									</MudCard>
 								</MudItem>
@@ -1032,7 +1039,7 @@ else
 			_adatok.Aramkorok ??= new();
 			if (_adatok.Aramkorok.Count == 0) _adatok.Aramkorok.Add(new AramkorSor());
 
-			await BetoltVbfJogszabalyokAsync();
+			await BetoltVbfJogszabalyokAsync(_vbfMeresTipusId);
 
 			_betoltes = false;
 			return;
@@ -1068,7 +1075,7 @@ else
 				_adatok.Aramkorok ??= new();
 				if (_adatok.Aramkorok.Count == 0) _adatok.Aramkorok.Add(new AramkorSor());
 
-				await BetoltVbfJogszabalyokAsync();
+				await BetoltVbfJogszabalyokAsync(_meres?.MeresTipusId ?? 0);
 			}
 		}
 		catch (Exception ex)
@@ -1095,34 +1102,36 @@ else
 	}
 
 	/// <summary>
-	/// Betölti a "Villamos mérések" taggel megjelölt rendeleteket/szabványokat a törzsadatból (Jogszabalyok modul),
+	/// Betölti a méréstípushoz (MeresTipusJogszabaly) hozzárendelt jogszabályokat/szabványokat,
 	/// és szinkronizálja a jegyzőkönyvben már kiválasztott (_adatok.KijeloltJogszabalyok) elemekkel, hogy az
-	/// újonnan felvett törzsadatok is megjelenjenek a listában (alapértelmezetten nem kiválasztva).
+	/// újonnan felvett hozzárendelések is megjelenjenek a listában (az AlapertelmezettKivalasztva szerint előjelölve).
+	/// Csak azok a jogszabályok/szabványok jelennek meg, amelyek az adott méréstípushoz hozzá vannak rendelve.
 	/// </summary>
-	private async Task BetoltVbfJogszabalyokAsync()
+	private async Task BetoltVbfJogszabalyokAsync(int meresTipusId)
 	{
 		try
 		{
-			var osszes = await JogszabalyService.GetAllAsync();
-			var vbfJogszabalyok = osszes
-				.Where(j => j.Aktiv && j.Tagek.Any(t => t.Nev.Equals("Villamos mérések", StringComparison.OrdinalIgnoreCase)))
-				.OrderBy(j => j.Tipus)
-				.ThenBy(j => j.Szam)
-				.ToList();
+			var hozzarendeltek = meresTipusId > 0
+				? await MeresTipusService.GetJogszabalyokByTipusIdAsync(meresTipusId)
+				: new List<MeresTipusJogszabaly>();
 
+			var hozzarendeltIdk = hozzarendeltek.Select(x => x.JogszabalyId).ToHashSet();
+
+			// Eltávolítjuk azokat a korábban mentett kijelöléseket, amelyek már nincsenek hozzárendelve a típushoz
 			_adatok.KijeloltJogszabalyok ??= new List<KijeloltJogszabaly>();
+			_adatok.KijeloltJogszabalyok.RemoveAll(k => !hozzarendeltIdk.Contains(k.JogszabalyId));
 
-			foreach (var jsz in vbfJogszabalyok)
+			foreach (var h in hozzarendeltek)
 			{
-				if (!_adatok.KijeloltJogszabalyok.Any(k => k.JogszabalyId == jsz.Id))
+				if (!_adatok.KijeloltJogszabalyok.Any(k => k.JogszabalyId == h.JogszabalyId))
 				{
 					_adatok.KijeloltJogszabalyok.Add(new KijeloltJogszabaly
 					{
-						JogszabalyId = jsz.Id,
-						Szam = jsz.Szam,
-						Cim = jsz.Cim,
-						Kivalasztva = false,
-						IsSzabvany = jsz.Tipus == JogszabalyTipus.Szabvany
+						JogszabalyId = h.JogszabalyId,
+						Szam = h.Jogszabaly?.Szam ?? "",
+						Cim = h.Jogszabaly?.Cim ?? "",
+						Kivalasztva = h.AlapertelmezettKivalasztva,
+						IsSzabvany = h.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany
 					});
 				}
 			}
@@ -1213,6 +1222,12 @@ else
 			await MellekletekLetrehozasa();
 			_mellekletek = await MellekletService.GetByMeresIdAsync(MeresId ?? 0);
 			Snackbar.Add("Mentés és generálás sikeres!", Severity.Success);
+
+			if (_aktívTab < 5)
+			{
+				Navigation.NavigateTo("/meresek");
+				return;
+			}
 		}
 		catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
 		finally { _feldolgozas = false; }
@@ -1227,6 +1242,9 @@ else
 		{
 			await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
 				MeresId ?? 0, _adatok, MeresStatusz.Folyamatban, _adatok.Eredmeny);
+
+			await MellekletekLetrehozasa();
+			_mellekletek = await MellekletService.GetByMeresIdAsync(MeresId ?? 0);
 
 			Snackbar.Add("A jegyzőkönyv adatai mentve, a mérés 'Folyamatban' státuszba került. Később folytathatod a kitöltést.", Severity.Success);
 			Navigation.NavigateTo("/meresek");
@@ -1243,6 +1261,43 @@ else
 			"HVM" => $"/hvm-szerkeszto/{m.Id}",
 			_     => m.MellekletMeresId.HasValue ? $"/jegyzokonyv/{m.MellekletMeresId.Value}" : $"/meresek"
 		});
+	}
+
+	/// <summary>
+	/// Megmondja, hogy egy adott típusú melléklet checkbox-a jelenleg be van-e pipálva a wizardban.
+	/// Ha nincs bepipálva, a lista nézetben megjelenik a törlés lehetősége.
+	/// </summary>
+	private bool MellekletBepipalva(string tipus) => tipus switch
+	{
+		"HVM" => _adatok.MellekletHibavedelem,
+		"AVK" => _adatok.MellekletAvk,
+		"SZI" => _adatok.MellekletSzigeteles,
+		"VVN" => _adatok.MellekletVillam,
+		"VVN-NEM" => _adatok.MellekletVillamNem,
+		_ => true
+	};
+
+	private async Task MellekletTorlesAsync(MellekletJegyzokonyv m)
+	{
+		var megerositve = await DialogService.ShowMessageBox(
+			"Melléklet törlése",
+			$"Biztosan törlöd a(z) '{MellekletJegyzokonyv.TipusNev(m.Tipus)}' mellékletet ({m.Szam})? A benne rögzített adatok véglegesen törlődnek.",
+			yesText: "Törlés", cancelText: "Mégse");
+
+		if (megerositve != true)
+			return;
+
+		try
+		{
+			await MellekletService.TorlesAsync(m.Id);
+			_mellekletek.Remove(m);
+			GeneraltMellekletSzamok();
+			Snackbar.Add("Melléklet törölve.", Severity.Success);
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Hiba a melléklet törlése közben: {ex.Message}", Severity.Error);
+		}
 	}
 
 	private void Vissza() => Navigation.NavigateTo($"/jegyzokonyv/{MeresId}");
@@ -1283,6 +1338,51 @@ else
 		_adatok.SzigetelesiJkv = _adatok.MellekletSzigeteles  ? $"{alap}/SZI" : "";
 		_adatok.VillamJkv      = _adatok.MellekletVillam      ? $"{alap}/VVN" : "";
 		_adatok.VillamNemJkv   = _adatok.MellekletVillamNem   ? $"{alap}/VVN-NEM" : "";
+	}
+
+	/// <summary>
+	/// A melléklet-checkbox kipipálásakor/kivételekor lefutó kezelő. Kipipáláskor csak beállítja az értéket
+	/// (a melléklet rekord a mentéskor jön létre). Kivételkor — ha már létezik a melléklethez tartozó,
+	/// elmentett rekord az adatbázisban — megerősítést kér, majd törli azt (a hozzá tartozó melléklet-méréssel együtt).
+	/// </summary>
+	private async Task OnMellekletCheckboxAsync(bool ujErtek, string tipus, Action<bool> ertekBeallito)
+	{
+		if (ujErtek || _sablonMod || MeresId is not > 0)
+		{
+			ertekBeallito(ujErtek);
+			GeneraltMellekletSzamok();
+			return;
+		}
+
+		var letezoMelleklet = _mellekletek.FirstOrDefault(m => m.Tipus == tipus);
+		if (letezoMelleklet is null)
+		{
+			ertekBeallito(ujErtek);
+			GeneraltMellekletSzamok();
+			return;
+		}
+
+		var megerositve = await DialogService.ShowMessageBox(
+			"Melléklet törlése",
+			$"A(z) '{MellekletJegyzokonyv.TipusNev(tipus)}' melléklet ({letezoMelleklet.Szam}) már el lett kezdve kitölteni. " +
+			"A pipa eltávolításával a melléklet és a benne rögzített adatok véglegesen törlődnek. Biztosan folytatod?",
+			yesText: "Törlés", cancelText: "Mégse");
+
+		if (megerositve != true)
+			return; // marad bepipálva
+
+		try
+		{
+			await MellekletService.TorlesAsync(letezoMelleklet.Id);
+			_mellekletek.Remove(letezoMelleklet);
+			ertekBeallito(ujErtek);
+			GeneraltMellekletSzamok();
+			Snackbar.Add("Melléklet törölve.", Severity.Success);
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Hiba a melléklet törlése közben: {ex.Message}", Severity.Error);
+		}
 	}
 
 	// ── Áramkörök ──────────────────────────────────────────────────

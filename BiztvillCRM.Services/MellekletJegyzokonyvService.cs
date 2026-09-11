@@ -100,6 +100,7 @@ public class MellekletJegyzokonyvService(IDbContextFactory<CrmDbContext> context
             TelephelyId  = foMeres.TelephelyId,
             MeresTipusId = meresTipusId,
             Datum        = DateTime.Today,
+            Letrehozva   = DateTime.Now,
             MeresStatusz = MeresStatusz.Folyamatban,
             Megjegyzes   = $"Melléklet: {melleklet.Szam}",
             JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(ujAdatok)
@@ -160,6 +161,44 @@ public class MellekletJegyzokonyvService(IDbContextFactory<CrmDbContext> context
         if (melleklet is null) return;
         melleklet.Statusz = ujStatusz;
         melleklet.Modositva = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+    }
+
+    public async Task TorlesAsync(int mellekletId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var melleklet = await context.MellekletJegyzokonyvek
+            .FirstOrDefaultAsync(m => m.Id == mellekletId);
+        if (melleklet is null) return;
+
+        if (melleklet.MellekletMeresId.HasValue)
+        {
+            var mellekletMeres = await context.Meresek.FindAsync(melleklet.MellekletMeresId.Value);
+            if (mellekletMeres is not null)
+                context.Meresek.Remove(mellekletMeres);
+        }
+
+        context.MellekletJegyzokonyvek.Remove(melleklet);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task TorlesTipusAlapjanAsync(int meresId, string tipus)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var melleklet = await context.MellekletJegyzokonyvek
+            .FirstOrDefaultAsync(m => m.MeresId == meresId && m.Tipus == tipus);
+        if (melleklet is null) return;
+
+        if (melleklet.MellekletMeresId.HasValue)
+        {
+            var mellekletMeres = await context.Meresek.FindAsync(melleklet.MellekletMeresId.Value);
+            if (mellekletMeres is not null)
+                context.Meresek.Remove(mellekletMeres);
+        }
+
+        context.MellekletJegyzokonyvek.Remove(melleklet);
         await context.SaveChangesAsync();
     }
 }

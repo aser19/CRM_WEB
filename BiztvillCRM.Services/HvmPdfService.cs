@@ -60,7 +60,7 @@ public class HvmPdfService : IHvmPdfService
         var munkaszam = !string.IsNullOrWhiteSpace(adatok.Munkaszam) ? adatok.Munkaszam : $"HVM-{meresId:D6}/{DateTime.Now:yyyy}";
         var vizsgalatHelye = !string.IsNullOrWhiteSpace(adatok.MeresHelye) ? adatok.MeresHelye : meres?.Telephely?.Cim ?? "";
         var meresIdeje = meres?.Datum ?? adatok.MeresIdeje;
-        var jegyzokonyvKeszultDatum = meres?.Letrehozva ?? adatok.KeszitesDatum;
+        var jegyzokonyvKeszultDatum = adatok.KeszitesDatum != default ? adatok.KeszitesDatum : (meres?.Letrehozva ?? DateTime.Now);
         var meresiPontok = adatok.MeresiPontok ?? new List<MeresiPontSor>();
 
         try
@@ -103,7 +103,7 @@ public class HvmPdfService : IHvmPdfService
                 page.Margin(1.2f, Unit.Centimetre);
                 page.DefaultTextStyle(x => x.FontSize(8).FontFamily("Arial"));
 
-                page.Content().Element(c => Tartalom(c, meresiPontok, adatok, munkaszam, cegNev, cegCim,
+                page.Content().ShrinkVertical().Element(c => Tartalom(c, meresiPontok, adatok, munkaszam, cegNev, cegCim,
                     vizsgalatHelye, meresIdeje, jegyzokonyvKeszultDatum, jogosultsagIgazolas, felulvizsgaloNev));
             });
         }).GeneratePdf();
@@ -130,7 +130,7 @@ public class HvmPdfService : IHvmPdfService
                     c.Item().Text(text =>
                     {
                         text.Span("A felülvizsgálat helye: ").SemiBold();
-                        text.Span($"{cegNev} – Székhely – {cegCim}".Trim(' ', '–'));
+                        text.Span(vizsgalatHelye);
                     });
                     c.Item().PaddingTop(2).Text(text =>
                     {

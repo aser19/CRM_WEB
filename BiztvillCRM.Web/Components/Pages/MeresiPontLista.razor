@@ -69,7 +69,7 @@
                     <MudTh Style="width: 100px;">PE foly.</MudTh>
                     <MudTh Style="width: 120px;">ÉRTÉK [Ω]</MudTh>
                     <MudTh Style="width: 140px;">Minősítés</MudTh>
-                    <MudTh Style="width: 60px;"></MudTh>
+                    <MudTh Style="width: 160px;"></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Sorszám">
@@ -219,10 +219,24 @@
                         }
                     </MudTd>
                     <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                       Color="Color.Error"
-                                       Size="Size.Small"
-                                       OnClick="() => TorolMeresiPont(context)" />
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd">
+                            <MudNumericField T="int"
+                                             Value="@GetMultiplikatorErtek(context)"
+                                             ValueChanged="@((int val) => _multiplikatorErtekek[context] = val)"
+                                             Min="1" Max="100"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Style="width: 60px;" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Color="Color.Secondary"
+                                           Size="Size.Small"
+                                           Title="Sor sokszorozása"
+                                           OnClick="@(() => SokszorozMeresiPont(context, GetMultiplikatorErtek(context)))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="() => TorolMeresiPont(context)" />
+                        </MudStack>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -447,6 +461,10 @@
     private string _lokalisRendszerTipus = "TN";
     private string _elozoRendszerTipus = "";
     private string _aktualisHelyisegNev = "";
+    private readonly Dictionary<MeresiPontSor, int> _multiplikatorErtekek = new();
+
+    private int GetMultiplikatorErtek(MeresiPontSor pont) =>
+        _multiplikatorErtekek.TryGetValue(pont, out var ertek) ? ertek : 1;
 
     private readonly TableGroupDefinition<MeresiPontSor> _helyisegGroupDef = new()
     {
@@ -748,6 +766,52 @@
         }
 
         await OnChange.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Az adott mérési pont sor összes adatát (mód/osztály, túláramvédelem, ÁVK, PE, mért érték stb.)
+    /// lemásolja N példányban, és a forrás sor mögé szúrja be a listába (Sorszam újraszámozva).
+    /// </summary>
+    private async Task SokszorozMeresiPont(MeresiPontSor forrasSor, int darabszam)
+    {
+        if (darabszam < 1) darabszam = 1;
+
+        var indexForras = MeresiPontok.IndexOf(forrasSor);
+        if (indexForras < 0) return;
+
+        var ujSorok = new List<MeresiPontSor>();
+        for (int i = 0; i < darabszam; i++)
+        {
+            ujSorok.Add(new MeresiPontSor
+            {
+                MeresiPontHelye = forrasSor.MeresiPontHelye,
+                Modszer = forrasSor.Modszer,
+                TularamvedelemHelye = forrasSor.TularamvedelemHelye,
+                TularamvedelemTipusa = forrasSor.TularamvedelemTipusa,
+                AVKCsatolva = forrasSor.AVKCsatolva,
+                AVK = forrasSor.AVK,
+                PEFolytOhm = forrasSor.PEFolytOhm,
+                PEFolytMegfelelt = forrasSor.PEFolytMegfelelt,
+                ErtekOhm = forrasSor.ErtekOhm,
+                MertHurokimpedancia = forrasSor.MertHurokimpedancia,
+                Minosites = forrasSor.Minosites,
+                Megjegyzes = forrasSor.Megjegyzes,
+                HelyisegNev = forrasSor.HelyisegNev,
+                MinositesFigyelmeztetes = forrasSor.MinositesFigyelmeztetes
+            });
+        }
+
+        MeresiPontok.InsertRange(indexForras + 1, ujSorok);
+
+        for (int i = 0; i < MeresiPontok.Count; i++)
+        {
+            MeresiPontok[i].Sorszam = i + 1;
+        }
+
+        _multiplikatorErtekek.Remove(forrasSor);
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
     }
 
     private async Task<IEnumerable<string>> HelyisegKereses(string value, CancellationToken token)

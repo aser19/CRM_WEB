@@ -401,14 +401,6 @@
                     <MudTextField @bind-Value="_ujUgyfel.Nev" Label="Név *" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="UgyfelTipus" @bind-Value="_ujUgyfel.UgyfelTipus" Label="Típus">
-                        @foreach (UgyfelTipus t in Enum.GetValues(typeof(UgyfelTipus)))
-                        {
-                            <MudSelectItem Value="@t">@t.ToString()</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_ujUgyfel.Adoszam" Label="Adószám" />
                 </MudItem>
                 <MudItem xs="12" md="6">
@@ -475,6 +467,7 @@
     private string _kereses = string.Empty;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false, _esetiTipus = false, _masolasbol = false;
     private bool _manualisKovetkezoDatum = false; // Flag a manuális következő dátum jelzésére
+    private DateTime? _utoljaraAutomatikusanBeallitottDatum; // Az utoljára kódból beállított "Következő dátum" érték, az álomváltozás felismeréséhez
     private bool _csoportositott = true; // Csoportosított nézet kapcsoló
 
     // Új ügyfél/telephely dialógok
@@ -624,6 +617,7 @@
         _esetiTipus = false;
         _masolasbol = false; // ← Új karbantartás, NEM másolat
         _manualisKovetkezoDatum = false; // ← Automatikus számítás engedélyezése
+        _utoljaraAutomatikusanBeallitottDatum = null;
         _dialogNyitva = true; 
     }
 
@@ -649,6 +643,7 @@
 
         _masolasbol = false; // ← Szerkesztés, NEM másolat
         _manualisKovetkezoDatum = false; // ← Meglévő dátum megtartása
+        _utoljaraAutomatikusanBeallitottDatum = _kovetkezoDatum;
         _dialogNyitva = true; 
     }
 
@@ -683,6 +678,7 @@
 
         _masolasbol = true;
         _manualisKovetkezoDatum = false; // ← Automatikus számítás engedélyezése
+        _utoljaraAutomatikusanBeallitottDatum = _kovetkezoDatum;
         _dialogNyitva = true;
     }
 
@@ -710,11 +706,13 @@
         if (_esetiTipus)
         {
             _kovetkezoDatum = null;
+            _utoljaraAutomatikusanBeallitottDatum = null;
             _manualisKovetkezoDatum = false;
         }
         else if (!_manualisKovetkezoDatum && _datum.HasValue && tipus is not null)
         {
             _kovetkezoDatum = _datum.Value.AddMonths(tipus.IsmetlodesHonap);
+            _utoljaraAutomatikusanBeallitottDatum = _kovetkezoDatum;
         }
 
         return Task.CompletedTask;
@@ -731,6 +729,7 @@
             if (tipus is not null)
             {
                 _kovetkezoDatum = _datum.Value.AddMonths(tipus.IsmetlodesHonap);
+                _utoljaraAutomatikusanBeallitottDatum = _kovetkezoDatum;
             }
         }
 
@@ -739,9 +738,14 @@
 
     private Task KovetkezoDatumValtozottAsync(DateTime? ujDatum)
     {
-        // Felhasználó manuálisan módosította a következő dátumot
         _kovetkezoDatum = ujDatum;
-        _manualisKovetkezoDatum = true; // Jelöljük, hogy manuális módosítás történt
+
+        // Csak akkor jelöljük manuálisnak, ha az érték eltér attól, amit a kód legutóbb automatikusan beállított
+        // (a MudDatePicker DateChanged eseménye a kódból történő beállításkor is lefut, ezért kell összehasonlítani)
+        if (ujDatum != _utoljaraAutomatikusanBeallitottDatum)
+        {
+            _manualisKovetkezoDatum = true; // Jelöljük, hogy manuális módosítás történt
+        }
 
         return Task.CompletedTask;
     }
@@ -762,9 +766,7 @@
         _ujUgyfel = new Ugyfel
         {
             CegId = cegId,
-            Aktiv = true,
-            UgyfelTipus = UgyfelTipus.Kft,
-            Tevekenyseg = TevekenysegTipus.VillanosMeres
+            Aktiv = true
         };
         _ujUgyfelDialogNyitva = true;
     }

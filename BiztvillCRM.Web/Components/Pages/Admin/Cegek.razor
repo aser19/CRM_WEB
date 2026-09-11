@@ -62,24 +62,6 @@
         <Columns>
             <PropertyColumn Property="c => c.Ceg.Nev" Title="Cégnév" />
             <PropertyColumn Property="c => c.Ceg.Adoszam" Title="Adószám" />
-            <TemplateColumn Title="Tevékenység">
-                <CellTemplate>
-                    <MudStack Row="true" Spacing="1">
-                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.VillanosMeres))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">Villamos</MudChip>
-                        }
-                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.Benzinkuttechnika))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Benzinkút</MudChip>
-                        }
-                        @if (context.Item.Ceg.Tevekenyseg.HasFlag(TevekenysegTipus.Munkavédelem))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Munkavédelem</MudChip>
-                        }
-                    </MudStack>
-                </CellTemplate>
-            </TemplateColumn>
             <PropertyColumn Property="c => c.Ceg.Email" Title="Email" />
             <TemplateColumn Title="Felhasználók">
                 <CellTemplate>
@@ -132,9 +114,6 @@
             <MudTextField @bind-Value="_szerkesztettCeg.Email" Label="Email cím" InputType="InputType.Email" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Telefon" Label="Telefonszám" Class="mb-3" />
             <MudTextField @bind-Value="_szerkesztettCeg.Weboldal" Label="Weboldal" Class="mb-3" />
-            <div class="mb-3">
-                <TevekenysegValaszto @bind-Value="_szerkesztettCeg.Tevekenyseg" ShowValidation="_validacioMutatasa" />
-            </div>
 
             <!-- Cégbélyegző szekció -->
             <MudItem xs="12">
@@ -331,7 +310,6 @@
     private bool _ujCeg;
     private bool _validacioMutatasa;
     private Ceg? _szerkesztettCeg;
-    private TevekenysegTipus _eredetiTevekenyseg = TevekenysegTipus.Nincs;
     private IBrowserFile? _kivalasztottBelyegzo;
 
     private IEnumerable<CegListaElem> _szurtLista
@@ -434,7 +412,6 @@
             Telefon = ceg.Telefon,
             Weboldal = ceg.Weboldal,
             Aktiv = ceg.Aktiv,
-            Tevekenyseg = ceg.Tevekenyseg,
             AktivModulok = ceg.AktivModulok,
             MatricaElotag = ceg.MatricaElotag,
             // NAV mezők
@@ -449,7 +426,6 @@
         _validacioMutatasa = false;
         _kivalasztottBelyegzo = null;
         _dialogLatszik = true;
-        _eredetiTevekenyseg = ceg.Tevekenyseg;
     }
 
     private void DialogBezarasa()
@@ -479,36 +455,6 @@
         {
             Snackbar.Add("A cégnév megadása kötelező!", Severity.Warning);
             return;
-        }
-
-        if (_szerkesztettCeg.Tevekenyseg == TevekenysegTipus.Nincs)
-        {
-            _validacioMutatasa = true;
-            Snackbar.Add("Legalább egy tevékenységi kör kiválasztása kötelező!", Severity.Warning);
-            return;
-        }
-
-        // Downgrade figyelmeztetés (csak szerkesztésnél)
-        if (!_ujCeg && _eredetiTevekenyseg != TevekenysegTipus.Nincs)
-        {
-            var eltavolitott = _eredetiTevekenyseg & ~_szerkesztettCeg.Tevekenyseg;
-            if (eltavolitott != TevekenysegTipus.Nincs)
-            {
-                var ugyfelekSzama = await CegService.GetUgyfelekSzamaAsync(_szerkesztettCeg.Id);
-                if (ugyfelekSzama > 0)
-                {
-                    var megerosites = await DialogService.ShowMessageBox(
-                        "Figyelmeztetés",
-                        $"A tevékenységi kör szűkítése {ugyfelekSzama} ügyfél címkéjét is módosítja.\n" +
-                        "Az eltávolított címkék az ügyfelektől is törlődnek.\n\n" +
-                        "Biztosan folytatja?",
-                        yesText: "Igen, módosít",
-                        cancelText: "Mégse");
-
-                    if (megerosites != true)
-                        return;
-                }
-            }
         }
 
         _mentes = true;

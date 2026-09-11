@@ -16,4 +16,15 @@ public interface IMellekletJegyzokonyvService
     /// <summary>Visszaadja azon Meres.Id-k halmazát, amelyekhez van legalább 1 melléklet.</summary>
     Task<HashSet<int>> GetMeresIdsWithMellekletAsync();
     Task StatuszFrissitesAsync(int mellekletId, string ujStatusz);
+
+    /// <summary>
+    /// Törli a megadott melléklet-jegyzőkönyvet, valamint a hozzá tartozó önálló melléklet-mérést (Meres), ha van.
+    /// </summary>
+    Task TorlesAsync(int mellekletId);
+
+    /// <summary>
+    /// Törli a mérés adott típusú melléklet-jegyzőkönyvét (ha létezik), a hozzá tartozó melléklet-méréssel együtt.
+    /// Akkor hasznos, amikor a főjegyzőkönyv szerkesztésekor a felhasználó kiveszi a pipát egy melléklet elől.
+    /// </summary>
+    Task TorlesTipusAlapjanAsync(int meresId, string tipus);
 }

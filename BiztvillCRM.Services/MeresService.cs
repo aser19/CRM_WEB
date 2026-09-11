@@ -11,14 +11,16 @@ public class MeresService : IMeresService
 {
     private readonly IDbContextFactory<CrmDbContext> _contextFactory;
     private readonly ITenantService _tenantService;
+    private readonly IMunkaszamService _munkaszamService;
 
-    public MeresService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService)
+    public MeresService(IDbContextFactory<CrmDbContext> contextFactory, ITenantService tenantService, IMunkaszamService munkaszamService)
     {
         _contextFactory = contextFactory;
         _tenantService = tenantService;
+        _munkaszamService = munkaszamService;
     }
 
-    public async Task<List<Meres>> GetAllAsync()
+    public async Task<List<Meres>> GetAllAsync(bool includeInaktivak = false)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -31,8 +33,11 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
-            .Where(m => !mellekletMeresIds.Contains(m.Id) && m.Aktiv) // Csak az aktívak
+            .Where(m => !mellekletMeresIds.Contains(m.Id))
             .AsQueryable();
+
+        if (!includeInaktivak)
+            query = query.Where(m => m.Aktiv);
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
@@ -85,6 +90,17 @@ public class MeresService : IMeresService
         }
 
         return await query.FirstOrDefaultAsync(m => m.Id == id);
+    }
+
+    public async Task<Meres?> GetByIdPublicAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        return await context.Meresek
+            .Include(m => m.Ugyfel)
+            .Include(m => m.Telephely)
+            .Include(m => m.MeresTipus)
+            .FirstOrDefaultAsync(m => m.Id == id);
     }
 
     public async Task<Meres> CreateAsync(Meres meres)
@@ -271,6 +287,159 @@ public class MeresService : IMeresService
             meres.Aktiv = false;
             meres.Modositva = DateTime.UtcNow;
             await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task AktivAllapotValtasAsync(int meresId, bool aktiv)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres != null)
+        {
+            meres.Aktiv = aktiv;
+            meres.Modositva = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> VanFrissebbAktivAsync(int meresId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meres = await context.Meresek.FindAsync(meresId);
+        if (meres == null) return false;
+
+        return await context.Meresek
+            .Where(m => m.Id != meresId
+                        && m.Aktiv
+                        && m.UgyfelId == meres.UgyfelId
+                        && m.TelephelyId == meres.TelephelyId
+                        && m.MeresTipusId == meres.MeresTipusId
+                        && m.Datum > meres.Datum)
+            .AnyAsync();
+    }
+
+    public async Task<Meres> DuplikalAsync(int meresId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var eredeti = await context.Meresek
+            .Include(m => m.Ugyfel)
+            .FirstOrDefaultAsync(m => m.Id == meresId)
+            ?? throw new InvalidOperationException("Nem található a duplikálandó mérés.");
+
+        if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
+        {
+            var cegIds = await _tenantService.GetElerhhetoCegIdsAsync();
+            if (!cegIds.Contains(eredeti.Ugyfel!.CegId))
+                throw new UnauthorizedAccessException("Nincs jogosultsága a mérés duplikálásához.");
+        }
+
+        // Egyedi jegyzőkönyvszám generálása a másolathoz (a jegyzőkönyv szám egyedi azonosító, nem másolható változatlanul)
+        var mellekletek = await context.MellekletJegyzokonyvek
+            .Include(m => m.MellekletMeres)
+            .Where(m => m.MeresId == meresId)
+            .ToListAsync();
+
+        string? ujFoJegyzokonyvSzam = null;
+        if (!string.IsNullOrWhiteSpace(eredeti.JegyzokonyvAdatokJson) || mellekletek.Any())
+        {
+            ujFoJegyzokonyvSzam = await _munkaszamService.GeneralKovetkezoMunkaszamAsync(eredeti.Ugyfel!.CegId, eredeti.MeresTipusId);
+        }
+
+        var ujJegyzokonyvAdatokJson = ujFoJegyzokonyvSzam != null
+            ? FrissitJegyzokonyvSzam(eredeti.JegyzokonyvAdatokJson, ujFoJegyzokonyvSzam)
+            : eredeti.JegyzokonyvAdatokJson;
+
+        var masolat = new Meres
+        {
+            UgyfelId = eredeti.UgyfelId,
+            TelephelyId = eredeti.TelephelyId,
+            HelyisegId = eredeti.HelyisegId,
+            MeresTipusId = eredeti.MeresTipusId,
+            Datum = eredeti.Datum,
+            KovetkezoDatum = eredeti.KovetkezoDatum,
+            Eredmeny = eredeti.Eredmeny,
+            MeresStatusz = eredeti.MeresStatusz,
+            Megjegyzes = string.IsNullOrWhiteSpace(eredeti.Megjegyzes)
+                ? "- copy"
+                : $"{eredeti.Megjegyzes} - copy",
+            JegyzokonyvAdatokJson = ujJegyzokonyvAdatokJson,
+            Aktiv = true,
+            Letrehozva = DateTime.UtcNow
+        };
+
+        context.Meresek.Add(masolat);
+        await context.SaveChangesAsync();
+
+        // Melléklet jegyzőkönyvek (HVM, AVK, SZI, VVN stb.) duplikálása
+        foreach (var melleklet in mellekletek)
+        {
+            int? ujMellekletMeresId = null;
+
+            // A melléklet száma az "<alapszám>/<TIPUS>" mintát követi (pl. "JK-000001/2026/AVK") — az új, egyedi
+            // fő jegyzőkönyvszám alapján állítjuk elő újra, hogy a melléklet sorszáma is egyedi maradjon.
+            var ujMellekletSzam = ujFoJegyzokonyvSzam != null
+                ? $"{ujFoJegyzokonyvSzam}/{melleklet.Tipus}"
+                : melleklet.Szam;
+
+            if (melleklet.MellekletMeres != null)
+            {
+                var mellekletMeresMasolat = new Meres
+                {
+                    UgyfelId = melleklet.MellekletMeres.UgyfelId,
+                    TelephelyId = melleklet.MellekletMeres.TelephelyId,
+                    HelyisegId = melleklet.MellekletMeres.HelyisegId,
+                    MeresTipusId = melleklet.MellekletMeres.MeresTipusId,
+                    Datum = melleklet.MellekletMeres.Datum,
+                    KovetkezoDatum = melleklet.MellekletMeres.KovetkezoDatum,
+                    Eredmeny = melleklet.MellekletMeres.Eredmeny,
+                    MeresStatusz = melleklet.MellekletMeres.MeresStatusz,
+                    Megjegyzes = melleklet.MellekletMeres.Megjegyzes,
+                    JegyzokonyvAdatokJson = FrissitJegyzokonyvSzam(melleklet.MellekletMeres.JegyzokonyvAdatokJson, ujMellekletSzam),
+                    Aktiv = true,
+                    Letrehozva = DateTime.UtcNow
+                };
+
+                context.Meresek.Add(mellekletMeresMasolat);
+                await context.SaveChangesAsync();
+                ujMellekletMeresId = mellekletMeresMasolat.Id;
+            }
+
+            var mellekletMasolat = new MellekletJegyzokonyv
+            {
+                MeresId = masolat.Id,
+                Tipus = melleklet.Tipus,
+                Szam = ujMellekletSzam,
+                Statusz = melleklet.Statusz,
+                AdatokJson = melleklet.AdatokJson,
+                MellekletMeresId = ujMellekletMeresId,
+                Letrehozva = DateTime.UtcNow
+            };
+
+            context.MellekletJegyzokonyvek.Add(mellekletMasolat);
+        }
+
+        await context.SaveChangesAsync();
+
+        return masolat;
+    }
+
+    private static string? FrissitJegyzokonyvSzam(string? jegyzokonyvAdatokJson, string ujSzam)
+    {
+        if (string.IsNullOrWhiteSpace(jegyzokonyvAdatokJson)) return jegyzokonyvAdatokJson;
+        try
+        {
+            var adatok = JsonSerializer.Deserialize<JegyzokonyvAdatok>(jegyzokonyvAdatokJson);
+            if (adatok == null) return jegyzokonyvAdatokJson;
+
+            adatok.JegyzokonyvSzam = ujSzam;
+            return JsonSerializer.Serialize(adatok);
+        }
+        catch
+        {
+            return jegyzokonyvAdatokJson;
         }
     }
 }

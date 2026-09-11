@@ -1,12 +1,23 @@
 @page "/lekerdezes"
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Services
+@using BiztvillCRM.Services.Interfaces
 @using System.IO
 @inject INyilvanosLekerdezesService LekerdezesService
 @inject NavigationManager NavManager
 @inject IFileStorageService FileStorageService
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
+@inject IMeresService MeresService
+@inject IVbfPdfService VbfPdfService
+@inject IEgyMeresPdfService EgyMeresPdfService
+@inject IRbPdfService RbPdfService
+@inject ICegService CegService
+@inject IFelulvizsgaloService FelulvizsgaloService
+@inject IMellekletJegyzokonyvService MellekletService
+@inject IHvmPdfService HvmPdfService
+@inject IJegyzokonyvWordService JegyzokonyvWordService
+@inject IMeresTipusService MeresTipusService
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @layout BiztvillCRM.Web.Components.Layout.PublicLayout
 
@@ -108,6 +119,7 @@
                                     <MudTh>Eredmény</MudTh>
                                     <MudTh>Következő</MudTh>
                                     <MudTh>Státusz</MudTh>
+                                    <MudTh>Dokumentum</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
@@ -129,6 +141,22 @@
                                         else { <span>–</span> }
                                     </MudTd>
                                     <MudTd>@context.Statusz</MudTd>
+                                    <MudTd>
+                                        @if (context.Statusz == "Elvegezve")
+                                        {
+                                            <MudTooltip Text="PDF jegyzőkönyv letöltése">
+                                                <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                               Color="Color.Info"
+                                                               Size="Size.Small"
+                                                               Disabled="_pdfLetoltesFolyamatban"
+                                                               OnClick="@(() => MeresPdfLetoltesePublikus(context))" />
+                                            </MudTooltip>
+                                        }
+                                        else
+                                        {
+                                            <span>–</span>
+                                        }
+                                    </MudTd>
                                 </RowTemplate>
                             </MudTable>
                         }
@@ -610,8 +638,12 @@
     private UgyfelLekerdezesViewModel? _eredmeny;
     private bool _elettortenetMutat = false;
 
+    private List<MeresTipus> _tipusok = new();
+
     protected override async Task OnInitializedAsync()
     {
+        _tipusok = await MeresTipusService.GetAllAsync();
+
         // URL-ből token betöltése, pl. /lekerdezes?token=abc123
         var uri = new Uri(NavManager.Uri);
         var qs = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -660,6 +692,215 @@
     private async Task OnElettortenetChange()
     {
         await LekerdezesFuttatas();
+    }
+
+    private bool _pdfLetoltesFolyamatban = false;
+
+    private async Task MeresPdfLetoltesePublikus(MeresOsszefoglalo meres)
+    {
+        _pdfLetoltesFolyamatban = true;
+        try
+        {
+            var friss = await MeresService.GetByIdPublicAsync(meres.MeresId);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.JegyzokonyvAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                friss.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat.", Severity.Warning);
+                return;
+            }
+
+            var mellekletTipusKod = meres.MellekletTipusKod;
+            var egyMeres = meres.SablonId == "EGY_MERES"
+                || (meres.Tipus?.Contains("Egy mérés", StringComparison.OrdinalIgnoreCase) ?? false);
+
+            byte[] pdfBytes;
+            string fileName;
+
+            if (mellekletTipusKod == "RB")
+            {
+                if (adatok.RbSorok.Count == 0)
+                {
+                    Snackbar.Add("Ehhez a méréshez még nincs elmentett Rb felülvizsgálati adat.", Severity.Warning);
+                    return;
+                }
+
+                byte[]? cegBelyegzoKep = null;
+                var belyegzoCegId = adatok.CegId > 0 ? adatok.CegId : 0;
+                var ceg = belyegzoCegId > 0 ? await CegService.GetByIdAsync(belyegzoCegId) : null;
+                if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+                {
+                    cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+                }
+
+                var jogosultFelulvizsgalok = (await FelulvizsgaloService.GetAllAdminAsync())
+                    .Where(f => f.Aktiv && (belyegzoCegId == 0 || f.CegId == belyegzoCegId))
+                    .ToList();
+
+                byte[]? alairoAlairasKep = null;
+                var alairoFelulvizsgalo = jogosultFelulvizsgalok.FirstOrDefault(f => f.Nev.Equals(adatok.RbAlairoNev, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(alairoFelulvizsgalo?.AlairasPath))
+                {
+                    alairoAlairasKep = await FileStorageService.GetFileBytesAsync(alairoFelulvizsgalo.AlairasPath);
+                }
+
+                var felulvizsgaloAlairasKepek = new Dictionary<string, byte[]>();
+                foreach (var f in jogosultFelulvizsgalok.Where(f => !string.IsNullOrWhiteSpace(f.AlairasPath)))
+                {
+                    var kep = await FileStorageService.GetFileBytesAsync(f.AlairasPath);
+                    if (kep != null)
+                        felulvizsgaloAlairasKepek[f.Nev] = kep;
+                }
+
+                pdfBytes = RbPdfService.Generalas(
+                    adatok.RbSorok,
+                    adatok.CegNev,
+                    adatok.CegCim,
+                    adatok.CegWeb,
+                    adatok.JegyzokonyvSzam ?? $"RB-{meres.MeresId:D6}",
+                    targyLeiras: adatok.VizsgalatTargya,
+                    megrendeloNev: string.IsNullOrWhiteSpace(adatok.Megrendelo) ? null : adatok.Megrendelo,
+                    keszultDatum: friss.Datum,
+                    vizsgalatTipusa: adatok.RbVizsgalatTipusa,
+                    vizsgalatHelyszine: adatok.VizsgalatHelye,
+                    vizsgalatIdopontja: friss.Datum,
+                    alairoNev: adatok.RbAlairoNev,
+                    alairoBizonyitvany: adatok.RbAlairoBizonyitvany,
+                    alairoBeosztas: adatok.RbAlairoBeosztas,
+                    kijeloltJogszabalyok: adatok.KijeloltJogszabalyok,
+                    rbBevezetes: adatok.RbBevezetes,
+                    rbTalaltAllapotok: adatok.RbTalaltAllapotok,
+                    rbAtexTanusitvanyMegvan: adatok.RbAtexTanusitvanyMegvan,
+                    rbVedelmiModEgyezik: adatok.RbVedelmiModEgyezik,
+                    rbVedelmiModMegfelelTersegbesorolasnak: adatok.RbVedelmiModMegfelelTersegbesorolasnak,
+                    rbAlkalmazasiCsoportHomersOsztalyMegfelelo: adatok.RbAlkalmazasiCsoportHomersOsztalyMegfelelo,
+                    rbReszMinositesFelulbiralas: adatok.RbReszMinositesFelulbiralas,
+                    rbFoMinositesFelulbiralas: adatok.RbFoMinositesFelulbiralas,
+                    rbMinositesMegjegyzes: adatok.RbMinositesMegjegyzes,
+                    cegBelyegzoKep: cegBelyegzoKep,
+                    alairoAlairasKep: alairoAlairasKep,
+                    felulvizsgaloAlairasKepek: felulvizsgaloAlairasKepek);
+
+                fileName = $"Rb-Felulvizsgalati-Lap-{(adatok.JegyzokonyvSzam ?? meres.MeresId.ToString()).Replace("/", "-")}.pdf";
+            }
+            else if (egyMeres)
+            {
+                pdfBytes = await EgyMeresPdfService.GeneralasAsync(meres.MeresId, adatok);
+                var jkvSzamFajlnevhez = !string.IsNullOrWhiteSpace(adatok.JegyzokonyvSzam)
+                    ? string.Join("_", adatok.JegyzokonyvSzam.Split(Path.GetInvalidFileNameChars()))
+                    : $"meres_{meres.MeresId:D6}";
+                fileName = $"{jkvSzamFajlnevhez}.pdf";
+            }
+            else
+            {
+                var sablonId = meres.SablonId ?? "VBF_KIF_MINTA";
+
+                byte[]? cegBelyegzoKep = null;
+                var belyegzoCegId = adatok.CegId > 0 ? adatok.CegId : 0;
+                var ceg = belyegzoCegId > 0 ? await CegService.GetByIdAsync(belyegzoCegId) : null;
+                if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+                {
+                    cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+                }
+
+                var jogosultFelulvizsgalok = (await FelulvizsgaloService.GetAllAdminAsync())
+                    .Where(f => f.Aktiv && (belyegzoCegId == 0 || f.CegId == belyegzoCegId))
+                    .ToList();
+                var felulvizsgaloAlairasKepek = new Dictionary<string, byte[]>();
+                foreach (var f in jogosultFelulvizsgalok.Where(f => !string.IsNullOrWhiteSpace(f.AlairasPath)))
+                {
+                    var kep = await FileStorageService.GetFileBytesAsync(f.AlairasPath);
+                    if (kep != null)
+                        felulvizsgaloAlairasKepek[f.Nev] = kep;
+                }
+
+                pdfBytes = await VbfPdfService.GeneralasAsync(meres.MeresId, adatok, sablonId, cegBelyegzoKep, felulvizsgaloAlairasKepek);
+                fileName = $"{(adatok.JegyzokonyvSzam ?? $"VBF-{meres.MeresId:D6}").Replace("/", "-")}.pdf";
+            }
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await Task.Delay(100);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
+
+            // A méréshez tartozó kész mellékletek (pl. HVM, AVK, SZI stb.) letöltése is egyidőben
+            await MellekletekLetoltesePublikus(meres.MeresId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a PDF letöltése során: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _pdfLetoltesFolyamatban = false;
+        }
+    }
+
+    private async Task MellekletekLetoltesePublikus(int meresId)
+    {
+        try
+        {
+            var mellekletek = await MellekletService.GetByMeresIdAsync(meresId);
+            var keszMellekletek = mellekletek.Where(m => m.KeszeE && m.MellekletMeresId.HasValue).ToList();
+
+            foreach (var melleklet in keszMellekletek)
+            {
+                await Task.Delay(300);
+
+                if (melleklet.Tipus == "HVM")
+                {
+                    var adatok = new HvmAdatok();
+                    if (!string.IsNullOrEmpty(melleklet.AdatokJson))
+                        adatok = System.Text.Json.JsonSerializer.Deserialize<HvmAdatok>(melleklet.AdatokJson) ?? new HvmAdatok();
+
+                    var hvmPdfBytes = await HvmPdfService.GeneralasAsync(melleklet.MellekletMeresId!.Value, adatok);
+                    if (hvmPdfBytes is { Length: > 0 })
+                    {
+                        var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.pdf";
+                        await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", hvmPdfBytes);
+                    }
+                }
+                else
+                {
+                    var mellekletTipus = _tipusok.FirstOrDefault(t => t.MellekletTipusKod == melleklet.Tipus);
+                    var sablonId = mellekletTipus?.SablonId;
+                    if (string.IsNullOrEmpty(sablonId))
+                        continue;
+
+                    var mellekletMeres = await MeresService.GetByIdPublicAsync(melleklet.MellekletMeresId!.Value);
+                    if (mellekletMeres == null)
+                        continue;
+
+                    var mellekletAdatok = new JegyzokonyvAdatok();
+                    if (!string.IsNullOrEmpty(mellekletMeres.JegyzokonyvAdatokJson))
+                        mellekletAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                            mellekletMeres.JegyzokonyvAdatokJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new JegyzokonyvAdatok();
+
+                    var wordBytes = await JegyzokonyvWordService.GeneralasAsync(melleklet.MellekletMeresId.Value, mellekletAdatok, sablonId);
+                    if (wordBytes is { Length: > 0 })
+                    {
+                        var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.docx";
+                        await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            wordBytes);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a melléklet(ek) letöltése során: {ex.Message}", Severity.Error);
+        }
     }
 
     private HashSet<HitelesitesOsszefoglalo> _nyitottHitelesitesek = new();

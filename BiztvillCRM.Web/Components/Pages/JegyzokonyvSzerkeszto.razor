@@ -26,6 +26,8 @@
 @inject IJegyzokonyvSablonService JegyzokonyvSablonService
 @inject ISablonService SablonService
 @inject IVizsgalatiSablonService VizsgalatiSablonService
+@inject IDialogService DialogService
+@implements IDisposable
 
 <PageTitle>Jegyzőkönyv szerkesztő</PageTitle>
 
@@ -35,9 +37,29 @@
 </MudText>
 
 <MudStepper @ref="_stepper" @bind-ActiveIndex="_activeStep" Linear="false" Color="Color.Primary">
-    
-    @* === 1. LÉPÉS: KIVÁLASZTÁS === *@
-    <MudStep Title="Kiválasztás" Icon="@Icons.Material.Filled.ListAlt">
+    <ActionContent Context="stepperContext">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" Style="width:100%;" AlignItems="AlignItems.Center">
+            <MudButton StartIcon="@Icons.Material.Filled.Close" Color="Color.Default" OnClick="MegseAsync">
+                Mégse
+            </MudButton>
+            @if (_utolsoAutoMentes.HasValue)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Automatikusan mentve: @_utolsoAutoMentes.Value.ToString("HH:mm:ss")
+                </MudText>
+            }
+            @if (_activeStep > 0)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="VisszaEggyetLepes">
+                    Vissza
+                </MudButton>
+            }
+        </MudStack>
+    </ActionContent>
+
+    <ChildContent>
+        @* === 1. LÉPÉS: KIVÁLASZTÁS === *@
+        <MudStep Title="Kiválasztás" Icon="@Icons.Material.Filled.ListAlt">
         <MudPaper Class="pa-4">
             <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h6">Jegyzőkönyv típusa és ügyfél</MudText>
@@ -483,48 +505,6 @@
                         </MudButton>
                     }
                 </MudItem>
-                <MudItem xs="12" Class="mt-4">
-                    @if (GetAktualisTipusKod() == "AVK")
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="Lepes2AvkTovabbAsync"
-                                   EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább az AVK adatok kitöltéséhez
-                        </MudButton>
-                    }
-                    else if (GetAktualisTipusKod() == "RB")
-                    {
-                        @* Rb: nincs 3. oldal, csak a melléklet kitöltése – a fenti gomb elegendő *@
-                    }
-                    else if (IsHordozhatoTipus())
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="Lepes2HordozhatoTovabbAsync"
-                                   EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább a hordozható eszközök vizsgálatához
-                        </MudButton>
-                    }
-                    else if (IsIdoszakosVBFTipus())
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="Lepes2IdoszakosVbfTovabbAsync"
-                                   EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább az időszakos VBF szerkesztőhöz
-                        </MudButton>
-                    }
-                    else if (IsEgyMeresTipus())
-                    {
-                        @* Egymérés: nincs 3. oldal, csak a mérés kitöltése – a fenti gomb elegendő *@
-                    }
-                    else
-                    {
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="Lepes2ValidalasEsTovabbAsync"
-                                   EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Tovább a 3. oldal kitöltéséhez
-                        </MudButton>
-                    }
-                </MudItem>
             </MudGrid>
         </MudPaper>
     </MudStep>
@@ -623,6 +603,7 @@
             </MudGrid>
         </MudPaper>
     </MudStep>
+    </ChildContent>
 </MudStepper>
 
 @* ✅ JAVÍTÁS: Csak akkor jelenjen meg, ha van importált eszköz *@
@@ -695,14 +676,6 @@
                     <MudTextField @bind-Value="_ujUgyfel.Nev" Label="Név *" Required="true" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="UgyfelTipus" @bind-Value="_ujUgyfel.UgyfelTipus" Label="Típus">
-                        @foreach (UgyfelTipus t in Enum.GetValues(typeof(UgyfelTipus)))
-                        {
-                            <MudSelectItem Value="@t">@t.ToString()</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_ujUgyfel.Adoszam" Label="Adószám" />
                 </MudItem>
                 <MudItem xs="12" md="6">
@@ -765,6 +738,11 @@
 
     private MudStepper? _stepper;
     private int _activeStep = 0; // ÚJ: step index követése
+
+    // ÚJ: automatikus mentés / "pillanatfelvétel"
+    private System.Threading.Timer? _autoMentesTimer;
+    private DateTime? _utolsoAutoMentes;
+    private bool _autoMentesFolyamatban;
 
     // A meglévő változók mellé (586. sor környéke)
     private List<MeresTipus> _tipusok = [];
@@ -829,8 +807,6 @@
 //        _osszesTipus = _tipusok;
         _sablonok = await SablonService.GetAllAsync();
 
-        await BetoltCegAdatokAsync();
-
         _adatok.Eredmeny = "MEGFELELT";
         _adatok.VegsoMinosites = "MEGFELELT";
 
@@ -838,12 +814,99 @@
         var ceg = await CegService.GetByIdAsync(cegId);
         _cegMatricaElotag = ceg?.MatricaElotag;
 
+        int? kibocsatoCegId = null;
+        if (MeresId.HasValue)
+        {
+            var elozetesMeres = await MeresService.GetByIdAsync(MeresId.Value);
+            kibocsatoCegId = elozetesMeres?.KibocsatoCegId;
+        }
+
+        await BetoltCegAdatokAsync(kibocsatoCegId);
+
         if (MeresId.HasValue)
         {
             await BetoltMeresbolAsync(MeresId.Value);
             // Meglévő melléklet jgyk-ok betöltése
             _mellekletek = await MellekletService.GetByMeresIdAsync(MeresId.Value);
         }
+
+        // ÚJ: 2 percenkénti automatikus "pillanatfelvétel" mentés indítása
+        _autoMentesTimer = new System.Threading.Timer(async _ => await AutoMentesAsync(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>Periodikusan (2 percenként) elmenti a jegyzőkönyv aktuális állapotát "Folyamatban" státusszal,
+    /// anélkül, hogy a felhasználót elnavigálná az oldalról. Csak akkor ment, ha van már kiválasztott típus/ügyfél.</summary>
+    private async Task AutoMentesAsync()
+    {
+        if (_autoMentesFolyamatban || _feldolgozas)
+            return;
+        if (_kivalasztottTipusId == 0 || _kivalasztottUgyfelId == 0)
+            return;
+
+        try
+        {
+            _autoMentesFolyamatban = true;
+
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+                        _ujonnanMentettMeresId.Value, _adatok, MeresStatusz.Folyamatban, _adatok.Eredmeny);
+                }
+                else
+                {
+                    var ujMeres = new Meres
+                    {
+                        UgyfelId = _kivalasztottUgyfelId,
+                        TelephelyId = _kivalasztottTelephelyId,
+                        MeresTipusId = _kivalasztottTipusId,
+                        Datum = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    };
+                    ujMeres = await MeresService.CreateAsync(ujMeres);
+                    _ujonnanMentettMeresId = ujMeres.Id;
+                }
+            }
+            else
+            {
+                await MeresService.MentesJegyzokonyvAdatokkalEsStatuszAsync(
+                    MeresId.Value, _adatok, MeresStatusz.Folyamatban, _adatok.Eredmeny);
+            }
+
+            _utolsoAutoMentes = DateTime.Now;
+        }
+        catch
+        {
+            // Az automatikus mentés hibáját nem szükséges megszakítani a felhasználó munkáját - csendben kihagyjuk.
+        }
+        finally
+        {
+            _autoMentesFolyamatban = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>A "Mégse" gomb: megerősítés után visszairányítja a felhasználót a mérések listájához, mentés nélkül
+    /// (az esetleges 2 percenkénti automatikus mentés miatt korábbi állapot már megmaradhatott).</summary>
+    private async Task MegseAsync()
+    {
+        var eredmeny = await DialogService.ShowMessageBox(
+            "Mégse",
+            "Biztosan kilépsz mentés nélkül? Az automatikus mentés óta végzett változtatások elveszhetnek.",
+            yesText: "Igen, kilépek",
+            cancelText: "Mégse");
+
+        if (eredmeny == true)
+        {
+            Navigation.NavigateTo("/meresek");
+        }
+    }
+
+    public void Dispose()
+    {
+        _autoMentesTimer?.Dispose();
     }
 
     private async Task OnTipusValtozas(int tipusId)
@@ -885,21 +948,20 @@
         ? await VizsgalatiSablonService.GetByMeresTipusIdAsync(tipusId)
         : [];
         _kivalasztottVizsgalatiSablonId = null;
-    }
 
-//    if (tipusId > 0)
-//    {
-//        var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipusId);
-//        _adatok.KijeloltJogszabalyok = hozzaRendeltek.Select(x => new KijeloltJogszabaly
-//        {
-//            JogszabalyId  = x.JogszabalyId,
-//            Szam          = x.Jogszabaly?.Szam ?? "",
-//            Cim           = x.Jogszabaly?.Cim ?? "",
-//            Kivalasztva   = true,
-//            IsSzabvany    = x.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany // ÚJ
-//        }).ToList();
-//    }
-//    }
+        if (tipusId > 0)
+        {
+            var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipusId);
+            _adatok.KijeloltJogszabalyok = hozzaRendeltek.Select(x => new KijeloltJogszabaly
+            {
+                JogszabalyId = x.JogszabalyId,
+                Szam = x.Jogszabaly?.Szam ?? "",
+                Cim = x.Jogszabaly?.Cim ?? "",
+                Kivalasztva = x.AlapertelmezettKivalasztva,
+                IsSzabvany = x.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany
+            }).ToList();
+        }
+    }
 
     private void OnUgyfelValtozas(int ugyfelId)
     {
@@ -1305,16 +1367,17 @@
         }
     }
 
-    private async Task BetoltCegAdatokAsync()
+    private async Task BetoltCegAdatokAsync(int? kibocsatoCegId = null)
     {
         try
         {
-            var cegId = TenantService.GetCurrentCegId();
+            var cegId = kibocsatoCegId ?? TenantService.GetCurrentCegId();
             if (cegId > 0)
             {
                 var ceg = await CegService.GetByIdAsync(cegId);
                 if (ceg != null)
                 {
+                    _adatok.CegId = ceg.Id;
                     _adatok.CegNev = ceg.Nev ?? "";
                     _adatok.CegCim = ceg.Cim ?? "";
                     _adatok.CegWeb = ceg.Weboldal ?? "";
@@ -2101,9 +2164,7 @@
         _ujUgyfel = new Ugyfel
         {
             CegId = cegId,
-            Aktiv = true,
-            UgyfelTipus = UgyfelTipus.Kft,
-            Tevekenyseg = TevekenysegTipus.VillanosMeres
+            Aktiv = true
         };
         _ujUgyfelDialogNyitva = true;
     }

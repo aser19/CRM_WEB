@@ -87,6 +87,7 @@ public class LejaratErtesitoService : ILejaratErtesitoService
                 .Include(h => h.Telephely)
                 .Include(h => h.EszkozTipus)
                 .Where(h => h.Ugyfel != null && h.Ugyfel.CegId == cegId)
+                .Where(h => h.Aktiv)
                 .Where(h => h.HitelesitesStatusz == HitelesitesStatusz.Sikeres)
                 .Where(h => h.LejaratDatum >= ma) // Még nem járt le
                 .ToListAsync();
@@ -145,6 +146,7 @@ public class LejaratErtesitoService : ILejaratErtesitoService
                 .Include(m => m.Telephely)
                 .Include(m => m.MeresTipus)
                 .Where(m => m.Ugyfel != null && m.Ugyfel.CegId == cegId)
+                .Where(m => m.Aktiv)
                 .Where(m => m.KovetkezoDatum.HasValue && m.KovetkezoDatum >= ma)
                 .ToListAsync();
 

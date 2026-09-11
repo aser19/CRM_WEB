@@ -247,7 +247,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                     c.Item().Text(text =>
                     {
                         text.Span("A felülvizsgálat helye: ").SemiBold();
-                        text.Span($"{cegNev} – Székhely – {cegCim}".Trim(' ', '–'));
+                        text.Span(vizsgalatHelye);
                     });
                     c.Item().PaddingTop(2).Text("Jelen felülvizsgálat és mérés kizárólag a javítással, helyreállítással vagy karbantartással érintett részletesen felsorolt villamos berendezésre / eszközre terjedt ki.")
                         .Italic().FontSize(7);

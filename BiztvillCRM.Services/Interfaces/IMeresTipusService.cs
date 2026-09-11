@@ -16,5 +16,20 @@ public interface IMeresTipusService
     Task DeleteAsync(int id);
 
     Task<List<MeresTipusJogszabaly>> GetJogszabalyokByTipusIdAsync(int meresTipusId);
-    Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<int> jogszabalyIds);
+    Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<JogszabalyHozzarendeles> hozzarendelesek);
+
+    /// <summary>Egy adott jogszabályhoz/szabványhoz tartozó összes méréstípus-hozzárendelés lekérdezése.</summary>
+    Task<List<MeresTipusJogszabaly>> GetMeresTipusHozzarendelesekByJogszabalyIdAsync(int jogszabalyId);
+
+    /// <summary>
+    /// Egy adott jogszabályhoz/szabványhoz tartozó méréstípus-hozzárendelések mentése.
+    /// A meglévő hozzárendeléseket törli, majd a megadott listát menti be helyettük.
+    /// </summary>
+    Task MentMeresTipusHozzarendelesekAsync(int jogszabalyId, List<MeresTipusHozzarendeles> hozzarendelesek);
 }
+
+/// <summary>Egy méréstípushoz rendelt jogszabály/szabvány hozzárendelési állapota.</summary>
+public record JogszabalyHozzarendeles(int JogszabalyId, bool AlapertelmezettKivalasztva);
+
+/// <summary>Egy jogszabályhoz/szabványhoz rendelt méréstípus hozzárendelési állapota.</summary>
+public record MeresTipusHozzarendeles(int MeresTipusId, bool AlapertelmezettKivalasztva);

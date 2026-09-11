@@ -15,7 +15,4 @@ public class Gyarto
     public string? Orszag { get; set; }
     public string? Weboldal { get; set; }
     public bool Aktiv { get; set; } = true;
-
-    /// <summary>Tevékenységi kör(ök)</summary>
-    public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
 }

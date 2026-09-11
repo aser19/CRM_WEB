@@ -16,6 +16,7 @@
 @inject IRbPdfService RbPdfService
 @inject IHvmPdfService HvmPdfService
 @inject IEgyMeresPdfService EgyMeresPdfService
+@inject IVbfPdfService VbfPdfService
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
@@ -77,6 +78,10 @@
             <MudSelectItem Value="@("iden")">Idén (egész év)</MudSelectItem>
         </MudSelect>
         <MudSpacer />
+        <MudTooltip Text="@(_mutatInaktivakat ? "Inaktívak elrejtése" : "Inaktívak megjelenítése is")">
+            <MudCheckBox T="bool" Value="_mutatInaktivakat" ValueChanged="MutatInaktivakatValtasAsync"
+                         Label="Inaktívak is" Color="Color.Warning" Dense="true" />
+        </MudTooltip>
         <MudTooltip Text="@(_csoportositott ? "Lista nézet" : "Csoportosítás ügyfél szerint")">
             <MudIconButton Icon="@(_csoportositott ? Icons.Material.Filled.TableRows : Icons.Material.Filled.GroupWork)"
                            Color="@(_csoportositott ? Color.Primary : Color.Default)"
@@ -207,6 +212,15 @@
                                                        OnClick="() => JkvEmailDialogusMegnyitasa(context.Item)" />
                                     </MudTooltip>
                                 }
+                                else if (muvKeszE && !string.IsNullOrWhiteSpace(context.Item.JegyzokonyvAdatokJson))
+                                {
+                                    <MudTooltip Text="PDF jegyzőkönyv letöltése">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       OnClick="() => VbfPdfLetoltesAsync(context.Item)" />
+                                    </MudTooltip>
+                                }
                             }
                             <MudTooltip Text="Email küldése">
                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
@@ -214,10 +228,22 @@
                                                Size="Size.Small"
                                                OnClick="() => EmailKuldesDialogusMegnyitasa(context.Item)" />
                             </MudTooltip>
+                            <MudTooltip Text="@(context.Item.Aktiv ? "Inaktiválás" : "Aktiválás")">
+                                <MudIconButton Icon="@(context.Item.Aktiv ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                               Color="@(context.Item.Aktiv ? Color.Success : Color.Default)"
+                                               Size="Size.Small"
+                                               OnClick="() => AktivValtasAsync(context.Item)" />
+                            </MudTooltip>
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Color="Color.Primary"
                                            Size="Size.Small"
                                            OnClick="() => SzerkesztesMegnyitasa(context.Item)" />
+                            <MudTooltip Text="Duplikálás">
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                               Color="Color.Tertiary"
+                                               Size="Size.Small"
+                                               OnClick="() => DuplikalasAsync(context.Item)" />
+                            </MudTooltip>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                            Color="Color.Error"
                                            Size="Size.Small"
@@ -360,15 +386,34 @@
                                                                        OnClick="() => JkvEmailDialogusMegnyitasa(context)" />
                                                     </MudTooltip>
                                                 }
+                                                else if (context.MeresStatusz == MeresStatusz.Elvegezve && !string.IsNullOrWhiteSpace(context.JegyzokonyvAdatokJson))
+                                                {
+                                                    <MudTooltip Text="PDF jegyzőkönyv letöltése">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                                       Color="Color.Info" Size="Size.Small"
+                                                                       OnClick="() => VbfPdfLetoltesAsync(context)" />
+                                                    </MudTooltip>
+                                                }
                                             }
                                             <MudTooltip Text="Email küldése">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Email"
                                                                Color="Color.Secondary" Size="Size.Small"
                                                                OnClick="() => EmailKuldesDialogusMegnyitasa(context)" />
                                             </MudTooltip>
+                                            <MudTooltip Text="@(context.Aktiv ? "Inaktiválás" : "Aktiválás")">
+                                                <MudIconButton Icon="@(context.Aktiv ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                                               Color="@(context.Aktiv ? Color.Success : Color.Default)"
+                                                               Size="Size.Small"
+                                                               OnClick="() => AktivValtasAsync(context)" />
+                                            </MudTooltip>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                            Color="Color.Primary" Size="Size.Small"
                                                            OnClick="() => SzerkesztesMegnyitasa(context)" />
+                                            <MudTooltip Text="Duplikálás">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                               Color="Color.Tertiary" Size="Size.Small"
+                                                               OnClick="() => DuplikalasAsync(context)" />
+                                            </MudTooltip>
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                                            Color="Color.Error" Size="Size.Small"
                                                            OnClick="() => TorlesMegerosites(context)" />
@@ -592,25 +637,50 @@
         @if (_szerkesztesAlatt is not null)
         {
             <MudGrid>
+                @if (_elerhetoCegek.Count > 1)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" @bind-Value="_kivalasztottKibocsatoCegId" Label="Kibocsátó cég *"
+                                   ToStringFunc="@(id => _elerhetoCegek.FirstOrDefault(c => c.Id == id)?.Nev ?? "")">
+                            @foreach (var c in _elerhetoCegek)
+                            {
+                                <MudSelectItem Value="@c.Id">@c.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6"></MudItem>
+                }
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" Value="_szerkesztesAlatt.UgyfelId" Label="Ügyfél *" 
-                               ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
-                               ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")">
-                        @foreach (var u in _ugyfelek)
-                        {
-                            <MudSelectItem Value="@u.Id">@u.Nev</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.End">
+                        <MudSelect T="int" Value="_szerkesztesAlatt.UgyfelId" Label="Ügyfél *" 
+                                   ValueChanged="@((int id) => UgyfelValtozottAsync(id))"
+                                   ToStringFunc="@(id => _ugyfelek.FirstOrDefault(u => u.Id == id)?.Nev ?? "")">
+                            @foreach (var u in _ugyfelek)
+                            {
+                                <MudSelectItem Value="@u.Id">@u.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTooltip Text="Új ügyfél hozzáadása">
+                            <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" OnClick="UjUgyfelDialogMegnyitasa" />
+                        </MudTooltip>
+                    </MudStack>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="int" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *"
-                               Disabled="@(_szurtTelephelyek.Count == 0)"
-                               ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
-                        @foreach (var t in _szurtTelephelyek)
-                        {
-                            <MudSelectItem Value="@t.Id">@t.Nev (@t.Cim)</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.End">
+                        <MudSelect T="int" @bind-Value="_szerkesztesAlatt.TelephelyId" Label="Telephely *"
+                                   Disabled="@(_szurtTelephelyek.Count == 0)"
+                                   ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")">
+                            @foreach (var t in _szurtTelephelyek)
+                            {
+                                <MudSelectItem Value="@t.Id">@t.Nev (@t.Cim)</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTooltip Text="Új telephely hozzáadása">
+                            <MudIconButton Icon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary"
+                                           Disabled="@(_szerkesztesAlatt.UgyfelId == 0)"
+                                           OnClick="UjTelephelyDialogMegnyitasa" />
+                        </MudTooltip>
+                    </MudStack>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="int" Value="_szerkesztesAlatt.MeresTipusId" 
@@ -745,6 +815,82 @@
     </DialogActions>
 </MudDialog>
 
+<!-- Új ügyfél hozzáadása (mérés dialóguson belül) -->
+<MudDialog @bind-Visible="_ujUgyfelDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Új ügyfél hozzáadása</MudText></TitleContent>
+    <DialogContent>
+        @if (_ujUgyfel is not null)
+        {
+            <MudGrid>
+                @if (_elerhetoCegek.Count > 1)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="int" @bind-Value="_ujUgyfel.CegId" Label="Cég *">
+                            @foreach (var c in _elerhetoCegek)
+                            {
+                                <MudSelectItem Value="@c.Id">@c.Nev</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Nev" Label="Név *" Required="true" RequiredError="A név megadása kötelező." />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Adoszam" Label="Adószám" Placeholder="12345678-1-23" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" md="6" Class="d-flex align-end">
+                    <NavAdoszamLekerdezo Adoszam="@_ujUgyfel.Adoszam" CegId="@_ujUgyfel.CegId" OnAdatokAtvetele="UjUgyfelNavAdatokBetoltese" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujUgyfel.Cim" Label="Cím" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _ujUgyfelDialogNyitva = false)">Mégse</MudButton>
+        <MudButton OnClick="UjUgyfelMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujUgyfelMentes">@(_ujUgyfelMentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Új telephely hozzáadása (mérés dialóguson belül) -->
+<MudDialog @bind-Visible="_ujTelephelyDialogNyitva" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Új telephely hozzáadása</MudText></TitleContent>
+    <DialogContent>
+        @if (_ujTelephely is not null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Nev" Label="Telephely neve *" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Cim" Label="Cím" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Kapcsolattarto" Label="Kapcsolattartó" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Telefon" Label="Telefon" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_ujTelephely.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _ujTelephelyDialogNyitva = false)">Mégse</MudButton>
+        <MudButton OnClick="UjTelephelyMentesAsync" Color="Color.Primary" Variant="Variant.Filled" Disabled="_ujTelephelyMentes">@(_ujTelephelyMentes ? "Mentés..." : "Mentés")</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<Meres> _lista = new();
     private List<Ugyfel> _ugyfelek = new();
@@ -797,6 +943,7 @@
         => _jegyzokonyvSzamok.TryGetValue(meresId, out var szam) ? szam : string.Empty;
 
     private string? _datumSzuro;
+    private bool _mutatInaktivakat = false;
 
     private IEnumerable<Meres> _szurtLista
     {
@@ -868,7 +1015,7 @@
     private async Task BetoltesAsync()
     {
         _betoltes = true;
-        _lista = await MeresService.GetAllAsync();
+        _lista = await MeresService.GetAllAsync(includeInaktivak: _mutatInaktivakat);
         _mellekletMeresIds = await MellekletService.GetMellekletMeresIdsAsync();
         _meresIdsWithMelleklet = await MellekletService.GetMeresIdsWithMellekletAsync();
 
@@ -944,10 +1091,11 @@
         _kovetkezoDatum = null; 
         _kivalasztottUgyfelId = 0;
         _szurtTelephelyek = new();
-        
+        _kivalasztottKibocsatoCegId = _cegId;
+
         // Következő dátum számolása rögtön
         SzamolKovetkezoDatum();
-        
+
         _dialogNyitva = true; 
     }
 
@@ -967,6 +1115,7 @@
         _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _kivalasztottUgyfelId).ToList();
         _datum = item.Datum;
         _kovetkezoDatum = item.KovetkezoDatum;
+        _kivalasztottKibocsatoCegId = item.KibocsatoCegId ?? item.Ugyfel?.CegId ?? _cegId;
 
         // Ha nincs elmentett következő dátum, számoljuk ki automatikusan
         if (_kovetkezoDatum == null)
@@ -989,6 +1138,84 @@
             _szerkesztesAlatt.TelephelyId = _szurtTelephelyek.FirstOrDefault()?.Id ?? 0;
         }
         return Task.CompletedTask;
+    }
+
+    private void UjUgyfelDialogMegnyitasa()
+    {
+        var cegId = _kivalasztottKibocsatoCegId > 0 ? _kivalasztottKibocsatoCegId : _cegId;
+        _ujUgyfel = new Ugyfel { Aktiv = true, CegId = cegId };
+        _ujUgyfelDialogNyitva = true;
+    }
+
+    private void UjUgyfelNavAdatokBetoltese(NavAdoszamEredmeny adat)
+    {
+        if (_ujUgyfel is null) return;
+        _ujUgyfel.Nev = adat.CegNev ?? _ujUgyfel.Nev;
+        _ujUgyfel.Cim = adat.FormattaltCim ?? _ujUgyfel.Cim;
+    }
+
+    private async Task UjUgyfelMentesAsync()
+    {
+        if (_ujUgyfel is null) return;
+        if (string.IsNullOrWhiteSpace(_ujUgyfel.Nev))
+        {
+            Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujUgyfelMentes = true;
+        try
+        {
+            var mentett = await UgyfelService.CreateAsync(_ujUgyfel);
+            Snackbar.Add("Ügyfél létrehozva!", Severity.Success);
+
+            _ugyfelek = await UgyfelService.GetAllAsync();
+            _telephelyek = await TelephelyService.GetAllAsync();
+
+            await UgyfelValtozottAsync(mentett.Id);
+
+            _ujUgyfelDialogNyitva = false;
+            _ujUgyfel = null;
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _ujUgyfelMentes = false; }
+    }
+
+    private void UjTelephelyDialogMegnyitasa()
+    {
+        if (_szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId == 0)
+        {
+            Snackbar.Add("Előbb válassza ki az ügyfelet!", Severity.Warning);
+            return;
+        }
+        _ujTelephely = new Telephely { Aktiv = true, UgyfelId = _szerkesztesAlatt.UgyfelId };
+        _ujTelephelyDialogNyitva = true;
+    }
+
+    private async Task UjTelephelyMentesAsync()
+    {
+        if (_ujTelephely is null) return;
+        if (string.IsNullOrWhiteSpace(_ujTelephely.Nev))
+        {
+            Snackbar.Add("A név megadása kötelező!", Severity.Warning);
+            return;
+        }
+
+        _ujTelephelyMentes = true;
+        try
+        {
+            var mentett = await TelephelyService.CreateAsync(_ujTelephely);
+            Snackbar.Add("Telephely létrehozva!", Severity.Success);
+
+            _telephelyek = await TelephelyService.GetAllAsync();
+            _szurtTelephelyek = _telephelyek.Where(t => t.UgyfelId == _szerkesztesAlatt!.UgyfelId).ToList();
+            _szerkesztesAlatt.TelephelyId = mentett.Id;
+
+            _ujTelephelyDialogNyitva = false;
+            _ujTelephely = null;
+        }
+        catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        finally { _ujTelephelyMentes = false; }
     }
 
     private void OnMeresTipusValtozas(int ujTipusId)
@@ -1042,6 +1269,7 @@
 
             _szerkesztesAlatt.Datum = _datum.Value;
             _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+            _szerkesztesAlatt.KibocsatoCegId = _elerhetoCegek.Count > 1 ? _kivalasztottKibocsatoCegId : null;
 
             try
             {
@@ -1071,6 +1299,7 @@
 
         _szerkesztesAlatt.Datum = _datum.Value;
         _szerkesztesAlatt.KovetkezoDatum = _kovetkezoDatum;
+        _szerkesztesAlatt.KibocsatoCegId = _elerhetoCegek.Count > 1 ? _kivalasztottKibocsatoCegId : null;
 
         // Duplikáció ellenőrzése csak új mérés esetén (nem szerkesztésnél)
         if (_szerkesztesAlatt.Id == 0)
@@ -1115,6 +1344,23 @@
         {
             try { await MeresService.DeleteAsync(item.Id); Snackbar.Add("Törölve.", Severity.Success); await BetoltesAsync(); }
             catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
+        }
+    }
+
+    private async Task DuplikalasAsync(Meres item)
+    {
+        if (await DialogService.ShowMessageBox("Duplikálás megerősítése", "Biztosan duplikálja ezt a mérést?", yesText: "Duplikálás", cancelText: "Mégse") != true)
+            return;
+
+        try
+        {
+            await MeresService.DuplikalAsync(item.Id);
+            Snackbar.Add("Mérés duplikálva!", Severity.Success);
+            await BetoltesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
         }
     }
 
@@ -1192,6 +1438,63 @@
 
             using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>Az Időszakos VBF ("Használatbavételt megelőző felülvizsgálat" stb.) fő jegyzőkönyv PDF
+    /// verziójának letöltése a mentett JegyzokonyvAdatokJson alapján, Word letöltés nélkül.</summary>
+    private async Task VbfPdfLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(meres.Id);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.JegyzokonyvAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                friss.JegyzokonyvAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var meresTipus = _tipusok.FirstOrDefault(t => t.Id == meres.MeresTipusId);
+            var sablonId = meresTipus?.SablonId ?? "VBF_KIF_MINTA";
+
+            byte[]? cegBelyegzoKep = null;
+            var belyegzoCegId = adatok.CegId > 0 ? adatok.CegId : TenantService.GetCurrentCegId();
+            var ceg = await CegService.GetByIdAsync(belyegzoCegId);
+            if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+            {
+                cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+            }
+
+            var jogosultFelulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+            var felulvizsgaloAlairasKepek = new Dictionary<string, byte[]>();
+            foreach (var f in jogosultFelulvizsgalok.Where(f => !string.IsNullOrWhiteSpace(f.AlairasPath)))
+            {
+                var kep = await FileStorageService.GetFileBytesAsync(f.AlairasPath);
+                if (kep != null)
+                    felulvizsgaloAlairasKepek[f.Nev] = kep;
+            }
+
+            var pdfBytes = await VbfPdfService.GeneralasAsync(meres.Id, adatok, sablonId, cegBelyegzoKep, felulvizsgaloAlairasKepek);
+            var fajlNev = $"{(adatok.JegyzokonyvSzam ?? $"VBF-{meres.Id:D6}").Replace("/", "-")}.pdf";
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fajlNev, streamRef);
 
             Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
         }
@@ -1627,6 +1930,17 @@
     private bool IsOnalloRb => _szerkesztesAlatt != null && _tipusok.FirstOrDefault(t => t.Id == _szerkesztesAlatt.MeresTipusId)?.MellekletTipusKod == "RB";
 
     private List<Ceg> _elerhetoCegek = new();
+    private int _kivalasztottKibocsatoCegId;
+
+    // Új ügyfél a mérés dialóguson belül
+    private bool _ujUgyfelDialogNyitva = false;
+    private bool _ujUgyfelMentes = false;
+    private Ugyfel? _ujUgyfel;
+
+    // Új telephely a mérés dialóguson belül
+    private bool _ujTelephelyDialogNyitva = false;
+    private bool _ujTelephelyMentes = false;
+    private Telephely? _ujTelephely;
 
     private static readonly string[] _cegSzinek =
     [
@@ -1650,6 +1964,42 @@
 
     private string GetCegNev(int cegId)
         => _elerhetoCegek.FirstOrDefault(c => c.Id == cegId)?.Nev ?? "";
+
+    private async Task MutatInaktivakatValtasAsync(bool ertek)
+    {
+        _mutatInaktivakat = ertek;
+        await BetoltesAsync();
+    }
+
+    private async Task AktivValtasAsync(Meres meres)
+    {
+        try
+        {
+            var ujAktiv = !meres.Aktiv;
+
+            // Ha aktiválunk (inaktívból aktívba), ellenőrizzük, hogy van-e frissebb aktív adat
+            if (ujAktiv)
+            {
+                var vanFrissebb = await MeresService.VanFrissebbAktivAsync(meres.Id);
+                if (vanFrissebb)
+                {
+                    var folytatas = await DialogService.ShowMessageBox(
+                        "Figyelmeztetés",
+                        "Van frissebb adat, biztosan újra akarja aktiválni?",
+                        yesText: "Igen, aktiválás", cancelText: "Mégse");
+                    if (folytatas != true) return;
+                }
+            }
+
+            await MeresService.AktivAllapotValtasAsync(meres.Id, ujAktiv);
+            meres.Aktiv = ujAktiv;
+            Snackbar.Add(meres.Aktiv ? "Mérés aktiválva." : "Mérés inaktiválva.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba az állapot módosításakor: {ex.Message}", Severity.Error);
+        }
+    }
 
     private async Task InaktivakMegnyitasa()
     {

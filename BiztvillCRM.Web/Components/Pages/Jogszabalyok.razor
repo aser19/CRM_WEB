@@ -4,6 +4,7 @@
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @inject IJogszabalyService JogszabalyService
+@inject IMeresTipusService MeresTipusService
 @inject ITenantService TenantService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -16,11 +17,6 @@
     <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
         <MudTextField @bind-Value="_kereses" Label="Keresés (szám, cím, leírás)" Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Immediate="true" Style="max-width:300px;" />
-        <MudSelect T="TevekenysegTipus?" @bind-Value="_szuroTerulet" Label="Terület szűrés" Clearable="true" Style="max-width:200px;">
-            <MudSelectItem T="TevekenysegTipus?" Value="@((TevekenysegTipus?)null)">Mind</MudSelectItem>
-            <MudSelectItem T="TevekenysegTipus?" Value="@TevekenysegTipus.VillanosMeres">Villamos biztonságtechnika</MudSelectItem>
-            <MudSelectItem T="TevekenysegTipus?" Value="@TevekenysegTipus.Benzinkuttechnika">Benzinkúttechnika</MudSelectItem>
-        </MudSelect>
         <MudSpacer />
         @if (_isAdmin)
         {
@@ -86,24 +82,6 @@
             </TemplateColumn>
             <PropertyColumn Property="j => j.Szam" Title="Szám" />
             <PropertyColumn Property="j => j.Cim" Title="Cím" />
-            <TemplateColumn Title="Terület" Sortable="true" SortBy="@(j => (int)j.Terulet)">
-                <CellTemplate>
-                    <MudStack Row="true" Spacing="1">
-                        @if (context.Item.Terulet.HasFlag(TevekenysegTipus.VillanosMeres))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.ElectricBolt">Villamos</MudChip>
-                        }
-                        @if (context.Item.Terulet.HasFlag(TevekenysegTipus.Benzinkuttechnika))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Icon="@Icons.Material.Filled.LocalGasStation">Benzinkút</MudChip>
-                        }
-                        @if (context.Item.Terulet == TevekenysegTipus.Nincs)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Általános</MudChip>
-                        }
-                    </MudStack>
-                </CellTemplate>
-            </TemplateColumn>
             <!-- ÚJ: Tagek oszlop -->
             <TemplateColumn Title="Tagek" Sortable="true" SortBy="@(j => j.Tagek.Count)">
                 <CellTemplate>
@@ -216,15 +194,42 @@
                 </MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Szam" Label="Szám *" Required="true" /></MudItem>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím *" Required="true" /></MudItem>
-                <MudItem xs="12">
-                    <TevekenysegValaszto @bind-Value="_szerkesztesAlatt.Terulet" ShowValidation="false" />
-                </MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Leiras" Label="Leírás" Lines="3" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosKezdet" Label="Hatályos kezdete" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_hatalyosVege" Label="Hatályos vége (üres = jelenleg hatályos)" Clearable="true" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Url" Label="URL (link)" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
                 <MudItem xs="12"><MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" /></MudItem>
+
+                <!-- ÚJ: Méréstípus (felülvizsgálati sablon) hozzárendelés szekció -->
+                <MudItem xs="12">
+                    <MudDivider Class="my-3" />
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Checklist" Color="Color.Primary" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle1"><b>Méréstípusok (felülvizsgálati sablonok)</b></MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                        Válaszd ki, mely méréstípusoknál jelenjen meg alapértelmezetten ez a jogszabály/szabvány a jegyzőkönyvben.
+                        Pipa = Hozzárendelve - alapértelmezetten jelölt, X = Hozzárendelve alapértelmezetten nem jelölt, üres = nincs hozzárendelve.
+                    </MudText>
+                    @if (_osszeMeresTipus.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Nincs elérhető méréstípus.</MudText>
+                    }
+                    else
+                    {
+                        @foreach (var mt in _osszeMeresTipus.OrderBy(m => m.Nev))
+                        {
+                            var allapot = MeresTipusAllapotLekerdezes(mt.Id);
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-1" Spacing="1">
+                                <MudIconButton Icon="@MeresTipusAllapotIkon(allapot)"
+                                               Color="Color.Primary" Size="Size.Small"
+                                               OnClick="() => MeresTipusAllapotValtozas(mt.Id, MeresTipusAllapotKovetkezo(allapot))" />
+                                <MudText>@mt.Nev</MudText>
+                            </MudStack>
+                        }
+                    }
+                </MudItem>
 
                 <!-- ÚJ: Tagek szekció -->
                 <MudItem xs="12">
@@ -343,7 +348,6 @@
 @code {
     private List<Jogszabaly> _lista = new();
     private string _kereses = string.Empty;
-    private TevekenysegTipus? _szuroTerulet;
     private bool _betoltes = true, _dialogNyitva = false, _mentes = false;
     private bool _isAdmin;
     private Jogszabaly? _szerkesztesAlatt;
@@ -351,6 +355,10 @@
     private int? _tagAtnevezesId;
     private string _tagAtnevezesNev = string.Empty;
     private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    // --- Méréstípus hozzárendelések (3-állapotú) ---
+    private List<MeresTipus> _osszeMeresTipus = new();
+    private Dictionary<int, bool> _meresTipusHozzarendelesek = new();
 
     // --- Tagek ---
     private List<JogszabalyTag> _osszeTag = new();
@@ -388,9 +396,6 @@
                     (j.Leiras?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            if (_szuroTerulet.HasValue)
-                lista = lista.Where(j => j.Terulet.HasFlag(_szuroTerulet.Value));
-
             if (_szuroTagIds.Count > 0)
                 lista = lista.Where(j => j.Tagek.Any(t => _szuroTagIds.Contains(t.Id)));
 
@@ -411,10 +416,49 @@
         {
             _lista = await JogszabalyService.GetAllAsync();
             _osszeTag = await JogszabalyService.GetAllTagekAsync();
+            _osszeMeresTipus = await MeresTipusService.GetAllAsync();
         }
         catch (Exception ex) { Snackbar.Add($"Hiba: {ex.Message}", Severity.Error); }
         finally { _betoltes = false; }
     }
+
+    // Kattintható 3-állapotú ikon: üres -> pipa (alapból kijelölve) -> X (hozzárendelve, alapból nincs kijelölve) -> üres -> ...
+    private JogszabalyAllapot MeresTipusAllapotLekerdezes(int meresTipusId)
+    {
+        if (_meresTipusHozzarendelesek.TryGetValue(meresTipusId, out var alapKijelolve))
+            return alapKijelolve ? JogszabalyAllapot.AlapKijelolve : JogszabalyAllapot.AlapNincsKijelolve;
+        return JogszabalyAllapot.NemJelenikMeg;
+    }
+
+    private void MeresTipusAllapotValtozas(int meresTipusId, JogszabalyAllapot ujAllapot)
+    {
+        switch (ujAllapot)
+        {
+            case JogszabalyAllapot.NemJelenikMeg:
+                _meresTipusHozzarendelesek.Remove(meresTipusId);
+                break;
+            case JogszabalyAllapot.AlapKijelolve:
+                _meresTipusHozzarendelesek[meresTipusId] = true;
+                break;
+            case JogszabalyAllapot.AlapNincsKijelolve:
+                _meresTipusHozzarendelesek[meresTipusId] = false;
+                break;
+        }
+    }
+
+    private static JogszabalyAllapot MeresTipusAllapotKovetkezo(JogszabalyAllapot allapot) => allapot switch
+    {
+        JogszabalyAllapot.NemJelenikMeg => JogszabalyAllapot.AlapKijelolve,
+        JogszabalyAllapot.AlapKijelolve => JogszabalyAllapot.AlapNincsKijelolve,
+        _ => JogszabalyAllapot.NemJelenikMeg
+    };
+
+    private static string MeresTipusAllapotIkon(JogszabalyAllapot allapot) => allapot switch
+    {
+        JogszabalyAllapot.AlapKijelolve => Icons.Material.Filled.CheckBox,
+        JogszabalyAllapot.AlapNincsKijelolve => Icons.Material.Filled.DisabledByDefault,
+        _ => Icons.Material.Filled.CheckBoxOutlineBlank
+    };
 
     private void UjMegnyitasa()
     {
@@ -424,10 +468,12 @@
         _hatalyosVege = null;
         _kivalasztottTagIds = new List<int>();
         _ujTagNev = string.Empty;
+        // Alapértelmezés: hozzárendelve minden méréstípushoz, de alapból nincs kijelölve
+        _meresTipusHozzarendelesek = _osszeMeresTipus.ToDictionary(t => t.Id, t => false);
         _dialogNyitva = true;
     }
 
-    private void SzerkesztesMegnyitasa(Jogszabaly item)
+    private async Task SzerkesztesMegnyitasa(Jogszabaly item)
     {
         if (!_isAdmin) return;
         _szerkesztesAlatt = new Jogszabaly
@@ -437,7 +483,6 @@
             Cim = item.Cim,
             Leiras = item.Leiras,
             Tipus = item.Tipus,
-            Terulet = item.Terulet,
             Url = item.Url,
             Megjegyzes = item.Megjegyzes,
             Aktiv = item.Aktiv
@@ -446,6 +491,11 @@
         _hatalyosVege = item.HatalyosVege;
         _kivalasztottTagIds = item.Tagek.Select(t => t.Id).ToList();
         _ujTagNev = string.Empty;
+
+        var hozzarendelesek = await MeresTipusService.GetMeresTipusHozzarendelesekByJogszabalyIdAsync(item.Id);
+        _meresTipusHozzarendelesek = hozzarendelesek
+            .ToDictionary(x => x.MeresTipusId, x => x.AlapertelmezettKivalasztva);
+
         _dialogNyitva = true;
     }
 
@@ -493,6 +543,11 @@
                 mentett = await JogszabalyService.UpdateAsync(_szerkesztesAlatt);
 
             await JogszabalyService.SetTagekAsync(mentett.Id, _kivalasztottTagIds);
+
+            var meresTipusHozzarendelesek = _meresTipusHozzarendelesek
+                .Select(kv => new MeresTipusHozzarendeles(kv.Key, kv.Value))
+                .ToList();
+            await MeresTipusService.MentMeresTipusHozzarendelesekAsync(mentett.Id, meresTipusHozzarendelesek);
 
             Snackbar.Add("Sikeres mentés!", Severity.Success);
             DialogBezarasa();

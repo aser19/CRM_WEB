@@ -17,7 +17,7 @@ public class HitelesitesService : IHitelesitesService
         _tenantService = tenantService;
     }
 
-    public async Task<List<Hitelesites>> GetAllAsync()
+    public async Task<List<Hitelesites>> GetAllAsync(bool includeInaktivak = false)
     {
         var query = _context.Hitelesitesek
             .Include(h => h.Ugyfel)
@@ -25,8 +25,10 @@ public class HitelesitesService : IHitelesitesService
             .Include(h => h.EszkozTipus)
             .Include(h => h.Hatosag)
             .Include(h => h.Munkaszam)
-            .Where(h => h.Aktiv) // Csak az aktívak
             .AsQueryable();
+
+        if (!includeInaktivak)
+            query = query.Where(h => h.Aktiv);
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
         {
@@ -182,5 +184,37 @@ public class HitelesitesService : IHitelesitesService
             hitelesites.Modositva = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task AktivAllapotValtasAsync(int hitelesitesId, bool aktiv)
+    {
+        var hitelesites = await _context.Hitelesitesek.FindAsync(hitelesitesId);
+        if (hitelesites != null)
+        {
+            hitelesites.Aktiv = aktiv;
+            hitelesites.Modositva = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> VanFrissebbAktivAsync(int hitelesitesId)
+    {
+        var hitelesites = await _context.Hitelesitesek.FindAsync(hitelesitesId);
+        if (hitelesites == null) return false;
+
+        var query = _context.Hitelesitesek
+            .Where(h => h.Id != hitelesitesId
+                        && h.Aktiv
+                        && h.UgyfelId == hitelesites.UgyfelId
+                        && h.TelephelyId == hitelesites.TelephelyId
+                        && h.EszkozTipusId == hitelesites.EszkozTipusId
+                        && h.Datum > hitelesites.Datum);
+
+        if (string.IsNullOrWhiteSpace(hitelesites.EszkozAzonosito))
+            query = query.Where(h => string.IsNullOrEmpty(h.EszkozAzonosito));
+        else
+            query = query.Where(h => h.EszkozAzonosito == hitelesites.EszkozAzonosito);
+
+        return await query.AnyAsync();
     }
 }

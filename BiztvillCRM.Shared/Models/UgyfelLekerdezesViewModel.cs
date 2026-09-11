@@ -21,11 +21,14 @@ public class TelephelyAdatok
 
 public class MeresOsszefoglalo
 {
+    public int MeresId { get; set; }
     public DateTime Datum { get; set; }
     public string Tipus { get; set; } = "";
     public string? Eredmeny { get; set; }
     public DateTime? KovetkezoDatum { get; set; }
     public string Statusz { get; set; } = "";
+    public string? MellekletTipusKod { get; set; }
+    public string? SablonId { get; set; }
 }
 
 public class HitelesitesOsszefoglalo

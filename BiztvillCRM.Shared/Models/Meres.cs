@@ -14,6 +14,12 @@ public class Meres
     public int TelephelyId { get; set; }
     public int? HelyisegId { get; set; }
 
+    /// <summary>
+    /// A jegyzőkönyvet kiállító cég azonosítója. Akkor releváns, ha a felhasználó több céghez is
+    /// hozzáférhet (FelhasznaloCeg). Ha nincs kitöltve, az aktuális (bejelentkezett) cég számít alapértelmezettnek.
+    /// </summary>
+    public int? KibocsatoCegId { get; set; }
+
     public int MeresTipusId { get; set; }
     public DateTime Datum { get; set; }
     public DateTime? KovetkezoDatum { get; set; }

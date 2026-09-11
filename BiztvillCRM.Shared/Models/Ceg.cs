@@ -23,9 +23,6 @@ public class Ceg
     [RegularExpression(@"^[A-Z0-9]{1,3}$", ErrorMessage = "A matrica előtag 1-3 nagybetű vagy szám lehet (pl. BTV, AB, HK2)!")]
     public string? MatricaElotag { get; set; }
 
-    /// <summary>Tevékenységi körök (üzleti kategorizálás)</summary>
-    public TevekenysegTipus Tevekenyseg { get; set; } = TevekenysegTipus.Nincs;
-
     /// <summary>Aktív modul jogosultságok (funkcióhoz való hozzáférés)</summary>
     public ModulJogosultsag AktivModulok { get; set; } = ModulJogosultsag.Ugyfelek;
 

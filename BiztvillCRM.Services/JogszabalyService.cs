@@ -43,7 +43,6 @@ public class JogszabalyService : IJogszabalyService
         existing.Cim = jogszabaly.Cim;
         existing.Leiras = jogszabaly.Leiras;
         existing.Tipus = jogszabaly.Tipus;
-        existing.Terulet = jogszabaly.Terulet;
         existing.HatalyosKezdet = jogszabaly.HatalyosKezdet;
         existing.HatalyosVege = jogszabaly.HatalyosVege;
         existing.Url = jogszabaly.Url;

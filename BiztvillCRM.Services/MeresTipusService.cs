@@ -128,20 +128,60 @@ public class MeresTipusService : IMeresTipusService
             .ToListAsync();
     }
 
-    public async Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<int> jogszabalyIds)
+    public async Task MentJogszabalyHozzarendelesekAsync(int meresTipusId, List<JogszabalyHozzarendeles> hozzarendelesek)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        
+
         var meglevo = context.MeresTipusJogszabalyok
             .Where(x => x.MeresTipusId == meresTipusId);
         context.MeresTipusJogszabalyok.RemoveRange(meglevo);
 
-        var ujak = jogszabalyIds.Select((id, i) => new MeresTipusJogszabaly
+        var ujak = hozzarendelesek.Select((h, i) => new MeresTipusJogszabaly
         {
             MeresTipusId = meresTipusId,
-            JogszabalyId = id,
-            Sorrend = i
+            JogszabalyId = h.JogszabalyId,
+            Sorrend = i,
+            AlapertelmezettKivalasztva = h.AlapertelmezettKivalasztva
         });
+        await context.MeresTipusJogszabalyok.AddRangeAsync(ujak);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<List<MeresTipusJogszabaly>> GetMeresTipusHozzarendelesekByJogszabalyIdAsync(int jogszabalyId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTipusJogszabalyok
+            .Include(x => x.MeresTipus)
+            .Where(x => x.JogszabalyId == jogszabalyId)
+            .ToListAsync();
+    }
+
+    public async Task MentMeresTipusHozzarendelesekAsync(int jogszabalyId, List<MeresTipusHozzarendeles> hozzarendelesek)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var meglevo = await context.MeresTipusJogszabalyok
+            .Where(x => x.JogszabalyId == jogszabalyId)
+            .ToListAsync();
+        context.MeresTipusJogszabalyok.RemoveRange(meglevo);
+
+        var ujak = new List<MeresTipusJogszabaly>();
+        foreach (var h in hozzarendelesek)
+        {
+            var kovetkezoSorrend = await context.MeresTipusJogszabalyok
+                .Where(x => x.MeresTipusId == h.MeresTipusId)
+                .Select(x => (int?)x.Sorrend)
+                .MaxAsync() ?? -1;
+
+            ujak.Add(new MeresTipusJogszabaly
+            {
+                MeresTipusId = h.MeresTipusId,
+                JogszabalyId = jogszabalyId,
+                Sorrend = kovetkezoSorrend + 1,
+                AlapertelmezettKivalasztva = h.AlapertelmezettKivalasztva
+            });
+        }
+
         await context.MeresTipusJogszabalyok.AddRangeAsync(ujak);
         await context.SaveChangesAsync();
     }

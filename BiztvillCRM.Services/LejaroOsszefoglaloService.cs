@@ -42,6 +42,7 @@ public class LejaroOsszefoglaloService : ILejaroOsszefoglaloService
             .Include(m => m.MeresTipus)
             .Where(m => m.UgyfelId == ugyfelId
                      && !mellekletIds.Contains(m.Id)
+                     && m.Aktiv
                      && m.KovetkezoDatum.HasValue
                      && m.KovetkezoDatum.Value >= ma
                      && m.KovetkezoDatum.Value <= hatar)
@@ -52,6 +53,7 @@ public class LejaroOsszefoglaloService : ILejaroOsszefoglaloService
             .Include(h => h.Telephely)
             .Include(h => h.EszkozTipus)
             .Where(h => h.UgyfelId == ugyfelId
+                     && h.Aktiv
                      && h.LejaratDatum.HasValue
                      && h.LejaratDatum.Value >= ma
                      && h.LejaratDatum.Value <= hatar)

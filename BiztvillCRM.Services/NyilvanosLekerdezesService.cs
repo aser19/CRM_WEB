@@ -35,9 +35,16 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
             .OrderBy(t => t.Nev)
             .ToListAsync();
 
+        // A mellékletekhez tartozó "belső" mérés rekordokat (pl. HVM, AVK almérések) ki kell zárni,
+        // mert ezek nem önálló mérések, hanem a fő méréshez tartozó melléklet-jegyzőkönyvek adatai.
+        var mellekletMeresIds = await ctx.MellekletJegyzokonyvek
+            .Where(mj => mj.MellekletMeresId.HasValue)
+            .Select(mj => mj.MellekletMeresId!.Value)
+            .ToListAsync();
+
         var meresek = await ctx.Meresek
             .Include(m => m.MeresTipus)
-            .Where(m => m.UgyfelId == ugyfelId)
+            .Where(m => m.UgyfelId == ugyfelId && !mellekletMeresIds.Contains(m.Id))
             .OrderByDescending(m => m.Datum)
             .ToListAsync();
 
@@ -92,11 +99,14 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                     .Where(m => m.TelephelyId == tp.Id)
                     .Select(m => new MeresOsszefoglalo
                     {
+                        MeresId = m.Id,
                         Datum = m.Datum,
                         Tipus = m.MeresTipus?.Nev ?? "",
                         Eredmeny = m.Eredmeny,
                         KovetkezoDatum = m.KovetkezoDatum,
-                        Statusz = m.MeresStatusz.ToString()
+                        Statusz = m.MeresStatusz.ToString(),
+                        MellekletTipusKod = m.MeresTipus?.MellekletTipusKod,
+                        SablonId = m.MeresTipus?.SablonId
                     }).ToList(),
                 Hitelesitesek = hitelesitesek
                     .Where(h => h.TelephelyId == tp.Id)

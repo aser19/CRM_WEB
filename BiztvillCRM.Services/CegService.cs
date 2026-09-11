@@ -54,22 +54,12 @@ public class CegService : ICegService
         if (existing == null)
             throw new InvalidOperationException("Cég nem található.");
 
-        var regiTevekenyseg = existing.Tevekenyseg;
-        var ujTevekenyseg = ceg.Tevekenyseg;
-        var eltavolitottCimkek = regiTevekenyseg & ~ujTevekenyseg;
-        
-        if (eltavolitottCimkek != TevekenysegTipus.Nincs)
-        {
-            await UgyfelekTevekenysegDowngradeAsync(context, ceg.Id, eltavolitottCimkek);
-        }
-
         existing.Nev             = ceg.Nev;
         existing.Adoszam         = ceg.Adoszam;
         existing.Cim             = ceg.Cim;
         existing.Email           = ceg.Email;
         existing.Telefon         = ceg.Telefon;
         existing.Weboldal        = ceg.Weboldal;
-        existing.Tevekenyseg     = ceg.Tevekenyseg;
         existing.AktivModulok    = ceg.AktivModulok;
         existing.Aktiv           = ceg.Aktiv;
         existing.MatricaElotag   = ceg.MatricaElotag;
@@ -84,22 +74,6 @@ public class CegService : ICegService
 
         await context.SaveChangesAsync();
         return existing;
-    }
-
-    private async Task UgyfelekTevekenysegDowngradeAsync(CrmDbContext context, int cegId, TevekenysegTipus eltavolitandoCimkek)
-    {
-        var ugyfelek = await context.Ugyfelek
-            .Where(u => u.CegId == cegId)
-            .ToListAsync();
-
-        foreach (var ugyfel in ugyfelek)
-        {
-            if ((ugyfel.Tevekenyseg & eltavolitandoCimkek) != TevekenysegTipus.Nincs)
-            {
-                ugyfel.Tevekenyseg &= ~eltavolitandoCimkek;
-                ugyfel.Modositva = DateTime.Now;
-            }
-        }
     }
 
     public async Task<bool> SetAktivAsync(int id, bool aktiv)

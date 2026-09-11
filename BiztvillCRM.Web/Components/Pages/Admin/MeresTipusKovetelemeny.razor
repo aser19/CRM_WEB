@@ -1,6 +1,7 @@
 @page "/admin/meres-tipusok"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Admin")]
@@ -212,19 +213,20 @@ else
 
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
                         Válaszd ki, mely jogszabályok jelenjenek meg alapértelmezetten a jegyzőkönyvben ehhez a típushoz.
+                        Pipa = Hozzárendelve - alapértelmezetten jelölt, X = Hozzárendelve alapértelmezetten nem jelölt, üres = nincs hozzárendelve.
                     </MudText>
 
                     @foreach (var jsz in _osszeJogszabaly
                         .Where(j => j.Tipus != JogszabalyTipus.Szabvany)
-                        .OrderBy(j => j.Szam))
+                        .OrderBy(j => j.Szam, TermeszetesSzamRendezo.Instance))
                     {
-                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set1) && set1.Contains(jsz.Id);
-                        <MudCheckBox T="bool"
-                                     Value="hozzaRendelt"
-                                     ValueChanged="(v) => JogszabalyToggle(tipus.Id, jsz.Id, v)"
-                                     Color="Color.Primary" Dense="true">
-                            <strong>@jsz.Szam</strong> – @jsz.Cim
-                        </MudCheckBox>
+                        var allapot = JogszabalyAllapotLekerdezes(tipus.Id, jsz.Id);
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-1" Spacing="1">
+                            <MudIconButton Icon="@JogszabalyAllapotIkon(allapot)"
+                                           Color="Color.Primary" Size="Size.Small"
+                                           OnClick="() => JogszabalyAllapotValtozas(tipus.Id, jsz.Id, JogszabalyAllapotKovetkezo(allapot))" />
+                            <MudText><strong>@jsz.Szam</strong> – @jsz.Cim</MudText>
+                        </MudStack>
                     }
 
                     @* === SZABVÁNYOK === *@
@@ -235,18 +237,19 @@ else
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
                         Válaszd ki, mely szabványok jelenjenek meg alapértelmezetten a jegyzőkönyvben.
+                        Pipa = Hozzárendelve - alapértelmezetten jelölt, X = Hozzárendelve alapértelmezetten nem jelölt, üres = nincs hozzárendelve.
                     </MudText>
                     @foreach (var jsz in _osszeJogszabaly
                         .Where(j => j.Tipus == JogszabalyTipus.Szabvany)
-                        .OrderBy(j => j.Szam))
+                        .OrderBy(j => j.Szam, TermeszetesSzamRendezo.Instance))
                     {
-                        var hozzaRendelt = _jogszabalyHozzarendelesek.TryGetValue(tipus.Id, out var set2) && set2.Contains(jsz.Id);
-                        <MudCheckBox T="bool"
-                                     Value="hozzaRendelt"
-                                     ValueChanged="(v) => JogszabalyToggle(tipus.Id, jsz.Id, v)"
-                                     Color="Color.Primary" Dense="true">
-                            <strong>@jsz.Szam</strong> – @jsz.Cim
-                        </MudCheckBox>
+                        var allapot = JogszabalyAllapotLekerdezes(tipus.Id, jsz.Id);
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-1" Spacing="1">
+                            <MudIconButton Icon="@JogszabalyAllapotIkon(allapot)"
+                                           Color="Color.Primary" Size="Size.Small"
+                                           OnClick="() => JogszabalyAllapotValtozas(tipus.Id, jsz.Id, JogszabalyAllapotKovetkezo(allapot))" />
+                            <MudText><strong>@jsz.Szam</strong> – @jsz.Cim</MudText>
+                        </MudStack>
                     }
                 </MudPaper>
             </MudTabPanel>
@@ -301,7 +304,7 @@ else
     private List<MeresTipus> _tipusok = [];
     private List<KepzesTipus> _kepzesTipusok = [];
     private List<Jogszabaly> _osszeJogszabaly = [];
-    private Dictionary<int, HashSet<int>> _jogszabalyHozzarendelesek = new();
+    private Dictionary<int, Dictionary<int, bool>> _jogszabalyHozzarendelesek = new();
     private MeresTipus? _ujTipus;
     private int _ujKepzesTipusId;
     private int _activTabIndex;
@@ -328,8 +331,7 @@ else
         {
             var hozzaRendeltek = await MeresTipusService.GetJogszabalyokByTipusIdAsync(tipus.Id);
             _jogszabalyHozzarendelesek[tipus.Id] = hozzaRendeltek
-                .Select(x => x.JogszabalyId)
-                .ToHashSet();
+                .ToDictionary(x => x.JogszabalyId, x => x.AlapertelmezettKivalasztva);
         }
 
         _betoltes = false;
@@ -463,17 +465,114 @@ else
         }
     }
 
-    private async Task JogszabalyToggle(int tipusId, int jogszabalyId, bool hozzaad)
+    private JogszabalyAllapot JogszabalyAllapotLekerdezes(int tipusId, int jogszabalyId)
+    {
+        if (_jogszabalyHozzarendelesek.TryGetValue(tipusId, out var map) &&
+            map.TryGetValue(jogszabalyId, out var alapKijelolve))
+        {
+            return alapKijelolve ? JogszabalyAllapot.AlapKijelolve : JogszabalyAllapot.AlapNincsKijelolve;
+        }
+        return JogszabalyAllapot.NemJelenikMeg;
+    }
+
+    // Kattintható 3-állapotú ikon: üres -> pipa (alapból kijelölve) -> X (hozzárendelve, alapból nincs kijelölve) -> üres -> ...
+    private static string JogszabalyAllapotIkon(JogszabalyAllapot allapot) => allapot switch
+    {
+        JogszabalyAllapot.AlapKijelolve => Icons.Material.Filled.CheckBox,
+        JogszabalyAllapot.AlapNincsKijelolve => Icons.Material.Filled.DisabledByDefault,
+        _ => Icons.Material.Filled.CheckBoxOutlineBlank
+    };
+
+    private static JogszabalyAllapot JogszabalyAllapotKovetkezo(JogszabalyAllapot allapot) => allapot switch
+    {
+        JogszabalyAllapot.NemJelenikMeg => JogszabalyAllapot.AlapKijelolve,
+        JogszabalyAllapot.AlapKijelolve => JogszabalyAllapot.AlapNincsKijelolve,
+        _ => JogszabalyAllapot.NemJelenikMeg
+    };
+
+    private async Task JogszabalyAllapotValtozas(int tipusId, int jogszabalyId, JogszabalyAllapot allapot)
     {
         if (!_jogszabalyHozzarendelesek.ContainsKey(tipusId))
-            _jogszabalyHozzarendelesek[tipusId] = new HashSet<int>();
+            _jogszabalyHozzarendelesek[tipusId] = new Dictionary<int, bool>();
 
-        if (hozzaad) _jogszabalyHozzarendelesek[tipusId].Add(jogszabalyId);
-        else _jogszabalyHozzarendelesek[tipusId].Remove(jogszabalyId);
+        var map = _jogszabalyHozzarendelesek[tipusId];
 
-        await MeresTipusService.MentJogszabalyHozzarendelesekAsync(
-            tipusId, 
-            _jogszabalyHozzarendelesek[tipusId].ToList());
-        Snackbar.Add("Jogszabály hozzárendelés mentve!", Severity.Success);
+        // Mentés előtti állapot elmentése visszaállításhoz hiba esetén
+        var elozoTartalmazta = map.ContainsKey(jogszabalyId);
+        var elozoErtek = elozoTartalmazta ? map[jogszabalyId] : (bool?)null;
+
+        switch (allapot)
+        {
+            case JogszabalyAllapot.NemJelenikMeg:
+                map.Remove(jogszabalyId);
+                break;
+            case JogszabalyAllapot.AlapKijelolve:
+                map[jogszabalyId] = true;
+                break;
+            case JogszabalyAllapot.AlapNincsKijelolve:
+                map[jogszabalyId] = false;
+                break;
+        }
+
+        var hozzarendelesek = map
+            .Select(kv => new JogszabalyHozzarendeles(kv.Key, kv.Value))
+            .ToList();
+
+        try
+        {
+            await MeresTipusService.MentJogszabalyHozzarendelesekAsync(tipusId, hozzarendelesek);
+            Snackbar.Add("Jogszabály hozzárendelés mentve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            // Visszaállítjuk a memóriabeli állapotot a mentés előtti állapotra
+            if (elozoTartalmazta)
+                map[jogszabalyId] = elozoErtek!.Value;
+            else
+                map.Remove(jogszabalyId);
+
+            Snackbar.Add($"Hiba történt a mentés során: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Természetes (numerikus-tudatos) rendező a jogszabály/szabvány számára,
+    /// hogy pl. "MSZ EN 60079-7" a "MSZ EN 60079-25" elé kerüljön (ne string szerint).
+    /// </summary>
+    private sealed class TermeszetesSzamRendezo : IComparer<string>
+    {
+        public static readonly TermeszetesSzamRendezo Instance = new();
+
+        public int Compare(string? x, string? y)
+        {
+            x ??= "";
+            y ??= "";
+            int i = 0, j = 0;
+            while (i < x.Length && j < y.Length)
+            {
+                if (char.IsDigit(x[i]) && char.IsDigit(y[j]))
+                {
+                    int startI = i, startJ = j;
+                    while (i < x.Length && char.IsDigit(x[i])) i++;
+                    while (j < y.Length && char.IsDigit(y[j])) j++;
+
+                    var numX = x.Substring(startI, i - startI).TrimStart('0');
+                    var numY = y.Substring(startJ, j - startJ).TrimStart('0');
+
+                    if (numX.Length != numY.Length)
+                        return numX.Length.CompareTo(numY.Length);
+
+                    var cmp = string.CompareOrdinal(numX, numY);
+                    if (cmp != 0) return cmp;
+                }
+                else
+                {
+                    if (x[i] != y[j])
+                        return x[i].CompareTo(y[j]);
+                    i++; j++;
+                }
+            }
+            return (x.Length - i).CompareTo(y.Length - j);
+        }
     }
 }

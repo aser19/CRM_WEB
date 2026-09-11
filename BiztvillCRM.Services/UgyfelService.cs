@@ -94,8 +94,6 @@ public class UgyfelService : IUgyfelService
         existing.Cim = ugyfel.Cim;
         existing.Email = ugyfel.Email;
         existing.Telefon = ugyfel.Telefon;
-        existing.UgyfelTipus = ugyfel.UgyfelTipus;
-        existing.Tevekenyseg = ugyfel.Tevekenyseg;
         existing.Aktiv = ugyfel.Aktiv;
         existing.Modositva = DateTime.UtcNow;
 
