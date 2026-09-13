@@ -41,4 +41,7 @@ public class Meres
     public Telephely? Telephely { get; set; }
     public MeresTipus? MeresTipus { get; set; }
     public Helyiseg? Helyiseg { get; set; }
+
+    /// <summary>Hozzárendelt tagek (many-to-many).</summary>
+    public List<MeresTag> Tagek { get; set; } = new();
 }

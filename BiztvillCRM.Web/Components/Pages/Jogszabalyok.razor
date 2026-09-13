@@ -11,6 +11,35 @@
 
 <PageTitle>Jogszabályok és Szabványok</PageTitle>
 
+<style>
+    .sticky-horizontal-scroll-wrapper {
+        position: relative;
+        overflow-x: auto;
+        overflow-y: auto;
+        max-width: 100%;
+        max-height: calc(100vh - 320px);
+        min-height: 200px;
+    }
+
+    .sticky-horizontal-scroll-wrapper::-webkit-scrollbar {
+        height: 12px;
+        width: 12px;
+    }
+
+    .sticky-horizontal-scroll-wrapper {
+        scrollbar-width: thin;
+    }
+
+    .sticky-horizontal-scroll-wrapper > * {
+        min-width: max-content;
+    }
+
+    .table-container-sticky {
+        position: relative;
+        padding-bottom: 20px;
+    }
+</style>
+
 <MudText Typo="Typo.h4" Class="mb-4">Jogszabályok és Szabványok</MudText>
 
 <MudPaper Class="pa-4">
@@ -60,6 +89,8 @@
         </MudStack>
     }
 
+    <div class="table-container-sticky">
+        <div class="sticky-horizontal-scroll-wrapper">
     <MudDataGrid T="Jogszabaly" Items="_szurtLista" Filterable="false" SortMode="SortMode.Multiple" Hover="true" Striped="true" Loading="_betoltes">
         <Columns>
             <TemplateColumn Title="Típus" Sortable="true">
@@ -155,6 +186,8 @@
         </Columns>
         <NoRecordsContent><MudText>Nincs megjeleníthető jogszabály vagy szabvány.</MudText></NoRecordsContent>
     </MudDataGrid>
+        </div>
+    </div>
 </MudPaper>
 
 <!-- Megjegyzés dialógus -->

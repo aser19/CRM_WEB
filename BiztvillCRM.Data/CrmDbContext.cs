@@ -48,6 +48,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<Jogszabaly> Jogszabalyok { get; set; }
     public DbSet<MeresTipusJogszabaly> MeresTipusJogszabalyok { get; set; }
     public DbSet<JogszabalyTag> JogszabalyTagek { get; set; }   // ÚJ
+    public DbSet<MeresTag> MeresTagek { get; set; }   // ÚJ
     // --- Képzés szabályok ---
     public DbSet<KepzesSzabaly> KepzesSzabalyok { get; set; }
     public DbSet<FelhasznaloErtesitesBeallitas> FelhasznaloErtesitesBeallitasok { get; set; }
@@ -255,6 +256,18 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasOne(e => e.Ugyfel).WithMany().HasForeignKey(e => e.UgyfelId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Telephely).WithMany().HasForeignKey(e => e.TelephelyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.MeresTipus).WithMany().HasForeignKey(e => e.MeresTipusId).OnDelete(DeleteBehavior.Restrict);
+            // Many-to-many a tagekkel
+            entity.HasMany(e => e.Tagek)
+                  .WithMany()
+                  .UsingEntity(j => j.ToTable("MeresTagKapcsolatok"));
+        });
+
+        // --- MeresTag ---   ÚJ
+        modelBuilder.Entity<MeresTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Szin).IsRequired().HasMaxLength(20);
         });
 
         // --- Kalibracio ---

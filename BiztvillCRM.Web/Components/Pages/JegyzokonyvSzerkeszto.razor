@@ -488,6 +488,14 @@
                             Tovább az időszakos VBF szerkesztőhöz
                         </MudButton>
                     }
+                    else if (IsVillamNemNormaTipus())
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="Lepes2VillamNemNormaTovabbAsync"
+                                   EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Tovább a Nem Norma szerinti Villámvédelmi Minősítő Irat kitöltéséhez
+                        </MudButton>
+                    }
                     else if (IsEgyMeresTipus())
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -1753,6 +1761,13 @@
             || _kivalasztottTipusId == 5;
     }
 
+    private bool IsVillamNemNormaTipus()
+    {
+        if (GetAktualisTipusKod() == "VVN-NEM") return true;
+        return !string.IsNullOrEmpty(_kivalasztottTipusNev)
+            && _kivalasztottTipusNev.Contains("nem norma", StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool IsIdoszakosVBFTipus()
     {
         if (_kivalasztottTipusId == 0) return false;
@@ -1760,6 +1775,7 @@
         if (_kivalasztottTipusId == 5) return false;
         if (IsEgyMeresTipus()) return false;
         if (IsMellekletTipus()) return false;
+        if (IsVillamNemNormaTipus()) return false;
         return true;
     }
 
@@ -1936,6 +1952,53 @@
             }
 
             Navigation.NavigateTo($"/idoszakos-vbf/{meresId}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
+    private async Task Lepes2VillamNemNormaTovabbAsync()
+    {
+        _feldolgozas = true;
+        StateHasChanged();
+        try
+        {
+            int meresId;
+            if (!MeresId.HasValue || MeresId == 0)
+            {
+                if (_ujonnanMentettMeresId.HasValue)
+                {
+                    meresId = _ujonnanMentettMeresId.Value;
+                    await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+                }
+                else
+                {
+                    var ujMeres = await MeresService.CreateAsync(new Meres
+                    {
+                        UgyfelId              = _kivalasztottUgyfelId,
+                        TelephelyId           = _kivalasztottTelephelyId,
+                        MeresTipusId          = _kivalasztottTipusId,
+                        Datum                 = _vizsgalatDatum ?? DateTime.Today,
+                        MeresStatusz          = MeresStatusz.Folyamatban,
+                        JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok)
+                    });
+                    meresId = ujMeres.Id;
+                    _ujonnanMentettMeresId = meresId;
+                }
+            }
+            else
+            {
+                meresId = MeresId.Value;
+                await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
+            }
+
+            Navigation.NavigateTo($"/villam-nem-norma-szerkeszto/{meresId}");
         }
         catch (Exception ex)
         {

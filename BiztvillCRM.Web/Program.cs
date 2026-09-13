@@ -117,6 +117,7 @@ builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
 }); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IHvmPdfService, HvmPdfService>();
 builder.Services.AddScoped<IVbfPdfService, VbfPdfService>();
+builder.Services.AddScoped<IVillamNemNormaPdfService, VillamNemNormaPdfService>();
 builder.Services.AddScoped<IEgyMeresPdfService, EgyMeresPdfService>();
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<ISugoService, SugoService>();

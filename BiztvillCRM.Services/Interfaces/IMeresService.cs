@@ -50,4 +50,11 @@ public interface IMeresService
     /// bekerül a "- copy" toldalék. Az új mérés aktívan, önálló Id-vel jön létre.
     /// </summary>
     Task<Meres> DuplikalAsync(int meresId);
+
+    // --- Tagek ---
+    Task<List<MeresTag>> GetAllTagekAsync();
+    Task<MeresTag> CreateTagAsync(MeresTag tag);
+    Task UpdateTagAsync(MeresTag tag);
+    Task DeleteTagAsync(int id);
+    Task SetTagekAsync(int meresId, List<int> tagIds);
 }

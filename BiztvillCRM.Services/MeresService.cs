@@ -33,6 +33,7 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
+            .Include(m => m.Tagek)
             .Where(m => !mellekletMeresIds.Contains(m.Id))
             .AsQueryable();
 
@@ -61,6 +62,7 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
+            .Include(m => m.Tagek)
             .Where(m => !mellekletMeresIds.Contains(m.Id) && !m.Aktiv) // Csak az inaktívak
             .AsQueryable();
 
@@ -81,6 +83,7 @@ public class MeresService : IMeresService
             .Include(m => m.Ugyfel)
             .Include(m => m.Telephely)
             .Include(m => m.MeresTipus)
+            .Include(m => m.Tagek)
             .AsQueryable();
 
         if (!_tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -154,6 +157,7 @@ public class MeresService : IMeresService
         existing.Eredmeny = meres.Eredmeny;
         existing.MeresStatusz = meres.MeresStatusz;
         existing.Megjegyzes = meres.Megjegyzes;
+        existing.KibocsatoCegId = meres.KibocsatoCegId;
         existing.Modositva = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
@@ -441,5 +445,67 @@ public class MeresService : IMeresService
         {
             return jegyzokonyvAdatokJson;
         }
+    }
+
+    // --- Tagek ---
+
+    public async Task<List<MeresTag>> GetAllTagekAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MeresTagek
+            .AsNoTracking()
+            .OrderBy(t => t.Nev)
+            .ToListAsync();
+    }
+
+    public async Task<MeresTag> CreateTagAsync(MeresTag tag)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        context.MeresTagek.Add(tag);
+        await context.SaveChangesAsync();
+        return tag;
+    }
+
+    public async Task UpdateTagAsync(MeresTag tag)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.MeresTagek.FindAsync(tag.Id)
+            ?? throw new InvalidOperationException("Tag nem található.");
+        existing.Nev = tag.Nev;
+        existing.Szin = tag.Szin;
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteTagAsync(int id)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var tag = await context.MeresTagek.FindAsync(id);
+        if (tag is not null)
+        {
+            context.MeresTagek.Remove(tag);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task SetTagekAsync(int meresId, List<int> tagIds)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var meres = await context.Meresek
+            .Include(m => m.Tagek)
+            .FirstOrDefaultAsync(m => m.Id == meresId)
+            ?? throw new InvalidOperationException("Mérés nem található.");
+
+        meres.Tagek.Clear();
+
+        if (tagIds.Count > 0)
+        {
+            var tagek = await context.MeresTagek
+                .Where(t => tagIds.Contains(t.Id))
+                .ToListAsync();
+            foreach (var tag in tagek)
+                meres.Tagek.Add(tag);
+        }
+
+        await context.SaveChangesAsync();
     }
 }
