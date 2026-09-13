@@ -9,8 +9,6 @@
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IJogszabalyService JogszabalyService
 @inject IVillamNemNormaPdfService VillamNemNormaPdfService
-@inject IEszkozService EszkozService
-@inject IKalibracioService KalibracioService
 @inject IFileStorageService FileStorageService
 @inject IMeresService MeresService
 @inject NavigationManager Navigation
@@ -195,9 +193,12 @@ else
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <MudText Typo="Typo.subtitle1" Class="mb-3">2.3 Műszeres mérések</MudText>
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-            Az időjárás és a használt műszerek adatait már a jegyzőkönyv főlapján megadtad, azokat innen automatikusan átvesszük.
+            A használt műszerek adatait már a jegyzőkönyv főlapján megadtad, azokat innen automatikusan átvesszük.
         </MudAlert>
         <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.Idojaras" Label="A mérés idején az időjárás" Variant="Variant.Outlined" />
+            </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="_adatok.MeresKorulmenyeinekLeirasa" Label="A mérés körülményeinek rövid leírása"
                               Lines="4" Variant="Variant.Outlined" />
@@ -357,8 +358,6 @@ else
     private DateTime? _ervenyessegIg;
     private DateTime? _kovetkezoFelulvizsgalat;
 
-    private List<Eszkoz> _muszerek = [];
-    private List<int?> _kivalasztottMuszerIds = new() { null, null, null };
     private int? _kivalasztottFelelosIdCache;
     private bool _marMentveVolt = false;
 
@@ -566,70 +565,6 @@ else
         _adatok.Ellenor = f?.Nev ?? "";
         _adatok.EllenorBizonyitvany = f == null ? "" : string.Join(", ",
             f.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
-    }
-
-    private int? GetMuszerEszkozId(int index)
-    {
-        if (index >= _kivalasztottMuszerIds.Count) return null;
-        return _kivalasztottMuszerIds[index];
-    }
-
-    private int GetLathatoMuszerekSzama()
-    {
-        int kitoltott = _adatok.Muszerek.Count(m => !string.IsNullOrEmpty(m.Tipus));
-        return Math.Min(kitoltott + 1, 3);
-    }
-
-    /// <summary>Igaz, ha a műszer utolsó kalibrációja több mint 2 éves (vagy nincs megadva).</summary>
-    private bool IsKalibracioLejart(MuszerSor? sor)
-    {
-        if (sor == null || string.IsNullOrWhiteSpace(sor.Tipus)) return false;
-        if (string.IsNullOrWhiteSpace(sor.Kalibralas)) return true; // nincs kalibráció → figyelmeztetés
-
-        // Formátumok: "yyyy.MM.dd" vagy "yyyy-MM-dd"
-        if (DateTime.TryParseExact(sor.Kalibralas.Trim(),
-                new[] { "yyyy.MM.dd", "yyyy-MM-dd", "yyyy. MM. dd." },
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var kalDatum))
-        {
-            return kalDatum < DateTime.Today.AddYears(-2);
-        }
-
-        return false;
-    }
-
-    private async Task OnMuszerValtozasAsync(int index, int? eszkozId)
-    {
-        while (_adatok.Muszerek.Count <= index)
-            _adatok.Muszerek.Add(new MuszerSor());
-        while (_kivalasztottMuszerIds.Count <= index)
-            _kivalasztottMuszerIds.Add(null);
-
-        _kivalasztottMuszerIds[index] = eszkozId;
-
-        if (eszkozId.HasValue)
-        {
-            var muszer = _muszerek.FirstOrDefault(m => m.Id == eszkozId.Value);
-            if (muszer != null)
-            {
-                var kalibraciok = await KalibracioService.GetByEszkozIdAsync(eszkozId.Value);
-                var utolsoKalibracio = kalibraciok.FirstOrDefault();
-
-                _adatok.Muszerek[index] = new MuszerSor
-                {
-                    EszkozId = eszkozId,
-                    Tipus = muszer.Tipus ?? muszer.Nev ?? "",
-                    GyariSzam = muszer.GyariSzam ?? "",
-                    Kalibralas = utolsoKalibracio?.Datum.ToString("yyyy.MM.dd") ?? ""
-                };
-            }
-        }
-        else
-        {
-            _adatok.Muszerek[index] = new MuszerSor();
-        }
-
-        StateHasChanged();
     }
 
     private async Task PdfGeneralasAsync()
