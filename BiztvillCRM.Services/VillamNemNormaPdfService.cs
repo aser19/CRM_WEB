@@ -20,13 +20,22 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public byte[] Generalas(VillamNemNormaAdatok adatok, byte[]? cegBelyegzoKep = null, byte[]? alairoAlairasKep = null)
+    public byte[] Generalas(
+        VillamNemNormaAdatok adatok,
+        byte[]? cegBelyegzoKep = null,
+        byte[]? alairoAlairasKep = null,
+        List<byte[]>? fenykepek = null,
+        List<(string Cimke, byte[] Kep)>? kepBizonyitvanyok = null,
+        List<byte[]>? pdfBizonyitvanyok = null)
     {
         adatok ??= new VillamNemNormaAdatok();
         _cegBelyegzoKep = cegBelyegzoKep;
         _alairoAlairasKep = alairoAlairasKep;
+        fenykepek ??= new List<byte[]>();
+        kepBizonyitvanyok ??= new List<(string Cimke, byte[] Kep)>();
+        pdfBizonyitvanyok ??= new List<byte[]>();
 
-        return Document.Create(container =>
+        var dokumentumBytes = Document.Create(container =>
         {
             // 1. oldal – Címlap
             container.Page(page =>
@@ -115,7 +124,39 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
                 page.Content().Element(c => ZaroOldal(c, adatok));
                 page.Footer().Element(c => Lablec(c, adatok));
             });
+
+            // 9. oldal(ak) – 1. melléklet: fényképek/skiccek
+            if (fenykepek.Count > 0)
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+                    page.Header().Element(c => Fejlec(c, adatok));
+                    page.Content().Element(c => Melleklet1Fenykepek(c, fenykepek));
+                    page.Footer().Element(c => Lablec(c, adatok));
+                });
+            }
+
+            // 10. oldal – 2. melléklet: felülvizsgálói bizonyítványok
+            if (kepBizonyitvanyok.Count > 0 || pdfBizonyitvanyok.Count > 0)
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+                    page.Header().Element(c => Fejlec(c, adatok));
+                    page.Content().Element(c => Melleklet2Bizonyitvanyok(c, kepBizonyitvanyok, pdfBizonyitvanyok.Count));
+                    page.Footer().Element(c => Lablec(c, adatok));
+                });
+            }
         }).GeneratePdf();
+
+        return pdfBizonyitvanyok.Count > 0
+            ? PdfMergeHelper.Fuzzel(dokumentumBytes, pdfBizonyitvanyok)
+            : dokumentumBytes;
     }
 
     // ============================================================
@@ -546,6 +587,58 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
                         c.Item().AlignCenter().PaddingTop(6).Height(30).Image(_cegBelyegzoKep).FitArea();
                 });
             });
+        });
+    }
+
+    // ============================================================
+    // 1. MELLÉKLET – FÉNYKÉPEK / SKICCEK
+    // ============================================================
+
+    private void Melleklet1Fenykepek(IContainer container, List<byte[]> fenykepek)
+    {
+        container.Column(col =>
+        {
+            col.Item().Element(c => FejezetCim(c, "1. melléklet", "Fényképek, skiccek"));
+
+            col.Item().PaddingTop(10).Grid(grid =>
+            {
+                grid.Columns(2);
+                grid.Spacing(10);
+
+                foreach (var kep in fenykepek)
+                {
+                    grid.Item().Height(220).Border(0.5f).BorderColor(Colors.Grey.Lighten1)
+                        .Padding(4).Image(kep).FitArea();
+                }
+            });
+        });
+    }
+
+    // ============================================================
+    // 2. MELLÉKLET – FELÜLVIZSGÁLÓI BIZONYÍTVÁNYOK
+    // ============================================================
+
+    private void Melleklet2Bizonyitvanyok(IContainer container, List<(string Cimke, byte[] Kep)> kepBizonyitvanyok, int pdfBizonyitvanyokSzama)
+    {
+        container.Column(col =>
+        {
+            col.Item().Element(c => FejezetCim(c, "2. melléklet", "A felülvizsgálók vonatkozó bizonyítványai"));
+
+            foreach (var (cimke, kep) in kepBizonyitvanyok)
+            {
+                col.Item().PaddingTop(16).Text(cimke).Bold();
+                col.Item().PaddingTop(4).Height(300).Border(0.5f).BorderColor(Colors.Grey.Lighten1)
+                    .Padding(4).Image(kep).FitArea();
+            }
+
+            if (pdfBizonyitvanyokSzama > 0)
+            {
+                col.Item().PaddingTop(20).Text(
+                    pdfBizonyitvanyokSzama == 1
+                        ? "A bizonyítvány PDF formátumban a dokumentum végén csatolva."
+                        : $"{pdfBizonyitvanyokSzama} db bizonyítvány PDF formátumban a dokumentum végén csatolva.")
+                    .Italic();
+            }
         });
     }
 }

@@ -149,6 +149,11 @@ public class VillamNemNormaAdatok
 
     /// <summary>Mikor készült a jegyzőkönyv (kelt dátuma).</summary>
     public DateTime? MikorKeszult { get; set; }
+
+    // === MELLÉKLETEK ===
+
+    /// <summary>1. melléklet - a helyszínen készült fényképek/skiccek elérési útjai (max. 5 db, relatív a Uploads mappához).</summary>
+    public List<string> FenykepPaths { get; set; } = new();
 }
 
 /// <summary>Egy sor az épület elemenkénti villámvédelmi besorolásához (7. oldal): pl. Felfogó, Levezető, Földelés, Belső villámvédelem, Méretfokozat.</summary>

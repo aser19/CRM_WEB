@@ -4,6 +4,8 @@
 @using BiztvillCRM.Shared.Models
 @using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
 @inject ITenantService TenantService
 @inject ICegService CegService
 @inject IFelulvizsgaloService FelulvizsgaloService
@@ -334,9 +336,52 @@ else
         </MudGrid>
     </MudPaper>
 
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PdfGeneralasAsync" Disabled="_feldolgozas">
-        PDF generálása
-    </MudButton>
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-3">1. melléklet - Fényképek / skiccek (max. 5 db)</MudText>
+        <MudGrid>
+            @for (var i = 0; i < _adatok.FenykepPaths.Count; i++)
+            {
+                var index = i;
+                var path = _adatok.FenykepPaths[index];
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Class="pa-2" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Image" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">@Path.GetFileName(path)</MudText>
+                            </MudStack>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => FenykepTorlese(index))" Title="Törlés" />
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+        @if (_adatok.FenykepPaths.Count < 5)
+        {
+            <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png" MaximumFileCount="1"
+                           FilesChanged="FenykepFeltoltese" Class="mt-3">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload">
+                        Fénykép feltöltése (@(_adatok.FenykepPaths.Count)/5)
+                    </MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Elérte a maximális 5 db fényképet.</MudText>
+        }
+    </MudPaper>
+
+    <MudStack Row="true" Spacing="2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PdfGeneralasAsync" Disabled="_feldolgozas">
+            PDF generálása
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ManualisMentesAsync" Disabled="_feldolgozas">
+            Mentés
+        </MudButton>
+    </MudStack>
 }
 
 @code {
@@ -398,13 +443,66 @@ else
                         if (betoltott != null)
                         {
                             _adatok = betoltott;
-                            _marMentveVolt = true;
+                            // Ha a jegyzőkönyv ebben a (saját) formátumban lett korábban elmentve,
+                            // akkor már volt saját mentés - a főlapi adatokat nem kell újra átvezetni.
+                            if (!string.IsNullOrWhiteSpace(_adatok.MegrendeloNev) ||
+                                !string.IsNullOrWhiteSpace(_adatok.MegbizasTargya) ||
+                                !string.IsNullOrWhiteSpace(_adatok.FelulvizsgaloNev))
+                            {
+                                _marMentveVolt = true;
+                            }
                         }
                     }
                     catch
                     {
                         // ha nem ebben a formátumban lett elmentve, üresen indulunk
                     }
+
+                    // Ha a jegyzőkönyv a főlapon (jegyzokonyv/uj) megadott adatokkal lett elmentve
+                    // (JegyzokonyvAdatok formátum), vegyük át onnan az egyező mezőket, hogy ne kelljen
+                    // ugyanazt az adatot kétszer megadni. Csak akkor, ha itt még nincs saját mentés.
+                    if (!_marMentveVolt)
+                    {
+                        try
+                        {
+                            var foLapAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                                meres.JegyzokonyvAdatokJson,
+                                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (foLapAdatok != null)
+                            {
+                                _adatok.MegrendeloNev = foLapAdatok.Megrendelo;
+                                _adatok.MegbizasTargya = foLapAdatok.VizsgalatTargya;
+                                _adatok.MegrendeloKepviseloje = foLapAdatok.KapcsolatTarto;
+
+                                _adatok.FelulvizsgaloNev = foLapAdatok.FelulvizsgaloNev;
+                                _adatok.FelulvizsgaloBizonyitvany = foLapAdatok.FelulvizsgaloBizonyitvany;
+                                _adatok.FelulvizsgaloKepzes = foLapAdatok.FelulvizsgaloKepzes;
+
+                                _adatok.SegitoFelulvizsgalo = foLapAdatok.SegitoFelulvizsgalo;
+                                _adatok.SegitoBizonyitvany = foLapAdatok.SegitoBizonyitvany;
+                                _adatok.SegitoKepzes = foLapAdatok.SegitoKepzes;
+
+                                _adatok.Ellenor = foLapAdatok.Ellenor;
+                                _adatok.EllenorBizonyitvany = foLapAdatok.EllenorBizonyitvany;
+                                _adatok.EllenorKepzes = foLapAdatok.EllenorKepzes;
+                            }
+                        }
+                        catch
+                        {
+                            // ha nem ebben a formátumban lett elmentve, hagyjuk üresen
+                        }
+
+                        if (string.IsNullOrWhiteSpace(_adatok.MegrendeloNev))
+                            _adatok.MegrendeloNev = meres.Ugyfel?.Nev ?? "";
+
+                        if (string.IsNullOrWhiteSpace(_adatok.MegrendeloCim))
+                            _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
+                    }
+                }
+                else
+                {
+                    _adatok.MegrendeloNev = meres.Ugyfel?.Nev ?? "";
+                    _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
                 }
 
                 _meresIdeje = meres.Datum;
@@ -567,6 +665,101 @@ else
             f.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
     }
 
+    /// <summary>Az 1. mellékletbe feltöltött fénykép/skicc mentése (max. 5 db).</summary>
+    private async Task FenykepFeltoltese(IBrowserFile file)
+    {
+        if (file is null || _adatok.FenykepPaths.Count >= 5)
+            return;
+
+        try
+        {
+            var cegNev = (await CegService.GetByIdAsync(_adatok.CegId > 0 ? _adatok.CegId : TenantService.GetCurrentCegId()))?.Nev ?? "Ismeretlen";
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            var path = await FileStorageService.SaveFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                $"meres-{MeresId ?? 0}",
+                "vvn-nem-fenykepek",
+                new[] { ".jpg", ".jpeg", ".png" },
+                5);
+
+            if (path != null)
+            {
+                _adatok.FenykepPaths.Add(path);
+            }
+            else
+            {
+                Snackbar.Add("A fénykép feltöltése sikertelen!", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a fénykép feltöltésekor: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void FenykepTorlese(int index)
+    {
+        if (index >= 0 && index < _adatok.FenykepPaths.Count)
+            _adatok.FenykepPaths.RemoveAt(index);
+    }
+
+    /// <summary>A KepzesTipus neve, ami alapján a 2. mellékletbe kerülő bizonyítványt keressük.</summary>
+    private const string VvnNemBizonyitvanyTipusNev = "Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány";
+
+    /// <summary>
+    /// Megkeresi a felülvizsgáló "Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány" típusú,
+    /// feltöltött bizonyítvány fájljának elérési útját (a legfrissebb bizonyítvány kelte szerint, ha több is van).
+    /// </summary>
+    private static string? VvnNemBizonyitvanyPath(Felulvizsgalo? felulvizsgalo)
+    {
+        if (felulvizsgalo is null)
+            return null;
+
+        return felulvizsgalo.Kepzesek
+            .Where(k => k.Aktiv
+                        && !string.IsNullOrWhiteSpace(k.BizonyitvanyPath)
+                        && k.KepzesTipus != null
+                        && string.Equals(k.KepzesTipus.Nev, VvnNemBizonyitvanyTipusNev, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.BizonyitvanyKelte)
+            .Select(k => k.BizonyitvanyPath)
+            .FirstOrDefault();
+    }
+
+    /// <summary>Manuális pillanatmentés: elmenti a jelenlegi adatokat PDF generálás nélkül.</summary>
+    private async Task ManualisMentesAsync()
+    {
+        _feldolgozas = true;
+        try
+        {
+            _adatok.MeresIdeje = _meresIdeje;
+            _adatok.FelulvizsgalatErvenyessegeIg = _ervenyessegIg;
+            _adatok.KovetkezoFelulvizsgalatIdopontja = _kovetkezoFelulvizsgalat;
+
+            if (MeresId.HasValue && MeresId.Value > 0)
+            {
+                var meres = await MeresService.GetByIdAsync(MeresId.Value);
+                if (meres != null)
+                {
+                    meres.JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
+                    await MeresService.UpdateAsync(meres);
+                    _marMentveVolt = true;
+                    Snackbar.Add("Adatok elmentve.", Severity.Success);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a mentés közben: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _feldolgozas = false;
+        }
+    }
+
     private async Task PdfGeneralasAsync()
     {
         _feldolgozas = true;
@@ -603,7 +796,57 @@ else
                 alairoAlairasKep = await FileStorageService.GetFileBytesAsync(alairoFelulvizsgalo.AlairasPath);
             }
 
-            var pdfBytes = VillamNemNormaPdfService.Generalas(_adatok, cegBelyegzoKep, alairoAlairasKep);
+            // 1. melléklet - fényképek
+            var fenykepek = new List<byte[]>();
+            foreach (var path in _adatok.FenykepPaths)
+            {
+                var kep = await FileStorageService.GetFileBytesAsync(path);
+                if (kep != null)
+                    fenykepek.Add(kep);
+            }
+
+            // 2. melléklet - felülvizsgálói bizonyítványok (Felelős kötelező, Segítő/Ellenőr opcionális)
+            var kepBizonyitvanyok = new List<(string Cimke, byte[] Kep)>();
+            var pdfBizonyitvanyok = new List<byte[]>();
+
+            var segitoFelulvizsgalo = _felulvizsgalok.FirstOrDefault(f => f.Nev == _adatok.SegitoFelulvizsgalo);
+            var ellenorFelulvizsgalo = _felulvizsgalok.FirstOrDefault(f => f.Nev == _adatok.Ellenor);
+
+            var bizonyitvanyForrasok = new[]
+            {
+                ("Felelős felülvizsgáló: " + (alairoFelulvizsgalo?.Nev ?? _adatok.FelulvizsgaloNev), VvnNemBizonyitvanyPath(alairoFelulvizsgalo)),
+                ("Segítő felülvizsgáló: " + (segitoFelulvizsgalo?.Nev ?? _adatok.SegitoFelulvizsgalo), VvnNemBizonyitvanyPath(segitoFelulvizsgalo)),
+                ("Ellenőr: " + (ellenorFelulvizsgalo?.Nev ?? _adatok.Ellenor), VvnNemBizonyitvanyPath(ellenorFelulvizsgalo)),
+            };
+
+            if (string.IsNullOrWhiteSpace(VvnNemBizonyitvanyPath(alairoFelulvizsgalo)))
+            {
+                Snackbar.Add("A felelős felülvizsgálónak nincs feltöltve \"Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány\"!", Severity.Warning);
+            }
+
+            foreach (var (cimke, path) in bizonyitvanyForrasok)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+
+                var extension = Path.GetExtension(path).ToLowerInvariant();
+                var fajl = await FileStorageService.GetFileBytesAsync(path);
+                if (fajl is null)
+                    continue;
+
+                if (extension is ".jpg" or ".jpeg" or ".png")
+                {
+                    kepBizonyitvanyok.Add((cimke, fajl));
+                }
+                else if (extension == ".pdf")
+                {
+                    pdfBizonyitvanyok.Add(fajl);
+                }
+            }
+
+            var pdfBytes = VillamNemNormaPdfService.Generalas(
+                _adatok, cegBelyegzoKep, alairoAlairasKep,
+                fenykepek, kepBizonyitvanyok, pdfBizonyitvanyok);
             var fajlNev = $"Villamvedelmi-Nem-Norma-{DateTime.Now:yyyyMMdd}.pdf";
             await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);
             _marMentveVolt = true;
