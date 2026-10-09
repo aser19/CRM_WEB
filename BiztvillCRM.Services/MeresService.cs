@@ -159,6 +159,7 @@ public class MeresService : IMeresService
         existing.Megjegyzes = meres.Megjegyzes;
         existing.KibocsatoCegId = meres.KibocsatoCegId;
         existing.JegyzokonyvAdatokJson = meres.JegyzokonyvAdatokJson;
+        existing.VillamNemNormaAdatokJson = meres.VillamNemNormaAdatokJson;
         existing.Modositva = DateTime.UtcNow;
 
         await context.SaveChangesAsync();

@@ -31,6 +31,13 @@ public class Meres
     public string? JegyzokonyvAdatokJson { get; set; }
 
     /// <summary>
+    /// A "Nem Norma szerinti Villámvédelmi Minősítő Irat" (VillamNemNormaSzerkeszto) saját adatai, JSON-ben.
+    /// Külön oszlop, hogy a főlap (JegyzokonyvAdatokJson, pl. 2 percenkénti automentés) mentései
+    /// ne írhassák felül véletlenül a villámvédelmi oldal adatait, és fordítva.
+    /// </summary>
+    public string? VillamNemNormaAdatokJson { get; set; }
+
+    /// <summary>
     /// Aktív-e a mérés. Inaktív mérések nem jelennek meg az alapértelmezett listában,
     /// de megmaradnak a History-ban.
     /// </summary>

@@ -480,12 +480,12 @@ else
             if (meres != null)
             {
                 _adatok.CegId = meres.KibocsatoCegId ?? 0;
-                if (!string.IsNullOrWhiteSpace(meres.JegyzokonyvAdatokJson))
+                if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
                 {
                     try
                     {
                         var betoltott = System.Text.Json.JsonSerializer.Deserialize<VillamNemNormaAdatok>(
-                            meres.JegyzokonyvAdatokJson,
+                            meres.VillamNemNormaAdatokJson,
                             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                         if (betoltott != null)
                         {
@@ -504,52 +504,52 @@ else
                     {
                         // ha nem ebben a formátumban lett elmentve, üresen indulunk
                     }
-
-                    // Ha a jegyzőkönyv a főlapon (jegyzokonyv/uj) megadott adatokkal lett elmentve
-                    // (JegyzokonyvAdatok formátum), vegyük át onnan az egyező mezőket, hogy ne kelljen
-                    // ugyanazt az adatot kétszer megadni. Csak akkor, ha itt még nincs saját mentés.
-                    if (!_marMentveVolt)
-                    {
-                        try
-                        {
-                            var foLapAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
-                                meres.JegyzokonyvAdatokJson,
-                                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            if (foLapAdatok != null)
-                            {
-                                _adatok.MegrendeloNev = foLapAdatok.Megrendelo;
-                                _adatok.MegbizasTargya = foLapAdatok.VizsgalatTargya;
-                                _adatok.MegrendeloKepviseloje = foLapAdatok.KapcsolatTarto;
-
-                                _adatok.FelulvizsgaloNev = foLapAdatok.FelulvizsgaloNev;
-                                _adatok.FelulvizsgaloBizonyitvany = foLapAdatok.FelulvizsgaloBizonyitvany;
-                                _adatok.FelulvizsgaloKepzes = foLapAdatok.FelulvizsgaloKepzes;
-
-                                _adatok.SegitoFelulvizsgalo = foLapAdatok.SegitoFelulvizsgalo;
-                                _adatok.SegitoBizonyitvany = foLapAdatok.SegitoBizonyitvany;
-                                _adatok.SegitoKepzes = foLapAdatok.SegitoKepzes;
-
-                                _adatok.Ellenor = foLapAdatok.Ellenor;
-                                _adatok.EllenorBizonyitvany = foLapAdatok.EllenorBizonyitvany;
-                                _adatok.EllenorKepzes = foLapAdatok.EllenorKepzes;
-
-                                if (!_adatok.KovetkezoFelulvizsgalatIdopontja.HasValue)
-                                    _adatok.KovetkezoFelulvizsgalatIdopontja = foLapAdatok.KovetkezoFelulvizsgalatDatum;
-                            }
-                        }
-                        catch
-                        {
-                            // ha nem ebben a formátumban lett elmentve, hagyjuk üresen
-                        }
-
-                        if (string.IsNullOrWhiteSpace(_adatok.MegrendeloNev))
-                            _adatok.MegrendeloNev = meres.Ugyfel?.Nev ?? "";
-
-                        if (string.IsNullOrWhiteSpace(_adatok.MegrendeloCim))
-                            _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
-                    }
                 }
-                else
+
+                // Ha a jegyzőkönyv a főlapon (jegyzokonyv/uj) megadott adatokkal lett elmentve
+                // (JegyzokonyvAdatok formátum), vegyük át onnan az egyező mezőket, hogy ne kelljen
+                // ugyanazt az adatot kétszer megadni. Csak akkor, ha itt még nincs saját mentés.
+                if (!_marMentveVolt && !string.IsNullOrWhiteSpace(meres.JegyzokonyvAdatokJson))
+                {
+                    try
+                    {
+                        var foLapAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                            meres.JegyzokonyvAdatokJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (foLapAdatok != null)
+                        {
+                            _adatok.MegrendeloNev = foLapAdatok.Megrendelo;
+                            _adatok.MegbizasTargya = foLapAdatok.VizsgalatTargya;
+                            _adatok.MegrendeloKepviseloje = foLapAdatok.KapcsolatTarto;
+
+                            _adatok.FelulvizsgaloNev = foLapAdatok.FelulvizsgaloNev;
+                            _adatok.FelulvizsgaloBizonyitvany = foLapAdatok.FelulvizsgaloBizonyitvany;
+                            _adatok.FelulvizsgaloKepzes = foLapAdatok.FelulvizsgaloKepzes;
+
+                            _adatok.SegitoFelulvizsgalo = foLapAdatok.SegitoFelulvizsgalo;
+                            _adatok.SegitoBizonyitvany = foLapAdatok.SegitoBizonyitvany;
+                            _adatok.SegitoKepzes = foLapAdatok.SegitoKepzes;
+
+                            _adatok.Ellenor = foLapAdatok.Ellenor;
+                            _adatok.EllenorBizonyitvany = foLapAdatok.EllenorBizonyitvany;
+                            _adatok.EllenorKepzes = foLapAdatok.EllenorKepzes;
+
+                            if (!_adatok.KovetkezoFelulvizsgalatIdopontja.HasValue)
+                                _adatok.KovetkezoFelulvizsgalatIdopontja = foLapAdatok.KovetkezoFelulvizsgalatDatum;
+                        }
+                    }
+                    catch
+                    {
+                        // ha nem ebben a formátumban lett elmentve, hagyjuk üresen
+                    }
+
+                    if (string.IsNullOrWhiteSpace(_adatok.MegrendeloNev))
+                        _adatok.MegrendeloNev = meres.Ugyfel?.Nev ?? "";
+
+                    if (string.IsNullOrWhiteSpace(_adatok.MegrendeloCim))
+                        _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
+                }
+                else if (!_marMentveVolt)
                 {
                     _adatok.MegrendeloNev = meres.Ugyfel?.Nev ?? "";
                     _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
@@ -846,7 +846,7 @@ else
                 var meres = await MeresService.GetByIdAsync(MeresId.Value);
                 if (meres != null)
                 {
-                    meres.JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
+                    meres.VillamNemNormaAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
                     await MeresService.UpdateAsync(meres);
                     _marMentveVolt = true;
                     Snackbar.Add("Adatok elmentve.", Severity.Success);
@@ -879,8 +879,9 @@ else
                 var meres = await MeresService.GetByIdAsync(MeresId.Value);
                 if (meres != null)
                 {
-                    meres.JegyzokonyvAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
+                    meres.VillamNemNormaAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
                     await MeresService.UpdateAsync(meres);
+                    _marMentveVolt = true;
                 }
             }
 
