@@ -1,0 +1,137 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            Tetőanyag szerinti besorolás
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.subtitle1" Class="mb-2" Color="Color.Primary">
+            A tetőfelület (tetőfedés) szerinti csoportosítás
+        </MudText>
+
+        <MudText Typo="Typo.body2"><strong>T.I.:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">„A1” és „A2” anyag, vagy legalább „B roof (t1)” anyag fém alkatrészek nélkül,</MudListItem>
+            <MudListItem T="string">
+                fémlemezzel borított „A1” és „A2” anyag vagy legalább „B roof (t1)” éghető anyag, ha a fémlemez:
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">vastagsága kisebb, mint 0,5 mm,</MudListItem>
+                    <MudListItem T="string">vastagsága kisebb, mint 1,0 mm és olvadáspontja 800 °C alatti,</MudListItem>
+                    <MudListItem T="string">vastagsága kisebb, mint 3,0 mm és olvadáspontja 500 °C alatti,</MudListItem>
+                </MudList>
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>T.II.</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">fém egyedül,</MudListItem>
+            <MudListItem T="string">fém „A1” és „A2” anyaggal vagy legfeljebb „B roof (t1)” anyaggal,</MudListItem>
+            <MudListItem T="string">
+                fémlemezzel borított „C”, „D”, „E”, „F” minősítésű anyag, ha a fémlemez:
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">vastagsága legalább 0,5 mm és olvadáspontja legalább 800 °C,</MudListItem>
+                    <MudListItem T="string">vastagsága legalább 1,0 mm és olvadáspontja legalább 500 °C,</MudListItem>
+                    <MudListItem T="string">vastagsága legalább 3,0 mm és olvadáspontja 500 °C alatti,</MudListItem>
+                </MudList>
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>T.III.</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">„C”, „D”, „E” és „F” tűzvédelmi osztályba tartozó, 400 °C-nál alacsonyabb gyulladási hőmérsékletű anyag fém alkatrészek nélkül.</MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>T.IV.</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">„C”, „D”, „E” és „F” tűzvédelmi osztályba tartozó, 400 °C-nál alacsonyabb gyulladási hőmérsékletű anyag fém alkatrészekkel, amelyek nem alkotnak zárt burkolatot,</MudListItem>
+            <MudListItem T="string">„C”, „D”, „E”, „F” tűzvédelmi osztályba tartozó anyag fémlemezzel borítva, de az nem felel meg a T.II pontban előírt követelményeknek.</MudListItem>
+        </MudList>
+
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+            Megjegyzés: Általában T.IV. csoportba tartozik a cinklemez (horganylemez) attikaburkolat, amennyiben alatta
+            éghető anyagú rétegek találhatók, vagy éghető anyagú réteg (pl. bitumenes lemez) van rá felhajtva.
+        </MudAlert>
+
+        <MudDivider Class="my-4" />
+
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true">
+            <thead>
+                <tr>
+                    <th>A tetőfödém, és a tetőszerkezet anyagát leíró pont száma</th>
+                    <th>T.I.</th>
+                    <th>T.II.</th>
+                    <th>T.III.</th>
+                    <th>T.IV.</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="5" style="text-align:center;"><em>pont szerinti tetőfelületű tető besorolása</em></td>
+                </tr>
+                <tr>
+                    <td>T.a</td>
+                    <td>T1</td>
+                    <td>T2</td>
+                    <td>T4</td>
+                    <td>T5</td>
+                </tr>
+                <tr>
+                    <td>T.b</td>
+                    <td>T2</td>
+                    <td>T2</td>
+                    <td>T5</td>
+                    <td>T5</td>
+                </tr>
+                <tr>
+                    <td>T.c</td>
+                    <td>T3</td>
+                    <td>T2</td>
+                    <td>T4</td>
+                    <td>T5</td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2" Color="Color.Primary">
+            Fémtartályok tetejének villámvédelmi csoportosítása
+        </MudText>
+
+        <MudText Typo="Typo.body2" Class="mb-2"><strong>T2</strong> csoportba kell sorolni:</MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">az R1 csoportba tartozó tartályokat,</MudListItem>
+            <MudListItem T="string">
+                az R3, R4, R5 csoportba tartozó fémtartályt, ha teteje:
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">legalább 10 mm vastag, 500 °C feletti olvadáspontú, vagy</MudListItem>
+                    <MudListItem T="string">legalább 5 mm vastag, 800 °C feletti olvadáspontú fémlemezből készült</MudListItem>
+                </MudList>
+                és nem alakul ki fölötte robbanóképes légtér.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3">
+            <strong>T4</strong> csoportba kell sorolni azokat a fémtartályokat, amelyek tetejének vastagsága és anyaga
+            nem elégíti ki az előző pontban T2 csoportra meghatározott feltételeket.
+        </MudText>
+
+        <MudText Typo="Typo.body2" Class="mt-3">
+            <strong>T5</strong> csoportba kell sorolni azokat a fémtartályokat, amelyek felett robbanóképes légtér
+            kialakulásával kell számolni.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Bezár</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

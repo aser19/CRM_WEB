@@ -38,11 +38,14 @@ else
 
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <MudText Typo="Typo.subtitle1" Class="mb-3">Megrendelő / Megbízás adatai</MudText>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            A megrendelő és megbízás adatait már a jegyzőkönyv főlapján megadtad, azokat innen automatikusan átvesszük.
+        </MudAlert>
         <MudGrid>
-            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloNev" Label="Megbízó neve" /></MudItem>
-            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloCim" Label="Megbízó címe" /></MudItem>
-            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegbizasTargya" Label="A megbízás tárgya" Lines="2" /></MudItem>
-            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloKepviseloje" Label="Megbízó képviselője" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloNev" Label="Megbízó neve" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloCim" Label="Megbízó címe" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegbizasTargya" Label="A megbízás tárgya" Lines="2" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloKepviseloje" Label="Megbízó képviselője" ReadOnly="true" /></MudItem>
             <MudItem xs="12" md="6">
                 <MudDatePicker @bind-Date="_meresIdeje" Label="Mérés ideje" />
             </MudItem>
@@ -54,33 +57,18 @@ else
 
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <MudText Typo="Typo.subtitle1" Class="mb-3">Felülvizsgálók</MudText>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            A felülvizsgálók adatait már a jegyzőkönyv főlapján megadtad, azokat innen automatikusan átvesszük.
+        </MudAlert>
         <MudGrid>
             <MudItem xs="12" md="4">
-                <MudSelect T="int?" Value="@_kivalasztottFelelosId" ValueChanged="@OnFelelosValtozasAsync"
-                           Label="Felelős felülvizsgáló" Clearable="true">
-                    @foreach (var f in _felulvizsgalok)
-                    {
-                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudTextField @bind-Value="_adatok.FelulvizsgaloNev" Label="Felelős felülvizsgáló" ReadOnly="true" />
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudSelect T="int?" Value="@_kivalasztottSegitoId" ValueChanged="@OnSegitoValtozasAsync"
-                           Label="Segítő felülvizsgáló" Clearable="true">
-                    @foreach (var f in _felulvizsgalok)
-                    {
-                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudTextField @bind-Value="_adatok.SegitoFelulvizsgalo" Label="Segítő felülvizsgáló" ReadOnly="true" />
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudSelect T="int?" Value="@_kivalasztottEllenorId" ValueChanged="@OnEllenorValtozasAsync"
-                           Label="Ellenőr" Clearable="true">
-                    @foreach (var f in _felulvizsgalok.Where(f => f.LehetEllenor))
-                    {
-                        <MudSelectItem T="int?" Value="@f.Id">@f.Nev</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudTextField @bind-Value="_adatok.Ellenor" Label="Ellenőr" ReadOnly="true" />
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -144,14 +132,30 @@ else
                 <tr>
                     <th>Megnevezés</th>
                     <th>Besorolás</th>
-                    <th>Állapot</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var sor in _adatok.VillamBesorolasSorok)
                 {
                     <tr>
-                        <td>@sor.Megnevezes</td>
+                        <td>
+                            @sor.Megnevezes
+                            @if (sor.SzempontKod == "Magassag")
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info"
+                                               OnClick="MagassagiBesorolasMegjelenitese" />
+                            }
+                            @if (sor.SzempontKod == "TetoAnyaga")
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info"
+                                               OnClick="TetoAnyagBesorolasMegjelenitese" />
+                            }
+                            @if (sor.SzempontKod == "MasodlagosHatas")
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info"
+                                               OnClick="MasodlagosHatasBesorolasMegjelenitese" />
+                            }
+                        </td>
                         <td style="min-width:260px;">
                             <MudSelect T="string" @bind-Value="sor.Besorolas" Dense="true">
                                 @foreach (var kv in VillamBesorolasKodok.GetKodok(sor.SzempontKod))
@@ -162,12 +166,6 @@ else
                                         </MudTooltip>
                                     </MudSelectItem>
                                 }
-                            </MudSelect>
-                        </td>
-                        <td style="min-width:180px;">
-                            <MudSelect T="string" @bind-Value="sor.Allapot" Dense="true">
-                                <MudSelectItem Value="@("megfelelő")">megfelelő</MudSelectItem>
-                                <MudSelectItem Value="@("nem megfelelő")">nem megfelelő</MudSelectItem>
                             </MudSelect>
                         </td>
                     </tr>
@@ -250,6 +248,44 @@ else
 
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <MudText Typo="Typo.subtitle1" Class="mb-3">Az építmény elemenkénti besorolása</MudText>
+        @{
+            var elvartFelfogoFokozat = GetElvartFelfogoFokozat();
+        }
+        @if (!string.IsNullOrWhiteSpace(elvartFelfogoFokozat))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                A 2.1 pontban megadott besorolás (rendeltetés / magasság / tető anyaga) alapján az NNV-2020 4. táblázata szerint
+                elvárt minimális felfogó fokozat: <strong>@elvartFelfogoFokozat</strong>. Csak a helyszínen talált fokozatot
+                kell beírni, a megfelelőséget a rendszer automatikusan megállapítja.
+            </MudAlert>
+        }
+        @{
+            var levezetoAlternativak = GetLevezetoFoldelesAlternativak();
+        }
+        @if (levezetoAlternativak.Any())
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                A 2.1 pontban megadott besorolás (rendeltetés / magasság / körítő falak anyaga) alapján az NNV-2020
+                táblázata szerint az alábbi levezető / földelés fokozat-kombinációk bármelyike elfogadható (a körítő
+                falak anyaga szerinti oszlop - K1/K2/K3 - közül a helyszínen talált kialakításnak megfelelőt kell figyelembe venni;
+                a földelés fokozatánál az "x" = nincs ellenállás-követelmény, az "r" = méréssel igazolandó szigorúbb követelmény):
+                <ul class="mb-0">
+                    @foreach (var alt in levezetoAlternativak)
+                    {
+                        <li>@alt</li>
+                    }
+                </ul>
+            </MudAlert>
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                Figyelembe veendő kiegészítő szabályok:
+                <ul class="mb-0">
+                    @foreach (var megjegyzes in LevezetoFoldelesFokozatTablazat.Megjegyzesek)
+                    {
+                        <li>@megjegyzes</li>
+                    }
+                </ul>
+            </MudAlert>
+        }
         <MudSimpleTable Dense="true">
             <thead>
                 <tr>
@@ -263,7 +299,22 @@ else
                 {
                     <tr>
                         <td>@sor.Megnevezes</td>
-                        <td style="min-width:160px;"><MudTextField @bind-Value="sor.Fokozat" Dense="true" /></td>
+                        <td style="min-width:160px;">
+                            @if (sor.Megnevezes == "A meglévő felfogó állapota")
+                            {
+                                <MudTextField T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnFelfogoFokozatValtozas(sor, v))" Dense="true"
+                                              Placeholder="pl. V2a" />
+                            }
+                            else if (sor.Megnevezes == "A meglévő levezető állapota")
+                            {
+                                <MudTextField T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnLevezetoFokozatValtozas(sor, v))" Dense="true"
+                                              Placeholder="pl. L2b" />
+                            }
+                            else if (sor.Megnevezes != "A belső villámvédelem kialakítása")
+                            {
+                                <MudTextField @bind-Value="sor.Fokozat" Dense="true" />
+                            }
+                        </td>
                         <td style="min-width:180px;">
                             <MudSelect T="string" @bind-Value="sor.Allapot" Dense="true">
                                 <MudSelectItem Value="@("megfelelő")">megfelelő</MudSelectItem>
@@ -395,10 +446,6 @@ else
     private List<Felulvizsgalo> _felulvizsgalok = new();
     private List<Jogszabaly> _villamJogszabalyok = new();
 
-    private int? _kivalasztottFelelosId;
-    private int? _kivalasztottSegitoId;
-    private int? _kivalasztottEllenorId;
-
     private DateTime? _meresIdeje;
     private DateTime? _ervenyessegIg;
     private DateTime? _kovetkezoFelulvizsgalat;
@@ -485,6 +532,9 @@ else
                                 _adatok.Ellenor = foLapAdatok.Ellenor;
                                 _adatok.EllenorBizonyitvany = foLapAdatok.EllenorBizonyitvany;
                                 _adatok.EllenorKepzes = foLapAdatok.EllenorKepzes;
+
+                                if (!_adatok.KovetkezoFelulvizsgalatIdopontja.HasValue)
+                                    _adatok.KovetkezoFelulvizsgalatIdopontja = foLapAdatok.KovetkezoFelulvizsgalatDatum;
                             }
                         }
                         catch
@@ -509,6 +559,8 @@ else
             }
         }
 
+        _kovetkezoFelulvizsgalat = _adatok.KovetkezoFelulvizsgalatIdopontja;
+
         await BetoltCegAdatokAsync();
         await BetoltFelulvizsgalokAsync();
         await BetoltVillamJogszabalyokAsync();
@@ -529,11 +581,8 @@ else
         {
             _adatok.ElemBesorolasSorok = new List<VillamElemBesorolasSor>
             {
-                new() { Megnevezes = "A felfogó fokozata" },
                 new() { Megnevezes = "A meglévő felfogó állapota" },
-                new() { Megnevezes = "A levezető fokozata" },
                 new() { Megnevezes = "A meglévő levezető állapota" },
-                new() { Megnevezes = "A földelés fokozata" },
                 new() { Megnevezes = "A meglévő földelő állapota" },
                 new() { Megnevezes = "A belső villámvédelem fokozata" },
                 new() { Megnevezes = "A belső villámvédelem kialakítása" },
@@ -638,33 +687,6 @@ else
         }
     }
 
-    private void OnFelelosValtozasAsync(int? id)
-    {
-        _kivalasztottFelelosId = id;
-        var f = _felulvizsgalok.FirstOrDefault(x => x.Id == id);
-        _adatok.FelulvizsgaloNev = f?.Nev ?? "";
-        _adatok.FelulvizsgaloBizonyitvany = f == null ? "" : string.Join(", ",
-            f.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
-    }
-
-    private void OnSegitoValtozasAsync(int? id)
-    {
-        _kivalasztottSegitoId = id;
-        var f = _felulvizsgalok.FirstOrDefault(x => x.Id == id);
-        _adatok.SegitoFelulvizsgalo = f?.Nev ?? "";
-        _adatok.SegitoBizonyitvany = f == null ? "" : string.Join(", ",
-            f.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
-    }
-
-    private void OnEllenorValtozasAsync(int? id)
-    {
-        _kivalasztottEllenorId = id;
-        var f = _felulvizsgalok.FirstOrDefault(x => x.Id == id);
-        _adatok.Ellenor = f?.Nev ?? "";
-        _adatok.EllenorBizonyitvany = f == null ? "" : string.Join(", ",
-            f.Kepzesek.Where(k => !string.IsNullOrEmpty(k.BizonyitvanySzam)).Select(k => k.BizonyitvanySzam));
-    }
-
     /// <summary>Az 1. mellékletbe feltöltött fénykép/skicc mentése (max. 5 db).</summary>
     private async Task FenykepFeltoltese(IBrowserFile file)
     {
@@ -704,6 +726,87 @@ else
     {
         if (index >= 0 && index < _adatok.FenykepPaths.Count)
             _adatok.FenykepPaths.RemoveAt(index);
+    }
+
+    /// <summary>
+    /// Visszaadja a 2.1 pontban megadott R (Rendeltetés) / M (Magasság) / T (Tető anyaga) besorolás alapján
+    /// az NNV-2020 4. táblázata szerint elvárt minimális felfogó fokozatot, vagy null-t, ha a 2.1 besorolás
+    /// még nincs (teljesen) megadva.
+    /// </summary>
+    private string? GetElvartFelfogoFokozat()
+    {
+        var r = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Rendeltetes")?.Besorolas;
+        var m = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Magassag")?.Besorolas;
+        var t = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "TetoAnyaga")?.Besorolas;
+
+        if (string.IsNullOrWhiteSpace(r) || string.IsNullOrWhiteSpace(m) || string.IsNullOrWhiteSpace(t))
+            return null;
+
+        return FelfogoFokozatTablazat.ElvartFokozat(r, m, t);
+    }
+
+    /// <summary>
+    /// Visszaadja a 2.1 pontban megadott R (Rendeltetés) / M (Magasság) besorolás alapján az NNV-2020 táblázata
+    /// szerinti, az adott R/M csoporthoz tartozó összes lehetséges levezető/földelés fokozat-kombinációt,
+    /// tájékoztató szöveges formában (K1/K2/K3 oszloponként), vagy üres listát, ha a 2.1 besorolás hiányos.
+    /// </summary>
+    private List<string> GetLevezetoFoldelesAlternativak()
+    {
+        var r = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Rendeltetes")?.Besorolas;
+        var m = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Magassag")?.Besorolas;
+
+        if (string.IsNullOrWhiteSpace(r) || string.IsNullOrWhiteSpace(m))
+            return new List<string>();
+
+        return LevezetoFoldelesFokozatTablazat.GetAlternativak(r, m)
+            .Select(alt =>
+            {
+                var kReszek = new List<string>();
+                if (!string.IsNullOrWhiteSpace(alt.K1)) kReszek.Add($"K1: {alt.K1}");
+                if (!string.IsNullOrWhiteSpace(alt.K2)) kReszek.Add($"K2: {alt.K2}");
+                if (!string.IsNullOrWhiteSpace(alt.K3)) kReszek.Add($"K3: {alt.K3}");
+
+                var foldelesReszek = new[] { alt.Foldeles1, alt.Foldeles2 }
+                    .Where(f => !string.IsNullOrWhiteSpace(f))
+                    .ToList();
+
+                return $"{string.Join(", ", kReszek)} – Földelés: {string.Join(" vagy ", foldelesReszek)}";
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// A helyszínen talált felfogó fokozat megadásakor automatikusan megállapítja a megfelelőséget
+    /// a 2.1 pontban megadott besorolás alapján elvárt minimumhoz képest.
+    /// </summary>
+    private void OnFelfogoFokozatValtozas(VillamElemBesorolasSor sor, string? ujErtek)
+    {
+        sor.Fokozat = ujErtek ?? "";
+
+        var elvart = GetElvartFelfogoFokozat();
+        var eredmeny = FelfogoFokozatTablazat.Megfelel(elvart, sor.Fokozat);
+        if (eredmeny.HasValue)
+        {
+            sor.Allapot = eredmeny.Value ? "megfelelő" : "nem megfelelő";
+        }
+    }
+
+    /// <summary>
+    /// A helyszínen talált levezető fokozat megadásakor automatikusan megállapítja a megfelelőséget
+    /// a 2.1 pontban megadott R/M besorolás alapján elvárt (bármelyik K1/K2/K3 alternatívának megfelelő) minimumhoz képest.
+    /// </summary>
+    private void OnLevezetoFokozatValtozas(VillamElemBesorolasSor sor, string? ujErtek)
+    {
+        sor.Fokozat = ujErtek ?? "";
+
+        var r = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Rendeltetes")?.Besorolas;
+        var m = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Magassag")?.Besorolas;
+
+        var eredmeny = LevezetoFoldelesFokozatTablazat.Megfelel(r, m, sor.Fokozat);
+        if (eredmeny.HasValue)
+        {
+            sor.Allapot = eredmeny.Value ? "megfelelő" : "nem megfelelő";
+        }
     }
 
     /// <summary>A KepzesTipus neve, ami alapján a 2. mellékletbe kerülő bizonyítványt keressük.</summary>
@@ -890,5 +993,26 @@ else
             Navigation.NavigateTo($"/jegyzokonyv/{MeresId.Value}");
         else
             Navigation.NavigateTo("/meresek");
+    }
+
+    private async Task MagassagiBesorolasMegjelenitese()
+    {
+        await DialogService.ShowAsync<BiztvillCRM.Web.Components.Dialog.MagassagiBesorolasDialog>(
+            "Magasság szerinti besorolás",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
+    private async Task TetoAnyagBesorolasMegjelenitese()
+    {
+        await DialogService.ShowAsync<BiztvillCRM.Web.Components.Dialog.TetoAnyagBesorolasDialog>(
+            "Tetőanyag szerinti besorolás",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
+    private async Task MasodlagosHatasBesorolasMegjelenitese()
+    {
+        await DialogService.ShowAsync<BiztvillCRM.Web.Components.Dialog.MasodlagosHatasBesorolasDialog>(
+            "Másodlagos hatások elleni védelem fokozata",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
     }
 }

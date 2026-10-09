@@ -1,0 +1,55 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            Magasság szerinti besorolás
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true">
+            <thead>
+                <tr>
+                    <th>Környezeti hatás</th>
+                    <th>M ≤ 20 m</th>
+                    <th>20 m &lt; M ≤ 35 m</th>
+                    <th>M &gt; 35 m</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="4" style="text-align:center;"><em>magasságú építmény magasság szerinti besorolása</em></td>
+                </tr>
+                <tr>
+                    <td>Nincs</td>
+                    <td>M2</td>
+                    <td>M3</td>
+                    <td>M4</td>
+                </tr>
+                <tr>
+                    <td>Becsapási veszélyt csökkentő környezet</td>
+                    <td>M1</td>
+                    <td>M2</td>
+                    <td>M3</td>
+                </tr>
+                <tr>
+                    <td>Becsapási veszélyt fokozó környezet</td>
+                    <td>M3</td>
+                    <td>M4</td>
+                    <td>M4</td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Bezár</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

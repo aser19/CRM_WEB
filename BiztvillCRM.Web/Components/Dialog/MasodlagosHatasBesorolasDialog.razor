@@ -1,0 +1,84 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            Másodlagos hatások elleni védelem fokozata
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-2">
+            A másodlagos hatások elleni védelem fokozatát (= belső villámvédelem = túlfeszültség-levezetés)
+            a védendő építmény rendeltetése (R1–R5) alapján kell megállapítani, a 6. táblázat szerint.
+        </MudText>
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true">
+            <thead>
+                <tr>
+                    <th rowspan="2">Rendeltetés szerinti csoport</th>
+                    <th colspan="2" style="text-align:center;">Másodlagos hatások elleni védelem fokozata</th>
+                </tr>
+                <tr>
+                    <th>Villámvédelmi potenciálkiegyenlítés fokozata*</th>
+                    <th>Koordinált túlfeszültségvédelem fokozata</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>R1 (nincs külső villámvédelem)</td>
+                    <td>B0**</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>R1 (van külső villámvédelem)</td>
+                    <td>B2</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>R2</td>
+                    <td>B2</td>
+                    <td>e</td>
+                </tr>
+                <tr>
+                    <td>R3</td>
+                    <td>B3</td>
+                    <td>e</td>
+                </tr>
+                <tr>
+                    <td>R4</td>
+                    <td>B4</td>
+                    <td>e</td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+        <MudText Typo="Typo.caption" Class="mt-2">
+            * Villámvédelmi potenciálkiegyenlítés: A fémes csatlakozóvezetékek közvetlen földelése, vagy –
+            amennyiben a közvetlen földelés nem lehetséges – T1 típusú, ill. D kategóriájú túlfeszültség-védelmi
+            eszközön keresztül történő földelése a táppont közelében. A villámvédelmi potenciálkiegyenlítésbe
+            be kell kötni továbbá az építményen belüli összefüggő fémes hálózatokat is.
+        </MudText>
+        <MudText Typo="Typo.caption" Class="mt-2">
+            Megjegyzés: Csatlakozóvezeték: olyan fémvezetőt tartalmazó vezeték, amely az építményt a távoli
+            földpotenciállal köti össze. Táppont: Az építménynek az a pontja, ahol a csatlakozóvezeték be-
+            vagy kilép az építményből.
+        </MudText>
+        <MudText Typo="Typo.caption" Class="mt-2">
+            ** Az MSZ HD 60364-4-443, MSZ HD 60364-5-534 szabványok ebben az esetben is írhatnak elő
+            potenciálkiegyenlítési intézkedéseket.
+        </MudText>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+            Az adott körülmények figyelembevételével a táblázatban meghatározott fokozatnál magasabb fokozat
+            is megállapítható.
+        </MudAlert>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Bezár</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    void Close() => MudDialog.Close(DialogResult.Ok(true));
+}
