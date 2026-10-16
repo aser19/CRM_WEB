@@ -33,6 +33,20 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
             .ToListAsync();
     }
 
+    /// <summary>Minden aktív felülvizsgáló, cégtől függetlenül (pl. segítő-felülvizsgáló kiválasztásához,
+    /// ahol bármelyik céghez tartozó személy megfelelő lehet).</summary>
+    public async Task<List<Felulvizsgalo>> GetAllAktivAsync()
+    {
+        return await context.Felulvizsgalok
+            .Include(f => f.Kepzesek)
+                .ThenInclude(k => k.KepzesTipus)
+            .Include(f => f.Kepzesek)
+                .ThenInclude(k => k.Tovabbkepzesek)
+            .Where(f => f.Aktiv)
+            .OrderBy(f => f.Nev)
+            .ToListAsync();
+    }
+
     public async Task<Felulvizsgalo?> GetByIdAsync(int id)
     {
         var cegId = tenantService.GetCurrentCegId();

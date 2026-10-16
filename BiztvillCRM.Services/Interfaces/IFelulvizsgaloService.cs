@@ -6,6 +6,7 @@ public interface IFelulvizsgaloService
 {
     // Felülvizsgálók
     Task<List<Felulvizsgalo>> GetAllAsync();
+    Task<List<Felulvizsgalo>> GetAllAktivAsync();
     Task<List<Felulvizsgalo>> GetAllAdminAsync();
     Task<Felulvizsgalo?> GetByIdAsync(int id);
     Task<Felulvizsgalo?> GetByIdWithDetailsAsync(int id);

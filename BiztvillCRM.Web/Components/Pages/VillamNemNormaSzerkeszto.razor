@@ -10,6 +10,7 @@
 @inject ICegService CegService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IJogszabalyService JogszabalyService
+@inject IMeresTipusService MeresTipusService
 @inject IVillamNemNormaPdfService VillamNemNormaPdfService
 @inject IFileStorageService FileStorageService
 @inject IMeresService MeresService
@@ -48,9 +49,6 @@ else
             <MudItem xs="12" md="6"><MudTextField @bind-Value="_adatok.MegrendeloKepviseloje" Label="Megbízó képviselője" ReadOnly="true" /></MudItem>
             <MudItem xs="12" md="6">
                 <MudDatePicker @bind-Date="_meresIdeje" Label="Mérés ideje" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudDatePicker @bind-Date="_ervenyessegIg" Label="Felülvizsgálat érvényességi ideje" />
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -93,7 +91,7 @@ else
         @if (!_villamJogszabalyok.Any())
         {
             <MudAlert Severity="Severity.Info" Dense="true">
-                Nincsenek "Villámvédelem" taggel megjelölt rendeletek/szabványok rögzítve. Vedd fel őket az Admin &gt; Jogszabályok oldalon, "Villámvédelem" taggel megjelölve.
+                Ehhez a méréstípushoz még nincsenek rendeletek/szabványok hozzárendelve. Vedd fel őket az Admin &gt; Mérés típusok oldalon, ennél a méréstípusnál.
             </MudAlert>
         }
         else
@@ -157,7 +155,7 @@ else
                             }
                         </td>
                         <td style="min-width:260px;">
-                            <MudSelect T="string" @bind-Value="sor.Besorolas" Dense="true">
+                            <MudSelect T="string" Value="@sor.Besorolas" ValueChanged="@((string v) => BesorolasSorValtozott(sor, v))" Dense="true">
                                 @foreach (var kv in VillamBesorolasKodok.GetKodok(sor.SzempontKod))
                                 {
                                     <MudSelectItem Value="@kv.Key">
@@ -232,16 +230,9 @@ else
                 <MudTextField @bind-Value="_adatok.TuzveszelyessegiOsztaly" Label="Tűzveszélyességi osztályba sorolás" Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" md="6">
-                <MudSelect T="string" @bind-Value="_adatok.VillamvedelmiBesorolasEredmenye" Label="Villámvédelmi besorolás eredménye" Variant="Variant.Outlined">
-                    <MudSelectItem Value="@("")">(számított: @_adatok.SzamitottVillamvedelmiBesorolas)</MudSelectItem>
-                    @foreach (var kod in new[] { _adatok.SzamitottVillamvedelmiBesorolas })
-                    {
-                        if (!string.IsNullOrWhiteSpace(kod))
-                        {
-                            <MudSelectItem Value="@kod">@kod</MudSelectItem>
-                        }
-                    }
-                </MudSelect>
+                <MudTextField @bind-Value="_adatok.VillamvedelmiBesorolasEredmenye" Label="Villámvédelmi besorolás eredménye"
+                              Variant="Variant.Outlined" ReadOnly="true"
+                              HelperText="@(_osszesBesorolasKitoltve ? "Automatikusan frissül a 2.1 besorolás alapján" : "Töltsd ki a 2.1 pont összes besorolását a számításhoz")" />
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -310,7 +301,7 @@ else
                                 <MudTextField T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnLevezetoFokozatValtozas(sor, v))" Dense="true"
                                               Placeholder="pl. L2b" />
                             }
-                            else if (sor.Megnevezes != "A belső villámvédelem kialakítása")
+                            else if (sor.Megnevezes != "A belső villámvédelem kialakítása" && sor.Megnevezes != "A méretfokozat betartása")
                             {
                                 <MudTextField @bind-Value="sor.Fokozat" Dense="true" />
                             }
@@ -319,6 +310,7 @@ else
                             <MudSelect T="string" @bind-Value="sor.Allapot" Dense="true">
                                 <MudSelectItem Value="@("megfelelő")">megfelelő</MudSelectItem>
                                 <MudSelectItem Value="@("nem megfelelő")">nem megfelelő</MudSelectItem>
+                                <MudSelectItem Value="@("ismeretlen")">ismeretlen</MudSelectItem>
                             </MudSelect>
                         </td>
                     </tr>
@@ -382,7 +374,7 @@ else
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="6">
-                <MudDatePicker @bind-Date="_kovetkezoFelulvizsgalat" Label="A következő villámvédelmi felülvizsgálat időpontja" />
+                <MudDatePicker @bind-Date="_kovetkezoFelulvizsgalat" Label="A következő villámvédelmi felülvizsgálat időpontja" DateFormat="yyyy.MM.dd" />
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -447,11 +439,12 @@ else
     private List<Jogszabaly> _villamJogszabalyok = new();
 
     private DateTime? _meresIdeje;
-    private DateTime? _ervenyessegIg;
     private DateTime? _kovetkezoFelulvizsgalat;
 
     private int? _kivalasztottFelelosIdCache;
     private bool _marMentveVolt = false;
+
+    private int _meresTipusId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -480,6 +473,7 @@ else
             if (meres != null)
             {
                 _adatok.CegId = meres.KibocsatoCegId ?? 0;
+                _meresTipusId = meres.MeresTipusId;
                 if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
                 {
                     try
@@ -536,6 +530,9 @@ else
 
                             if (!_adatok.KovetkezoFelulvizsgalatIdopontja.HasValue)
                                 _adatok.KovetkezoFelulvizsgalatIdopontja = foLapAdatok.KovetkezoFelulvizsgalatDatum;
+
+                            if ((_adatok.Muszerek == null || !_adatok.Muszerek.Any()) && foLapAdatok.Muszerek != null && foLapAdatok.Muszerek.Any())
+                                _adatok.Muszerek = foLapAdatok.Muszerek;
                         }
                     }
                     catch
@@ -548,6 +545,20 @@ else
 
                     if (string.IsNullOrWhiteSpace(_adatok.MegrendeloCim))
                         _adatok.MegrendeloCim = meres.Telephely?.Cim ?? meres.Ugyfel?.Cim ?? "";
+
+                    // Azonnal elmentjük a saját (VVN-NEM) JSON-ba is az átvett adatokat, hogy a
+                    // mérések listájában a PDF letöltés gomb már ekkor megjelenjen, és a később
+                    // visszatöltött adatok ne tűnjenek "üresnek"/elveszettnek.
+                    try
+                    {
+                        meres.VillamNemNormaAdatokJson = System.Text.Json.JsonSerializer.Serialize(_adatok);
+                        await MeresService.UpdateAsync(meres);
+                        _marMentveVolt = true;
+                    }
+                    catch
+                    {
+                        // ha a ment\u00E9s nem siker\u00FCl, a felhaszn\u00E1l\u00F3 k\u00E9s\u0151bb manu\u00E1lisan ment\u0151dik
+                    }
                 }
                 else if (!_marMentveVolt)
                 {
@@ -589,6 +600,37 @@ else
                 new() { Megnevezes = "A felfogó, levezető és a földelés föld feletti részeinek szükséges méretfokozata" },
                 new() { Megnevezes = "A méretfokozat betartása" },
             };
+        }
+
+        FrissitVillamvedelmiBesorolasEredmenye();
+    }
+
+    /// <summary>
+    /// Igaz, ha a 2.1 pont összes szükséges besorolási szempontja ki van töltve, azaz a végeredmény számítható.
+    /// </summary>
+    private bool _osszesBesorolasKitoltve =>
+        (_adatok.VillamBesorolasSorok ?? new()).Any() &&
+        (_adatok.VillamBesorolasSorok ?? new()).All(s => !string.IsNullOrWhiteSpace(s.Besorolas));
+
+    /// <summary>
+    /// A 2.1 pont egy besorolási sorának módosításakor frissíti a sor értékét, majd ha minden szükséges
+    /// adat rendelkezésre áll, automatikusan frissíti a 3.1 pont végeredményét.
+    /// </summary>
+    private void BesorolasSorValtozott(VillamBesorolasSor sor, string? ujErtek)
+    {
+        sor.Besorolas = ujErtek ?? "";
+        FrissitVillamvedelmiBesorolasEredmenye();
+    }
+
+    /// <summary>
+    /// Ha a 2.1 pont összes besorolási szempontja ki van töltve, a 3.1 pont eredményét automatikusan
+    /// a számított értékre állítja.
+    /// </summary>
+    private void FrissitVillamvedelmiBesorolasEredmenye()
+    {
+        if (_osszesBesorolasKitoltve)
+        {
+            _adatok.VillamvedelmiBesorolasEredmenye = _adatok.SzamitottVillamvedelmiBesorolas;
         }
     }
 
@@ -641,7 +683,10 @@ else
     {
         try
         {
-            _felulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+            // Minden aktív felülvizsgálót betöltünk (céggel nem korlátozva), mert a felelős/segítő/ellenőr
+            // felülvizsgáló bármely céghez tartozó aktív személy lehet, és a bizonyítvány-ellenőrzéshez
+            // (PDF generáláskor) is a helyes személy adatait (bizonyítványait) kell megtalálnunk.
+            _felulvizsgalok = await FelulvizsgaloService.GetAllAktivAsync();
         }
         catch
         {
@@ -650,33 +695,42 @@ else
     }
 
     /// <summary>
-    /// Betölti a "Villámvédelem" taggel megjelölt rendeleteket/szabványokat, és szinkronizálja
-    /// a jegyzőkönyvben már kiválasztott elemekkel.
+    /// Betölti az adott mérés típusához (MeresTipusJogszabaly) hozzárendelt rendeleteket/szabványokat,
+    /// és szinkronizálja a jegyzőkönyvben már kiválasztott elemekkel, hogy az újonnan felvett
+    /// hozzárendelések is megjelenjenek a listában (az AlapertelmezettKivalasztva szerint előjelölve).
     /// </summary>
     private async Task BetoltVillamJogszabalyokAsync()
     {
         try
         {
-            var osszes = await JogszabalyService.GetAllAsync();
-            _villamJogszabalyok = osszes
-                .Where(j => j.Aktiv && j.Tagek.Any(t => t.Nev.Equals("Villámvédelem", StringComparison.OrdinalIgnoreCase)))
+            var hozzarendeltek = _meresTipusId > 0
+                ? await MeresTipusService.GetJogszabalyokByTipusIdAsync(_meresTipusId)
+                : new List<MeresTipusJogszabaly>();
+
+            _villamJogszabalyok = hozzarendeltek
+                .Where(h => h.Jogszabaly != null)
+                .Select(h => h.Jogszabaly!)
                 .OrderBy(j => j.Tipus)
                 .ThenBy(j => j.Szam)
                 .ToList();
 
-            _adatok.KijeloltJogszabalyok ??= new List<KijeloltJogszabaly>();
+            var hozzarendeltIdk = hozzarendeltek.Select(x => x.JogszabalyId).ToHashSet();
 
-            foreach (var jsz in _villamJogszabalyok)
+            _adatok.KijeloltJogszabalyok ??= new List<KijeloltJogszabaly>();
+            // Eltávolítjuk azokat a korábban mentett kijelöléseket, amelyek már nincsenek hozzárendelve a típushoz
+            _adatok.KijeloltJogszabalyok.RemoveAll(k => !hozzarendeltIdk.Contains(k.JogszabalyId));
+
+            foreach (var h in hozzarendeltek)
             {
-                if (!_adatok.KijeloltJogszabalyok.Any(k => k.JogszabalyId == jsz.Id))
+                if (!_adatok.KijeloltJogszabalyok.Any(k => k.JogszabalyId == h.JogszabalyId))
                 {
                     _adatok.KijeloltJogszabalyok.Add(new KijeloltJogszabaly
                     {
-                        JogszabalyId = jsz.Id,
-                        Szam = jsz.Szam,
-                        Cim = jsz.Cim,
-                        Kivalasztva = false,
-                        IsSzabvany = jsz.Tipus == JogszabalyTipus.Szabvany
+                        JogszabalyId = h.JogszabalyId,
+                        Szam = h.Jogszabaly?.Szam ?? "",
+                        Cim = h.Jogszabaly?.Cim ?? "",
+                        Kivalasztva = h.AlapertelmezettKivalasztva,
+                        IsSzabvany = h.Jogszabaly?.Tipus == JogszabalyTipus.Szabvany
                     });
                 }
             }
@@ -785,10 +839,7 @@ else
 
         var elvart = GetElvartFelfogoFokozat();
         var eredmeny = FelfogoFokozatTablazat.Megfelel(elvart, sor.Fokozat);
-        if (eredmeny.HasValue)
-        {
-            sor.Allapot = eredmeny.Value ? "megfelelő" : "nem megfelelő";
-        }
+        sor.Allapot = eredmeny.HasValue ? (eredmeny.Value ? "megfelelő" : "nem megfelelő") : "ismeretlen";
     }
 
     /// <summary>
@@ -803,10 +854,7 @@ else
         var m = _adatok.VillamBesorolasSorok.FirstOrDefault(s => s.SzempontKod == "Magassag")?.Besorolas;
 
         var eredmeny = LevezetoFoldelesFokozatTablazat.Megfelel(r, m, sor.Fokozat);
-        if (eredmeny.HasValue)
-        {
-            sor.Allapot = eredmeny.Value ? "megfelelő" : "nem megfelelő";
-        }
+        sor.Allapot = eredmeny.HasValue ? (eredmeny.Value ? "megfelelő" : "nem megfelelő") : "ismeretlen";
     }
 
     /// <summary>A KepzesTipus neve, ami alapján a 2. mellékletbe kerülő bizonyítványt keressük.</summary>
@@ -838,7 +886,6 @@ else
         try
         {
             _adatok.MeresIdeje = _meresIdeje;
-            _adatok.FelulvizsgalatErvenyessegeIg = _ervenyessegIg;
             _adatok.KovetkezoFelulvizsgalatIdopontja = _kovetkezoFelulvizsgalat;
 
             if (MeresId.HasValue && MeresId.Value > 0)
@@ -869,7 +916,6 @@ else
         try
         {
             _adatok.MeresIdeje = _meresIdeje;
-            _adatok.FelulvizsgalatErvenyessegeIg = _ervenyessegIg;
             _adatok.KovetkezoFelulvizsgalatIdopontja = _kovetkezoFelulvizsgalat;
             if (_adatok.MikorKeszult is null)
                 _adatok.MikorKeszult = DateTime.Today;

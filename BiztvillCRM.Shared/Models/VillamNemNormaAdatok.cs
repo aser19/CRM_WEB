@@ -44,7 +44,6 @@ public class VillamNemNormaAdatok
 
     // === MÉRÉS / ÉRVÉNYESSÉG ===
     public DateTime? MeresIdeje { get; set; }
-    public DateTime? FelulvizsgalatErvenyessegeIg { get; set; }
 
     // === 4. OLDAL - BEVEZETÉS ===
 
@@ -165,8 +164,8 @@ public class VillamElemBesorolasSor
     /// <summary>A fokozat/kialakítás szabad szöveges megadása (pl. "V2o", "L2o", "F2/r", "B2", "k / e").</summary>
     public string Fokozat { get; set; } = "";
 
-    /// <summary>Az elem állapota: "megfelelő" vagy "nem megfelelő".</summary>
-    public string Allapot { get; set; } = "megfelelő";
+    /// <summary>Az elem állapota: "megfelelő", "nem megfelelő" vagy "ismeretlen" (ha a megadott fokozat nem értelmezhető).</summary>
+    public string Allapot { get; set; } = "ismeretlen";
 }
 
 /// <summary>Egy sor a villámvédelmi besorolás táblázatában (2.1).</summary>

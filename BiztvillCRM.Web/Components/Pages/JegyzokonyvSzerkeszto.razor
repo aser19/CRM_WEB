@@ -340,7 +340,7 @@
                                ValueChanged="OnSegitoValtozasAsync"
                                Variant="Variant.Outlined">
                         <MudSelectItem T="int?" Value="null">-- Válassz --</MudSelectItem>
-                        @foreach (var szemely in _jogosultFelulvizsgalok)
+                        @foreach (var szemely in _segitoValaszthatoFelulvizsgalok)
                         {
                             <MudSelectItem T="int?" Value="@szemely.Id">@szemely.Nev</MudSelectItem>
                         }
@@ -551,6 +551,10 @@
                 </MudItem>
 
                 <MudItem xs="12" Class="mt-4 d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/meresek"))">
+                        Vissza a mérésekhez
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Large"
                                StartIcon="@Icons.Material.Filled.PauseCircle" OnClick="FelbeszakitasEsMentesAsync"
                                Disabled="_feldolgozas">
@@ -784,6 +788,7 @@
 
     private List<Felulvizsgalo> _osszFelulvizsgalo = [];
     private List<Felulvizsgalo> _jogosultFelulvizsgalok = [];
+    private List<Felulvizsgalo> _segitoValaszthatoFelulvizsgalok = [];
 
     private int? _kivalasztottFelulvizsgaloId;
     private int? _kivalasztottSegitoId;
@@ -811,6 +816,7 @@
         _ugyfelek = await UgyfelService.GetAllAsync();
         _telephelyek = await TelephelyService.GetAllAsync();
         _osszFelulvizsgalo = await FelulvizsgaloService.GetAllAsync();
+        _segitoValaszthatoFelulvizsgalok = await FelulvizsgaloService.GetAllAktivAsync();
         _muszerek = await EszkozService.GetAllAsync();
 //        _osszesTipus = _tipusok;
         _sablonok = await SablonService.GetAllAsync();
@@ -1230,7 +1236,7 @@
 
         if (segitoId.HasValue)
         {
-            var segito = _jogosultFelulvizsgalok.FirstOrDefault(f => f.Id == segitoId.Value);
+            var segito = _segitoValaszthatoFelulvizsgalok.FirstOrDefault(f => f.Id == segitoId.Value);
             if (segito != null)
             {
                 _adatok.SegitoFelulvizsgalo = segito.Nev;
@@ -1436,7 +1442,7 @@
                         
                         _kivalasztottFelulvizsgaloId = _jogosultFelulvizsgalok
                             .FirstOrDefault(f => f.Nev == felelosNev)?.Id;
-                        _kivalasztottSegitoId = _jogosultFelulvizsgalok
+                        _kivalasztottSegitoId = _segitoValaszthatoFelulvizsgalok
                             .FirstOrDefault(f => f.Nev == segitoNev)?.Id;
 
                         await OnFelulvizsgaloValtozasAsync(_kivalasztottFelulvizsgaloId);

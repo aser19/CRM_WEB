@@ -12,6 +12,8 @@ namespace BiztvillCRM.Services;
 /// </summary>
 public class VillamNemNormaPdfService : IVillamNemNormaPdfService
 {
+    private static readonly System.Globalization.CultureInfo HuKultura = new System.Globalization.CultureInfo("hu-HU");
+
     private byte[]? _cegBelyegzoKep;
     private byte[]? _alairoAlairasKep;
 
@@ -259,9 +261,9 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
 
             col.Item().PaddingTop(10).Element(c => AdatSor(c, "Megbízó képviselője:", adatok.MegrendeloKepviseloje));
 
-            col.Item().PaddingTop(60).Text(adatok.MeresIdeje.HasValue ? $"{adatok.MeresIdeje:yyyy. MMMM d.}" : "").FontSize(10);
+            col.Item().PaddingTop(60).Text(adatok.MeresIdeje.HasValue ? adatok.MeresIdeje.Value.ToString("yyyy. MMMM d.", HuKultura) : "").FontSize(10);
 
-            col.Item().PaddingTop(4).Text($"ÉRVÉNYES: {(adatok.FelulvizsgalatErvenyessegeIg.HasValue ? adatok.FelulvizsgalatErvenyessegeIg.Value.ToString("yyyy.MM.dd.") : "")}").Bold();
+            col.Item().PaddingTop(4).Text($"ÉRVÉNYES: {(adatok.KovetkezoFelulvizsgalatIdopontja.HasValue ? adatok.KovetkezoFelulvizsgalatIdopontja.Value.ToString("yyyy.MM.dd.") : "")}").Bold();
         });
     }
 
@@ -315,7 +317,7 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         container.PaddingBottom(6).Row(row =>
         {
-            row.ConstantItem(24).Text(szam).Bold().LineHeight(1.4f);
+            row.ConstantItem(70).Text(szam).Bold().LineHeight(1.4f);
             row.RelativeItem().Text(cim).Bold().Underline().LineHeight(1.4f);
         });
     }
@@ -565,11 +567,11 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
                 col.Item().PaddingTop(20).Text(text =>
                 {
                     text.Span("A következő villámvédelmi felülvizsgálat időpontja: ").Bold();
-                    text.Span($"{adatok.KovetkezoFelulvizsgalatIdopontja:yyyy. MMMM d.}").Bold();
+                    text.Span((adatok.KovetkezoFelulvizsgalatIdopontja ?? default).ToString("yyyy. MMMM d.", HuKultura)).Bold();
                 });
             }
 
-            col.Item().PaddingTop(20).Text($"{adatok.HolKeszult}, {(adatok.MikorKeszult ?? DateTime.Today):yyyy. MMMM d.}.");
+            col.Item().PaddingTop(20).Text($"{adatok.HolKeszult}, {(adatok.MikorKeszult ?? DateTime.Today).ToString("yyyy. MMMM d.", HuKultura)}.");
 
             col.Item().PaddingTop(50).Row(row =>
             {

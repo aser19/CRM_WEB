@@ -19,8 +19,8 @@ public class JegyzokonyvJogosultsagService : IJegyzokonyvJogosultsagService
     public async Task<List<Felulvizsgalo>> GetJogosultFelulvizsgalokAsync(int meresTipusId)
     {
         var cegId = _tenantService.GetCurrentCegId();
-        
-        return await _db.Felulvizsgalok
+
+        var felulvizsgalok = await _db.Felulvizsgalok
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
@@ -28,6 +28,53 @@ public class JegyzokonyvJogosultsagService : IJegyzokonyvJogosultsagService
             .Where(f => f.CegId == cegId && f.Aktiv)
             .OrderBy(f => f.Nev)
             .ToListAsync();
+
+        // A m\u00E9r\u00E9st\u00EDpushoz tartoz\u00F3 k\u00F6telez\u0151 k\u00E9pz\u00E9s-k\u00F6vetelm\u00E9nyek lek\u00E9r\u00E9se
+        var kovetelmenyek = await _db.MeresTipusKepzesKovetelemenyei
+            .Where(k => k.MeresTipusId == meresTipusId && k.Kotelezo)
+            .ToListAsync();
+
+        if (kovetelmenyek.Count == 0)
+        {
+            // Nincs megadott k\u00F6vetelm\u00E9ny ehhez a m\u00E9r\u00E9st\u00EDpushoz -\u003E minden akt\u00EDv fel\u00FClvizsg\u00E1l\u00F3 jogosult
+            return felulvizsgalok;
+        }
+
+        return felulvizsgalok
+            .Where(f => TeljesitiKovetelmenyeket(f, kovetelmenyek))
+            .ToList();
+    }
+
+    private static bool TeljesitiKovetelmenyeket(Felulvizsgalo felulvizsgalo, List<MeresTipusKepzesKovetelemeny> kovetelmenyek)
+    {
+        var meglevoKepzesIds = felulvizsgalo.Kepzesek
+            .Where(k => k.Aktiv)
+            .Select(k => k.KepzesTipusId)
+            .ToHashSet();
+
+        var csoportok = kovetelmenyek.GroupBy(k => k.AlternativaCsoport);
+
+        foreach (var csoport in csoportok)
+        {
+            if (csoport.Key == 0)
+            {
+                // K\u00F6telez\u0151 k\u00E9pz\u00E9sek (mindegyik kell)
+                foreach (var kov in csoport)
+                {
+                    if (!meglevoKepzesIds.Contains(kov.KepzesTipusId))
+                        return false;
+                }
+            }
+            else
+            {
+                // Alternat\u00EDv k\u00E9pz\u00E9sek (legal\u00E1bb egy kell a csoportb\u00F3l)
+                var vanValamelyik = csoport.Any(k => meglevoKepzesIds.Contains(k.KepzesTipusId));
+                if (!vanValamelyik)
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     public async Task<(bool VanJogosult, List<string> HianyzoKepzesek)> EllenorizJogosultsagotAsync(int meresTipusId)

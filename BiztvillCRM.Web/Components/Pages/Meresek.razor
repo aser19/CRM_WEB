@@ -17,6 +17,7 @@
 @inject IHvmPdfService HvmPdfService
 @inject IEgyMeresPdfService EgyMeresPdfService
 @inject IVbfPdfService VbfPdfService
+@inject IVillamNemNormaPdfService VillamNemNormaPdfService
 @inject IJSRuntime JS
 @inject IEmailKuldoService EmailKuldoService
 @inject ITenantService TenantService
@@ -191,12 +192,24 @@
                             }
                             else
                             {
-                                <MudTooltip Text="Word jegyzőkönyv">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                                   Color="Color.Info"
-                                                   Size="Size.Small"
-                                                   OnClick="() => WordLetoltesAsync(context.Item)" />
-                                </MudTooltip>
+                                @if (muvTipusKod != "VVN-NEM")
+                                {
+                                    <MudTooltip Text="Word jegyzőkönyv">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       OnClick="() => WordLetoltesAsync(context.Item)" />
+                                    </MudTooltip>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(context.Item.VillamNemNormaAdatokJson))
+                                {
+                                    <MudTooltip Text="VVN-NEM PDF jegyzőkönyv letöltése">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       OnClick="() => VvnNemPdfLetoltesAsync(context.Item)" />
+                                    </MudTooltip>
+                                }
                                 @if (muvEgyMeres)
                                 {
                                     <MudTooltip Text="PDF jegyzőkönyv">
@@ -368,11 +381,22 @@
                                             }
                                             else
                                             {
-                                                <MudTooltip Text="Word jegyzőkönyv">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                                                   Color="Color.Info" Size="Size.Small"
-                                                                   OnClick="() => WordLetoltesAsync(context)" />
-                                                </MudTooltip>
+                                                @if (tk != "VVN-NEM")
+                                                {
+                                                    <MudTooltip Text="Word jegyzőkönyv">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                                       Color="Color.Info" Size="Size.Small"
+                                                                       OnClick="() => WordLetoltesAsync(context)" />
+                                                    </MudTooltip>
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(context.VillamNemNormaAdatokJson))
+                                                {
+                                                    <MudTooltip Text="VVN-NEM PDF jegyzőkönyv letöltése">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                                       Color="Color.Info" Size="Size.Small"
+                                                                       OnClick="() => VvnNemPdfLetoltesAsync(context)" />
+                                                    </MudTooltip>
+                                                }
                                                 @if (sorEgyMeres)
                                                 {
                                                     <MudTooltip Text="PDF jegyzőkönyv">
@@ -1394,6 +1418,123 @@
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
             Snackbar.Add("Word jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>A "Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány" KepzesTipus neve, amely alapján a 2. mellékletbe kerülő bizonyítványt keressük.</summary>
+    private const string VvnNemBizonyitvanyTipusNev = "Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány";
+
+    /// <summary>Megkeresi a felülvizsgáló "Nem norma szerinti villámvédelmi felülvizsgálói bizonyítvány" típusú, feltöltött bizonyítvány fájljának elérési útját (a legfrissebb bizonyítvány kelte szerint, ha több is van).</summary>
+    private static string? VvnNemBizonyitvanyPath(Felulvizsgalo? felulvizsgalo)
+    {
+        if (felulvizsgalo is null)
+            return null;
+
+        return felulvizsgalo.Kepzesek
+            .Where(k => k.Aktiv
+                        && !string.IsNullOrWhiteSpace(k.BizonyitvanyPath)
+                        && k.KepzesTipus != null
+                        && string.Equals(k.KepzesTipus.Nev, VvnNemBizonyitvanyTipusNev, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.BizonyitvanyKelte)
+            .Select(k => k.BizonyitvanyPath)
+            .FirstOrDefault();
+    }
+
+    /// <summary>A mérések listájából letölti a mentett VVN-NEM (Nem norma szerinti villámvédelmi) jegyzőkönyv PDF-jét.</summary>
+    private async Task VvnNemPdfLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var friss = await MeresService.GetByIdAsync(meres.Id);
+            if (friss == null || string.IsNullOrWhiteSpace(friss.VillamNemNormaAdatokJson))
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var adatok = System.Text.Json.JsonSerializer.Deserialize<VillamNemNormaAdatok>(
+                friss.VillamNemNormaAdatokJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (adatok == null)
+            {
+                Snackbar.Add("Ehhez a méréshez még nincs elmentett jegyzőkönyv adat. Nyisd meg és mentsd el a lapot előbb.", Severity.Warning);
+                return;
+            }
+
+            var felulvizsgalok = await FelulvizsgaloService.GetAllAsync();
+
+            byte[]? cegBelyegzoKep = null;
+            var cegId = adatok.CegId > 0 ? adatok.CegId : TenantService.GetCurrentCegId();
+            var ceg = await CegService.GetByIdAsync(cegId);
+            if (!string.IsNullOrWhiteSpace(ceg?.BelyegzoPath))
+            {
+                cegBelyegzoKep = await FileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
+            }
+
+            byte[]? alairoAlairasKep = null;
+            var alairoFelulvizsgalo = felulvizsgalok.FirstOrDefault(f => f.Nev == adatok.FelulvizsgaloNev);
+            if (alairoFelulvizsgalo != null && !string.IsNullOrWhiteSpace(alairoFelulvizsgalo.AlairasPath))
+            {
+                alairoAlairasKep = await FileStorageService.GetFileBytesAsync(alairoFelulvizsgalo.AlairasPath);
+            }
+
+            // 1. melléklet - fényképek
+            var fenykepek = new List<byte[]>();
+            foreach (var path in adatok.FenykepPaths)
+            {
+                var kep = await FileStorageService.GetFileBytesAsync(path);
+                if (kep != null)
+                    fenykepek.Add(kep);
+            }
+
+            // 2. melléklet - felülvizsgálói bizonyítványok
+            var kepBizonyitvanyok = new List<(string Cimke, byte[] Kep)>();
+            var pdfBizonyitvanyok = new List<byte[]>();
+
+            var segitoFelulvizsgalo = felulvizsgalok.FirstOrDefault(f => f.Nev == adatok.SegitoFelulvizsgalo);
+            var ellenorFelulvizsgalo = felulvizsgalok.FirstOrDefault(f => f.Nev == adatok.Ellenor);
+
+            var bizonyitvanyForrasok = new[]
+            {
+                ("Felelős felülvizsgáló: " + (alairoFelulvizsgalo?.Nev ?? adatok.FelulvizsgaloNev), VvnNemBizonyitvanyPath(alairoFelulvizsgalo)),
+                ("Segítő felülvizsgáló: " + (segitoFelulvizsgalo?.Nev ?? adatok.SegitoFelulvizsgalo), VvnNemBizonyitvanyPath(segitoFelulvizsgalo)),
+                ("Ellenőr: " + (ellenorFelulvizsgalo?.Nev ?? adatok.Ellenor), VvnNemBizonyitvanyPath(ellenorFelulvizsgalo)),
+            };
+
+            foreach (var (cimke, path) in bizonyitvanyForrasok)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+
+                var extension = Path.GetExtension(path).ToLowerInvariant();
+                var fajl = await FileStorageService.GetFileBytesAsync(path);
+                if (fajl is null)
+                    continue;
+
+                if (extension is ".jpg" or ".jpeg" or ".png")
+                {
+                    kepBizonyitvanyok.Add((cimke, fajl));
+                }
+                else if (extension == ".pdf")
+                {
+                    pdfBizonyitvanyok.Add(fajl);
+                }
+            }
+
+            var pdfBytes = VillamNemNormaPdfService.Generalas(
+                adatok, cegBelyegzoKep, alairoAlairasKep,
+                fenykepek, kepBizonyitvanyok, pdfBizonyitvanyok);
+            var fileName = $"Villamvedelmi-Nem-Norma-{meres.Id:D6}_{DateTime.Now:yyyyMMdd}.pdf";
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
         }
         catch (Exception ex)
         {

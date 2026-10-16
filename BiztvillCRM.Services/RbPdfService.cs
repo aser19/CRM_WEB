@@ -13,6 +13,8 @@ namespace BiztvillCRM.Services;
 /// </summary>
 public class RbPdfService : IRbPdfService
 {
+    private static readonly System.Globalization.CultureInfo HuKultura = new System.Globalization.CultureInfo("hu-HU");
+
     private byte[]? _cegBelyegzoKep;
     private byte[]? _alairoAlairasKep;
     private Dictionary<string, byte[]>? _felulvizsgaloAlairasKepek;
@@ -198,7 +200,7 @@ public class RbPdfService : IRbPdfService
             col.Item().AlignCenter().Text(jegyzokonyvSzam).Bold().FontSize(14);
 
             col.Item().PaddingTop(20).AlignCenter().Text("Készült:").FontSize(9);
-            col.Item().AlignCenter().Text($"{keszultDatum:yyyy. MMMM d.}").Bold().FontSize(14);
+            col.Item().AlignCenter().Text(keszultDatum.ToString("yyyy. MMMM d.", HuKultura)).Bold().FontSize(14);
         });
     }
 
@@ -239,7 +241,7 @@ public class RbPdfService : IRbPdfService
 
             col.Item().PaddingTop(16).Element(c => AdatSor(c, "A felülvizsgálatot végezte:", alairoSzoveg));
 
-            col.Item().PaddingTop(40).Text($"{(string.IsNullOrWhiteSpace(cegCim) ? "" : cegCim.Split(',')[0].Trim() + ", ")}{keszultDatum:yyyy. MMMM d.}").FontSize(9);
+            col.Item().PaddingTop(40).Text($"{(string.IsNullOrWhiteSpace(cegCim) ? "" : cegCim.Split(',')[0].Trim() + ", ")}{keszultDatum.ToString("yyyy. MMMM d.", HuKultura)}").FontSize(9);
 
             col.Item().PaddingTop(60).Row(row =>
             {
