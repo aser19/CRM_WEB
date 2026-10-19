@@ -98,4 +98,10 @@ window.downloadFileFromByteArray = (fileName, mimeType, byteArray) => {
 // Jelezzük, hogy a download.js betöltődött
 console.log('download.js loaded successfully');
 console.log('downloadFileFromStream available:', typeof window.downloadFileFromStream === 'function');
+
+window.biztovillScrollToElementId = (elementId) => {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 };

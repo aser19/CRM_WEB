@@ -1,0 +1,63 @@
+@page "/jogszabalyok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Jogszabály részletei</h3>
+
+@if (_jogszabaly is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Szám</dt>
+        <dd class="col-sm-9">@_jogszabaly!.Szam</dd>
+
+        <dt class="col-sm-3">Cím</dt>
+        <dd class="col-sm-9">@_jogszabaly.Cim</dd>
+
+        <dt class="col-sm-3">Típus</dt>
+        <dd class="col-sm-9">@_jogszabaly.Tipus</dd>
+
+        <dt class="col-sm-3">Leírás</dt>
+        <dd class="col-sm-9">@_jogszabaly.Leiras</dd>
+
+        <dt class="col-sm-3">Hatályos kezdet</dt>
+        <dd class="col-sm-9">@(_jogszabaly.HatalyosKezdet?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Hatályos vége</dt>
+        <dd class="col-sm-9">@(_jogszabaly.HatalyosVege?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">URL</dt>
+        <dd class="col-sm-9">@_jogszabaly.Url</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_jogszabaly.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private JogszabalyListItemDto? _jogszabaly;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _jogszabaly = await ApiClient.GetJogszabalyAsync(Id);
+            if (_jogszabaly is null)
+                _hiba = "A jogszabály nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

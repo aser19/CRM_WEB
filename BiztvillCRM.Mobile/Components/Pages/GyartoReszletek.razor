@@ -1,0 +1,48 @@
+@page "/gyartok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Gyártó részletei</h3>
+
+@if (_gyarto is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_gyarto!.Nev</dd>
+
+        <dt class="col-sm-3">Ország</dt>
+        <dd class="col-sm-9">@_gyarto.Orszag</dd>
+
+        <dt class="col-sm-3">Weboldal</dt>
+        <dd class="col-sm-9">@_gyarto.Weboldal</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private GyartoListItemDto? _gyarto;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _gyarto = await ApiClient.GetGyartoAsync(Id);
+            if (_gyarto is null)
+                _hiba = "A gyártó nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

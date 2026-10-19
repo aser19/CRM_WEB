@@ -1,0 +1,63 @@
+@page "/eszkozok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Eszköz részletei</h3>
+
+@if (_eszkoz is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_eszkoz!.Nev</dd>
+
+        <dt class="col-sm-3">Gyári szám</dt>
+        <dd class="col-sm-9">@_eszkoz.GyariSzam</dd>
+
+        <dt class="col-sm-3">Típus</dt>
+        <dd class="col-sm-9">@_eszkoz.Tipus</dd>
+
+        <dt class="col-sm-3">Kategória</dt>
+        <dd class="col-sm-9">@_eszkoz.Kategoria</dd>
+
+        <dt class="col-sm-3">Gyártó</dt>
+        <dd class="col-sm-9">@_eszkoz.GyartoNev</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_eszkoz.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_eszkoz.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Aktív</dt>
+        <dd class="col-sm-9">@(_eszkoz.Aktiv ? "Igen" : "Nem")</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private EszkozListItemDto? _eszkoz;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _eszkoz = await ApiClient.GetEszkozAsync(Id);
+            if (_eszkoz is null)
+                _hiba = "Az eszköz nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

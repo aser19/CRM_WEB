@@ -1,0 +1,51 @@
+@page "/hatosagok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Hatóság részletei</h3>
+
+@if (_hatosag is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_hatosag!.Nev</dd>
+
+        <dt class="col-sm-3">Rövidítés</dt>
+        <dd class="col-sm-9">@_hatosag.Rovidites</dd>
+
+        <dt class="col-sm-3">Cím</dt>
+        <dd class="col-sm-9">@_hatosag.Cim</dd>
+
+        <dt class="col-sm-3">Weboldal</dt>
+        <dd class="col-sm-9">@_hatosag.Weboldal</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private HatosagListItemDto? _hatosag;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _hatosag = await ApiClient.GetHatosagAsync(Id);
+            if (_hatosag is null)
+                _hiba = "A hatóság nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

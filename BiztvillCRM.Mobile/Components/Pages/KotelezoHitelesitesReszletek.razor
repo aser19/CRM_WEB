@@ -1,0 +1,51 @@
+@page "/kotelezohitelesitesek/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Kötelező hitelesítés részletei</h3>
+
+@if (_kotelezoHitelesites is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Megnevezés</dt>
+        <dd class="col-sm-9">@_kotelezoHitelesites!.Megnevezes</dd>
+
+        <dt class="col-sm-3">Jogszabályi hivatkozás</dt>
+        <dd class="col-sm-9">@_kotelezoHitelesites.JogszabalyiHivatkozas</dd>
+
+        <dt class="col-sm-3">Hitelesítési időszak</dt>
+        <dd class="col-sm-9">@_kotelezoHitelesites.HitelesitesiIdoszakHonap hónap</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_kotelezoHitelesites.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private KotelezoHitelesitesListItemDto? _kotelezoHitelesites;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _kotelezoHitelesites = await ApiClient.GetKotelezoHitelesitesAsync(Id);
+            if (_kotelezoHitelesites is null)
+                _hiba = "A kötelező hitelesítés nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

@@ -1,0 +1,72 @@
+@page "/munkaszamok"
+@inject OfflineCacheService OfflineCacheService
+@inject NavigationManager NavigationManager
+@using BiztvillCRM.Mobile.Data
+
+<MudText Typo="Typo.h5" Class="mb-2">Munkaszámok</MudText>
+<MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mb-3"
+           OnClick="FrissitesAsync" Disabled="@_frissitesFolyamatban" StartIcon="@Icons.Material.Filled.Refresh">
+    @(_frissitesFolyamatban ? "Frissítés..." : "Frissítés a szerverről")
+</MudButton>
+
+<MudTextField @bind-Value="_kereses" Immediate="true" Placeholder="Keresés (szám, megnevezés)" Class="mb-3" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+@if (_lista is null)
+{
+    <MudText>Betöltés...</MudText>
+}
+else if (_szurtLista.Count == 0)
+{
+    <MudText>Nincs megjeleníthető munkaszám.</MudText>
+}
+else
+{
+    <MudList T="string" Clickable="true">
+        @foreach (var mu in _szurtLista)
+        {
+            <MudListItem OnClick="@(() => Megtekintes(mu.Id))">
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body1"><b>@mu.Szam</b> - @mu.Megnevezes</MudText>
+                    <MudText Typo="Typo.body2">Aktív: @(mu.Aktiv ? "Igen" : "Nem")</MudText>
+                </div>
+            </MudListItem>
+            <MudDivider />
+        }
+    </MudList>
+}
+
+@code {
+    private List<CachedMunkaszam>? _lista;
+    private bool _frissitesFolyamatban;
+    private string _kereses = string.Empty;
+
+    private List<CachedMunkaszam> _szurtLista => string.IsNullOrWhiteSpace(_kereses) || _lista is null
+        ? _lista ?? new()
+        : _lista.Where(m => (m.Szam?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                             (m.Megnevezes?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lista = await OfflineCacheService.GetMunkaszamokCacheAsync();
+    }
+
+    private async Task FrissitesAsync()
+    {
+        _frissitesFolyamatban = true;
+        try
+        {
+            await OfflineCacheService.SzinkronizalAsync();
+            _lista = await OfflineCacheService.GetMunkaszamokCacheAsync();
+        }
+        catch
+        {
+            // nincs hálózat - az offline cache (korábban letöltött adatok) marad érvényben
+        }
+        finally
+        {
+            _frissitesFolyamatban = false;
+        }
+    }
+
+    private void Megtekintes(int id) => NavigationManager.NavigateTo($"/munkaszamok/{id}");
+}

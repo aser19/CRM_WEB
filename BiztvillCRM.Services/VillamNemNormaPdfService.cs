@@ -388,9 +388,9 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         var keszito = adatok.KikeszitetteSzerep switch
         {
-            "Segito" => NevBizonyitvany(adatok.SegitoFelulvizsgalo, adatok.SegitoBizonyitvany),
-            "Ellenor" => NevBizonyitvany(adatok.Ellenor, adatok.EllenorBizonyitvany),
-            _ => NevBizonyitvany(adatok.FelulvizsgaloNev, adatok.FelulvizsgaloBizonyitvany),
+            "Segito" => adatok.SegitoFelulvizsgalo,
+            "Ellenor" => adatok.Ellenor,
+            _ => adatok.FelulvizsgaloNev,
         };
 
         return $"A vizsgálati jelentést készítette és a minősítő iratot szerkesztette: {keszito}.\n" +

@@ -1,0 +1,83 @@
+@page "/jegyzokonyvek"
+@inject OfflineCacheService OfflineCacheService
+@inject ApiClient ApiClient
+@inject NavigationManager NavigationManager
+@using BiztvillCRM.Mobile.Data
+
+<MudText Typo="Typo.h5" Class="mb-2">Jegyzőkönyvek</MudText>
+<MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mb-3"
+           OnClick="FrissitesAsync" Disabled="@_frissitesFolyamatban" StartIcon="@Icons.Material.Filled.Refresh">
+    @(_frissitesFolyamatban ? "Frissítés..." : "Frissítés a szerverről")
+</MudButton>
+
+@if (_lista is null)
+{
+    <MudText>Betöltés...</MudText>
+}
+else if (_lista.Count == 0)
+{
+    <MudText>Nincs megjeleníthető jegyzőkönyv.</MudText>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="false">
+        @foreach (var csoport in _csoportositva!)
+        {
+            <MudExpansionPanel Text="@($"{csoport.Key} ({csoport.Count()})")">
+                <MudList T="string" Clickable="true">
+                    @foreach (var jk in csoport)
+                    {
+                        <MudListItem OnClick="@(() => Megtekintes(jk.Id))">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1"><b>@jk.TelephelyNev</b> - @jk.Datum.ToString("yyyy.MM.dd")</MudText>
+                                <MudText Typo="Typo.body2">Típus: @jk.MeresTipusNev</MudText>
+                                <MudText Typo="Typo.body2">Státusz: @jk.MeresStatusz</MudText>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    private List<CachedJegyzokonyv>? _lista;
+    private IEnumerable<IGrouping<string, CachedJegyzokonyv>>? _csoportositva;
+    private bool _frissitesFolyamatban;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lista = await OfflineCacheService.GetJegyzokonyvekCacheAsync();
+        Csoportosit();
+    }
+
+    private void Csoportosit()
+    {
+        _csoportositva = _lista?
+            .GroupBy(jk => string.IsNullOrWhiteSpace(jk.UgyfelNev) ? "Ismeretlen ügyfél" : jk.UgyfelNev!)
+            .OrderBy(g => g.Key);
+    }
+
+    private async Task FrissitesAsync()
+    {
+        _frissitesFolyamatban = true;
+        try
+        {
+            await OfflineCacheService.SzinkronizalAsync();
+            _lista = await OfflineCacheService.GetJegyzokonyvekCacheAsync();
+            Csoportosit();
+        }
+        catch
+        {
+            // nincs hálózat - az offline cache (korábban letöltött adatok) marad érvényben
+        }
+        finally
+        {
+            _frissitesFolyamatban = false;
+        }
+    }
+
+    private void Megtekintes(int id) => NavigationManager.NavigateTo($"/jegyzokonyvek/{id}");
+}

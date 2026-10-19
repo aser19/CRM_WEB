@@ -1,0 +1,90 @@
+﻿@page "/"
+@inject AuthState AuthState
+@inject ApiClient ApiClient
+@inject OfflineCacheService OfflineCacheService
+@inject NavigationManager NavigationManager
+
+<h1>BiztvillCRM bejelentkezés</h1>
+
+@if (AuthState.IsAuthenticated)
+{
+    <p>Bejelentkezve: <strong>@(AuthState.TeljesNev ?? AuthState.UserName)</strong></p>
+    <button class="btn btn-primary" @onclick="TovabbAJegyzokonyvekhez">Jegyzőkönyvek</button>
+    <button class="btn btn-secondary" @onclick="TovabbAHitelesitesekhez">Hitelesítések</button>
+    <hr />
+    <button class="btn btn-outline-danger" @onclick="Kijelentkezes">Kijelentkezés</button>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="BejelentkezesAsync">
+        <div class="mb-3">
+            <label>Felhasználónév / email</label>
+            <InputText class="form-control" @bind-Value="_model.UsernameOrEmail" />
+        </div>
+        <div class="mb-3">
+            <label>Jelszó</label>
+            <InputText class="form-control" type="password" @bind-Value="_model.Password" />
+        </div>
+        @if (!string.IsNullOrEmpty(_hibaUzenet))
+        {
+            <p class="text-danger">@_hibaUzenet</p>
+        }
+        <button class="btn btn-primary" type="submit" disabled="@_folyamatban">
+            @(_folyamatban ? "Bejelentkezés..." : "Bejelentkezés")
+        </button>
+    </EditForm>
+}
+
+@code {
+    private readonly LoginModel _model = new();
+    private string? _hibaUzenet;
+    private bool _folyamatban;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.BetoltAsync();
+    }
+
+    private async Task BejelentkezesAsync()
+    {
+        _folyamatban = true;
+        _hibaUzenet = null;
+        try
+        {
+            var valasz = await ApiClient.BejelentkezesAsync(_model.UsernameOrEmail, _model.Password);
+            if (valasz is null)
+            {
+                _hibaUzenet = "Hibás felhasználónév vagy jelszó.";
+                return;
+            }
+
+            await AuthState.BejelentkezveAsync(valasz.Token, valasz.ExpiresAtUtc, valasz.UserName, valasz.TeljesNev);
+            await OfflineCacheService.SzinkronizalAsync();
+            NavigationManager.NavigateTo("/jegyzokonyvek");
+        }
+        catch (Exception ex)
+        {
+            _hibaUzenet = $"Nem sikerült csatlakozni a szerverhez: {ex.Message}";
+        }
+        finally
+        {
+            _folyamatban = false;
+        }
+    }
+
+    private void TovabbAJegyzokonyvekhez() => NavigationManager.NavigateTo("/jegyzokonyvek");
+    private void TovabbAHitelesitesekhez() => NavigationManager.NavigateTo("/hitelesitesek");
+
+    private async Task Kijelentkezes()
+    {
+        AuthState.Kijelentkezes();
+        await OfflineCacheService.TorolCacheAsync();
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+
+    private class LoginModel
+    {
+        public string UsernameOrEmail { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

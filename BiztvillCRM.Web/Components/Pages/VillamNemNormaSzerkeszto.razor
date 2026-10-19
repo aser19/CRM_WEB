@@ -887,6 +887,7 @@ else
         {
             _adatok.MeresIdeje = _meresIdeje;
             _adatok.KovetkezoFelulvizsgalatIdopontja = _kovetkezoFelulvizsgalat;
+            FrissitVillamvedelmiBesorolasEredmenye();
 
             if (MeresId.HasValue && MeresId.Value > 0)
             {
@@ -919,6 +920,7 @@ else
             _adatok.KovetkezoFelulvizsgalatIdopontja = _kovetkezoFelulvizsgalat;
             if (_adatok.MikorKeszult is null)
                 _adatok.MikorKeszult = DateTime.Today;
+            FrissitVillamvedelmiBesorolasEredmenye();
 
             if (MeresId.HasValue && MeresId.Value > 0)
             {

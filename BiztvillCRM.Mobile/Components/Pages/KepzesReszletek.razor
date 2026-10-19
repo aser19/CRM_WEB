@@ -1,0 +1,66 @@
+@page "/kepzesek/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Képzés részletei</h3>
+
+@if (_kepzes is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_kepzes!.Nev</dd>
+
+        <dt class="col-sm-3">Jogosultság</dt>
+        <dd class="col-sm-9">@_kepzes.Jogosultsag</dd>
+
+        <dt class="col-sm-3">Típus</dt>
+        <dd class="col-sm-9">@_kepzes.KepzesTipusNev</dd>
+
+        <dt class="col-sm-3">Bizonyítvány szám</dt>
+        <dd class="col-sm-9">@_kepzes.BizonyitvanySzam</dd>
+
+        <dt class="col-sm-3">Bizonyítvány kelte</dt>
+        <dd class="col-sm-9">@(_kepzes.BizonyitvanyKelte?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Bizonyítvány lejárat</dt>
+        <dd class="col-sm-9">@(_kepzes.BizonyitvanyLejarat?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Továbbképzés szám</dt>
+        <dd class="col-sm-9">@_kepzes.TovabbkepzesSzam</dd>
+
+        <dt class="col-sm-3">Utolsó továbbképzés</dt>
+        <dd class="col-sm-9">@(_kepzes.UtolsoTovabbkepzes?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_kepzes.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private KepzesListItemDto? _kepzes;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _kepzes = await ApiClient.GetKepzesAsync(Id);
+            if (_kepzes is null)
+                _hiba = "A képzés nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

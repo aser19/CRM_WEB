@@ -1,0 +1,43 @@
+@page "/ugyfelek/{Id:int}"
+@inject OfflineCacheService OfflineCacheService
+@using BiztvillCRM.Mobile.Data
+
+<h3>Ügyfél részletei</h3>
+
+@if (_ugyfel is null)
+{
+    <p>Betöltés...</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_ugyfel.Nev</dd>
+
+        <dt class="col-sm-3">Adószám</dt>
+        <dd class="col-sm-9">@_ugyfel.Adoszam</dd>
+
+        <dt class="col-sm-3">Cím</dt>
+        <dd class="col-sm-9">@_ugyfel.Cim</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@_ugyfel.Email</dd>
+
+        <dt class="col-sm-3">Telefon</dt>
+        <dd class="col-sm-9">@_ugyfel.Telefon</dd>
+
+        <dt class="col-sm-3">Aktív</dt>
+        <dd class="col-sm-9">@(_ugyfel.Aktiv ? "Igen" : "Nem")</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private CachedUgyfel? _ugyfel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ugyfel = await OfflineCacheService.GetUgyfelReszletekAsync(Id);
+    }
+}

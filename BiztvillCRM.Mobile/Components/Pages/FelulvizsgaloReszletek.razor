@@ -1,0 +1,87 @@
+@page "/felulvizsgalok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Felülvizsgáló részletei</h3>
+
+@if (_felulvizsgalo is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_felulvizsgalo!.Nev</dd>
+
+        <dt class="col-sm-3">Jogosultság</dt>
+        <dd class="col-sm-9">@_felulvizsgalo.Jogosultsag</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@_felulvizsgalo.Email</dd>
+
+        <dt class="col-sm-3">Telefon</dt>
+        <dd class="col-sm-9">@_felulvizsgalo.Telefon</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_felulvizsgalo.Megjegyzes</dd>
+
+        <dt class="col-sm-3">Aláírás</dt>
+        <dd class="col-sm-9">@(_felulvizsgalo.VanAlairas ? "Van" : "Nincs")</dd>
+    </dl>
+
+    <h4>Képzések</h4>
+    @if (_felulvizsgalo.Kepzesek.Count == 0)
+    {
+        <p>Nincs rögzített képzés.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Típus</th>
+                    <th>Bizonyítvány szám</th>
+                    <th>Lejárat</th>
+                    <th>Fájl</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var k in _felulvizsgalo.Kepzesek)
+                {
+                    <tr>
+                        <td>@k.KepzesTipusNev</td>
+                        <td>@k.BizonyitvanySzam</td>
+                        <td>@(k.BizonyitvanyLejarat?.ToString("yyyy.MM.dd") ?? "-")</td>
+                        <td>@(k.VanBizonyitvanyFajl ? "Van" : "Nincs")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FelulvizsgaloDetailDto? _felulvizsgalo;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _felulvizsgalo = await ApiClient.GetFelulvizsgaloAsync(Id);
+            if (_felulvizsgalo is null)
+                _hiba = "A felülvizsgáló nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

@@ -1,0 +1,60 @@
+@page "/jegyzokonyvek/{Id:int}"
+@inject OfflineCacheService OfflineCacheService
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Jegyzőkönyv részletei</h3>
+
+@if (_jegyzokonyv is null)
+{
+    <p>Betöltés...</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.Datum.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Következő dátum</dt>
+        <dd class="col-sm-9">@(_jegyzokonyv.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Mérés típusa</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.MeresTipusNev</dd>
+
+        <dt class="col-sm-3">Státusz</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.MeresStatusz</dd>
+
+        <dt class="col-sm-3">Eredmény</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.Eredmeny</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_jegyzokonyv.Megjegyzes</dd>
+    </dl>
+
+    @if (_jegyzokonyv.Mellekletek.Count > 0)
+    {
+        <h4>Mellékletek</h4>
+        <ul>
+            @foreach (var melleklet in _jegyzokonyv.Mellekletek)
+            {
+                <li>@melleklet.TipusNev (@melleklet.Szam) - @melleklet.Statusz</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private JegyzokonyvDetailDto? _jegyzokonyv;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _jegyzokonyv = await OfflineCacheService.GetJegyzokonyvReszletekAsync(Id);
+    }
+}

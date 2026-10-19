@@ -146,9 +146,21 @@ public class JegyzokonyvAdatok
     /// A mérés dátumához hozzáadva adja a jogszabály szerinti következő felülvizsgálati időpontot.
     /// </summary>
     public string? KovetkezoFelulvizsgalatEgyMeresIdoszak { get; set; }
-    
+
+    /// <summary>
+    /// Az "Egy mérés" jegyzőkönyvhöz rögzített hibák, hiányosságok vagy megjegyzések szabad szöveges leírása.
+    /// </summary>
+    public string EgyMeresHibakMegjegyzes { get; set; } = "";
+
+    /// <summary>
+    /// Ha igaz, az <see cref="EgyMeresHibakMegjegyzes"/>-ben rögzített hiba/hiányosság a jegyzőkönyv
+    /// összesített minősítését "NEM MEGFELELT"-re módosítja, függetlenül a mérési pontok minősítésétől.
+    /// </summary>
+    public bool EgyMeresHibaBefolyasoljaMinositest { get; set; } = false;
+
     public string? HataridoTipus { get; set; } = null;
-    public string HataridoEgyeb { get; set; } = "";
+    public string? HataridoEgyeb { get; set; } = null;
+
     public string MinositoMegjegyzes { get; set; } = "";
 
     // Word export placeholderek

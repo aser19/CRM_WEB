@@ -1,0 +1,63 @@
+@page "/kalibraciok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Kalibráció részletei</h3>
+
+@if (_kalibracio is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_kalibracio!.Datum.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Következő dátum</dt>
+        <dd class="col-sm-9">@(_kalibracio.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Eszköz</dt>
+        <dd class="col-sm-9">@_kalibracio.EszkozNev</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_kalibracio.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Bizonyítvány</dt>
+        <dd class="col-sm-9">@_kalibracio.Bizonyitvany</dd>
+
+        <dt class="col-sm-3">Elvégző</dt>
+        <dd class="col-sm-9">@_kalibracio.Elvegzo</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_kalibracio.Megjegyzes</dd>
+
+        <dt class="col-sm-3">Sikeres</dt>
+        <dd class="col-sm-9">@(_kalibracio.Sikeres ? "Igen" : "Nem")</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private KalibracioListItemDto? _kalibracio;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _kalibracio = await ApiClient.GetKalibracioAsync(Id);
+            if (_kalibracio is null)
+                _hiba = "A kalibráció nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

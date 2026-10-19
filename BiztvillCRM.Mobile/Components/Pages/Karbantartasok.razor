@@ -1,0 +1,92 @@
+@page "/karbantartasok"
+@inject ApiClient ApiClient
+@inject NavigationManager NavigationManager
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<MudText Typo="Typo.h5" Class="mb-2">Karbantartások</MudText>
+<MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mb-3"
+           OnClick="BetoltesAsync" Disabled="@_betoltesFolyamatban" StartIcon="@Icons.Material.Filled.Refresh">
+    @(_betoltesFolyamatban ? "Betöltés..." : "Frissítés a szerverről")
+</MudButton>
+
+<MudTextField @bind-Value="_kereses" Immediate="true" Placeholder="Keresés (ügyfél, telephely, típus)" Class="mb-3" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+@if (_lista is null)
+{
+    <MudText>Betöltés...</MudText>
+}
+else if (_hiba is not null)
+{
+    <MudText Color="Color.Error">@_hiba</MudText>
+}
+else if (_szurtLista.Count == 0)
+{
+    <MudText>Nincs megjeleníthető karbantartás.</MudText>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="false">
+        @foreach (var csoport in _csoportositva!)
+        {
+            <MudExpansionPanel Text="@($"{csoport.Key} ({csoport.Count()})")">
+                <MudList T="string" Clickable="true">
+                    @foreach (var k in csoport)
+                    {
+                        <MudListItem OnClick="@(() => Megtekintes(k.Id))">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1"><b>@k.TelephelyNev</b> - @k.Datum.ToString("yyyy.MM.dd")</MudText>
+                                <MudText Typo="Typo.body2">Típus: @k.KarbantartasTipusNev</MudText>
+                                <MudText Typo="Typo.body2">Státusz: @k.Statusz</MudText>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    private List<KarbantartasListItemDto>? _lista;
+    private bool _betoltesFolyamatban;
+    private string _kereses = string.Empty;
+    private string? _hiba;
+
+    private List<KarbantartasListItemDto> _szurtLista => string.IsNullOrWhiteSpace(_kereses) || _lista is null
+        ? _lista ?? new()
+        : _lista.Where(k => (k.UgyfelNev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                             (k.TelephelyNev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                             (k.KarbantartasTipusNev?.Contains(_kereses, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+
+    private IEnumerable<IGrouping<string, KarbantartasListItemDto>>? _csoportositva =>
+        _szurtLista
+            .GroupBy(k => string.IsNullOrWhiteSpace(k.UgyfelNev) ? "Ismeretlen ügyfél" : k.UgyfelNev!)
+            .OrderBy(g => g.Key);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BetoltesAsync();
+    }
+
+    private async Task BetoltesAsync()
+    {
+        _betoltesFolyamatban = true;
+        _hiba = null;
+        try
+        {
+            _lista = await ApiClient.GetKarbantartasokAsync();
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adatok nem elérhetők.";
+            _lista ??= new();
+        }
+        finally
+        {
+            _betoltesFolyamatban = false;
+        }
+    }
+
+    private void Megtekintes(int id) => NavigationManager.NavigateTo($"/karbantartasok/{id}");
+}

@@ -1,0 +1,37 @@
+@page "/munkaszamok/{Id:int}"
+@inject OfflineCacheService OfflineCacheService
+@using BiztvillCRM.Mobile.Data
+
+<h3>Munkaszám részletei</h3>
+
+@if (_munkaszam is null)
+{
+    <p>Betöltés...</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Munkaszám</dt>
+        <dd class="col-sm-9">@_munkaszam.Szam</dd>
+
+        <dt class="col-sm-3">Megnevezés</dt>
+        <dd class="col-sm-9">@_munkaszam.Megnevezes</dd>
+
+        <dt class="col-sm-3">Aktív</dt>
+        <dd class="col-sm-9">@(_munkaszam.Aktiv ? "Igen" : "Nem")</dd>
+
+        <dt class="col-sm-3">Cég</dt>
+        <dd class="col-sm-9">@_munkaszam.CegNev</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private CachedMunkaszam? _munkaszam;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _munkaszam = await OfflineCacheService.GetMunkaszamReszletekAsync(Id);
+    }
+}

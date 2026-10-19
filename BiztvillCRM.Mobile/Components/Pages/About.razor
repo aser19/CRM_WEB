@@ -1,0 +1,15 @@
+@page "/about"
+@inject NavigationManager NavigationManager
+
+<h3>Névjegy</h3>
+
+<p><strong>BiztvillCRM Mobil</strong></p>
+<p>Verzió: 1.4</p>
+<p>A mobilalkalmazás a jegyzőkönyvek és hitelesítések megtekintésére szolgál, kizárólag olvasási joggal.
+Szerkesztés és adminisztráció csak a weben érhető el.</p>
+
+<button class="btn btn-secondary mt-2" @onclick="Vissza">Vissza</button>
+
+@code {
+    private void Vissza() => NavigationManager.NavigateTo("/");
+}

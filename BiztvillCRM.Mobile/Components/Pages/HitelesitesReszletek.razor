@@ -1,0 +1,57 @@
+@page "/hitelesitesek/{Id:int}"
+@inject OfflineCacheService OfflineCacheService
+
+<h3>Hitelesítés részletei</h3>
+
+@if (_hitelesites is null)
+{
+    <p>Betöltés...</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_hitelesites.Datum.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Lejárat</dt>
+        <dd class="col-sm-9">@(_hitelesites.LejaratDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_hitelesites.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_hitelesites.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Eszköz típus</dt>
+        <dd class="col-sm-9">@_hitelesites.EszkozTipusNev</dd>
+
+        <dt class="col-sm-3">Eszköz azonosító</dt>
+        <dd class="col-sm-9">@_hitelesites.EszkozAzonosito</dd>
+
+        <dt class="col-sm-3">Hatóság</dt>
+        <dd class="col-sm-9">@_hitelesites.HatosagNev</dd>
+
+        <dt class="col-sm-3">Státusz</dt>
+        <dd class="col-sm-9">@_hitelesites.HitelesitesStatusz</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_hitelesites.Megjegyzes</dd>
+
+        <dt class="col-sm-3">Munkalap</dt>
+        <dd class="col-sm-9">@(_hitelesites.VanMunkalap ? $"{_hitelesites.MunkalapFajlokSzama} fájl" : "Nincs")</dd>
+
+        <dt class="col-sm-3">Bizonyítvány</dt>
+        <dd class="col-sm-9">@(_hitelesites.VanBizonyitvany ? $"{_hitelesites.BizonyitvanyFajlokSzama} fájl" : "Nincs")</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private BiztvillCRM.Mobile.Data.CachedHitelesites? _hitelesites;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hitelesites = await OfflineCacheService.GetHitelesitesReszletekAsync(Id);
+    }
+}

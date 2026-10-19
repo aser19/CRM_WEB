@@ -131,9 +131,16 @@ public class Hitelesites
                 lista.Add(MunkalapPath);
             if (!string.IsNullOrWhiteSpace(MunkalapPaths))
             {
-                var deserializalt = JsonSerializer.Deserialize<List<string>>(MunkalapPaths);
-                if (deserializalt != null)
-                    lista.AddRange(deserializalt.Where(p => !lista.Contains(p)));
+                try
+                {
+                    var deserializalt = JsonSerializer.Deserialize<List<string>>(MunkalapPaths);
+                    if (deserializalt != null)
+                        lista.AddRange(deserializalt.Where(p => !lista.Contains(p)));
+                }
+                catch (JsonException)
+                {
+                    // Hibás/régi formátumú JSON - figyelmen kívül hagyjuk, hogy ne dőljön el a lekérdezés.
+                }
             }
             return lista;
         }
@@ -166,9 +173,16 @@ public class Hitelesites
                 lista.Add(BizonyitvanyPath);
             if (!string.IsNullOrWhiteSpace(BizonyitvanyPaths))
             {
-                var deserializalt = JsonSerializer.Deserialize<List<string>>(BizonyitvanyPaths);
-                if (deserializalt != null)
-                    lista.AddRange(deserializalt.Where(p => !lista.Contains(p)));
+                try
+                {
+                    var deserializalt = JsonSerializer.Deserialize<List<string>>(BizonyitvanyPaths);
+                    if (deserializalt != null)
+                        lista.AddRange(deserializalt.Where(p => !lista.Contains(p)));
+                }
+                catch (JsonException)
+                {
+                    // Hibás/régi formátumú JSON - figyelmen kívül hagyjuk, hogy ne dőljön el a lekérdezés.
+                }
             }
             return lista;
         }

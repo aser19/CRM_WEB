@@ -1,0 +1,60 @@
+@page "/telephelyek/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Telephely részletei</h3>
+
+@if (_telephely is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_telephely!.Nev</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_telephely.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Cím</dt>
+        <dd class="col-sm-9">@_telephely.Cim</dd>
+
+        <dt class="col-sm-3">Kapcsolattartó</dt>
+        <dd class="col-sm-9">@_telephely.Kapcsolattarto</dd>
+
+        <dt class="col-sm-3">Telefon</dt>
+        <dd class="col-sm-9">@_telephely.Telefon</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@_telephely.Email</dd>
+
+        <dt class="col-sm-3">Aktív</dt>
+        <dd class="col-sm-9">@(_telephely.Aktiv ? "Igen" : "Nem")</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TelephelyListItemDto? _telephely;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _telephely = await ApiClient.GetTelephelyAsync(Id);
+            if (_telephely is null)
+                _hiba = "A telephely nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

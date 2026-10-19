@@ -10,12 +10,18 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.IO;
+using System.Text;
 using BiztvillCRM.Web.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- MudBlazor ---
 builder.Services.AddMudServices();
+
+// --- MVC Controllers (mobil/API végpontokhoz) ---
+builder.Services.AddControllers();
 
 // --- Blazor ---
 builder.Services.AddRazorComponents()
@@ -58,6 +64,26 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
     // NE legyen OnRedirectToLogin event!
 });
+
+// --- JWT Bearer (mobil app / API hitelesítés, a cookie-s webes bejelentkezés mellett) ---
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Hiányzó Jwt:Key konfiguráció.");
+builder.Services.AddAuthentication()
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // --- Auth cascade ---
 builder.Services.AddCascadingAuthenticationState();
@@ -264,6 +290,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+app.MapControllers();
 
 // --- Blazor renderelés ---
 app.MapRazorComponents<BiztvillCRM.Web.Components.App>()

@@ -1,0 +1,66 @@
+﻿@inject AuthState AuthState
+@inject OfflineCacheService OfflineCacheService
+@inject NavigationManager NavigationManager
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Kezdőlap</MudNavLink>
+
+    <MudNavGroup Title="Törzsadatok" Icon="@Icons.Material.Filled.Business" Expanded="@(_nyitottMenu == "Torzsadatok")" ExpandedChanged="@(expanded => MenuValtas("Torzsadatok", expanded))">
+        <MudNavLink Href="ugyfelek" Icon="@Icons.Material.Filled.People">Ügyfelek</MudNavLink>
+        <MudNavLink Href="telephelyek" Icon="@Icons.Material.Filled.LocationOn">Telephelyek</MudNavLink>
+        <MudNavLink Href="gyartok" Icon="@Icons.Material.Filled.Factory">Gyártók</MudNavLink>
+        <MudNavLink Href="eszkozok" Icon="@Icons.Material.Filled.Build">Eszközök</MudNavLink>
+        <MudNavLink Href="felulvizsgalok" Icon="@Icons.Material.Filled.Badge">Felülvizsgálók</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Mérések" Icon="@Icons.Material.Filled.Speed" Expanded="@(_nyitottMenu == "Meresek")" ExpandedChanged="@(expanded => MenuValtas("Meresek", expanded))">
+        <MudNavLink Href="jegyzokonyvek" Icon="@Icons.Material.Filled.Description">Jegyzőkönyvek</MudNavLink>
+        <MudNavLink Href="kalibraciok" Icon="@Icons.Material.Filled.Tune">Kalibrációk</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Hitelesítések" Icon="@Icons.Material.Filled.VerifiedUser" Expanded="@(_nyitottMenu == "Hitelesitesek")" ExpandedChanged="@(expanded => MenuValtas("Hitelesitesek", expanded))">
+        <MudNavLink Href="hitelesitesek" Icon="@Icons.Material.Filled.Verified">Hitelesítések</MudNavLink>
+        <MudNavLink Href="kotelezohitelesitesek" Icon="@Icons.Material.Filled.LocalGasStation">Kötelező hitelesítések</MudNavLink>
+        <MudNavLink Href="hatosagok" Icon="@Icons.Material.Filled.AccountBalance">Hatóságok</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Munkavédelem" Icon="@Icons.Material.Filled.HealthAndSafety" Expanded="@(_nyitottMenu == "Munkavedelem")" ExpandedChanged="@(expanded => MenuValtas("Munkavedelem", expanded))">
+        <MudNavLink Href="munkavedelmioktatasok" Icon="@Icons.Material.Filled.School">Munkavédelmi oktatások</MudNavLink>
+        <MudNavLink Href="kockazatertekelesek" Icon="@Icons.Material.Filled.Warning">Kockázatértékelések</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Karbantartás" Icon="@Icons.Material.Filled.Engineering" Expanded="@(_nyitottMenu == "Karbantartas")" ExpandedChanged="@(expanded => MenuValtas("Karbantartas", expanded))">
+        <MudNavLink Href="karbantartasok" Icon="@Icons.Material.Filled.Build">Karbantartások</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Egyéb" Icon="@Icons.Material.Filled.MoreHoriz" Expanded="@(_nyitottMenu == "Egyeb")" ExpandedChanged="@(expanded => MenuValtas("Egyeb", expanded))">
+        <MudNavLink Href="jogszabalyok" Icon="@Icons.Material.Filled.Gavel">Jogszabályok</MudNavLink>
+        <MudNavLink Href="munkaszamok" Icon="@Icons.Material.Filled.Assignment">Munkaszámok</MudNavLink>
+        <MudNavLink Href="terminalok" Icon="@Icons.Material.Filled.Dns">Terminálok</MudNavLink>
+        <MudNavLink Href="tanusitvanyok" Icon="@Icons.Material.Filled.CardMembership">Tanúsítványok</MudNavLink>
+        <MudNavLink Href="kepzesek" Icon="@Icons.Material.Filled.MenuBook">Képzések</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavLink Href="about" Icon="@Icons.Material.Filled.Info">Névjegy</MudNavLink>
+
+    @if (AuthState.IsAuthenticated)
+    {
+        <MudNavLink OnClick="@KijelentkezesAsync" Icon="@Icons.Material.Filled.ExitToApp">Kijelentkezés</MudNavLink>
+    }
+</MudNavMenu>
+
+@code {
+    private string? _nyitottMenu;
+
+    private void MenuValtas(string menu, bool expanded)
+    {
+        _nyitottMenu = expanded ? menu : null;
+    }
+
+    private async Task KijelentkezesAsync()
+    {
+        AuthState.Kijelentkezes();
+        await OfflineCacheService.TorolCacheAsync();
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+}

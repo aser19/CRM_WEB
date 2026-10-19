@@ -1,0 +1,63 @@
+@page "/karbantartasok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Karbantartás részletei</h3>
+
+@if (_karbantartas is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_karbantartas!.Datum.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Következő dátum</dt>
+        <dd class="col-sm-9">@(_karbantartas.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_karbantartas.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_karbantartas.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Típus</dt>
+        <dd class="col-sm-9">@_karbantartas.KarbantartasTipusNev</dd>
+
+        <dt class="col-sm-3">Leírás</dt>
+        <dd class="col-sm-9">@_karbantartas.Leiras</dd>
+
+        <dt class="col-sm-3">Elvégző</dt>
+        <dd class="col-sm-9">@_karbantartas.Elvegzo</dd>
+
+        <dt class="col-sm-3">Státusz</dt>
+        <dd class="col-sm-9">@_karbantartas.Statusz</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private KarbantartasListItemDto? _karbantartas;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _karbantartas = await ApiClient.GetKarbantartasAsync(Id);
+            if (_karbantartas is null)
+                _hiba = "A karbantartás nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

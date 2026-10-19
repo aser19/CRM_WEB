@@ -1,0 +1,57 @@
+@page "/tanusitvanyok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Tanúsítvány részletei</h3>
+
+@if (_tanusitvany is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_tanusitvany!.Nev</dd>
+
+        <dt class="col-sm-3">Szám</dt>
+        <dd class="col-sm-9">@_tanusitvany.Szam</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_tanusitvany.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Kiadó dátum</dt>
+        <dd class="col-sm-9">@(_tanusitvany.KiadoDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Lejárat dátum</dt>
+        <dd class="col-sm-9">@(_tanusitvany.LejaratDatum?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_tanusitvany.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TanusitvanyListItemDto? _tanusitvany;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _tanusitvany = await ApiClient.GetTanusitvanyAsync(Id);
+            if (_tanusitvany is null)
+                _hiba = "A tanúsítvány nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

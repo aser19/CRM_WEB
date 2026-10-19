@@ -99,23 +99,48 @@ else
     @if (_adatok.MeresiPontok.Any())
     {
         var osszes = _adatok.MeresiPontok.Count;
-        var nemFelelt = _adatok.MeresiPontok.Count(s => s.Minosites == "NEM FELELT MEG");
+        var uzemenKivul = _adatok.MeresiPontok.Count(s => s.UzemenKivul);
+        var nemFelelt = _adatok.MeresiPontok.Count(s => !s.UzemenKivul && s.Minosites == "NEM FELELT MEG");
+        var megfelelt = osszes - uzemenKivul - nemFelelt;
         <MudPaper Class="pa-3 mt-2 mb-4" Elevation="1" Style="border-left: 4px solid #1976d2;">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                 <MudText Typo="Typo.subtitle2">Összesítés:</MudText>
                 <MudChip T="string" Size="Size.Small" Color="Color.Default">@osszes mérési pont</MudChip>
-                <MudChip T="string" Size="Size.Small" Color="Color.Success">@(osszes - nemFelelt) megfelelt</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Success">@megfelelt megfelelt</MudChip>
                 @if (nemFelelt > 0)
                 {
                     <MudChip T="string" Size="Size.Small" Color="Color.Error">@nemFelelt nem felelt meg</MudChip>
                 }
-                else
+                @if (uzemenKivul > 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Style="background-color:#fdd835; color:#000;">@uzemenKivul üzemen kívül</MudChip>
+                }
+                @if (nemFelelt == 0 && uzemenKivul == 0)
                 {
                     <MudChip T="string" Size="Size.Small" Color="Color.Success">✓ Minden mérés megfelelt</MudChip>
                 }
             </MudStack>
         </MudPaper>
     }
+
+    @* === HIBÁK, HIÁNYOSSÁGOK, MEGJEGYZÉSEK === *@
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.ReportProblem" Size="Size.Small" Class="mr-1" />
+            Hibák, hiányosságok, megjegyzések
+        </MudText>
+        <MudTextField @bind-Value="_adatok.EgyMeresHibakMegjegyzes"
+                      Label="Hibák, hiányosságok vagy megjegyzések"
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Placeholder="pl. feltárt hiányosságok, javasolt intézkedések..."
+                      Error="@(_adatok.EgyMeresHibaBefolyasoljaMinositest && (_adatok.EgyMeresHibakMegjegyzes ?? "").Trim().Length < 30)"
+                      ErrorText="@($"Kötelező mező, minimum 30 karakter (jelenleg: {(_adatok.EgyMeresHibakMegjegyzes ?? "").Trim().Length}).")" />
+        <MudCheckBox T="bool" @bind-Value="_adatok.EgyMeresHibaBefolyasoljaMinositest"
+                     Label="Ez a bejegyzés a jegyzőkönyv minősítését NEM MEGFELELT-re módosítja"
+                     Color="Color.Error"
+                     Class="mt-2" />
+    </MudPaper>
 
     @* === MENTÉS / VISSZA === *@
     <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mb-8">
@@ -199,8 +224,8 @@ else
         var vanPont = _adatok.MeresiPontok.Any();
         var statusz = vanPont ? MeresStatusz.Elvegezve : MeresStatusz.Folyamatban;
 
-        // Mérési pontok között van-e nem megfelelt?
-        var vanNemMegfeleltPont = _adatok.MeresiPontok.Any(p => p.Minosites == "NEM FELELT MEG");
+        // Mérési pontok között van-e nem megfelelt? (üzemen kívüli pontok nem számítanak bele)
+        var vanNemMegfeleltPont = _adatok.MeresiPontok.Any(p => !p.UzemenKivul && p.Minosites == "NEM FELELT MEG");
 
         // ÁVK sorok között van-e NMF?
         var vanNemMegfeleltAvk = _adatok.AvkSorok?.Any(s => s.Eredmeny == "NMF") == true;
@@ -395,6 +420,13 @@ else
                 foreach (var (s, i) in avkSorok.Select((s, i) => (s, i)).Where(x => !x.s.TeljeskitoltottE))
                     hibak.Add($"ÁVK {i + 1}. sor hiányos – típus vagy mért IΔn hiányzik!");
             }
+        }
+
+        // 3. Ha a minősítést befolyásoló hiba checkbox be van pipálva, a megjegyzés kötelező, min. 30 karakter
+        if (_adatok.EgyMeresHibaBefolyasoljaMinositest &&
+            (_adatok.EgyMeresHibakMegjegyzes ?? "").Trim().Length < 30)
+        {
+            hibak.Add("A \"Minősítést befolyásolja\" jelölőnégyzet be van pipálva, ezért a hibák/hiányosságok leírása kötelező, minimum 30 karakter hosszban!");
         }
 
         if (hibak.Any())

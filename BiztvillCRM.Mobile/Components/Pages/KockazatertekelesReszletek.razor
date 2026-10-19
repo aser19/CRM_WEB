@@ -1,0 +1,69 @@
+@page "/kockazatertekelesek/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Kockázatértékelés részletei</h3>
+
+@if (_ertekeles is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_ertekeles!.ErtekelesDatuma.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Következő felülvizsgálat</dt>
+        <dd class="col-sm-9">@(_ertekeles.KovetkezoFelulvizsgalat?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Megnevezés</dt>
+        <dd class="col-sm-9">@_ertekeles.Megnevezes</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_ertekeles.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_ertekeles.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Kockázati szint</dt>
+        <dd class="col-sm-9">@_ertekeles.KockazatiSzint</dd>
+
+        <dt class="col-sm-3">Leírás</dt>
+        <dd class="col-sm-9">@_ertekeles.Leiras</dd>
+
+        <dt class="col-sm-3">Intézkedések</dt>
+        <dd class="col-sm-9">@_ertekeles.Intezkedesek</dd>
+
+        <dt class="col-sm-3">Felelős</dt>
+        <dd class="col-sm-9">@_ertekeles.FelelosNeve</dd>
+
+        <dt class="col-sm-3">Státusz</dt>
+        <dd class="col-sm-9">@_ertekeles.Statusz</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private KockazatertekelesListItemDto? _ertekeles;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _ertekeles = await ApiClient.GetKockazatertekelesAsync(Id);
+            if (_ertekeles is null)
+                _hiba = "A kockázatértékelés nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

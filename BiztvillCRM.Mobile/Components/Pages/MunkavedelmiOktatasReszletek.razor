@@ -1,0 +1,63 @@
+@page "/munkavedelmioktatasok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Munkavédelmi oktatás részletei</h3>
+
+@if (_oktatas is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Dátum</dt>
+        <dd class="col-sm-9">@_oktatas!.OktatasDatuma.ToString("yyyy.MM.dd")</dd>
+
+        <dt class="col-sm-3">Következő oktatás</dt>
+        <dd class="col-sm-9">@(_oktatas.KovetkezoOktatas?.ToString("yyyy.MM.dd") ?? "-")</dd>
+
+        <dt class="col-sm-3">Megnevezés</dt>
+        <dd class="col-sm-9">@_oktatas.Megnevezes</dd>
+
+        <dt class="col-sm-3">Ügyfél</dt>
+        <dd class="col-sm-9">@_oktatas.UgyfelNev</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_oktatas.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Leírás</dt>
+        <dd class="col-sm-9">@_oktatas.Leiras</dd>
+
+        <dt class="col-sm-3">Oktató</dt>
+        <dd class="col-sm-9">@_oktatas.OktatoNeve</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_oktatas.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private MunkavedelmiOktatasListItemDto? _oktatas;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _oktatas = await ApiClient.GetMunkavedelmiOktatasAsync(Id);
+            if (_oktatas is null)
+                _hiba = "Az oktatás nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

@@ -37,7 +37,17 @@
             </MudAppBar>
 
             <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2"
-                       Variant="@(_isMobile ? DrawerVariant.Temporary : DrawerVariant.Mini)">
+                       Variant="@(_isMobile ? DrawerVariant.Temporary : DrawerVariant.Mini)"
+                       MiniWidth="56px" Width="260px">
+                @if (!_isMobile)
+                {
+                    <MudDrawerHeader Class="d-flex justify-end pa-1">
+                        <MudIconButton Icon="@(_drawerOpen ? Icons.Material.Filled.ChevronLeft : Icons.Material.Filled.ChevronRight)"
+                                       Size="Size.Small"
+                                       OnClick="@ToggleDrawer"
+                                       Title="@(_drawerOpen ? "Összecsukás" : "Kinyitás")" />
+                    </MudDrawerHeader>
+                }
                 <NavMenu />
             </MudDrawer>
         </Authorized>

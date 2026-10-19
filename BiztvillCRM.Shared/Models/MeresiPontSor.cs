@@ -27,6 +27,13 @@ public class MeresiPontSor
     /// </summary>
     public bool MinositesFigyelmeztetes { get; set; } = false;
 
+    /// <summary>
+    /// Ha nincs megadva mért érték, a mérési pontot üzemen kívülinek tekintjük:
+    /// a minősítés helyén sárga "Üzemen kívül" felirat jelenik meg (MEGFELELT/NEM FELELT MEG helyett),
+    /// a listában pedig halvány sárga háttérrel jelölve.
+    /// </summary>
+    public bool UzemenKivul => !MertHurokimpedancia.HasValue;
+
     // ============================================================
     // Számított property-k (Zs ≤ U0 * α / Ia)
     // ============================================================
@@ -113,25 +120,30 @@ public class MeresiPontSor
 
     /// <summary>
     /// Igaz, ha a sor minden kötelező mezője ki van töltve.
+    /// Az ÉRTÉK mező üresen hagyása szándékosan megengedett: ilyenkor a mérési pont
+    /// "üzemen kívülinek" minősül (lásd <see cref="UzemenKivul"/>), és ebben az esetben
+    /// a MÓD/OSZTÁLY, Túláramvédelem helye/típusa, ÁVK és PE mezők sem kötelezők.
     /// </summary>
     public bool TeljeskituoltE =>
            !string.IsNullOrWhiteSpace(MeresiPontHelye) &&
-           !string.IsNullOrWhiteSpace(Modszer) &&
-           (Modszer == "EPH" ||
-               (!string.IsNullOrWhiteSpace(TularamvedelemHelye) &&
-                !string.IsNullOrWhiteSpace(TularamvedelemTipusa))) &&
-           (MertHurokimpedancia.HasValue || !string.IsNullOrWhiteSpace(ErtekOhm));
+           (UzemenKivul ||
+               (!string.IsNullOrWhiteSpace(Modszer) &&
+                (Modszer == "EPH" ||
+                    (!string.IsNullOrWhiteSpace(TularamvedelemHelye) &&
+                     !string.IsNullOrWhiteSpace(TularamvedelemTipusa)))));
 
     public IEnumerable<string> HianyzoPontok()
     {
         if (string.IsNullOrWhiteSpace(MeresiPontHelye)) yield return "Mérési pont helye";
+
+        if (UzemenKivul)
+            yield break; // Üzemen kívüli pontnál a többi mező kitöltése nem kötelező.
+
         if (string.IsNullOrWhiteSpace(Modszer)) yield return "Módszer/Osztály";
         if (Modszer != "EPH")
         {
             if (string.IsNullOrWhiteSpace(TularamvedelemHelye)) yield return "Túláramvédelem helye";
             if (string.IsNullOrWhiteSpace(TularamvedelemTipusa)) yield return "Túláramvédelem típusa";
         }
-        if (!MertHurokimpedancia.HasValue && string.IsNullOrWhiteSpace(ErtekOhm))
-            yield return "Érték [Ω]";
     }
 }

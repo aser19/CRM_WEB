@@ -1,0 +1,54 @@
+@page "/terminalok/{Id:int}"
+@inject ApiClient ApiClient
+@using BiztvillCRM.Shared.Dtos.Mobile
+
+<h3>Terminál részletei</h3>
+
+@if (_terminal is null && _hiba is null)
+{
+    <p>Betöltés...</p>
+}
+else if (_hiba is not null)
+{
+    <p class="text-danger">@_hiba</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Név</dt>
+        <dd class="col-sm-9">@_terminal!.Nev</dd>
+
+        <dt class="col-sm-3">Azonosító</dt>
+        <dd class="col-sm-9">@_terminal.Azonosito</dd>
+
+        <dt class="col-sm-3">IP cím</dt>
+        <dd class="col-sm-9">@_terminal.IpCim</dd>
+
+        <dt class="col-sm-3">Telephely</dt>
+        <dd class="col-sm-9">@_terminal.TelephelyNev</dd>
+
+        <dt class="col-sm-3">Megjegyzés</dt>
+        <dd class="col-sm-9">@_terminal.Megjegyzes</dd>
+    </dl>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TerminalListItemDto? _terminal;
+    private string? _hiba;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _terminal = await ApiClient.GetTerminalAsync(Id);
+            if (_terminal is null)
+                _hiba = "A terminál nem található.";
+        }
+        catch
+        {
+            _hiba = "Nincs hálózati kapcsolat, az adat nem elérhető.";
+        }
+    }
+}

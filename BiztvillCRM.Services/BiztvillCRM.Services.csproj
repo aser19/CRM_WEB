@@ -18,6 +18,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <!-- SixLabors.ImageSharp upgrade omitted: newer ImageSharp versions require a commercial license during build.
+         Adding the package caused a license validation failure. If you want the updated ImageSharp, provide
+         a SixLabors license key or enable license acceptance per project guidance. For now the reference is
+         intentionally left out to allow a clean build. -->
   </ItemGroup>
 
   <ItemGroup>

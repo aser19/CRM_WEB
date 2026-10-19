@@ -320,10 +320,13 @@ public class EgyMeresPdfService : IEgyMeresPdfService
             });
 
             // === KELT / MUNKASZÁM / MINŐSÍTÉS / FELELŐS FELÜLVIZSGÁLÓ ===
-            var minosites = meresiPontok.Any(p => !string.Equals(p.Minosites, "MEGFELELT", StringComparison.OrdinalIgnoreCase)
+            var minosites = meresiPontok.Any(p => !p.UzemenKivul
+                                                    && !string.Equals(p.Minosites, "MEGFELELT", StringComparison.OrdinalIgnoreCase)
                                                     && !string.Equals(p.Minosites, "MEGFELEL", StringComparison.OrdinalIgnoreCase))
                 ? "NEM FELELT MEG"
                 : "MEGFELELT";
+            if (adatok.EgyMeresHibaBefolyasoljaMinositest && !string.IsNullOrWhiteSpace(adatok.EgyMeresHibakMegjegyzes))
+                minosites = "NEM FELELT MEG";
 
             col.Item().BorderTop(1).BorderColor(Colors.Black).Row(row =>
             {
@@ -367,6 +370,16 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 {
                     c.Item().Text("Megjegyzések, észrevételek:").SemiBold().FontSize(8);
                     c.Item().Text(adatok.Megjegyzes).FontSize(8);
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(adatok.EgyMeresHibakMegjegyzes))
+            {
+                col.Item().BorderTop(1).BorderColor(Colors.Black).Padding(4).Column(c =>
+                {
+                    c.Item().Text("Hibák, hiányosságok, megjegyzések:").SemiBold().FontSize(8)
+                        .FontColor(adatok.EgyMeresHibaBefolyasoljaMinositest ? Colors.Red.Darken2 : Colors.Black);
+                    c.Item().Text(adatok.EgyMeresHibakMegjegyzes).FontSize(8);
                 });
             }
         });
@@ -434,7 +447,7 @@ public class EgyMeresPdfService : IEgyMeresPdfService
 
                 var megfelelt = string.Equals(mp.Minosites, "MEGFELELT", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(mp.Minosites, "MEGFELEL", StringComparison.OrdinalIgnoreCase);
-                var hatterSzin = megfelelt ? Colors.White : Colors.Red.Lighten4;
+                var hatterSzin = mp.UzemenKivul ? Colors.Yellow.Lighten3 : (megfelelt ? Colors.White : Colors.Red.Lighten4);
 
                 SorCella(table, mp.MeresiPontHelye, hatterSzin, cellaPadding, betuMeret);
                 SorCella(table, mp.Modszer, hatterSzin, cellaPadding, betuMeret);
@@ -444,8 +457,8 @@ public class EgyMeresPdfService : IEgyMeresPdfService
                 SorCella(table, mp.PEFolytMegfelelt ? "✓" : "✗", hatterSzin, cellaPadding, betuMeret);
                 SorCella(table, mp.MertHurokimpedancia?.ToString("F2") ?? mp.ErtekOhm ?? "", hatterSzin, cellaPadding, betuMeret);
                 table.Cell().Background(hatterSzin).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Padding(cellaPadding)
-                    .Text(mp.Minosites).FontSize(betuMeret)
-                    .FontColor(megfelelt ? Colors.Green.Darken2 : Colors.Red.Darken2);
+                    .Text(mp.UzemenKivul ? "Üzemen kívül" : mp.Minosites).FontSize(betuMeret)
+                    .FontColor(mp.UzemenKivul ? Colors.Orange.Darken3 : (megfelelt ? Colors.Green.Darken2 : Colors.Red.Darken2));
             }
         });
     }

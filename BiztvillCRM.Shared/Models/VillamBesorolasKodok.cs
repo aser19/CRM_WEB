@@ -189,7 +189,7 @@ public static class FelfogoFokozatTablazat
             return null;
 
         var match = System.Text.RegularExpressions.Regex.Match(
-            kod.Trim(), @"V\s*(\d+)\s*/?\s*([oabc])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            kod.Trim(), @"^V\s*(\d+)\s*/?\s*([oabc])$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (!match.Success)
             return null;
 
@@ -308,7 +308,7 @@ public static class LevezetoFoldelesFokozatTablazat
             return null;
 
         var match = System.Text.RegularExpressions.Regex.Match(
-            kod.Trim(), @"L\s*(\d+)\s*/?\s*([oabc])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            kod.Trim(), @"^L\s*(\d+)\s*/?\s*([oabc])$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (!match.Success)
             return null;
 

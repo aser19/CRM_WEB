@@ -2,13 +2,14 @@
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Services
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
 @inject IErintesvedelmiModOsztalyService ModOsztalyService
 @inject ITularamvedelemTipusService TularamvedelemService
 @inject IJSRuntime JS
 @inject IJegyzokonyvOcrService OcrService
 @inject ISnackbar Snackbar
 
-<MudPaper Class="pa-4 mt-4">
+<MudPaper Class="pa-4 mt-4" id="@_listaTetejeId">
     @if (!EgyszeruMod)
     {
         <MudText Typo="Typo.h6" Class="mb-3">
@@ -47,16 +48,63 @@
                 <MudPaper Class="pa-2 mb-1 mt-3" Style="background:#f5f5f5;" Elevation="0">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudIcon Icon="@Icons.Material.Filled.Room" Size="Size.Small" Color="Color.Primary" />
-                        <MudText Typo="Typo.subtitle2"><b>@helyisegCsoport.Key</b> – @helyisegCsoport.Count() mérési pont</MudText>
+                        @if (_szerkesztettHelyiseg == helyisegCsoport.Key)
+                        {
+                            <MudTextField T="string"
+                                          @bind-Value="_szerkesztettHelyisegNev"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          AutoFocus="true"
+                                          Class="flex-grow-1"
+                                          Style="max-width:300px;"
+                                          OnKeyDown="@(e => OnHelyisegNevKeyDown(e, helyisegCsoport.Key))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success"
+                                           OnClick="@(() => HelyisegNevMentese(helyisegCsoport.Key))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                           OnClick="@(() => _szerkesztettHelyiseg = null)" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.subtitle2"><b>@helyisegCsoport.Key</b> – @helyisegCsoport.Count() mérési pont</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           OnClick="@(() => HelyisegNevSzerkesztesInditasa(helyisegCsoport.Key))" />
+                        }
                     </MudStack>
                 </MudPaper>
             }
 
             <MudTable Items="@helyisegCsoport.ToList()" Dense="true" Hover="true" Bordered="true" Striped="true" Class="mb-2"
-                      GroupBy="@(EgyMeresMod ? _helyisegGroupDef : null)">
+                      GroupBy="@(EgyMeresMod ? _helyisegGroupDef : null)"
+                      RowStyleFunc="@((pont, idx) => pont.UzemenKivul ? "background-color:#fff9c4;" : null)">
                 <GroupHeaderTemplate>
+                    @{ var csoportNev = (string)context.Key; }
                     <MudTh colspan="10" Style="text-align:left; font-weight:bold; padding: 6px 12px; background:#f5f5f5; font-size:0.95rem;">
-                        @context.Key
+                        @if (_szerkesztettHelyiseg == csoportNev)
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudTextField T="string"
+                                              @bind-Value="_szerkesztettHelyisegNev"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              AutoFocus="true"
+                                              Style="max-width:300px;"
+                                              OnKeyDown="@(e => OnHelyisegNevKeyDown(e, csoportNev))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success"
+                                               OnClick="@(() => HelyisegNevMentese(csoportNev))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                               OnClick="@(() => _szerkesztettHelyiseg = null)" />
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <span>@csoportNev</span>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                               OnClick="@(() => HelyisegNevSzerkesztesInditasa(csoportNev))" />
+                            </MudStack>
+                        }
                     </MudTh>
                 </GroupHeaderTemplate>
                 <HeaderContent>
@@ -109,11 +157,13 @@
                                          Placeholder="EO3"
                                          Disabled="@ephMod"
                                          Clearable="true"
-                                         ResetValueOnEmptyText="false"
-                                         CoerceText="true"
-                                         CoerceValue="true" />
-                    </MudTd>
-                    <MudTd DataLabel="Túláramv. Típusa">
+                                         ResetValueOnEmptyText="true"
+                                         CoerceText="false"
+                                         CoerceValue="false"
+                                         SelectValueOnTab="false"
+                                         DebounceInterval="300" />
+                     </MudTd>
+                     <MudTd DataLabel="Túláramv. Típusa">
                         <MudAutocomplete T="string"
                                          Value="@context.TularamvedelemTipusa"
                                          ValueChanged="@((string val) => OnTularamvedelemTextChanged(context, val))"
@@ -123,7 +173,7 @@
                                          Placeholder="TDK-C16"
                                          Disabled="@ephMod"
                                          Clearable="true"
-                                         ResetValueOnEmptyText="false"
+                                         ResetValueOnEmptyText="true"
                                          CoerceText="false"
                                          CoerceValue="false"
                                          SelectValueOnTab="false"
@@ -205,17 +255,27 @@
                             var chipFigyelmeztet = context.MinositesFigyelmeztetes && chipMinosites == "MEGFELELT";
                             var chipEphAtirhato = context.Modszer == "EPH";
                         }
-                        <MudChip T="string"
-                                 Text="@chipMinosites"
-                                 Size="Size.Small"
-                                 Color="@(chipFigyelmeztet ? Color.Warning : (chipMinosites == "MEGFELELT" ? Color.Success : Color.Error))"
-                                 OnClick="@(() => { if (chipEphAtirhato) OnEphMinositesAtirasa(context); })"
-                                 Style="@(chipEphAtirhato ? "cursor:pointer;" : null)" />
-                        @if (chipFigyelmeztet)
+                        @if (context.UzemenKivul)
                         {
-                            <MudIcon Icon="@Icons.Material.Filled.PriorityHigh"
-                                     Color="Color.Warning" Size="Size.Small"
-                                     Title="Figyelem: 2-10 Ω közötti érték (EPH)!" />
+                            <MudChip T="string"
+                                     Text="Üzemen kívül"
+                                     Size="Size.Small"
+                                     Style="background-color:#fdd835; color:#000;" />
+                        }
+                        else
+                        {
+                            <MudChip T="string"
+                                     Text="@chipMinosites"
+                                     Size="Size.Small"
+                                     Color="@(chipFigyelmeztet ? Color.Warning : (chipMinosites == "MEGFELELT" ? Color.Success : Color.Error))"
+                                     OnClick="@(() => { if (chipEphAtirhato) OnEphMinositesAtirasa(context); })"
+                                     Style="@(chipEphAtirhato ? "cursor:pointer;" : null)" />
+                            @if (chipFigyelmeztet)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.PriorityHigh"
+                                         Color="Color.Warning" Size="Size.Small"
+                                         Title="Figyelem: 2-10 Ω közötti érték (EPH)!" />
+                            }
                         }
                     </MudTd>
                     <MudTd>
@@ -312,6 +372,7 @@
             .Where(p => !string.IsNullOrWhiteSpace(p.HelyisegNev))
             .Select(p => p.HelyisegNev)
             .Distinct()
+            .OrderBy(h => h, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("hu-HU"), ignoreCase: true))
             .ToList();
     }
     @if (hasznaltHelyisegek.Any())
@@ -445,7 +506,23 @@
     </DialogActions>
 </MudDialog>
 
+@if (MeresiPontok.Any())
+{
+    <MudFab Color="Color.Primary"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowUp"
+            Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;"
+            Title="Vissza a mérési lista tetejére"
+            OnClick="@UgrasListaTetejere" />
+}
+
     @code {
+    private readonly string _listaTetejeId = $"meresi-lista-teteje-{Guid.NewGuid():N}";
+
+    private async Task UgrasListaTetejere()
+    {
+        await JS.InvokeVoidAsync("biztovillScrollToElementId", _listaTetejeId);
+    }
+
     [Parameter] public List<MeresiPontSor> MeresiPontok { get; set; } = new();
     [Parameter] public string RendszerTipus { get; set; } = "TN";
     [Parameter] public EventCallback<string> RendszerTipusChanged { get; set; }
@@ -461,7 +538,46 @@
     private string _lokalisRendszerTipus = "TN";
     private string _elozoRendszerTipus = "";
     private string _aktualisHelyisegNev = "";
+    private string? _szerkesztettHelyiseg;
+    private string _szerkesztettHelyisegNev = "";
     private readonly Dictionary<MeresiPontSor, int> _multiplikatorErtekek = new();
+
+    private void HelyisegNevSzerkesztesInditasa(string regiNev)
+    {
+        _szerkesztettHelyiseg = regiNev;
+        _szerkesztettHelyisegNev = regiNev == "(Helyiség nélkül)" ? "" : regiNev;
+    }
+
+    private async Task HelyisegNevMentese(string regiNev)
+    {
+        var ujNev = (_szerkesztettHelyisegNev ?? "").Trim();
+        var regiNevTenyleges = regiNev == "(Helyiség nélkül)" ? "" : regiNev;
+
+        if (ujNev != regiNevTenyleges)
+        {
+            foreach (var pont in MeresiPontok.Where(p =>
+                (string.IsNullOrWhiteSpace(p.HelyisegNev) ? "" : p.HelyisegNev.Trim()) == regiNevTenyleges))
+            {
+                pont.HelyisegNev = ujNev;
+            }
+
+            if (_aktualisHelyisegNev == regiNevTenyleges)
+                _aktualisHelyisegNev = ujNev;
+
+            if (OnChange.HasDelegate)
+                await OnChange.InvokeAsync();
+        }
+
+        _szerkesztettHelyiseg = null;
+    }
+
+    private async Task OnHelyisegNevKeyDown(KeyboardEventArgs e, string regiNev)
+    {
+        if (e.Key == "Enter")
+            await HelyisegNevMentese(regiNev);
+        else if (e.Key == "Escape")
+            _szerkesztettHelyiseg = null;
+    }
 
     private int GetMultiplikatorErtek(MeresiPontSor pont) =>
         _multiplikatorErtekek.TryGetValue(pont, out var ertek) ? ertek : 1;
