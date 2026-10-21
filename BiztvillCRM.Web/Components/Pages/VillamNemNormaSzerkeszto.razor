@@ -293,13 +293,48 @@ else
                         <td style="min-width:160px;">
                             @if (sor.Megnevezes == "A meglévő felfogó állapota")
                             {
-                                <MudTextField T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnFelfogoFokozatValtozas(sor, v))" Dense="true"
-                                              Placeholder="pl. V2a" />
+                                <MudSelect T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnFelfogoFokozatValtozas(sor, v))" Dense="true"
+                                           Placeholder="pl. V2a">
+                                    @foreach (var kod in VillamBesorolasKodok.FelfogoFokozatok)
+                                    {
+                                        <MudSelectItem Value="@kod">@kod</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else if (sor.Megnevezes == "A meglévő levezető állapota")
                             {
-                                <MudTextField T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnLevezetoFokozatValtozas(sor, v))" Dense="true"
-                                              Placeholder="pl. L2b" />
+                                <MudSelect T="string" Value="@sor.Fokozat" ValueChanged="@((string v) => OnLevezetoFokozatValtozas(sor, v))" Dense="true"
+                                           Placeholder="pl. L2b">
+                                    @foreach (var kod in VillamBesorolasKodok.LevezetoFokozatok)
+                                    {
+                                        <MudSelectItem Value="@kod">@kod</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else if (sor.Megnevezes == "A meglévő földelő állapota")
+                            {
+                                <MudSelect T="string" @bind-Value="sor.Fokozat" Dense="true">
+                                    @foreach (var kod in VillamBesorolasKodok.FoldelesFokozatok)
+                                    {
+                                        <MudSelectItem Value="@kod">@kod</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else if (sor.Megnevezes == "A belső villámvédelem fokozata")
+                            {
+                                <MudSelect T="string" @bind-Value="sor.Fokozat" Dense="true">
+                                    @foreach (var kod in VillamBesorolasKodok.BelsoVedelemFokozatok)
+                                    {
+                                        <MudSelectItem Value="@kod">@kod</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else if (sor.Megnevezes == "A felfogó, levezető és a földelés föld feletti részeinek szükséges méretfokozata")
+                            {
+                                <MudSelect T="string" @bind-Value="sor.Fokozat" Dense="true">
+                                    <MudSelectItem Value="@("o")">o</MudSelectItem>
+                                    <MudSelectItem Value="@("r")">r</MudSelectItem>
+                                </MudSelect>
                             }
                             else if (sor.Megnevezes != "A belső villámvédelem kialakítása" && sor.Megnevezes != "A méretfokozat betartása")
                             {
@@ -474,7 +509,13 @@ else
             {
                 _adatok.CegId = meres.KibocsatoCegId ?? 0;
                 _meresTipusId = meres.MeresTipusId;
-                if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
+                // Ha már létezett saját (VVN-NEM) JSON a mérésnél, az azt jelenti, hogy korábban
+                // már megtörtént a főlapi adatok átvezetése és/vagy a felhasználó saját mentése.
+                // Ilyenkor a lenti főlap-import blokkot nem szabad újra lefuttatni (és azonnal
+                // visszamenteni), mert az felülírná a kézzel kitöltött mezőket, ha a deszerializálás
+                // bármi okból (pl. formátumváltozás) sikertelen lenne.
+                var sajatJsonLetezett = !string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson);
+                if (sajatJsonLetezett)
                 {
                     try
                     {
@@ -484,21 +525,18 @@ else
                         if (betoltott != null)
                         {
                             _adatok = betoltott;
-                            // Ha a jegyzőkönyv ebben a (saját) formátumban lett korábban elmentve,
-                            // akkor már volt saját mentés - a főlapi adatokat nem kell újra átvezetni.
-                            if (!string.IsNullOrWhiteSpace(_adatok.MegrendeloNev) ||
-                                !string.IsNullOrWhiteSpace(_adatok.MegbizasTargya) ||
-                                !string.IsNullOrWhiteSpace(_adatok.FelulvizsgaloNev))
-                            {
-                                _marMentveVolt = true;
-                            }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // ha nem ebben a formátumban lett elmentve, üresen indulunk
+                        // ha nem ebben a formátumban lett elmentve (pl. régi, főlap-formátumú JSON),
+                        // üresen indulunk, de a lenti főlap-importot ettől még engedjük lefutni,
+                        // mivel ez esetben nincs érvényes saját mentés.
+                        sajatJsonLetezett = false;
+                        Snackbar.Add($"Nem sikerült visszatölteni a korábban mentett adatokat: {ex.Message}", Severity.Warning);
                     }
                 }
+                _marMentveVolt = sajatJsonLetezett;
 
                 // Ha a jegyzőkönyv a főlapon (jegyzokonyv/uj) megadott adatokkal lett elmentve
                 // (JegyzokonyvAdatok formátum), vegyük át onnan az egyező mezőket, hogy ne kelljen

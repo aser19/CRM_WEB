@@ -158,10 +158,8 @@
                                          Disabled="@ephMod"
                                          Clearable="true"
                                          ResetValueOnEmptyText="true"
-                                         CoerceText="false"
-                                         CoerceValue="false"
-                                         SelectValueOnTab="false"
-                                         DebounceInterval="300" />
+                                         CoerceText="true"
+                                         CoerceValue="true" />
                      </MudTd>
                      <MudTd DataLabel="Túláramv. Típusa">
                         <MudAutocomplete T="string"
@@ -684,14 +682,23 @@
             .Where(p => !string.IsNullOrWhiteSpace(p.TularamvedelemHelye))
             .Select(p => p.TularamvedelemHelye.Trim())
             .Distinct()
-            .OrderBy(h => h);
+            .OrderBy(h => h)
+            .ToList();
 
         if (string.IsNullOrWhiteSpace(value))
             return Task.FromResult<IEnumerable<string>>(hasznaltHelyek);
 
         // Contains – nem csak startsWith, így "O3" is megtalálja "EO3"-t
-        return Task.FromResult<IEnumerable<string>>(hasznaltHelyek
-            .Where(h => h.Contains(value.Trim(), StringComparison.OrdinalIgnoreCase)));
+        var talalatok = hasznaltHelyek
+            .Where(h => h.Contains(value.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Ha a gépelt szöveg még nem szerepel a javaslatok között, hozzáadjuk,
+        // különben a CoerceValue nem talál egyezést és törli/visszaállítja a begépelt értéket.
+        if (!talalatok.Any(h => h.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase)))
+            talalatok.Insert(0, value.Trim());
+
+        return Task.FromResult<IEnumerable<string>>(talalatok);
     }
 
     private async Task<IEnumerable<string>> SearchTularamvedelemTipusa(string value, CancellationToken token)

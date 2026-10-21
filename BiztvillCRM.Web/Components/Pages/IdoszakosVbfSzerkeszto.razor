@@ -311,19 +311,19 @@ else
 					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.SzigetelesiJkv</MudText> }
 				</MudItem>
 				<MudItem xs="12" sm="6" md="4">
-					<MudCheckBox T="bool" Value="_adatok.MellekletVillam"
-								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "VVN", val => { _adatok.MellekletVillam = val; if (val) _adatok.MellekletVillamNem = false; }))"
-								 Label="Norma szerinti Villám" Color="Color.Primary" />
-					@if (_adatok.MellekletVillam)
-					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamJkv</MudText> }
-				</MudItem>
-				<MudItem xs="12" sm="6" md="4">
-					<MudCheckBox T="bool" Value="_adatok.MellekletVillamNem"
-								 ValueChanged="@(async (bool v) => await OnMellekletCheckboxAsync(v, "VVN-NEM", val => { _adatok.MellekletVillamNem = val; if (val) _adatok.MellekletVillam = false; }))"
-								 Label="Nem norma szerinti Villám" Color="Color.Primary" />
-					@if (_adatok.MellekletVillamNem)
-					{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamNemJkv</MudText> }
-				</MudItem>
+						<MudCheckBox T="bool" Value="_adatok.MellekletVillam"
+									 ValueChanged="@(async (bool v) => await OnVillamParCheckboxAsync(v, "VVN", "VVN-NEM"))"
+									 Label="Norma szerinti Villám" Color="Color.Primary" />
+						@if (_adatok.MellekletVillam)
+						{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamJkv</MudText> }
+					</MudItem>
+					<MudItem xs="12" sm="6" md="4">
+						<MudCheckBox T="bool" Value="_adatok.MellekletVillamNem"
+									 ValueChanged="@(async (bool v) => await OnVillamParCheckboxAsync(v, "VVN-NEM", "VVN"))"
+									 Label="Nem norma szerinti Villám" Color="Color.Primary" />
+						@if (_adatok.MellekletVillamNem)
+						{ <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-8">@_adatok.VillamNemJkv</MudText> }
+					</MudItem>
 				<MudItem xs="12" sm="6" md="4">
 					<MudTextField Value="@_mellekletekSzamaAuto" Label="Mellékletek száma (auto)"
 								  Variant="Variant.Outlined" ReadOnly="true"
@@ -1338,6 +1338,62 @@ else
 		_adatok.SzigetelesiJkv = _adatok.MellekletSzigeteles  ? $"{alap}/SZI" : "";
 		_adatok.VillamJkv      = _adatok.MellekletVillam      ? $"{alap}/VVN" : "";
 		_adatok.VillamNemJkv   = _adatok.MellekletVillamNem   ? $"{alap}/VVN-NEM" : "";
+	}
+
+	/// <summary>
+	/// A "Norma szerinti" / "Nem norma szerinti" villámvédelmi melléklet-checkbox pár kezelője.
+	/// A két opció kölcsönösen kizárja egymást: bepipáláskor az ellentétes típus (ha korábban
+	/// már el lett kezdve kitölteni és mentve lett) törlésre kerül, hogy ne maradjon árva melléklet-rekord.
+	/// </summary>
+	private async Task OnVillamParCheckboxAsync(bool ujErtek, string tipus, string ellentetesTipus)
+	{
+		void Beallit(bool val)
+		{
+			if (tipus == "VVN")
+			{
+				_adatok.MellekletVillam = val;
+				if (val) _adatok.MellekletVillamNem = false;
+			}
+			else
+			{
+				_adatok.MellekletVillamNem = val;
+				if (val) _adatok.MellekletVillam = false;
+			}
+		}
+
+		if (!ujErtek)
+		{
+			await OnMellekletCheckboxAsync(ujErtek, tipus, Beallit);
+			return;
+		}
+
+		// Bepipáláskor: ha az ellentétes típushoz már van elmentett melléklet, töröljük azt is.
+		var letezoEllentetes = _mellekletek.FirstOrDefault(m => m.Tipus == ellentetesTipus);
+		if (letezoEllentetes is not null && !_sablonMod && MeresId is > 0)
+		{
+			var megerositve = await DialogService.ShowMessageBox(
+				"Melléklet törlése",
+				$"A(z) '{MellekletJegyzokonyv.TipusNev(ellentetesTipus)}' melléklet ({letezoEllentetes.Szam}) már el lett kezdve kitölteni. " +
+				$"A '{MellekletJegyzokonyv.TipusNev(tipus)}' kiválasztásával ez a melléklet és a benne rögzített adatok véglegesen törlődnek. Biztosan folytatod?",
+				yesText: "Törlés és váltás", cancelText: "Mégse");
+
+			if (megerositve != true)
+				return; // marad az eredeti állapot, nem változtatunk semmit
+
+			try
+			{
+				await MellekletService.TorlesAsync(letezoEllentetes.Id);
+				_mellekletek.Remove(letezoEllentetes);
+			}
+			catch (Exception ex)
+			{
+				Snackbar.Add($"Hiba a melléklet törlése közben: {ex.Message}", Severity.Error);
+				return;
+			}
+		}
+
+		Beallit(ujErtek);
+		GeneraltMellekletSzamok();
 	}
 
 	/// <summary>

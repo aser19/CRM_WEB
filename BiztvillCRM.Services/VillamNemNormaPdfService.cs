@@ -339,7 +339,7 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         container.Column(col =>
         {
-            col.Item().Element(c => FejezetCim(c, "1.", "Bevezetés:"));
+            col.Item().PaddingTop(10).Element(c => FejezetCim(c, "1.", "Bevezetés:"));
 
             col.Item().PaddingTop(10).PaddingLeft(20).Element(c => AlfejezetCim(c, "1.1", "Előzmények:"));
             col.Item().PaddingLeft(40).PaddingTop(4).Text(ElozmenySzoveg(adatok));
@@ -405,7 +405,7 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         container.Column(col =>
         {
-            col.Item().Element(c => FejezetCim(c, "2.", "A vizsgálat módszerei:"));
+            col.Item().PaddingTop(10).Element(c => FejezetCim(c, "2.", "A vizsgálat módszerei:"));
 
             col.Item().PaddingTop(10).PaddingLeft(20).Element(c => AlfejezetCim(c, "2.1.", "Villámvédelmi besorolás meghatározása:"));
 
@@ -462,7 +462,7 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         container.Column(col =>
         {
-            col.Item().PaddingLeft(20).Element(c => AlfejezetCim(c, "2.3", "Műszeres mérések:"));
+            col.Item().PaddingTop(10).PaddingLeft(20).Element(c => AlfejezetCim(c, "2.3", "Műszeres mérések:"));
 
             col.Item().PaddingTop(8).PaddingLeft(40).Element(c => AdatSor(c, "A mérés idején az időjárás:", adatok.Idojaras));
 
@@ -517,14 +517,16 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
         container.Column(col =>
         {
             var sorok = adatok.ElemBesorolasSorok ?? new();
+            var elsoSor = true;
             foreach (var sor in sorok)
             {
-                col.Item().PaddingTop(6).Row(row =>
+                col.Item().PaddingTop(elsoSor ? 10 : 6).Row(row =>
                 {
                     row.RelativeItem(2).Text(sor.Megnevezes);
                     row.RelativeItem(1).Text(sor.Fokozat ?? "");
                     row.RelativeItem(1).Text((sor.Allapot ?? "").ToUpper()).Bold().Underline();
                 });
+                elsoSor = false;
             }
 
             col.Item().PaddingTop(20).AlignCenter().Text("A felülvizsgálat értékelése:").Bold();
@@ -546,7 +548,7 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
     {
         container.Column(col =>
         {
-            col.Item().PaddingLeft(20).Element(c => AlfejezetCim(c, "3.4", "Belső villámvédelem:"));
+            col.Item().PaddingTop(10).PaddingLeft(20).Element(c => AlfejezetCim(c, "3.4", "Belső villámvédelem:"));
 
             if (adatok.BelsoVillamvedelemTartalmazza)
             {

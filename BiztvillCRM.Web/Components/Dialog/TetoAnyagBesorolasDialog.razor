@@ -61,37 +61,45 @@
         <MudSimpleTable Dense="true" Bordered="true" Striped="true">
             <thead>
                 <tr>
-                    <th>A tetőfödém, és a tetőszerkezet anyagát leíró pont száma</th>
-                    <th>T.I.</th>
-                    <th>T.II.</th>
-                    <th>T.III.</th>
-                    <th>T.IV.</th>
+                    <th rowspan="2" style="vertical-align:middle;">A héjazat anyaga és szerkezete</th>
+                    <th colspan="3" style="text-align:center;">A tetőfödém vagy a tetőszerkezet anyaga</th>
+                </tr>
+                <tr>
+                    <th style="text-align:center;">Nem éghető, nehezen éghető, fém nélkül</th>
+                    <th style="text-align:center;">Bármilyen éghetőségű, fémmel</th>
+                    <th style="text-align:center;">Közepesen éghető, könnyen éghető, fém nélkül</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td colspan="5" style="text-align:center;"><em>pont szerinti tetőfelületű tető besorolása</em></td>
+                    <td>Nem éghető, nehezen éghető, fém nélkül</td>
+                    <td style="text-align:center;"><strong>T 1</strong></td>
+                    <td style="text-align:center;"><strong>T 2</strong></td>
+                    <td style="text-align:center;"><strong>T 3</strong></td>
                 </tr>
                 <tr>
-                    <td>T.a</td>
-                    <td>T1</td>
-                    <td>T2</td>
-                    <td>T4</td>
-                    <td>T5</td>
+                    <td>
+                        Nem éghető, nehezen éghető, fémmel<br />
+                        <br />
+                        Csak fém<br />
+                        <br />
+                        Közepesen éghető, könnyen éghető, vastag fémburkolattal
+                    </td>
+                    <td style="text-align:center;"><strong>T 2</strong></td>
+                    <td style="text-align:center;"><strong>T 2</strong></td>
+                    <td style="text-align:center;"><strong>T 2</strong></td>
                 </tr>
                 <tr>
-                    <td>T.b</td>
-                    <td>T2</td>
-                    <td>T2</td>
-                    <td>T5</td>
-                    <td>T5</td>
+                    <td>Közepesen éghető, könnyen éghető, fém nélkül</td>
+                    <td style="text-align:center;"><strong>T 4</strong></td>
+                    <td style="text-align:center;"><strong>T 5</strong></td>
+                    <td style="text-align:center;"><strong>T 4</strong></td>
                 </tr>
                 <tr>
-                    <td>T.c</td>
-                    <td>T3</td>
-                    <td>T2</td>
-                    <td>T4</td>
-                    <td>T5</td>
+                    <td>Közepesen éghető, könnyen éghető, zárt burkolatot nem képező vagy vékony fémmel</td>
+                    <td style="text-align:center;"><strong>T 5</strong></td>
+                    <td style="text-align:center;"><strong>T 5</strong></td>
+                    <td style="text-align:center;"><strong>T 5</strong></td>
                 </tr>
             </tbody>
         </MudSimpleTable>

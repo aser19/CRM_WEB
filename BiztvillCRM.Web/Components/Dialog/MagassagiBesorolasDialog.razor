@@ -9,36 +9,103 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudSimpleTable Dense="true" Bordered="true" Striped="true">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Az épület magasság szerinti besorolása</MudText>
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true" Class="mb-4">
             <thead>
                 <tr>
-                    <th>Környezeti hatás</th>
-                    <th>M ≤ 20 m</th>
-                    <th>20 m &lt; M ≤ 35 m</th>
-                    <th>M &gt; 35 m</th>
+                    <th rowspan="4" style="vertical-align:middle;text-align:center;">A védendő épület magassága</th>
+                    <th colspan="4" style="text-align:center;">Az épület magasság szerinti besorolása</th>
+                </tr>
+                <tr>
+                    <th style="text-align:center;">hegytetőn</th>
+                    <th style="text-align:center;">sík területen</th>
+                    <th colspan="2" style="text-align:center;">Vízfolyáshoz 10 m-nél közelebb vagy nedves területen</th>
+                    <th colspan="2" style="text-align:center;">egyéb helyen</th>
+                </tr>
+                <tr>
+                    <th colspan="2" style="text-align:center;">ha a környezetben épület nincs</th>
+                    <th colspan="4" style="text-align:center;">ha a környezetben levő épület a védendőnél</th>
+                </tr>
+                <tr>
+                    <th style="text-align:center;">seholsem</th>
+                    <th style="text-align:center;">100 m-en belül</th>
+                    <th style="text-align:center;">&ge; 2 m-rel<br />alacsonyabb</th>
+                    <th style="text-align:center;">nem<br />alacsonyabb</th>
+                    <th style="text-align:center;">&ge; 2 m-rel<br />alacsonyabb</th>
+                    <th style="text-align:center;">nem<br />alacsonyabb</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td colspan="4" style="text-align:center;"><em>magasságú építmény magasság szerinti besorolása</em></td>
+                    <td>&lt;10 m</td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M1</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M1</strong></td>
                 </tr>
+                <tr>
+                    <td>10...20 m</td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M1</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M1</strong></td>
+                </tr>
+                <tr>
+                    <td>20...30 m</td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                </tr>
+                <tr>
+                    <td>&gt;30 m</td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Környezeti hatás szerinti besorolás</MudText>
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="vertical-align:middle;">Környezeti hatás</th>
+                    <th colspan="3" style="text-align:center;">magasságú épület, illetve egyéb építmény magasság szerinti besorolása</th>
+                </tr>
+                <tr>
+                    <th style="text-align:center;">M &le; 20 m</th>
+                    <th style="text-align:center;">20 m &lt; M &le; 30 m</th>
+                    <th style="text-align:center;">M &gt; 30 m</th>
+                </tr>
+            </thead>
+            <tbody>
                 <tr>
                     <td>Nincs</td>
-                    <td>M2</td>
-                    <td>M3</td>
-                    <td>M4</td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
                 </tr>
                 <tr>
-                    <td>Becsapási veszélyt csökkentő környezet</td>
-                    <td>M1</td>
-                    <td>M2</td>
-                    <td>M3</td>
+                    <td>Magas környezet</td>
+                    <td style="text-align:center;"><strong>M1</strong></td>
+                    <td style="text-align:center;"><strong>M2</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
                 </tr>
                 <tr>
                     <td>Becsapási veszélyt fokozó környezet</td>
-                    <td>M3</td>
-                    <td>M4</td>
-                    <td>M4</td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M3</strong></td>
+                    <td style="text-align:center;"><strong>M4</strong></td>
                 </tr>
             </tbody>
         </MudSimpleTable>

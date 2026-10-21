@@ -136,7 +136,7 @@
 
                 <MudItem xs="12" md="6">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudSelect T="int" @bind-Value="_kivalasztottTelephelyId" Label="Telephely *"
+                        <MudSelect T="int" Value="_kivalasztottTelephelyId" ValueChanged="OnTelephelyValtozas" Label="Telephely *"
                                    Variant="Variant.Outlined" Disabled="@(_szurtTelephelyek.Count == 0)"
                                    ToStringFunc="@(id => _szurtTelephelyek.FirstOrDefault(t => t.Id == id)?.Nev ?? "")"
                                    Style="flex:1;">
@@ -986,6 +986,29 @@
         var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == ugyfelId);
         if (ugyfel != null)
             _adatok.Megrendelo = ugyfel.Nev;
+
+        AtveszTelephelyAdatokat();
+    }
+
+    private void OnTelephelyValtozas(int telephelyId)
+    {
+        _kivalasztottTelephelyId = telephelyId;
+        AtveszTelephelyAdatokat();
+    }
+
+    /// <summary>
+    /// A kiválasztott telephely nevét/címét és kapcsolattartóját átveszi a jegyzőkönyv adataiba.
+    /// A VizsgalatHelye mindig frissül, a KapcsolatTarto csak akkor, ha az még üres.
+    /// </summary>
+    private void AtveszTelephelyAdatokat()
+    {
+        var telephely = _telephelyek.FirstOrDefault(t => t.Id == _kivalasztottTelephelyId);
+        if (telephely != null)
+        {
+            _adatok.VizsgalatHelye = $"{telephely.Nev} - {telephely.Cim}";
+            if (string.IsNullOrWhiteSpace(_adatok.KapcsolatTarto) && !string.IsNullOrWhiteSpace(telephely.Kapcsolattarto))
+                _adatok.KapcsolatTarto = telephely.Kapcsolattarto;
+        }
     }
 
     private void VisszaEggyetLepes()
@@ -995,7 +1018,7 @@
             _activeStep--;
         }
     }
-    
+
     private async Task ValidalasEsTovabblepesAsync()
     {
         if (_kivalasztottTipusId == 0) { Snackbar.Add("Válassz jegyzőkönyv típust!", Severity.Warning); return; }
@@ -1011,9 +1034,7 @@
             _adatok.JegyzokonyvSzam = munkaszam;
         }
 
-        var telephely = _telephelyek.FirstOrDefault(t => t.Id == _kivalasztottTelephelyId);
-        if (telephely != null)
-            _adatok.VizsgalatHelye = $"{telephely.Nev} - {telephely.Cim}";
+        AtveszTelephelyAdatokat();
 
         _activeStep++;
     }
@@ -1418,6 +1439,12 @@
 
             await OnTipusValtozas(_kivalasztottTipusId);
             OnUgyfelValtozas(_kivalasztottUgyfelId);
+            // Az OnUgyfelValtozas az ügyfél első telephelyére állítja a kiválasztást,
+            // itt viszont a korábban elmentett méréshez tartozó telephelyet kell megtartani.
+            _kivalasztottTelephelyId = meres.TelephelyId;
+            // Ha a korábban mentett jegyzőkönyvben még üres volt a kapcsolattartó, pótoljuk
+            // a telephelyhez tartozó adatból (nem írja felül, ha már van értéke).
+            AtveszTelephelyAdatokat();
 
             // ✅ JEGYZŐKÖNYV ADATOK BETÖLTÉSE
             if (!string.IsNullOrEmpty(meres.JegyzokonyvAdatokJson))
@@ -1463,6 +1490,11 @@
                         }
                         // Muszerek null-check
                         _adatok.Muszerek ??= new List<MuszerSor>();
+
+                        // Telephely adatok (VizsgalatHelye, KapcsolatTarto) pótlása, ha a betöltött
+                        // JSON-ban még hiányoznak (a mentettAdatok lecserélte _adatok-ot a fenti
+                        // AtveszTelephelyAdatokat() hívás óta, ezért itt meg kell ismételni).
+                        AtveszTelephelyAdatokat();
 
                         // _kivalasztottMuszerIds visszatöltése a mentett EszkozId alapján
                         _kivalasztottMuszerIds = new List<int?> { null, null, null };

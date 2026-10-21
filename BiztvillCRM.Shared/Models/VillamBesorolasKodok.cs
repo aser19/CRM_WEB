@@ -12,11 +12,11 @@ public static class VillamBesorolasKodok
     /// <summary>Rendeltetés szerinti kockázati osztály (R1 = legalacsonyabb kockázat/védelmi igény, R5 = legmagasabb).</summary>
     public static readonly Dictionary<string, string> Rendeltetes = new()
     {
-        ["R1"] = "R2..R5 csoportba nem tartozó építmény (ideértve a gyárkéményt, fémtartályt) )",
-        ["R2"] = "Az alábbiakban részletezett, az R3..R5 csoportba nem\r\ntartozó építmény:\r\n- az a közösségi épület, amelyben bármelyik\r\ntűzszakasz befogadóképessége meghaladja az 500 főt\r\n- a tömegtartózkodásra szolgáló építmény,\r\n- a talajszint feletti nagy forgalmú épület,\r\n- földfeletti közműépítmény,\r\n- tudományos, történelmi és művészeti értékű épület,\r\nide értve a szobrokat, az emlékműveket)",
-        ["R3"] = "A Villamos TvMI alapján „Korlátozott mértékű\r\nrobbanásveszéllyel” rendelkező épületek, valamint\r\nolyan épületek, amelyekben „mérsékelten\r\ntűzveszélyes” tűzveszélyességi osztályú anyagokat\r\nállítanak elő, dolgoznak fel, használnak.",
-        ["R4"] = "Rendeltetésüket tekintve „fokozottan tűz- és\r\nrobbanásveszélyes” tűzveszélyességi osztályba tartozó\r\nanyagok tárolására szolgáló építmények, és olyan,\r\nrobbanásveszélyes térrészeket tartalmazó építmények,\r\namelyek nem tartoznak az R3 csoportba",
-        ["R5"] = "Katasztrófával fenyegető építmény, amely robbanás,\r\nvagy a környezetbe kijutó veszélyes anyagok révén,\r\nvillámcsapás esetén a vonatkozó jogszabály szerinti\r\nkatasztrófahelyzetet idézhet elő ",
+        ["R1"] = "Közönséges épület, építmény. R2..R5 csoportba nem tartozó építmény (ideértve a gyárkéményt, fémtartályt) )",
+        ["R2"] = "Kiemelt épület, építmény. R3..R5 csoportba nem tartozó építmény. Napi személyforgalom >1000 fő, óránként >300 fő 5 percenként >50 fő. Nagyüzemi állattartás. Bármelyik tűzszakasz befogadóképessége meghaladja az 500 főt. A tömegtartózkodásra szolgáló építmény. A talajszint feletti nagy forgalmú épület. Földfeletti közműépítmény. Tudományos, történelmi és művészeti értékű épület (szobrok, emlékművek.)",
+        ["R3"] = "Tűzveszélyes épület, építmény. C tűzveszélyes osztályú anyagokat előállítanak, feldolgoznak, használnak, tárolnak vagy forgalomba hoznak. A Villamos TvMI alapján „Korlátozott mértékű robbanásveszéllyel” rendelkező épületek, valamint olyan épületek, amelyekben „mérsékelten tűzveszélyes” tűzveszélyességi osztályú anyagokat állítanak elő, dolgoznak fel, használnak.",
+        ["R4"] = "Tűz és robbanásveszélyes épület, építmény. B tűzveszélyes osztályú anyagokat előállítanak, feldolgoznak, használnak, tárolnak vagy forgalomba hoznak. A Villamos TvMI alapján „Korlátozott mértékű\r\nrobbanásveszéllyel” rendelkező épületek, valamint olyan épületek, amelyekben „mérsékelten tűzveszélyes” tűzveszélyességi osztályú anyagokat állítanak elő, dolgoznak fel, használnak.",
+        ["R5"] = "Fokozottan tűz és robbanásveszélyes épület, építmény.",
     };
 
     /// <summary>Az épület magassága és környezeti hatása szerinti osztályba sorolás (M ≤ 20 m / 20-35 m / M &gt; 35 m, valamint a becsapási veszélyt csökkentő/fokozó környezet figyelembevételével).</summary>
@@ -45,17 +45,18 @@ public static class VillamBesorolasKodok
     /// <summary>A körítő (homlokzati) falak anyaga szerinti besorolás.</summary>
     public static readonly Dictionary<string, string> KoritoFalakAnyaga = new()
     {
-        ["K1"] = "„A1” és „A2”, tűzvédelmi osztályba tartozó anyagokból készült falszerkezet",
-        ["K2"] = "Az a függőlegesen összefüggő, villamos szempontból vezetőképesen összekötött:\r\no legalább 50mm2 keresztmetszetű fémszerkezetet tartalmazó\r\nfalszerkezet,\r\no legalább 0,5 mm vastag fémlemezzel burkolt körítőfal,\r\no fémtartály legalább 0,5 mm vastag fémlemez oldalfala,\r\no olyan fal, amelyben a magasságuknál kisebb távolságban függőleges\r\nacéloszlopok, pillérek vagy összefüggő acélbetéttel ellátott betonpillérek\r\nfutnak végig, és ezek a fémszerkezetek legalább fölül fémesen össze\r\nvannak kötve egymással",
-        ["K3"] = "Nem K1, vagy K2 csoportba tartozó fal",
+        ["K1"] = "Nem éghető fal",
+        ["K2"] = "Fémszerkezetű fal. Az az összefüggően legalább 0.5 mm2 vastag fémlemezzel burkolt körítőfal ami más anyagokból is áll. Acélbetétes vasbetonfal.",
+        ["K3"] = "Éghető fal.",
     };
 
     /// <summary>A környező levegő szennyezettsége (korróziós/ipari terhelés) szerinti besorolás.</summary>
     public static readonly Dictionary<string, string> LevegoSzennyezettsege = new()
     {
-        ["S1"] = "Enyhén szennyezett (lakó-, vidéki környezet)",
-        ["S2"] = "Közepesen szennyezett (városi, kereskedelmi környezet)",
-        ["S3"] = "Erősen szennyezett (ipari, vegyi, tengerparti/sós környezet)",
+        ["S1"] = "Tiszta levegőben lévő épület, építmény.(Falvak)",
+        ["S2"] = "Mérsékelten szennyezett levegőben lévő épület, építmény. (Városok)",
+        ["S3"] = "Erősen szennyezett légkörben álló épület, építmény. (Vegyi üzemek környékén)",
+        ["S4"] = "Erősen agresszív légkörben álló épület, építmény.",
     };
 
     /// <summary>
@@ -65,6 +66,32 @@ public static class VillamBesorolasKodok
     /// koordinált túlfeszültségvédelem is szükséges. Az adott körülmények figyelembevételével a
     /// táblázatban meghatározott fokozatnál magasabb fokozat is megállapítható.
     /// </summary>
+    /// <summary>A felfogó rendszer lehetséges fokozatai (dropdown-hoz).</summary>
+    public static readonly string[] FelfogoFokozatok =
+    {
+        "V0o", "V1o", "V2a", "V2b", "V2c", "V3a", "V3b", "V3c",
+        "V4a", "V4b", "V4c", "V5b", "V5c", "V6c",
+    };
+
+    /// <summary>A levezető rendszer lehetséges fokozatai (dropdown-hoz).</summary>
+    public static readonly string[] LevezetoFokozatok =
+    {
+        "L0o", "L1o", "L2a", "L2b", "L3a", "L3b",
+        "L4a", "L4b", "L4c", "L5a", "L5b", "L5c", "L6b",
+    };
+
+    /// <summary>A földelés lehetséges fokozatai (dropdown-hoz).</summary>
+    public static readonly string[] FoldelesFokozatok =
+    {
+        "F0/x", "F1/x", "F1/r", "F2/x", "F2/r", "F3/r", "F4/r",
+    };
+
+    /// <summary>A belső villámvédelem (másodlagos hatások elleni védelem) lehetséges fokozatai (dropdown-hoz).</summary>
+    public static readonly string[] BelsoVedelemFokozatok =
+    {
+        "B0", "B2", "B3", "B4",
+    };
+
     public static readonly Dictionary<string, string> MasodlagosHatas = new()
     {
         ["B0"] = "R1 (nincs külső villámvédelem) esetén: villámvédelmi potenciálkiegyenlítés fokozata B0, koordinált túlfeszültségvédelem nem szükséges. Megjegyzés: az MSZ HD 60364-4-443, MSZ HD 60364-5-534 szabványok ebben az esetben is írhatnak elő potenciálkiegyenlítési intézkedéseket.",
