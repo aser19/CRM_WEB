@@ -242,9 +242,21 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.Property(e => e.Leiras).HasMaxLength(1000);
             entity.Property(e => e.SablonId).HasMaxLength(100);
             entity.Property(e => e.JegyzokonyvPrefix).HasMaxLength(20).HasDefaultValue("JKV");
-            
+
             // ✅ ÚJ: OCR Model ID konfiguráció
             entity.Property(e => e.OcrModelId).HasMaxLength(100);
+        });
+
+        // --- KepzesTipus ---
+        modelBuilder.Entity<KepzesTipus>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Label).HasMaxLength(50);
+            // Stabil, rendszer által használt azonosító kód (pl. "VVN_NEM_BIZONYITVANY"),
+            // amely a Nev mezőtől függetlenül azonosítja a logikailag fontos képzéstípusokat.
+            entity.Property(e => e.Kod).HasMaxLength(50);
+            entity.Property(e => e.Leiras).HasMaxLength(1000);
         });
 
         // --- Meres ---

@@ -1,0 +1,115 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            A meglévő levezető állapotának besorolása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2"><strong>L0:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Sem természetes, sem mesterséges levezető nincs. Ez csak akkor lehetséges, ha nincs (felfogó) villámvédelmi rendszer.</MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>L1:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Természetes levezető(k) rendszer(e)<br />
+                - Épület vagy építmény fémből készült vagy fémmel burkolt fala<br />
+                - Olyan fémből készült épületszerkezetek, amelyek függőlegesen végigfutó elemei között a magasságuknál kisebb távolság van. (57. oldal)<br />
+                - Vasbeton épületszerkezet fémesen összefüggő acélbetétjei<br />
+                - Összekötés: csavaros, hegesztett, forrasztott, korcolt, szegecselt, átlapolt (itt megengedett a max. 1 cm szigetelő betét vagy légrés).<br />
+                - Lehet az épület belsejében, ha hézagmentes fém kapcsolat van és alul több irányban csatlakozik a földeléshez. (107. oldal)
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>L2:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Egyetlen levezető ahol az áramút hossza a felfogó bármely részétől a levezetőig nem több mint 20 méter.<br />   
+                - Csak akkor használható ha a V2 felfogórendszer egyetlen felfogórúdból áll. Ha a méretei miatt ez nem lehetséges, L3 levezetőt kell alkalmazni.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>L3:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Legalább két levezetőből áll, olyan elrendezésben, hogy:<br />
+                - A legközelebbi levezető(k)ig a vízszintes áramút vetületének eredője legfeljebb 15 méter.<br />
+                - L3a és L3b esetén a levezetők fele lehet kisegítő természetes levezető.<br />
+                - L3c esetén kisegítő természetese levezető használata nem engedélyezett.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>L4:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Legalább két levezetőből áll ami megfelel az L3 feltételeinek, de a leghosszabb vagy eredő áramút vízszintes vetülete legfeljebb 10 méter.<br />    
+                - L4a és L4b fokozat esetén az összes levezető fele lehet kisegítő természetes levezető.<br />
+                - L4c fokozat esetén kisegítő természetes levezető használata nem engedélyezett.<br />
+                - Az eredő áramút kiszámításakor smemilyen természetes levezető nem vehető figyelembe.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>L5:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                L4 fokozat szerinti levezetőkből áll, de<br />
+                - minden levezető felül (vízszintesen) össze van kötve egymással a felfogóhoz való csatlakozástól legfeljebb 2 méterre.<br />
+                - A 20 méternél hosszabb levezetők közben is (vízszintesen) össze vannak kötve egymással úgy, hogy az összekötések közötti távolság max. 20 méter<br />
+                - A levezetők összekötései elhelyezhetők az épület külső falán, de a födémekben is.<br />
+                - Mivel az összekötők nem vezetnek villámváramot, hanem csak potenciálkiegyenlítést végeznek, az elrendezési távolság figyelmen kívül hagyható.<br />
+                - L5a fokozat esetén az összes levezető fele lehet kisegítő természetes levezető.<br />
+                - L5b és L5c fokozat esetén kisegítő természetes levezető használata nem engedélyezett.<br />
+                - Az eredő áramút kiszámításakor smemilyen természetes levezető nem vehető figyelembe.<br />
+                - Az épülettől független "d" fokozatú levezető szükséges, ha a felfogó "d" fokozatú.
+            </MudListItem>
+        </MudList>
+
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.body2"><strong>a:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Közvetlenül az épület falán, falába vagy 15 cm távolságon belül</MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>b:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                A levezető és az épület között legalább 15 cm távolság van.<br />
+                - Könnyen éghető falaknál vagy tűz és robbanásveszélyes épületeknél van előírva.<br />
+                - A levezetőt falba vagy falra erősített tartók rögzítik.<br />
+                - A tartók között maximum 3 méter távolság lehet.<br />
+                - 30 méternél hosszabb feszített levezetőt közben is meg kell támasztani.<br />
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>c:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">A levezető és az épület között legalább 50 cm távolságot kell tartani.<br />
+                - Az ilyen levezető nem csak a hőhatástól óvja a falakat, hanem a másodlagos hatásokat is csökkenti.<br />
+                - Csak fokozottan tűz és robbanásveszélyes épületeknél van előírva akkor amikor a fal éghető (K3).<br />
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>d:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Épülettől független levezető.<br />
+                - Az előírt távolságot az épülettől kell tartani és nem a levezető tartójától.<br />
+                - A levezető elhelyezhető a betonoszlop belsejében, faoszlopon rövid tartóval, stb...<br />
+            </MudListItem>
+        </MudList>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">BEZÁR</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

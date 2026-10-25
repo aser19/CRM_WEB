@@ -6,6 +6,13 @@ public class KepzesTipus
     public DateTime Letrehozva { get; set; }
     public string Nev { get; set; } = string.Empty;
     public string? Label { get; set; }  // ← ÚJ
+
+    /// <summary>
+    /// Stabil, rendszer által használt azonosító kód (pl. "VVN_NEM_BIZONYITVANY"),
+    /// amely a Nev mezőtől függetlenül, elgépelés/átnevezés ellen biztosan azonosítja
+    /// a programban logikailag fontos képzéstípusokat. Admin felületen nem szerkeszthető.
+    /// </summary>
+    public string? Kod { get; set; }
     
     public bool Lejar { get; set; } = false;
     public int? LejaratEvek { get; set; }

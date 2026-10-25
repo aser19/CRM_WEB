@@ -247,7 +247,10 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
                 row.RelativeItem().Column(c =>
                 {
                     c.Item().Text("A MEGBÍZÁS TÁRGYA:").Bold();
-                    c.Item().PaddingTop(4).Text(adatok.MegbizasTargya);
+                    if (!string.IsNullOrWhiteSpace(adatok.VizsgalatHelye))
+                        c.Item().PaddingTop(4).Text(adatok.VizsgalatHelye);
+                    if (!string.IsNullOrWhiteSpace(adatok.MegbizasTargya))
+                        c.Item().PaddingTop(4).Text(adatok.MegbizasTargya);
                 });
             });
 
@@ -260,6 +263,9 @@ public class VillamNemNormaPdfService : IVillamNemNormaPdfService
                 col.Item().PaddingTop(10).Element(c => AdatSor(c, "Ellenőr:", NevBizonyitvany(adatok.Ellenor, adatok.EllenorBizonyitvany)));
 
             col.Item().PaddingTop(10).Element(c => AdatSor(c, "Megbízó képviselője:", adatok.MegrendeloKepviseloje));
+
+            if (!string.IsNullOrWhiteSpace(adatok.UzemiKisero))
+                col.Item().PaddingTop(10).Element(c => AdatSor(c, "Üzemi kísérő:", adatok.UzemiKisero));
 
             col.Item().PaddingTop(60).Text(adatok.MeresIdeje.HasValue ? adatok.MeresIdeje.Value.ToString("yyyy. MMMM d.", HuKultura) : "").FontSize(10);
 

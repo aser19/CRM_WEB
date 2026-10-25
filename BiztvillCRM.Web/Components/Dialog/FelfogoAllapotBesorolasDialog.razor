@@ -1,0 +1,206 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            A meglévő felfogó állapotának besorolása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2"><strong>V0:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Sem természetes, sem mesterséges felfogórendszer nincs.</MudListItem>
+        </MudList>
+        <MudText Typo="Typo.body2"><strong>V1:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Természetes felfogórendszer. (A tetőfödém, szerkezet, héjazat olyan fémalkatrészeit használja ami eredetileg nem villámvédelmi célra készültek.)</MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>V2:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Egyszerűsített felfogó rendszer. <br />
+                - Egyetlen felfogórúd (20°-nál meredekebb sátortető legmagasabb pontján)<br />
+                - Több felfogórúd 20°-nál meredekebb nyeregtető gerincén egymástól max 20 méterre<br />
+                - Felfogórúd rendszer 20°-nál laposabb tetőn úgy, hogy a tető egyetlen pontja sem esik távolabb mint a rúd csúcsához viszonyított magasság tízszerese<br />
+                - 1 felfogóvezető a 20°-nál meredekebb tető legmagasabb gerincén<br />
+                - Felfogóvezetők olyan rendszere, hogy a tetőfelület egyetlen pontja sem esik távolabb 10 méternél távolabb a felfogótól.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>V3:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Felfogók olyan rendszere:<br />
+                - nem lehet egy R = 100 m sugarú gömböt a  felülettel érintkezésbe hozni<br />
+                - nem lehet egy d = 20 m sugarú körlapot ráhelyezni<br />
+                - az épület (max. 40 méteres magasságban) bármely pontjától a felfogóhoz húzott egyenesnek a függőlegeshez viszonyított hajlásszöge 45°-nál kisebb.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>V4:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Olyan mint a V3, de:<br />
+                - a gömb sugara: R = 80 méter<br />
+                - a körlap átmérője: d = 15 méter<br />
+                - a védőszög: α = 30°
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>V5:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Növelt biztonságú felfogórendszer, ahol a gömb sugara függ az épület magasságától:<br />
+                - M &ge;20m: R = 40 méter<br />
+                - 20m &gt; M &ge; 50m: R = M + 20 méter<br />
+                - 50m &gt; M: R = 70 méter
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>V6:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Különleges biztonságú felfogórendszerben  a felfogók elrendezése olyan mint a V5 felfogói, de<br />
+                - M &ge; 50m: R = M + 10 méter<br />
+                - M  &gt; 50m: R = 60 méter<br />
+            </MudListItem>
+        </MudList>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.body2"><strong>a - d-ig terjedő betűjelek értelmezése:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                Az előírt távolság nem a felfogó minden részére vonatkozik, hanem a feltételezhető becsapási pontra. Tehát nem kell becsapási pontot feltételezni a felfogó olyan részén, amely a szerkesztés szerint védett térbe esik.<br />
+                Ilyenek a tartószerkezetek vagy a felfogó rudak szárai. Ezt ki is lehet használni ott ahol a becsapási pontnak a "c" fokozat szerint legalább 50cm-nek kell lennie.<br />
+                Ebben az esetben célszerű olyan felfogórudakat használni, amelyeket a védett térrészbe eső vezetők kötnek össze egymással és a levezetőkkel. (94.oldal)
+
+            </MudListItem>
+        </MudList>
+        <MudText Typo="Typo.body2"><strong>a:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                - A felfogóvezetőt 10 méterenként rögzíteni kell a tetőhöz.<br />
+                - Ha a vezetőt közvetlenül a tetőre fektetik, súlyos betongúlával is rögzíthető<br />
+                - A követelményeket  kielégítik a 8 - 10 cm magas fémből vagy műanyagból készült tartószerkezetek is<br />
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>b:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">A felfogóvezető rögzítő tartója bármilyen anyagból készülhet.</MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>c:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                A felfogóvezető rögzítő tartója általában fémből készülhet.<br />
+                - Gyúlékony tetőhéjazatot áttörve a tetőszerkezethez van erősítve<br />
+                - Kemény anyagból készült lapostetőn 50 cm magas betongúlás tartó is megfelelő<br />
+                - Ha a tartó közelében nagyobb kiterjedésű fémtárgyak vannak és azokat nem lehet bekötni (pl. nem bírná el a villámáramot) akkor a szigetelőtartót célszerű fából készíteni.<br />
+                - Ha a lapostetőt éghető műanyaglap alkotja, alatta pedig fémszerkezet van, a betongúla alá (&gt; 1cm) szigetelőlapot kell rakni. Ellenőrzésre nincs lehetőség, bízni kell a telepítőben<br />
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>d:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Az épülettől független felfogó rendszer, mely sehol nem közelíti meg annyira az épületet, hogy fennáljon a másodlagos kisülés veszélye.</MudListItem>
+        </MudList>
+        
+        <div style="overflow-x:auto;">
+            <MudSimpleTable Dense="true" Bordered="true" Striped="true" Style="min-width:600px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:center;">A felfogó<br />fokozata</th>
+                        <th style="text-align:center;">Az épület <em>M</em><br />magassága<br />m</th>
+                        <th style="text-align:center;">A gördülő<br />gömb <em>R</em> sugara<br />m</th>
+                        <th style="text-align:center;">A körlap<br /><em>d</em> átmérője<br />m</th>
+                        <th style="text-align:center;">A védőszög,<br />&alpha;<br />&deg;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="text-align:center;"><strong>V3</strong></td>
+                        <td style="text-align:center;"><em>M</em> &le; 40 m<br /><em>M</em> &gt; 40 m</td>
+                        <td style="text-align:center;">100<br />100</td>
+                        <td style="text-align:center;">20<br />20</td>
+                        <td style="text-align:center;">45<br />–</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:center;"><strong>V4</strong></td>
+                        <td style="text-align:center;"><em>M</em> &le; 40 m<br /><em>M</em> &gt; 40 m</td>
+                        <td style="text-align:center;">80<br />80</td>
+                        <td style="text-align:center;">15<br />15</td>
+                        <td style="text-align:center;">30<br />–</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:center;"><strong>V5</strong></td>
+                        <td style="text-align:center;"><em>M</em> &le; 20 m<br />20 m &lt;<em>M</em>&lt; 50 m<br /><em>M</em> &ge;50 m</td>
+                        <td style="text-align:center;">40<br /><em>M</em> + 20<br />70</td>
+                        <td style="text-align:center;">–</td>
+                        <td style="text-align:center;">–</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:center;"><strong>V6</strong></td>
+                        <td style="text-align:center;"><em>M</em> &le; 50 m<br /><em>M</em> &gt; 50 m</td>
+                        <td style="text-align:center;"><em>M</em> + 10<br />60</td>
+                        <td style="text-align:center;">–</td>
+                        <td style="text-align:center;">–</td>
+                                </tr>
+                            </tbody>
+                            </MudSimpleTable>
+                        </div>
+
+                        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2" Color="Color.Primary" Align="Align.Center">
+                            A felfogóvezetők távolságára vonatkozó előírások
+                        </MudText>
+                        <div style="overflow-x:auto;">
+                        <MudSimpleTable Dense="true" Bordered="true" Striped="true" Style="min-width:700px;">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="text-align:center;">A tető<br />besorolása</th>
+                                    <th colspan="5" style="text-align:center;">Rendeltetés szerinti besorolás</th>
+                                </tr>
+                                <tr>
+                                    <th style="text-align:center;">R1</th>
+                                    <th style="text-align:center;">R2</th>
+                                    <th style="text-align:center;">R3</th>
+                                    <th style="text-align:center;">R4</th>
+                                    <th style="text-align:center;">R5</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="text-align:center;"><strong>T1</strong></td>
+                                    <td colspan="3" style="text-align:center;"><strong>a</strong> fokozat. Távolság &le; <strong>15 cm</strong><br />vagy vezetők a tetőfelületen</td>
+                                    <td colspan="2" style="text-align:center;"><strong>b</strong> fokozat. Távolság &gt; <strong>15 cm</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align:center;"><strong>T2</strong></td>
+                                    <td colspan="5" style="text-align:center;"><strong>o</strong> fokozat. Természetes felfogók</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align:center;"><strong>T3</strong></td>
+                                    <td colspan="5" style="text-align:center;"><strong>b</strong> fokozat. Távolság &gt; <strong>15 cm</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align:center;"><strong>T4<br />T5</strong></td>
+                                    <td colspan="5" style="text-align:center;"><strong>c</strong> fokozat. Távolság &gt; <strong>50</strong> cm</td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+                        </div>
+
+
+                    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">BEZÁR</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

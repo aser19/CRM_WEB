@@ -16,6 +16,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.Tovabbkepzesek)
+            .AsSplitQuery()
             .Where(f => f.CegId == cegId && f.Aktiv)
             .OrderBy(f => f.Nev)
             .ToListAsync();
@@ -29,6 +30,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.Tovabbkepzesek)
+            .AsSplitQuery()
             .OrderBy(f => f.Nev)
             .ToListAsync();
     }
@@ -42,6 +44,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.Tovabbkepzesek)
+            .AsSplitQuery()
             .Where(f => f.Aktiv)
             .OrderBy(f => f.Nev)
             .ToListAsync();
@@ -67,6 +70,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.Tovabbkepzesek)
+            .AsSplitQuery()
             .AsQueryable();
 
         if (!tenantService.IsInRole(FelhasznaloSzerepkor.Admin))
@@ -202,6 +206,7 @@ public class FelulvizsgaloService(CrmDbContext context, ITenantService tenantSer
                 .ThenInclude(k => k.KepzesTipus)
             .Include(f => f.Kepzesek)
                 .ThenInclude(k => k.Tovabbkepzesek)
+            .AsSplitQuery()
             .Where(f => f.CegId == cegId && f.Aktiv)
             .Where(f => f.Kepzesek.Any(k => 
                 k.KepzesTipus != null && 

@@ -158,8 +158,13 @@ public class MeresService : IMeresService
         existing.MeresStatusz = meres.MeresStatusz;
         existing.Megjegyzes = meres.Megjegyzes;
         existing.KibocsatoCegId = meres.KibocsatoCegId;
-        existing.JegyzokonyvAdatokJson = meres.JegyzokonyvAdatokJson;
-        existing.VillamNemNormaAdatokJson = meres.VillamNemNormaAdatokJson;
+        // Csak akkor irjuk felul a JSON mezoket, ha az atadott objektumban tenylegesen van ertek,
+        // hogy egy hianyosan feltoltott (pl. listabol nyitott szerkesztesi) Meres peldany ne torolje
+        // veletlenul a korabban mentett jegyzokonyv-/VVN-NEM adatokat.
+        if (!string.IsNullOrWhiteSpace(meres.JegyzokonyvAdatokJson))
+            existing.JegyzokonyvAdatokJson = meres.JegyzokonyvAdatokJson;
+        if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
+            existing.VillamNemNormaAdatokJson = meres.VillamNemNormaAdatokJson;
         existing.Modositva = DateTime.UtcNow;
 
         await context.SaveChangesAsync();

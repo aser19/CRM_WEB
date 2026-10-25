@@ -21,11 +21,17 @@ public class VillamNemNormaAdatok
     public string MegrendeloNev { get; set; } = "";
     public string MegrendeloCim { get; set; } = "";
 
+    /// <summary>A vizsgálat helye (a jegyzőkönyv fölapján megadott telephely/cím).</summary>
+    public string VizsgalatHelye { get; set; } = "";
+
     /// <summary>A megbízás tárgya (pl. "Kiskereskedelmi üzlet villámvédelmi felülvizsgálata").</summary>
     public string MegbizasTargya { get; set; } = "";
 
     /// <summary>Megrendelő képviselője (szabad szöveges mező, textbox-ból töltve).</summary>
     public string MegrendeloKepviseloje { get; set; } = "";
+
+    /// <summary>Üzemi kísérő neve (a jegyzőkönyv főlapján megadott adat).</summary>
+    public string UzemiKisero { get; set; } = "";
 
     // === FELELŐS FELÜLVIZSGÁLÓ (MÉRÉST VÉGZŐ) ===
     public string FelulvizsgaloNev { get; set; } = "";

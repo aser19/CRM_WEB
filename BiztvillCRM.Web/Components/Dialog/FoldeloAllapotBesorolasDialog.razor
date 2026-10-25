@@ -1,0 +1,119 @@
+@using BiztvillCRM.Shared.Models
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            A meglévő földelő állapotának besorolása
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2"><strong>F0:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Sem természetes, sem mesterséges földelő nincsen, mert nincs villámhárító berendezés amit földelni kell.<br />
+                - Amikor V0o-L0o-F0/x fokozat van előírva, és mégis készítenek villámhárítót, akkor földelésre is szükség van.<br />
+                - Földelésre akkor is szükség van amikor nincs villámhárító, de valamilyen az épülethez tartozó fémtárgyat (pl. antenna) földelni kell.<br />
+                - Ebben az esetben nincs követelmény, hogy milyen legyen, de nem lehet F0
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>F1:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Olyan földelő, amely a talajjal nagy felületen (közvetlenül vagy betonon keresztül) érintkező fémtárgy.
+                - F1/x esetén legalább 5m2 felületen érintkeznie kell a talajjal.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>F2:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Egyetlen földelő, tehát csak akkor használható amikor egyetlen L2 fokozatú levezető van.
+                - F2/x esetén méretkövetelmények vannak.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>F3:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Legalább két földelő (különálló vagy csoportosan egymással összekötött)<br />
+                - A villámhárító föld feletti része legalább két helyen csatlakozik a földeléshez.<br />
+                - A földelés a föld alatt össze lehet kötve.<br />
+                - F3/x esetén legalább két egymástól független földelőnek kell lennie, amelyek külön-külön megfelelnek a méretkövetelményeknek.<br />
+                - Amennyiben a talajjal érintkező hossz vagy felület mindegyik földelési csatlakozásnál eléri a megadott méreteket, akkor a föld alatt összekötött földelőrenszer kielégíti az F3/x fokozat követelményeit.
+
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>F4:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Gyűrűs, keret vagy az alap területét fedő földelőháló és egyedi földelők is csatlakoznak hozzá.</MudListItem>
+        </MudList>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.body2"><strong>x:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Kialakításra és méreteire vonatkozó követelmények vannak.<br />
+                - Függőlegesen minimum 2 m hosszú<br />
+                - Vízszintesen 0.7 - 1 méter mélységben és minimum 4 m hosszúságú<br />
+                - &ge; 5 m2 felületet körbeölelő lemezföldelő<br />
+                - &ge; 5 m2 felületű betonalap földelő
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.body2" Class="mt-3"><strong>r:</strong></MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Megfelelő amikor:<br />
+                - Eredő földelési ellenállás maximum 2 ohm<br />
+                - Független vagy vizsgáló összekötővel leválasztható rendszernél: r &le; 6 &rho; &divide; &radic;<span style="text-decoration: overline;">A</span> Ohm<br />
+                - Összefüggő földelőrendszer esetén: r &le; 3 &rho; &divide; &radic;<span style="text-decoration: overline;">A</span> Ohm<br />
+                - &rho; = a talaj fajlagos ellenállása ohm-m-ben, A = az épület alaprajzi területe m2-ben, &radic;<span style="text-decoration: overline;">A</span> = az épület alaprajzi területének négyzetgyöke m-ben<br />
+                - A földelp méretei "r" fokozat esetén sem lehet F3/x fokozatnál kisebb.
+
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2" Color="Color.Primary" Align="Align.Center">
+            A talaj fajlagos ellenállásának (&rho;) becsült értékei
+        </MudText>
+        <div style="overflow-x:auto;">
+        <MudSimpleTable Dense="true" Bordered="true" Striped="true" Style="min-width:600px;">
+            <tbody>
+                <tr>
+                    <td>Talajfajta</td>
+                    <td style="text-align:center;">&rho;<br />&Omega;.m</td>
+                    <td>Talajfajta</td>
+                    <td style="text-align:center;">&rho;<br />&Omega;.m</td>
+                </tr>
+                <tr>
+                    <td>Talajvíz</td>
+                    <td style="text-align:center;">20</td>
+                    <td>Homokos talaj szárazon</td>
+                    <td style="text-align:center;">60</td>
+                </tr>
+                <tr>
+                    <td>Felületi (álló-, folyó-) víz</td>
+                    <td style="text-align:center;">40</td>
+                    <td>Homokos talaj nedvesen</td>
+                    <td style="text-align:center;">500</td>
+                </tr>
+                <tr>
+                    <td>Humuszos talaj</td>
+                    <td style="text-align:center;">20</td>
+                    <td>Kavicsos talaj nedvesen</td>
+                    <td style="text-align:center;">200</td>
+                </tr>
+            </tbody>
+        </MudSimpleTable>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">BEZÁR</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; } = null!;
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}
