@@ -13,6 +13,7 @@
 @inject ISnackbar Snackbar
 @inject IJegyzokonyvPdfService JegyzokonyvPdfService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
+@inject IHordozhatoPdfService HordozhatoPdfService
 @inject IRbPdfService RbPdfService
 @inject IHvmPdfService HvmPdfService
 @inject IEgyMeresPdfService EgyMeresPdfService
@@ -194,12 +195,24 @@
                             {
                                 @if (muvTipusKod != "VVN-NEM")
                                 {
-                                    <MudTooltip Text="Word jegyzőkönyv">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                                       Color="Color.Info"
-                                                       Size="Size.Small"
-                                                       OnClick="() => WordLetoltesAsync(context.Item)" />
-                                    </MudTooltip>
+                                    @if (IsHordozhatoMeresTipus(context.Item.MeresTipusId))
+                                    {
+                                        <MudTooltip Text="PDF jegyzőkönyv">
+                                            <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                           Color="Color.Info"
+                                                           Size="Size.Small"
+                                                           OnClick="() => HordozhatoPdfLetoltesAsync(context.Item)" />
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Word jegyzőkönyv">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                           Color="Color.Info"
+                                                           Size="Size.Small"
+                                                           OnClick="() => WordLetoltesAsync(context.Item)" />
+                                        </MudTooltip>
+                                    }
                                 }
                                 else if (!string.IsNullOrWhiteSpace(context.Item.VillamNemNormaAdatokJson))
                                 {
@@ -383,11 +396,22 @@
                                             {
                                                 @if (tk != "VVN-NEM")
                                                 {
-                                                    <MudTooltip Text="Word jegyzőkönyv">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                                                       Color="Color.Info" Size="Size.Small"
-                                                                       OnClick="() => WordLetoltesAsync(context)" />
-                                                    </MudTooltip>
+                                                    @if (IsHordozhatoMeresTipus(context.MeresTipusId))
+                                                    {
+                                                        <MudTooltip Text="PDF jegyzőkönyv">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                                           Color="Color.Info" Size="Size.Small"
+                                                                           OnClick="() => HordozhatoPdfLetoltesAsync(context)" />
+                                                        </MudTooltip>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudTooltip Text="Word jegyzőkönyv">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.Description"
+                                                                           Color="Color.Info" Size="Size.Small"
+                                                                           OnClick="() => WordLetoltesAsync(context)" />
+                                                        </MudTooltip>
+                                                    }
                                                 }
                                                 else if (!string.IsNullOrWhiteSpace(context.VillamNemNormaAdatokJson))
                                                 {
@@ -1421,6 +1445,39 @@
             await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
             Snackbar.Add("Word jegyzőkönyv letöltve!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>A hordozható munkaeszközök típusú mérésekhez tartozó jegyzőkönyv PDF formátumban kerül letöltésre.</summary>
+    private bool IsHordozhatoMeresTipus(int meresTipusId)
+    {
+        var nev = _tipusok.FirstOrDefault(t => t.Id == meresTipusId)?.Nev;
+        if (string.IsNullOrEmpty(nev)) return false;
+        return nev.Contains("Hordozható", StringComparison.OrdinalIgnoreCase) ||
+               nev.Contains("E+G", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task HordozhatoPdfLetoltesAsync(Meres meres)
+    {
+        try
+        {
+            var adatok = new JegyzokonyvAdatok();
+            if (!string.IsNullOrEmpty(meres.JegyzokonyvAdatokJson))
+                adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    meres.JegyzokonyvAdatokJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+
+            var pdfBytes = await HordozhatoPdfService.GeneralasAsync(meres.Id, adatok);
+            var fileName = $"jegyzokonyv_{meres.Id:D6}_{DateTime.Now:yyyyMMdd}.pdf";
+
+            using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+            Snackbar.Add("PDF jegyzőkönyv letöltve!", Severity.Success);
         }
         catch (Exception ex)
         {

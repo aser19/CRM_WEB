@@ -142,6 +142,15 @@ builder.Services.AddScoped<IJegyzokonyvWordService>(sp =>
     return new JegyzokonyvWordService(meresService, tenantService, cegService, sablonService);
 }); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IHvmPdfService, HvmPdfService>();
+builder.Services.AddScoped<IHordozhatoPdfService>(sp =>
+{
+    var meresService = sp.GetRequiredService<IMeresService>();
+    var tenantService = sp.GetRequiredService<ITenantService>();
+    var cegService = sp.GetRequiredService<ICegService>();
+    var felulvizsgaloService = sp.GetRequiredService<IFelulvizsgaloService>();
+    var fileStorageService = sp.GetRequiredService<IFileStorageService>();
+    return new HordozhatoPdfService(meresService, tenantService, cegService, felulvizsgaloService, fileStorageService);
+});
 builder.Services.AddScoped<IVbfPdfService, VbfPdfService>();
 builder.Services.AddScoped<IVillamNemNormaPdfService, VillamNemNormaPdfService>();
 builder.Services.AddScoped<IEgyMeresPdfService, EgyMeresPdfService>();

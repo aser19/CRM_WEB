@@ -10,6 +10,7 @@
 @inject ITelephelyService TelephelyService
 @inject IMeresTipusService MeresTipusService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
+@inject IHordozhatoPdfService HordozhatoPdfService
 @inject IJegyzokonyvJogosultsagService JogosultsagService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject ISnackbar Snackbar
@@ -1331,10 +1332,20 @@
                 await MeresService.MentesJegyzokonyvAdatokkalAsync(meresId, _adatok);
             }
 
-            var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
-            var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
-            using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
-            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            if (IsHordozhatoTipus())
+            {
+                var pdfBytes = await HordozhatoPdfService.GeneralasAsync(meresId, _adatok);
+                var pdfFileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.pdf";
+                using var pdfStreamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+                await JS.InvokeVoidAsync("downloadFileFromStream", pdfFileName, pdfStreamRef);
+            }
+            else
+            {
+                var wordBytes = await JegyzokonyvWordService.GeneralasAsync(meresId, _adatok, sablonId);
+                var fileName = $"{_adatok.JegyzokonyvSzam.Replace("/", "-")}.docx";
+                using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            }
 
             Snackbar.Add("Jegyzőkönyv sikeresen legenerálva és mentve!", Severity.Success);
 
