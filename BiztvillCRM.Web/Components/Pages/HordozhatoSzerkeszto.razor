@@ -1,6 +1,7 @@
 @page "/hordozhato-szerkeszto/{MeresId:int}"
 @rendermode InteractiveServer
 @using BiztvillCRM.Shared.Models
+@using BiztvillCRM.Shared.Enums
 @using BiztvillCRM.Services.Interfaces
 @using BiztvillCRM.Services
 @inject IMeresService MeresService
@@ -8,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IJegyzokonyvWordService WordService
+@inject IHordozhatoPdfService HordozhatoPdfService
 @inject ICegService CegService
 @inject ITenantService TenantService
 @inject IMatricaValidatorService MatricaValidator
@@ -168,7 +169,7 @@ else
 				   StartIcon="@Icons.Material.Filled.Save"
 				   OnClick="MentesEsBezarAsync"
 				   Disabled="_feldolgozas">
-			@(_feldolgozas ? "Mentés..." : "Mentés és letöltés (Word)")
+			@(_feldolgozas ? "Mentés..." : "Mentés és letöltés (PDF)")
 		</MudButton>
 	</MudStack>
 }
@@ -329,16 +330,20 @@ else
 		_feldolgozas = true;
 		try
 		{
+			// Ha a jegyzőkönyv korábban már el lett végezve (vagyis ez egy utólagos módosítás),
+			// a jegyzőkönyvszám kapjon egy "-modN" utótagot, hogy a módosított változat megkülönböztethető legyen.
+			if (_meres!.MeresStatusz == MeresStatusz.Elvegezve)
+			{
+				_adatok.JegyzokonyvSzam = KovetkezoModositottSzam(_adatok.JegyzokonyvSzam);
+			}
+
 			await MeresService.MentesJegyzokonyvAdatokkalAsync(MeresId, _adatok);
 
-			var meresTipus = await MeresTipusService.GetByIdAsync(_meres!.MeresTipusId);
-			var sablonId = meresTipus?.SablonId ?? "VBF_HME_MINTA";
-
-			var wordBytes = await WordService.GeneralasAsync(MeresId, _adatok, sablonId);
-			if (wordBytes is { Length: > 0 })
+			var pdfBytes = await HordozhatoPdfService.GeneralasAsync(MeresId, _adatok);
+			if (pdfBytes is { Length: > 0 })
 			{
-				var fajlNev = $"{(_adatok.JegyzokonyvSzam ?? $"HME-{MeresId:D6}").Replace("/", "-")}.docx";
-				using var streamRef = new DotNetStreamReference(new MemoryStream(wordBytes));
+				var fajlNev = $"{(_adatok.JegyzokonyvSzam ?? $"HME-{MeresId:D6}").Replace("/", "-")}.pdf";
+				using var streamRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
 				await JS.InvokeVoidAsync("downloadFileFromStream", fajlNev, streamRef);
 			}
 
@@ -353,6 +358,21 @@ else
 		{
 			_feldolgozas = false;
 		}
+	}
+
+	/// <summary>Visszaadja a jegyzőkönyvszám módosított verzióhoz tartozó alakját: ha nincs még "-modN" utótag, hozzáfűzi a "-mod1"-et, egyébként eggyel növeli a sorszámot.</summary>
+	private static string? KovetkezoModositottSzam(string? szam)
+	{
+		if (string.IsNullOrWhiteSpace(szam)) return szam;
+
+		var match = System.Text.RegularExpressions.Regex.Match(szam, @"^(?<alap>.+)-mod(?<sorszam>\d+)$");
+		if (match.Success)
+		{
+			var kovetkezoSorszam = int.Parse(match.Groups["sorszam"].Value) + 1;
+			return $"{match.Groups["alap"].Value}-mod{kovetkezoSorszam}";
+		}
+
+		return $"{szam}-mod1";
 	}
 
 	private void Vissza()

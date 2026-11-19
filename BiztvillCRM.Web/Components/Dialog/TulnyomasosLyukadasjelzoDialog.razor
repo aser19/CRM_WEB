@@ -1,0 +1,110 @@
+@using BiztvillCRM.Shared.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+            Túlnyomásos lyukadásjelző vizsgálati jegyzőkönyv
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.VizsgalatHelye" Label="Vizsgálat helye" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker @bind-Date="_vizsgalatIdeje" Label="Vizsgálat ideje" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.JelenlevokNevCeg" Label="Jelen vannak (név, cég)" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.UzemeltetoReszerol" Label="Üzemeltető részéről" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.VizsgalatotVegzo" Label="Vizsgálatot végző" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.LyukadasjelzoTipusa" Label="Lyukadásjelző típusa" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_adatok.LyukadasjelzoGyariszama" Label="Lyukadásjelző gyári száma" Immediate="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Vizsgált berendezés</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" Value="@(_adatok.BerendezesFelerositeseMegfelel ?? false)"
+                           ValueChanged="@((bool v) => { _adatok.BerendezesFelerositeseMegfelel = v; if (!v) _adatok.TomorsegiProbaSikeres = false; })"
+                           Color="Color.Success" Label="Lyukadásjelző berendezés felerősítése – Megfelel" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" Value="@(_adatok.KiegeszitoBerendezesMegfelel ?? false)"
+                           ValueChanged="@((bool v) => { _adatok.KiegeszitoBerendezesMegfelel = v; if (!v) _adatok.TomorsegiProbaSikeres = false; })"
+                           Color="Color.Success" Label="Egyéb kiegészítő berendezés működő-képessége, tisztasága – Megfelel" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" Value="@(_adatok.LyukadasjelzoMukodokepesMegfelel ?? false)"
+                           ValueChanged="@((bool v) => { _adatok.LyukadasjelzoMukodokepesMegfelel = v; if (!v) _adatok.TomorsegiProbaSikeres = false; })"
+                           Color="Color.Success" Label="Lyukadásjelző működőképessége – Megfelel" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Tömörségi próba</MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="decimal" @bind-Value="_adatok.EllenorzoTerNyomasaBar" Label="Ellenőrző tér nyomása (bar)" Min="0" Step="0.1m" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="int" @bind-Value="_adatok.TomorsegiProbaIdotartamPerc" Label="Időtartam (perc)" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSwitch T="bool" @bind-Value="_adatok.NyomasNemCsokkentAlakvaltozasNemTortent"
+                           Color="Color.Primary" Label="Nyomás nem csökkent, alakváltozás nem történt" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" @bind-Value="_adatok.TomorsegiProbaSikeres"
+                           Color="Color.Success" Label="A tömörségi nyomáspróba sikerrel járt" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.Rendelet" Label="Vonatkozó rendelet" Immediate="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_adatok.Megjegyzes" Label="Megjegyzés" Lines="2" Immediate="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Mégse</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">
+            Generálás és letöltés
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TulnyomasosLyukadasjelzoAdatok? KezdoAdatok { get; set; }
+
+    private TulnyomasosLyukadasjelzoAdatok _adatok = new();
+    private DateTime? _vizsgalatIdeje;
+
+    protected override void OnInitialized()
+    {
+        if (KezdoAdatok is not null)
+            _adatok = KezdoAdatok;
+
+        _vizsgalatIdeje = _adatok.VizsgalatIdeje;
+    }
+
+    private void Submit()
+    {
+        _adatok.VizsgalatIdeje = _vizsgalatIdeje ?? DateTime.Today;
+        MudDialog.Close(DialogResult.Ok(_adatok));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

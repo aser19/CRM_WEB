@@ -41,4 +41,7 @@ public class Ceg
     /// <summary>Cégbélyegző kép fájl elérési útja (relatív a Uploads mappához). Ha ki van töltve, a jegyzőkönyvekben/PDF-ekben az aláírás mellett megjelenik.</summary>
     public string? BelyegzoPath { get; set; }
 
+    /// <summary>Céglogó kép fájl elérési útja (relatív a Uploads mappához). Ha ki van töltve, a jegyzőkönyvek/PDF-ek élőfejében, bal felül megjelenik.</summary>
+    public string? LogoPath { get; set; }
+
 }

@@ -62,6 +62,7 @@ public class HordozhatoPdfService : IHordozhatoPdfService
         var letoltesIdopontja = DateTime.Now;
 
         byte[]? cegBelyegzoKep = null;
+        byte[]? cegLogoKep = null;
         byte[]? felulvizsgaloAlairasKep = null;
         try
         {
@@ -69,6 +70,13 @@ public class HordozhatoPdfService : IHordozhatoPdfService
                 cegBelyegzoKep = await _fileStorageService.GetFileBytesAsync(ceg.BelyegzoPath);
         }
         catch { /* nincs bélyegző */ }
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(ceg?.LogoPath))
+                cegLogoKep = await _fileStorageService.GetFileBytesAsync(ceg.LogoPath);
+        }
+        catch { /* nincs logó */ }
 
         if (!string.IsNullOrWhiteSpace(felulvizsgaloNev))
         {
@@ -92,7 +100,7 @@ public class HordozhatoPdfService : IHordozhatoPdfService
 
                 page.Content().Column(col =>
                 {
-                    col.Item().Element(c => Fejlec(c, ceg, adatok, megrendelo, telephely, felulvizsgalatIdeje, kovetkezoFelulvizsgalat));
+                    col.Item().Element(c => Fejlec(c, ceg, cegLogoKep, adatok, megrendelo, telephely, felulvizsgalatIdeje, kovetkezoFelulvizsgalat));
                     col.Item().PaddingTop(10).Element(c => ErtekelesBlokkok(c));
                     col.Item().PaddingTop(10).Element(c => VizsgalatModja(c));
                     col.Item().PaddingTop(10).Element(c => MuszerAdatok(c, muszerek));
@@ -100,8 +108,19 @@ public class HordozhatoPdfService : IHordozhatoPdfService
                         kapcsolattarto, jegyzokonyvKeszito, jegyzokonyvKeszitesIdeje, letoltesIdopontja));
                     col.Item().PaddingTop(10).Element(c => Osszesites(c, adatok, osszesDb, mfDb, nmfDb));
                     col.Item().PaddingTop(10).Element(c => AlairasBlokk(c, cegBelyegzoKep, felulvizsgaloAlairasKep, felulvizsgaloNev));
+                });
 
-                    col.Item().PageBreak();
+                page.Footer().Element(c => Lablec(c, munkaszam, ceg));
+            });
+
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1.3f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+
+                page.Content().Column(col =>
+                {
                     col.Item().Element(c => EszkozTablazat(c, eszkozok));
                     col.Item().PaddingTop(10).Element(c => AlairasBlokk(c, cegBelyegzoKep, felulvizsgaloAlairasKep, felulvizsgaloNev));
                 });
@@ -111,17 +130,27 @@ public class HordozhatoPdfService : IHordozhatoPdfService
         }).GeneratePdf();
     }
 
-    private void Fejlec(IContainer container, Ceg? ceg, JegyzokonyvAdatok adatok, string megrendelo, string telephely,
+    private void Fejlec(IContainer container, Ceg? ceg, byte[]? cegLogoKep, JegyzokonyvAdatok adatok, string megrendelo, string telephely,
         DateTime felulvizsgalatIdeje, DateTime kovetkezoFelulvizsgalat)
     {
         container.Column(col =>
         {
-            col.Item().AlignCenter().Text("HORDOZHATÓ MUNKAESZKÖZÖK ÁRAMÜTÉS ELLENI").Bold().FontSize(13);
+            col.Item().Row(row =>
+            {
+                row.ConstantItem(90).Height(40).AlignMiddle().Element(e =>
+                {
+                    if (cegLogoKep is { Length: > 0 })
+                        e.Image(cegLogoKep).FitArea();
+                });
+                row.RelativeItem().AlignMiddle().AlignCenter().Text(ceg?.Nev ?? "").Bold().FontSize(12);
+                row.ConstantItem(90);
+            });
+
+            col.Item().PaddingTop(6).AlignCenter().Text("HORDOZHATÓ MUNKAESZKÖZÖK ÁRAMÜTÉS ELLENI").Bold().FontSize(13);
             col.Item().AlignCenter().Text("VIZSGÁLATÁNAK JEGYZŐKÖNYVE").Bold().FontSize(13);
 
             col.Item().PaddingTop(8).Text(text =>
             {
-                text.Span($"{ceg?.Nev ?? ""} | ").SemiBold();
                 text.Span("Munkavállaló neve: ").SemiBold();
                 text.Span(adatok.DolgozoNeve ?? "");
                 if (!string.IsNullOrWhiteSpace(adatok.ForgalmiRendszam))
@@ -145,7 +174,7 @@ public class HordozhatoPdfService : IHordozhatoPdfService
                     });
                     c.Item().Text(t =>
                     {
-                        t.Span("Telephely, Belsőpar. út: ").SemiBold();
+                        t.Span("Telephely: ").SemiBold();
                         t.Span(telephely);
                     });
                 });
@@ -179,10 +208,6 @@ public class HordozhatoPdfService : IHordozhatoPdfService
             col.Item().Element(c => ErtekelesSor(c, "10/2016. (IV.5.) NGM rendelet szerinti értékelés"));
             col.Item().PaddingTop(6).Element(c => ErtekelesSor(c, "40/2017. (XII.4.) NGM rendelet szerinti értékelés"));
             col.Item().PaddingTop(6).Element(c => ErtekelesSor(c, "MSZ 4851-5:1991 szerinti értékelés"));
-
-            col.Item().PaddingTop(4).Text(
-                "Vizsgálat módja: szemrevételezés | I. és II. osztályú szerkezetek")
-                .FontSize(7.5f);
         });
     }
 
@@ -302,7 +327,7 @@ public class HordozhatoPdfService : IHordozhatoPdfService
         {
             row.RelativeItem().Column(c =>
             {
-                c.Item().Height(50).AlignLeft().Element(e =>
+                c.Item().Width(70).Height(35).AlignLeft().Element(e =>
                 {
                     if (cegBelyegzoKep is { Length: > 0 })
                         e.Image(cegBelyegzoKep).FitArea();
@@ -312,7 +337,7 @@ public class HordozhatoPdfService : IHordozhatoPdfService
             });
             row.RelativeItem().Column(c =>
             {
-                c.Item().Height(50).AlignRight().Element(e =>
+                c.Item().AlignRight().Width(70).Height(35).Element(e =>
                 {
                     if (felulvizsgaloAlairasKep is { Length: > 0 })
                         e.Image(felulvizsgaloAlairasKep).FitArea();
@@ -357,30 +382,30 @@ public class HordozhatoPdfService : IHordozhatoPdfService
             {
                 table.ColumnsDefinition(c =>
                 {
-                    c.ConstantColumn(25);   // Nr.
-                    c.RelativeColumn(2.2f); // Megnevezés
-                    c.RelativeColumn(1.3f); // Típus
-                    c.RelativeColumn(1.4f); // Gyártási szám
-                    c.RelativeColumn(1.3f); // Jellemző-teljesítmény
-                    c.RelativeColumn(1.1f); // Megtekintés
-                    c.RelativeColumn(1.1f); // Folytonosság
-                    c.RelativeColumn(1.1f); // Szig.Ell.
-                    c.RelativeColumn(1.2f); // Szivárgó Áram
-                    c.RelativeColumn(1.8f); // Megjegyzés
+                    c.ConstantColumn(28);   // Nr.
+                    c.RelativeColumn(2.5f); // Megnevezés
+                    c.RelativeColumn(2f);   // Típus
+                    c.RelativeColumn(1.8f); // Gyártási szám
+                    c.ConstantColumn(70);   // Jellemző-teljesítmény
+                    c.ConstantColumn(60);   // Megtekintés
+                    c.ConstantColumn(60);   // Folytonosság
+                    c.ConstantColumn(55);   // Szig.Ell.
+                    c.ConstantColumn(55);   // Szivárgó Áram
+                    c.RelativeColumn(2.5f); // Megjegyzés
                 });
 
                 table.Header(header =>
                 {
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Nr.").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Megnevezés").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Típus").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Gyártási szám").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Jellemző-teljesítmény").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Megtekintés").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Folytonosság").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Szig.Ell.").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Szivárgó Áram").Bold().FontSize(7.5f);
-                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).Text("Megjegyzés").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Nr.").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Megnevezés").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Típus").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Gyártási szám").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Jellemző-teljesítmény").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Megtekintés").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Folytonosság").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Szig.Ell.").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Szivárgó Áram").Bold().FontSize(7.5f);
+                    header.Cell().Background(Colors.Grey.Lighten2).Border(0.5f).Padding(3).AlignCenter().Text("Megjegyzés").Bold().FontSize(7.5f);
                 });
 
                 var sorszam = 1;
@@ -399,33 +424,27 @@ public class HordozhatoPdfService : IHordozhatoPdfService
                     if (!string.IsNullOrEmpty(csoport.Key))
                     {
                         table.Cell().ColumnSpan(10).Background(Colors.Grey.Lighten3).Border(0.5f).Padding(3)
-                            .Text(csoport.Key).Bold().FontSize(8);
+                            .AlignLeft().Text(csoport.Key).Bold().FontSize(8);
                     }
 
                     foreach (var e in csoport.Items)
                     {
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text($"{sorszam}.").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Megnevezes ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Tipus ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Azonosito ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Telj ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Megtekint ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.KellFolyt ? (e.Folyt ?? "-") : "-").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Szigell ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Szivargo ?? "").FontSize(7.5f);
-                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(e.Megjegyzes ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text($"{sorszam}.").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignLeft().Text(e.Megnevezes ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignLeft().Text(e.Tipus ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignLeft().Text(e.Azonosito ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text(e.Telj ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text(e.Megtekint ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text(e.KellFolyt ? (e.Folyt ?? "-") : "-").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text(e.Szigell ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignCenter().Text(e.Szivargo ?? "").FontSize(7.5f);
+                        table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignLeft().Text(e.Megjegyzes ?? "").FontSize(7.5f);
                         sorszam++;
                     }
                 }
             });
 
             col.Item().PaddingTop(8).Text(
-                $"A jegyzőkönyvben összesen {eszkozok.Count}-db eszköz került feltüntetésre, melyből:\n" +
-                $"{eszkozok.Count(e => e.Megtekint == "MF")} db-ot MEGFELELT minősítéssel\n" +
-                $"{eszkozok.Count(e => e.Megtekint == "NMF")} db-ot NEM MEGFELELT minősítéssel láttunk el.")
-                .FontSize(8);
-
-            col.Item().PaddingTop(4).Text(
                 "A 10/2016. (IV.5.) NGM-rendelet 18. § 4. pontja alapján: „A legutóbbi időszakos ellenőrző-felülvizsgálat elvégzéséről a munkaeszközön elhelyezett, jól látható jelzéssel tájékoztatást kell nyújtani, ha a munkaeszközt a telephelyen kívül használják.”")
                 .FontSize(7).Italic();
         });

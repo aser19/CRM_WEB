@@ -88,6 +88,72 @@ public class Hitelesites
     public string? EszkozAzonosito { get; set; }
 
     /// <summary>
+    /// Ha az EszkozTipus egy lyukadásjelző, akkor ennek az altípusnak (pl. Túlnyomásos, Tartályos)
+    /// megfelelően jelenik meg a kitöltendő vizsgálati jegyzőkönyv sablon.
+    /// </summary>
+    public LyukadasjelzoAltipus? LyukadasjelzoAltipus { get; set; }
+
+    /// <summary>
+    /// JSON formátumban tárolt lyukadásjelző vizsgálati jegyzőkönyv adatok
+    /// (jelenleg a túlnyomásos altípushoz tartozó TulnyomasosLyukadasjelzoAdatok).
+    /// </summary>
+    public string? LyukadasjelzoAdatokJson { get; set; }
+
+    [NotMapped]
+    public TulnyomasosLyukadasjelzoAdatok? LyukadasjelzoAdatok
+    {
+        get => string.IsNullOrWhiteSpace(LyukadasjelzoAdatokJson)
+            ? null
+            : JsonSerializer.Deserialize<TulnyomasosLyukadasjelzoAdatok>(LyukadasjelzoAdatokJson);
+        set => LyukadasjelzoAdatokJson = value == null ? null : JsonSerializer.Serialize(value);
+    }
+
+    /// <summary>
+    /// JSON formátumban tárolt lista, amely lehetővé teszi, hogy egy lyukadásjelző
+    /// eszköztípusú hitelesítésen belül több, önálló gyári számú lyukadásjelzőt
+    /// (saját adatlappal és saját PDF-jegyzőkönyvvel) lehessen rögzíteni.
+    /// Ha üres, a régi, egyetlen LyukadasjelzoAdatok/JegyzokonyvPaths mezők használatosak.
+    /// </summary>
+    public string? LyukadasjelzoTetelek { get; set; }
+
+    [NotMapped]
+    public List<LyukadasjelzoTetel> LyukadasjelzoTetelekLista
+    {
+        get => string.IsNullOrWhiteSpace(LyukadasjelzoTetelek)
+            ? new List<LyukadasjelzoTetel>()
+            : JsonSerializer.Deserialize<List<LyukadasjelzoTetel>>(LyukadasjelzoTetelek) ?? new List<LyukadasjelzoTetel>();
+        set => LyukadasjelzoTetelek = (value == null || !value.Any())
+            ? null
+            : JsonSerializer.Serialize(value);
+    }
+
+    /// <summary>
+    /// Legenerált vizsgálati jegyzőkönyv fájlok (pl. túlnyomásos lyukadásjelző jegyzőkönyv) JSON listája.
+    /// </summary>
+    public string? JegyzokonyvPaths { get; set; }
+
+    [NotMapped]
+    public List<string> JegyzokonyvPathsLista
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(JegyzokonyvPaths))
+                return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(JegyzokonyvPaths) ?? new List<string>();
+            }
+            catch (JsonException)
+            {
+                return new List<string>();
+            }
+        }
+        set => JegyzokonyvPaths = (value == null || !value.Any())
+            ? null
+            : JsonSerializer.Serialize(value);
+    }
+
+    /// <summary>
     /// Aktív-e a hitelesítés. Inaktív hitelesítések nem jelennek meg az alapértelmezett listában,
     /// de megmaradnak aHistory-ban.
     /// </summary>

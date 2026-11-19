@@ -159,6 +159,7 @@ builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IFelulvizsgaloService, FelulvizsgaloService>();
 builder.Services.AddScoped<IJegyzokonyvPdfService, JegyzokonyvPdfService>(); // <-- ÚJ SOR
+builder.Services.AddScoped<ILyukadasjelzoPdfService, LyukadasjelzoPdfService>(); // <-- ÚJ SOR
 builder.Services.AddScoped<IRbExcelImportService, RbExcelImportService>(); // <-- RB TÍPUS
 builder.Services.AddScoped<IRbPdfService, RbPdfService>(); // <-- RB TÍPUS
 builder.Services.AddSingleton<IFileStorageService>(sp =>
@@ -170,6 +171,7 @@ builder.Services.AddSingleton<IFileStorageService>(sp =>
 builder.Services.AddScoped<IJegyzokonyvJogosultsagService, JegyzokonyvJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IModulJogosultsagService, ModulJogosultsagService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IMunkaszamService, MunkaszamService>(); // A többi service regisztráció mellé
+builder.Services.AddScoped<ILyukadasjelzoSzamService, LyukadasjelzoSzamService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IMatricaValidatorService, MatricaValidatorService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IJegyzokonyvOcrService, JegyzokonyvOcrService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<IEszkozSablonService, EszkozSablonService>();

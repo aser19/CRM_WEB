@@ -72,6 +72,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
     public DbSet<Kockazatertekeles> Kockazatertekelesek { get; set; }
     public DbSet<Zonaterkep> Zonaterkepek { get; set; }
     public DbSet<MunkaszamSzamlalo> MunkaszamSzamlalok { get; set; }
+    public DbSet<LyukadasjelzoJegyzokonyvSzamlalo> LyukadasjelzoJegyzokonyvSzamlalok { get; set; }
     public DbSet<Helyiseg> Helyisegek { get; set; }
 
     // --- Jegyzőkönyv sablonok ---
@@ -319,6 +320,8 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasOne(e => e.EszkozTipus).WithMany().HasForeignKey(e => e.EszkozTipusId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Hatosag).WithMany().HasForeignKey(e => e.HatosagId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.Munkaszam).WithMany().HasForeignKey(e => e.MunkaszamId).OnDelete(DeleteBehavior.SetNull);
+            entity.Ignore(e => e.LyukadasjelzoAdatok);
+            entity.Ignore(e => e.JegyzokonyvPathsLista);
         });
 
         // --- Tanusitvany ---
@@ -550,6 +553,17 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
 
         // --- MunkaszamSzamlalo ---
         modelBuilder.Entity<MunkaszamSzamlalo>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.CegId, e.Ev }).IsUnique();
+            entity.HasOne(e => e.Ceg)
+                  .WithMany()
+                  .HasForeignKey(e => e.CegId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- LyukadasjelzoJegyzokonyvSzamlalo ---
+        modelBuilder.Entity<LyukadasjelzoJegyzokonyvSzamlalo>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.CegId, e.Ev }).IsUnique();

@@ -1,5 +1,7 @@
 namespace BiztvillCRM.Shared.Models;
 
+using BiztvillCRM.Shared.Enums;
+
 /// <summary>
 /// Egy hitelesítési csoporton belüli közbenső vizsgálat egyedi lejárati dátuma.
 /// JSON-ként tárolódik a Hitelesites.CsoportTagLejaratok mezőben.
@@ -114,5 +116,76 @@ public class CsoportTagLejaratReszlet
     {
         get => LejaratDatum;
         set => LejaratDatum = value;
+    }
+
+    /// <summary>
+    /// Legenerált vizsgálati jegyzőkönyv fájlok listája JSON formátumban
+    /// (pl. a túlnyomásos lyukadásjelző időszakos vizsgálatáról szóló jegyzőkönyv).
+    /// </summary>
+    public string? JegyzokonyvPaths { get; set; }
+
+    /// <summary>
+    /// Nem mapped property: jegyzőkönyv fájlok strukturált formában
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<string> JegyzokonyvPathsLista
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(JegyzokonyvPaths))
+                return new List<string>();
+            var deserializalt = System.Text.Json.JsonSerializer.Deserialize<List<string>>(JegyzokonyvPaths);
+            return deserializalt ?? new List<string>();
+        }
+        set
+        {
+            JegyzokonyvPaths = (value == null || !value.Any())
+                ? null
+                : System.Text.Json.JsonSerializer.Serialize(value);
+        }
+    }
+
+    /// <summary>
+    /// Ha true, ennél a közbenső vizsgálatnál be van kapcsolva a jegyzőkönyv
+    /// kitöltési mód (pl. Tartály - Lyukadásjelző minősítés a Tartály csoporton belül).
+    /// </summary>
+    public bool JegyzokonyvKitoltesMod { get; set; } = false;
+
+    /// <summary>
+    /// A közbenső vizsgálathoz tartozó lyukadásjelző altípus (pl. Túlnyomásos, Tartályos),
+    /// ugyanúgy mint a fő eszköztípusként kiválasztott lyukadásjelzőnél.
+    /// </summary>
+    public LyukadasjelzoAltipus? LyukadasjelzoAltipus { get; set; }
+
+    /// <summary>
+    /// JSON formátumban tárolt lyukadásjelző vizsgálati jegyzőkönyv adatok ehhez a közbenső vizsgálathoz.
+    /// </summary>
+    public string? LyukadasjelzoAdatokJson { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TulnyomasosLyukadasjelzoAdatok? LyukadasjelzoAdatok
+    {
+        get => string.IsNullOrWhiteSpace(LyukadasjelzoAdatokJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<TulnyomasosLyukadasjelzoAdatok>(LyukadasjelzoAdatokJson);
+        set => LyukadasjelzoAdatokJson = value == null ? null : System.Text.Json.JsonSerializer.Serialize(value);
+    }
+
+    /// <summary>
+    /// JSON formátumban tárolt lista, amely lehetővé teszi, hogy egy lyukadásjelző
+    /// közbenső vizsgálaton (csoporttagon) belül is több, önálló gyári számú
+    /// lyukadásjelzőt lehessen rögzíteni, saját adatlappal és saját PDF-jegyzőkönyvvel.
+    /// </summary>
+    public string? LyukadasjelzoTetelek { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<LyukadasjelzoTetel> LyukadasjelzoTetelekLista
+    {
+        get => string.IsNullOrWhiteSpace(LyukadasjelzoTetelek)
+            ? new List<LyukadasjelzoTetel>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<LyukadasjelzoTetel>>(LyukadasjelzoTetelek) ?? new List<LyukadasjelzoTetel>();
+        set => LyukadasjelzoTetelek = (value == null || !value.Any())
+            ? null
+            : System.Text.Json.JsonSerializer.Serialize(value);
     }
 }
