@@ -2205,6 +2205,8 @@ private bool _eszkozAzonositoDuplikalva =>
             HatosagId = item.HatosagId,
             MunkaszamId = item.MunkaszamId,
             Darabszam = item.Darabszam,
+            Datum = item.Datum,                         // ← FONTOS: dátum másolása (enélkül 0001.01.01-re íródott felül)
+            LejaratDatum = item.LejaratDatum,            // ← FONTOS: lejárat másolása
             HitelesitesStatusz = item.HitelesitesStatusz,
             Megjegyzes = item.Megjegyzes,
             EgyediLejaratok = item.EgyediLejaratok,
@@ -3355,6 +3357,8 @@ private bool _eszkozAzonositoDuplikalva =>
         _lyukadasjelzoAdatok.VizsgalatHelye = telephely?.Cim ?? ugyfel.Cim ?? string.Empty;
         _lyukadasjelzoAdatok.VizsgalatIdeje = _datum ?? DateTime.Today;
         _lyukadasjelzoAdatok.MegbizoNev = ugyfel.Nev ?? string.Empty;
+        _lyukadasjelzoAdatok.EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito;
+        _lyukadasjelzoAdatok.KovetkezoVizsgalatIdopontja = _lejaratDatum;
 
         try
         {
@@ -3447,6 +3451,8 @@ private bool _eszkozAzonositoDuplikalva =>
         adatok.VizsgalatHelye = telephely?.Cim ?? ugyfel.Cim ?? string.Empty;
         adatok.VizsgalatIdeje = _datum ?? DateTime.Today;
         adatok.MegbizoNev = ugyfel.Nev ?? string.Empty;
+        adatok.EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito;
+        adatok.KovetkezoVizsgalatIdopontja = _lejaratDatum;
         tetel.LyukadasjelzoAdatok = adatok;
 
         try
@@ -3574,6 +3580,8 @@ private bool _eszkozAzonositoDuplikalva =>
         adatok.VizsgalatHelye = telephely?.Cim ?? ugyfel.Cim ?? string.Empty;
         adatok.VizsgalatIdeje = _datum ?? DateTime.Today;
         adatok.MegbizoNev = ugyfel.Nev ?? string.Empty;
+        adatok.EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito;
+        adatok.KovetkezoVizsgalatIdopontja = sor.NemAlkalmazhato ? null : sor.EgyediLejaratDatum;
         tetel.LyukadasjelzoAdatok = adatok;
 
         try
@@ -3738,6 +3746,8 @@ private bool _eszkozAzonositoDuplikalva =>
             sor.LyukadasjelzoAdatok.VizsgalatHelye = telephely?.Cim ?? ugyfel?.Cim ?? "";
             sor.LyukadasjelzoAdatok.VizsgalatIdeje = _datum ?? DateTime.Today;
             sor.LyukadasjelzoAdatok.MegbizoNev = ugyfel?.Nev ?? "";
+            sor.LyukadasjelzoAdatok.EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito;
+            sor.LyukadasjelzoAdatok.KovetkezoVizsgalatIdopontja = sor.NemAlkalmazhato ? null : sor.EgyediLejaratDatum;
             adatok = sor.LyukadasjelzoAdatok;
         }
         else
@@ -3747,7 +3757,9 @@ private bool _eszkozAzonositoDuplikalva =>
                 VizsgalatHelye = telephely?.Cim ?? ugyfel?.Cim ?? "",
                 VizsgalatIdeje = _datum ?? DateTime.Today,
                 LyukadasjelzoTipusa = _szerkesztesAlatt.EszkozAzonosito ?? "",
-                MegbizoNev = ugyfel?.Nev ?? ""
+                MegbizoNev = ugyfel?.Nev ?? "",
+                EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito,
+                KovetkezoVizsgalatIdopontja = sor.NemAlkalmazhato ? null : sor.EgyediLejaratDatum
             };
 
             var parameters = new DialogParameters { ["KezdoAdatok"] = kezdoAdatok };

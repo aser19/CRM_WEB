@@ -121,7 +121,7 @@ public class LyukadasjelzoPdfService : ILyukadasjelzoPdfService
                 {
                     if (logoKep is not null)
                     {
-                        c.Item().Height(50).AlignLeft().Image(logoKep).FitArea();
+                        c.Item().Height(25).AlignLeft().Image(logoKep).FitArea();
                     }
                 });
                 row.ConstantItem(150).AlignRight().Text(t =>
@@ -161,6 +161,22 @@ public class LyukadasjelzoPdfService : ILyukadasjelzoPdfService
                 t.Span("Vizsgálat ideje: ").Bold();
                 t.Span(adatok.VizsgalatIdeje.ToString("yyyy.MM.dd."));
             });
+            if (adatok.KovetkezoVizsgalatIdopontja is not null)
+            {
+                col.Item().Text(t =>
+                {
+                    t.Span("Következő vizsgálat időpontja: ").Bold();
+                    t.Span(adatok.KovetkezoVizsgalatIdopontja.Value.ToString("yyyy.MM.dd."));
+                });
+            }
+            if (!string.IsNullOrWhiteSpace(adatok.EszkozAzonosito))
+            {
+                col.Item().Text(t =>
+                {
+                    t.Span("Eszköz azonosítója: ").Bold();
+                    t.Span(adatok.EszkozAzonosito);
+                });
+            }
             col.Item().Text(t =>
             {
                 t.Span("Jelen vannak (név, cég): ").Bold();
@@ -241,7 +257,7 @@ public class LyukadasjelzoPdfService : ILyukadasjelzoPdfService
             {
                 row.RelativeItem().Column(c =>
                 {
-                    c.Item().LineHorizontal(0.5f);
+                    c.Item().PaddingTop(29).LineHorizontal(0.5f);
                     c.Item().AlignCenter().Text("Üzemeltető");
                 });
                 row.ConstantItem(40);

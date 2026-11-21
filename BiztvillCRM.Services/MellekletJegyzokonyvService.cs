@@ -154,6 +154,17 @@ public class MellekletJegyzokonyvService(IDbContextFactory<CrmDbContext> context
         return ids.ToHashSet();
     }
 
+    public async Task<HashSet<int>> GetMeresIdsWithHianyosMellekletAsync()
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+        var ids = await context.MellekletJegyzokonyvek
+            .Where(m => m.Statusz != MellekletStatusz.Kesz)
+            .Select(m => m.MeresId)
+            .Distinct()
+            .ToListAsync();
+        return ids.ToHashSet();
+    }
+
     public async Task StatuszFrissitesAsync(int mellekletId, string ujStatusz)
     {
         await using var context = await contextFactory.CreateDbContextAsync();

@@ -203,15 +203,19 @@ public class NavAdoszamService : INavAdoszamService
                 .Descendants(api + "taxpayerAddressItem")
                 .FirstOrDefault(x => x.Element(api + "taxpayerAddressType")?.Value == "HQ");
 
+            // A cím mezők (postalCode, city, streetName, stb.) a NAV válaszban nem közvetlenül
+            // a taxpayerAddressItem alatt, hanem egy beágyazott taxpayerAddress elemben vannak.
+            var cim = szekhely?.Element(api + "taxpayerAddress");
+
             return new NavAdoszamEredmeny
             {
                 Sikeres           = true,
                 CegNev            = taxpayer.Element(api + "taxpayerName")?.Value,
-                IranyitoSzam      = szekhely?.Element(api + "postalCode")?.Value,
-                Telepules         = szekhely?.Element(api + "city")?.Value,
-                Kozterulet        = szekhely?.Element(api + "streetName")?.Value,
-                KozteruletJellege = szekhely?.Element(api + "publicPlaceCategory")?.Value,
-                Hazszam           = szekhely?.Element(api + "number")?.Value,
+                IranyitoSzam      = cim?.Element(api + "postalCode")?.Value,
+                Telepules         = cim?.Element(api + "city")?.Value,
+                Kozterulet        = cim?.Element(api + "streetName")?.Value,
+                KozteruletJellege = cim?.Element(api + "publicPlaceCategory")?.Value,
+                Hazszam           = cim?.Element(api + "number")?.Value,
             };
         }
         catch (Exception ex)

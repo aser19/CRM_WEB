@@ -70,6 +70,7 @@ public class CegService : ICegService
         existing.NavTaxNumber      = ceg.NavTaxNumber;
         existing.NavTesztKornyezet = ceg.NavTesztKornyezet;
         existing.BelyegzoPath      = ceg.BelyegzoPath;
+        existing.LogoPath          = ceg.LogoPath;
         existing.Modositva         = DateTime.Now;
 
         await context.SaveChangesAsync();

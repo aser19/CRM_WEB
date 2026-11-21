@@ -24,6 +24,13 @@ public class TulnyomasosLyukadasjelzoAdatok
     public string VizsgalatHelye { get; set; } = string.Empty;
     public DateTime VizsgalatIdeje { get; set; } = DateTime.Today;
 
+    /// <summary>Következő vizsgálat időpontja (opcionális, a vizsgálat időpontja alatt jelenik meg).</summary>
+    public DateTime? KovetkezoVizsgalatIdopontja { get; set; }
+
+    /// <summary>Az eszköz azonosítója (ha ki van töltve a hitelesítésnél), a jegyzőkönyvben jelenik meg.</summary>
+    public string? EszkozAzonosito { get; set; }
+
+
     /// <summary>Jelen vannak (név, cég)</summary>
     public string JelenlevokNevCeg { get; set; } = string.Empty;
 

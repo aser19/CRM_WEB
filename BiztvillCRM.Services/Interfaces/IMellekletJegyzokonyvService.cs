@@ -15,6 +15,8 @@ public interface IMellekletJegyzokonyvService
     Task<HashSet<int>> GetMellekletMeresIdsAsync();
     /// <summary>Visszaadja azon Meres.Id-k halmazát, amelyekhez van legalább 1 melléklet.</summary>
     Task<HashSet<int>> GetMeresIdsWithMellekletAsync();
+    /// <summary>Visszaadja azon Meres.Id-k halmazát, amelyekhez van legalább 1 még nem "Kész" státuszú melléklet.</summary>
+    Task<HashSet<int>> GetMeresIdsWithHianyosMellekletAsync();
     Task StatuszFrissitesAsync(int mellekletId, string ujStatusz);
 
     /// <summary>

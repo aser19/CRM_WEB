@@ -161,12 +161,13 @@
                         @{
                             var tipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
                             var vanMelleklet = _meresIdsWithMelleklet.Contains(context.Item.Id) && tipusKod != "AVK" && tipusKod != "RB";
+                            var hianyosMelleklet = _meresIdsWithHianyosMelleklet.Contains(context.Item.Id);
                         }
                         @if (vanMelleklet)
                         {
-                            <MudTooltip Text="Van melléklet">
-                                <MudIconButton Icon="@Icons.Material.Filled.Attachment"
-                                               Color="Color.Warning"
+                            <MudTooltip Text="@(hianyosMelleklet ? "Van hiányos (még nem kész) melléklet" : "Minden melléklet kész")">
+                                <MudIconButton Icon="@(hianyosMelleklet ? Icons.Material.Filled.ReportProblem : Icons.Material.Filled.Attachment)"
+                                               Color="@(hianyosMelleklet ? Color.Error : Color.Success)"
                                                Size="Size.Small"
                                                OnClick="@(async () => await SzerkesztesMegnyitasa(context.Item))" />
                             </MudTooltip>
@@ -371,9 +372,10 @@
                                     <MudTd>
                                         @if (vm)
                                         {
-                                            <MudTooltip Text="Van melléklet">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Attachment"
-                                                               Color="Color.Warning" Size="Size.Small"
+                                            var hianyosMellekletMobil = _meresIdsWithHianyosMelleklet.Contains(context.Id);
+                                            <MudTooltip Text="@(hianyosMellekletMobil ? "Van hiányos (még nem kész) melléklet" : "Minden melléklet kész")">
+                                                <MudIconButton Icon="@(hianyosMellekletMobil ? Icons.Material.Filled.ReportProblem : Icons.Material.Filled.Attachment)"
+                                                               Color="@(hianyosMellekletMobil ? Color.Error : Color.Success)" Size="Size.Small"
                                                                OnClick="@(async () => await SzerkesztesMegnyitasa(context))" />
                                             </MudTooltip>
                                         }
@@ -810,11 +812,28 @@
                 @if (!IsOnalloAvk && !IsOnalloRb && _szerkesztettMellekletek.Count > 0)
                 {
                     <MudItem xs="12">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2 mt-2">
-                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
-                            Melléklet jegyzőkönyvek
-                        </MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2 mt-2">
+                            <MudText Typo="Typo.subtitle2">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                                Melléklet jegyzőkönyvek
+                            </MudText>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="OsszesDokumentumLetoltese">
+                                Főjegyzőkönyv + mellékletek letöltése
+                            </MudButton>
+                        </MudStack>
                     </MudItem>
+                    @if (!_szerkesztettMellekletek.All(m => m.KeszeE))
+                    {
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                                Nem minden melléklet jegyzőkönyv kész még. Az "Összes letöltése" csak a már kész mellékleteket tölti le.
+                            </MudAlert>
+                        </MudItem>
+                    }
                     @foreach (var m in _szerkesztettMellekletek)
                     {
                         <MudItem xs="12">
@@ -985,6 +1004,7 @@
     // A meglévő _emailCimzett után (263. sor környékére) ADD HOZZÁ:
     private HashSet<int> _mellekletMeresIds = new();
     private HashSet<int> _meresIdsWithMelleklet = new();
+    private HashSet<int> _meresIdsWithHianyosMelleklet = new();
     private Dictionary<int, string> _jegyzokonyvSzamok = new();
 
     private string GetJegyzokonyvSzam(int meresId)
@@ -1066,6 +1086,7 @@
         _lista = await MeresService.GetAllAsync(includeInaktivak: _mutatInaktivakat);
         _mellekletMeresIds = await MellekletService.GetMellekletMeresIdsAsync();
         _meresIdsWithMelleklet = await MellekletService.GetMeresIdsWithMellekletAsync();
+        _meresIdsWithHianyosMelleklet = await MellekletService.GetMeresIdsWithHianyosMellekletAsync();
 
         // Jkv. számok kinyerése a JSON-ból – egyszeri parse, betöltéskor
         _jegyzokonyvSzamok = _lista
@@ -1413,6 +1434,71 @@
         {
             Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
         }
+    }
+
+    /// <summary>A mérés típusa alapján eldönti, melyik főjegyzőkönyv letöltési módot kell használni
+    /// (ugyanaz a logika, mint a listán lévő Műveletek oszlopban látható letöltés gomb esetén).</summary>
+    private async Task FoDokumentumLetoltesAsync(Meres meres)
+    {
+        var tipusKod = _tipusok.FirstOrDefault(t => t.Id == meres.MeresTipusId)?.MellekletTipusKod;
+        var keszE = meres.MeresStatusz == MeresStatusz.Elvegezve;
+
+        if (tipusKod == "RB")
+        {
+            if (keszE) await RbPdfLetoltesAsync(meres);
+            return;
+        }
+
+        if (IsEgyMeresTipusId(meres.MeresTipusId))
+        {
+            if (!string.IsNullOrWhiteSpace(meres.JegyzokonyvAdatokJson))
+                await EgyMeresPdfLetoltesAsync(meres);
+            return;
+        }
+
+        if (tipusKod == "VVN-NEM")
+        {
+            if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
+                await VvnNemPdfLetoltesAsync(meres);
+            return;
+        }
+
+        if (keszE && !string.IsNullOrWhiteSpace(meres.JegyzokonyvAdatokJson))
+        {
+            await VbfPdfLetoltesAsync(meres);
+            return;
+        }
+
+        if (IsHordozhatoMeresTipus(meres.MeresTipusId))
+            await HordozhatoPdfLetoltesAsync(meres);
+        else
+            await WordLetoltesAsync(meres);
+    }
+
+    /// <summary>A főjegyzőkönyvet és az összes már "Kész" státuszú melléklet jegyzőkönyvet egyszerre
+    /// letölti (külön-külön fájlként). Hiányos (még nem kész) mellékletek kimaradnak, erről figyelmeztetés jelenik meg.</summary>
+    private async Task OsszesDokumentumLetoltese()
+    {
+        if (_szerkesztesAlatt is null) return;
+
+        var hianyos = _szerkesztettMellekletek.Any(m => !m.KeszeE);
+        if (hianyos)
+        {
+            var folytat = await DialogService.ShowMessageBox(
+                "Hi\u00E1nyos mell\u00E9kletek",
+                "Nem minden mell\u00E9klet jegyz\u0151k\u00F6nyv k\u00E9sz m\u00E9g. Csak a m\u00E1r k\u00E9sz mell\u00E9kletek ker\u00FClnek let\u00F6lt\u00E9sre a f\u0151jegyz\u0151k\u00F6nyvvel egy\u00FCtt. Folytatod?",
+                yesText: "Igen, let\u00F6lt\u00E9s", cancelText: "M\u00E9gsem");
+            if (folytat != true) return;
+        }
+
+        await FoDokumentumLetoltesAsync(_szerkesztesAlatt);
+
+        foreach (var m in _szerkesztettMellekletek.Where(m => m.KeszeE && m.MellekletMeresId.HasValue))
+        {
+            await MellekletWordLetoltes(m);
+        }
+
+        Snackbar.Add("Az \u00F6sszes elk\u00E9sz\u00FClt dokumentum let\u00F6lt\u00E9se elindult.", Severity.Success);
     }
 
     private async Task JegyzokonyvLetoltesAsync(Meres meres)
