@@ -1,4 +1,6 @@
 using BiztvillCRM.Shared.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace BiztvillCRM.Shared.Models;
 
@@ -43,7 +45,34 @@ public class Meres
     /// </summary>
     public bool Aktiv { get; set; } = true;
 
-    // Navigációs propertyk
+    /// <summary>
+    /// Régi, nem a szoftverrel kiállított (külsőleg feltöltött) jegyzőkönyvek fájlútvonalainak JSON listája.
+    /// Pl. PDF, Word, Excel formátumú korábbi mérési jegyzőkönyvek mellékletként.
+    /// </summary>
+    public string? KulsoJegyzokonyvPaths { get; set; }
+
+    [NotMapped]
+    public List<string> KulsoJegyzokonyvPathsLista
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(KulsoJegyzokonyvPaths))
+                return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(KulsoJegyzokonyvPaths) ?? new List<string>();
+            }
+            catch (JsonException)
+            {
+                return new List<string>();
+            }
+        }
+        set => KulsoJegyzokonyvPaths = (value == null || !value.Any())
+            ? null
+            : JsonSerializer.Serialize(value);
+    }
+
+    // Navig
     public Ugyfel? Ugyfel { get; set; }
     public Telephely? Telephely { get; set; }
     public MeresTipus? MeresTipus { get; set; }

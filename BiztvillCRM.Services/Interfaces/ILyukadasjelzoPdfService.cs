@@ -10,4 +10,7 @@ public interface ILyukadasjelzoPdfService
 {
     /// <summary>Legenerálja a jegyzőkönyv PDF-jét a megadott adatok, illetve az aktuális cég bélyegzője alapján.</summary>
     Task<byte[]> TulnyomasosGeneralasAsync(TulnyomasosLyukadasjelzoAdatok adatok);
+
+    /// <summary>Legenerálja a "Folyadékkal működtetett lyukadásjelző" jegyzőkönyv PDF-jét a megadott adatok, illetve az aktuális cég bélyegzője alapján.</summary>
+    Task<byte[]> FolyadekosGeneralasAsync(FolyadekosLyukadasjelzoAdatok adatok);
 }

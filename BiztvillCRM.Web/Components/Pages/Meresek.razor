@@ -25,6 +25,7 @@
 @inject NavigationManager Navigation
 @inject IMellekletJegyzokonyvService MellekletService
 @inject ICegService CegService
+@inject IFileStorageService FileStorageService
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IFileStorageService FileStorageService
 @inject ILejaroOsszefoglaloService LejaroOsszefoglaloService
@@ -155,7 +156,6 @@
                 <PropertyColumn Property="m => m.Datum" Title="Dátum" Format="yyyy.MM.dd" />
                 <PropertyColumn Property="m => m.KovetkezoDatum" Title="Következő" Format="yyyy.MM.dd" />
                 <PropertyColumn Property="m => m.Eredmeny" Title="Eredmény" />
-                <PropertyColumn Property="m => m.MeresStatusz" Title="Státusz" />
                 <TemplateColumn Title="" Sortable="false" HeaderStyle="width:40px">
                     <CellTemplate>
                         @{
@@ -180,9 +180,10 @@
                             var muvTipusKod = _tipusok.FirstOrDefault(t => t.Id == context.Item.MeresTipusId)?.MellekletTipusKod;
                             var muvKeszE = context.Item.MeresStatusz == MeresStatusz.Elvegezve;
                             var muvEgyMeres = IsEgyMeresTipusId(context.Item.MeresTipusId);
+                            var muvVanJkv = !string.IsNullOrWhiteSpace(context.Item.JegyzokonyvAdatokJson);
                         }
                         <MudStack Row="true" Spacing="1">
-                            @if (muvTipusKod == "RB")
+                            @if (muvTipusKod == "RB" && muvVanJkv)
                             {
                                 <MudTooltip Text="@(muvKeszE ? "Rb felülvizsgálati lap PDF letöltése" : "PDF csak 'Elvégezve' státuszú mérésnél tölthető le")">
                                     <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
@@ -194,7 +195,7 @@
                             }
                             else
                             {
-                                @if (muvTipusKod != "VVN-NEM")
+                                @if (muvTipusKod != "VVN-NEM" && !string.IsNullOrWhiteSpace(context.Item.JegyzokonyvAdatokJson))
                                 {
                                     @if (IsHordozhatoMeresTipus(context.Item.MeresTipusId))
                                     {
@@ -335,7 +336,6 @@
                                         <MudTh>Dátum</MudTh>
                                         <MudTh>Következő</MudTh>
                                         <MudTh>Eredmény</MudTh>
-                                        <MudTh>Státusz</MudTh>
                                         <MudTh Style="width:40px;"></MudTh>
                                         <MudTh>Műveletek</MudTh>
                                     </HeaderContent>
@@ -368,7 +368,6 @@
                                     <MudTd DataLabel="Dátum">@context.Datum.ToString("yyyy.MM.dd")</MudTd>
                                     <MudTd DataLabel="Következő">@(context.KovetkezoDatum?.ToString("yyyy.MM.dd") ?? "-")</MudTd>
                                     <MudTd DataLabel="Eredmény">@(context.Eredmeny ?? "-")</MudTd>
-                                    <MudTd DataLabel="Státusz">@context.MeresStatusz</MudTd>
                                     <MudTd>
                                         @if (vm)
                                         {
@@ -385,7 +384,7 @@
                                             var sorEgyMeres = IsEgyMeresTipusId(context.MeresTipusId);
                                         }
                                         <MudStack Row="true" Spacing="1">
-                                            @if (tk == "RB")
+                                            @if (tk == "RB" && !string.IsNullOrWhiteSpace(context.JegyzokonyvAdatokJson))
                                             {
                                                 <MudTooltip Text="@(context.MeresStatusz == MeresStatusz.Elvegezve ? "Rb felülvizsgálati lap PDF letöltése" : "PDF csak 'Elvégezve' státuszú mérésnél tölthető le")">
                                                     <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
@@ -396,7 +395,7 @@
                                             }
                                             else
                                             {
-                                                @if (tk != "VVN-NEM")
+                                                @if (tk != "VVN-NEM" && !string.IsNullOrWhiteSpace(context.JegyzokonyvAdatokJson))
                                                 {
                                                     @if (IsHordozhatoMeresTipus(context.MeresTipusId))
                                                     {
@@ -755,14 +754,6 @@
                         <MudToggleItem Value="@("NEM MEGFELELT")" Text="Nem megfelelt" />
                     </MudToggleGroup>
                 </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="MeresStatusz" @bind-Value="_szerkesztesAlatt.MeresStatusz" Label="Státusz">
-                        @foreach (MeresStatusz s in Enum.GetValues(typeof(MeresStatusz)))
-                        {
-                            <MudSelectItem Value="@s">@s</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_szerkesztesAlatt.Megjegyzes" Label="Megjegyzés" Lines="2" /></MudItem>
 
                 @* === FŐJEGYZŐKÖNYV / SZERKESZTÉS GOMB === *@
@@ -873,6 +864,51 @@
                         </MudItem>
                     }
                 }
+
+                @* === RÉGI, KÜLSŐLEG KIÁLLÍTOTT JEGYZŐKÖNYV MELLÉKLETEK (PDF/Word/Excel) === *@
+                <MudItem xs="12">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2 mt-2">
+                        <MudText Typo="Typo.subtitle2">
+                            <MudIcon Icon="@Icons.Material.Filled.FolderZip" Size="Size.Small" Class="mr-1" />
+                            Régi (külső) jegyzőkönyvek
+                        </MudText>
+                        <MudFileUpload T="IBrowserFile" Accept=".pdf,.doc,.docx,.xls,.xlsx" MaximumFileCount="1"
+                                       FilesChanged="@KulsoJegyzokonyvFeltoltese">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.UploadFile">
+                                    Feltöltés
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                    </MudStack>
+                    @if (!_szerkesztesAlatt!.KulsoJegyzokonyvPathsLista.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Nincs feltöltött külső jegyzőkönyv.</MudText>
+                    }
+                    @foreach (var path in _szerkesztesAlatt!.KulsoJegyzokonyvPathsLista)
+                    {
+                        <MudPaper Outlined="true" Class="pa-2 mb-1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2">@System.IO.Path.GetFileName(path)</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   Title="Letöltés"
+                                                   OnClick="@(() => KulsoJegyzokonyvLetoltese(path))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   Title="Törlés"
+                                                   OnClick="@(() => KulsoJegyzokonyvTorlese(path))" />
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudItem>
             </MudGrid>
         }
     </DialogContent>
@@ -1154,7 +1190,8 @@
         
         _szerkesztesAlatt = new Meres 
         { 
-            MeresTipusId = elsoTipus?.Id ?? 0
+            MeresTipusId = elsoTipus?.Id ?? 0,
+            MeresStatusz = MeresStatusz.Elvegezve
         }; 
         _datum = DateTime.Today; 
         _kovetkezoDatum = null; 
@@ -1436,7 +1473,116 @@
         }
     }
 
-    /// <summary>A mérés típusa alapján eldönti, melyik főjegyzőkönyv letöltési módot kell használni
+    /// <summary>Régi, nem a szoftverrel kiállított jegyzőkönyv feltöltése mellékletként (PDF/Word/Excel).</summary>
+    private async Task KulsoJegyzokonyvFeltoltese(IBrowserFile? file)
+    {
+        if (file is null || _szerkesztesAlatt is null) return;
+
+        try
+        {
+            var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId);
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel?.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB
+            var relativePath = await FileStorageService.SaveHitelesitesFileAsync(
+                stream,
+                file.Name,
+                cegNev,
+                ugyfel?.Nev ?? "Ismeretlen",
+                "kulso_jegyzokonyv",
+                new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx" },
+                10
+            );
+
+            if (relativePath is not null)
+            {
+                var paths = _szerkesztesAlatt.KulsoJegyzokonyvPathsLista;
+                paths.Add(relativePath);
+                _szerkesztesAlatt.KulsoJegyzokonyvPathsLista = paths;
+
+                StateHasChanged();
+
+                if (_szerkesztesAlatt.Id > 0)
+                {
+                    await MeresService.UpdateAsync(_szerkesztesAlatt);
+                    Snackbar.Add("Jegyzőkönyv feltöltve és mentve!", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Jegyzőkönyv feltöltve! Ne felejtsd el menteni a mérést.", Severity.Info);
+                }
+            }
+            else
+            {
+                Snackbar.Add("Fájl feltöltése sikertelen!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KulsoJegyzokonyvLetoltese(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            var stream = await FileStorageService.GetFileStreamAsync(path);
+            if (stream is not null)
+            {
+                var fileName = System.IO.Path.GetFileName(path);
+                using var streamRef = new DotNetStreamReference(stream);
+                await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+                Snackbar.Add("Jegyzőkönyv letöltése megkezdődött!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Fájl nem található!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task KulsoJegyzokonyvTorlese(string path)
+    {
+        if (_szerkesztesAlatt is null || string.IsNullOrWhiteSpace(path)) return;
+
+        var confirm = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a jegyzőkönyvet?");
+        if (!confirm) return;
+
+        try
+        {
+            await FileStorageService.DeleteFileAsync(path);
+
+            var paths = _szerkesztesAlatt.KulsoJegyzokonyvPathsLista;
+            paths.Remove(path);
+            _szerkesztesAlatt.KulsoJegyzokonyvPathsLista = paths;
+
+            StateHasChanged();
+
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await MeresService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Jegyzőkönyv törölve és mentve!", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Jegyzőkönyv törölve!", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+
     /// (ugyanaz a logika, mint a listán lévő Műveletek oszlopban látható letöltés gomb esetén).</summary>
     private async Task FoDokumentumLetoltesAsync(Meres meres)
     {

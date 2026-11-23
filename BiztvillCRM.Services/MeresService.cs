@@ -165,6 +165,7 @@ public class MeresService : IMeresService
             existing.JegyzokonyvAdatokJson = meres.JegyzokonyvAdatokJson;
         if (!string.IsNullOrWhiteSpace(meres.VillamNemNormaAdatokJson))
             existing.VillamNemNormaAdatokJson = meres.VillamNemNormaAdatokJson;
+        existing.KulsoJegyzokonyvPaths = meres.KulsoJegyzokonyvPaths;
         existing.Modositva = DateTime.UtcNow;
 
         await context.SaveChangesAsync();

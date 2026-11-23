@@ -555,6 +555,7 @@
                             <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tulnyomasos">Túlnyomásos</MudSelectItem>
                             <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tartalyos">Tartályos</MudSelectItem>
                             <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Belogatos">Belógatós</MudSelectItem>
+                            <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Folyadekos">Folyadékkal működtetett</MudSelectItem>
                             <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Egyeb">Egyéb</MudSelectItem>
                         </MudSelect>
                     </MudItem>
@@ -669,6 +670,103 @@
                             </MudPaper>
                         </MudItem>
                     }
+                    else if (_szerkesztesAlatt.LyukadasjelzoAltipus == LyukadasjelzoAltipus.Folyadekos)
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">Folyadékkal működtetett lyukadásjelző vizsgálati jegyzőkönyv adatai</MudText>
+                                <MudGrid>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="_folyadekosAdatok.JelenlevokNevCeg" Label="Jelen vannak (név, cég)" Immediate="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="_folyadekosAdatok.UzemeltetoReszerol" Label="Üzemeltető megbízottja" Immediate="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="_folyadekosAdatok.LyukadasjelzoTipusa" Label="Típus" Immediate="true" />
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudSimpleTable Dense="true" Bordered="true">
+                                            <thead>
+                                                <tr>
+                                                    <th>Vizsgált berendezés</th>
+                                                    <th style="width:110px">Megfelel</th>
+                                                    <th style="width:130px">Nem felel meg</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Lyukadásjelző berendezés</td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.LyukadasjelzoBerendezesMegfelel == true)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.LyukadasjelzoBerendezesMegfelel = v ? true : (bool?)null)"
+                                                                     Color="Color.Success" Dense="true" />
+                                                    </td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.LyukadasjelzoBerendezesMegfelel == false)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.LyukadasjelzoBerendezesMegfelel = v ? false : (bool?)null)"
+                                                                     Color="Color.Error" Dense="true" />
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Egyéb berendezés megfelelése</td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.KiegeszitoBerendezesMegfelel == true)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.KiegeszitoBerendezesMegfelel = v ? true : (bool?)null)"
+                                                                     Color="Color.Success" Dense="true" />
+                                                    </td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.KiegeszitoBerendezesMegfelel == false)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.KiegeszitoBerendezesMegfelel = v ? false : (bool?)null)"
+                                                                     Color="Color.Error" Dense="true" />
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Letöltőcső</td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.LetoltocsoMegfelel == true)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.LetoltocsoMegfelel = v ? true : (bool?)null)"
+                                                                     Color="Color.Success" Dense="true" />
+                                                    </td>
+                                                    <td>
+                                                        <MudCheckBox T="bool" Value="@(_folyadekosAdatok.LetoltocsoMegfelel == false)"
+                                                                     ValueChanged="@((bool v) => _folyadekosAdatok.LetoltocsoMegfelel = v ? false : (bool?)null)"
+                                                                     Color="Color.Error" Dense="true" />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </MudSimpleTable>
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                                                   OnClick="FolyadekosLyukadasjelzoGeneralasAsync">
+                                            Jegyzőkönyv generálása és letöltése
+                                        </MudButton>
+                                    </MudItem>
+
+                                    @if (_szerkesztesAlatt.JegyzokonyvPathsLista.Any())
+                                    {
+                                        <MudItem xs="12">
+                                            <MudDivider Class="my-1" />
+                                            @foreach (var jkvPath in _szerkesztesAlatt.JegyzokonyvPathsLista)
+                                            {
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                                    <MudText Typo="Typo.caption">@Path.GetFileName(jkvPath)</MudText>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                                   OnClick="@(() => LyukadasjelzoJegyzokonyvLetoltese(jkvPath))" Title="Letöltés" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                   OnClick="@(() => LyukadasjelzoJegyzokonyvTorlese(jkvPath))" Title="Törlés" />
+                                                </MudStack>
+                                            }
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            </MudPaper>
+                        </MudItem>
+                    }
                     else if (_szerkesztesAlatt.LyukadasjelzoAltipus != null)
                     {
                         <MudItem xs="12">
@@ -707,6 +805,7 @@
                                                 <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tulnyomasos">Túlnyomásos</MudSelectItem>
                                                 <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tartalyos">Tartályos</MudSelectItem>
                                                 <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Belogatos">Belógatós</MudSelectItem>
+                                                <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Folyadekos">Folyadékkal működtetett</MudSelectItem>
                                                 <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Egyeb">Egyéb</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
@@ -959,6 +1058,7 @@
                                                     <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tulnyomasos">Túlnyomásos</MudSelectItem>
                                                     <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tartalyos">Tartályos</MudSelectItem>
                                                     <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Belogatos">Belógatós</MudSelectItem>
+                                                    <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Folyadekos">Folyadékkal működtetett</MudSelectItem>
                                                     <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Egyeb">Egyéb</MudSelectItem>
                                                 </MudSelect>
                                             </MudItem>
@@ -1201,15 +1301,16 @@
 
                                                                                                                                        <MudGrid>
                                                                                                                                            <MudItem xs="12" md="6">
-                                                                                                                                               <MudSelect T="LyukadasjelzoAltipus?" @bind-Value="tetel.LyukadasjelzoAltipus" Label="Lyukadásjelző altípusa *" Required="true">
-                                                                                                                                                   <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tulnyomasos">Túlnyomásos</MudSelectItem>
-                                                                                                                                                   <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tartalyos">Tartályos</MudSelectItem>
-                                                                                                                                                   <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Belogatos">Belógatós</MudSelectItem>
-                                                                                                                                                   <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Egyeb">Egyéb</MudSelectItem>
-                                                                                                                                               </MudSelect>
-                                                                                                                                           </MudItem>
+                                                                                                                                                   <MudSelect T="LyukadasjelzoAltipus?" @bind-Value="tetel.LyukadasjelzoAltipus" Label="Lyukadásjelző altípusa *" Required="true">
+                                                                                                                                                       <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tulnyomasos">Túlnyomásos</MudSelectItem>
+                                                                                                                                                       <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Tartalyos">Tartályos</MudSelectItem>
+                                                                                                                                                       <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Belogatos">Belógatós</MudSelectItem>
+                                                                                                                                                       <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Folyadekos">Folyadékkal működtetett</MudSelectItem>
+                                                                                                                                                       <MudSelectItem T="LyukadasjelzoAltipus?" Value="LyukadasjelzoAltipus.Egyeb">Egyéb</MudSelectItem>
+                                                                                                                                                   </MudSelect>
+                                                                                                                                               </MudItem>
 
-                                                                                                                                           @if (tetel.LyukadasjelzoAltipus == LyukadasjelzoAltipus.Tulnyomasos)
+                                                                                                                                               @if (tetel.LyukadasjelzoAltipus == LyukadasjelzoAltipus.Tulnyomasos)
                                                                                                                                            {
                                                                                                                                                <MudItem xs="12" md="6">
                                                                                                                                                    <MudTextField @bind-Value="tetel.LyukadasjelzoAdatok.LyukadasjelzoGyariszama" Label="Gyári szám" Immediate="true" />
@@ -1896,6 +1997,7 @@
 
     // ÚJ: Lyukadásjelző vizsgálati jegyzőkönyv adatai (fő eszköztípus szinten)
     private TulnyomasosLyukadasjelzoAdatok _lyukadasjelzoAdatok = new();
+    private FolyadekosLyukadasjelzoAdatok _folyadekosAdatok = new();
     private List<LyukadasjelzoTetel> _lyukadasjelzoTetelek = new();
 
     private bool LyukadasjelzoEszkozTipusE()
@@ -2185,6 +2287,7 @@ private bool _eszkozAzonositoDuplikalva =>
         _kivalasztottMunkaszam = null;
         _munkaszamSzoveg = string.Empty;
         _lyukadasjelzoAdatok = new TulnyomasosLyukadasjelzoAdatok();
+        _folyadekosAdatok = new FolyadekosLyukadasjelzoAdatok();
         _lyukadasjelzoTetelek = new List<LyukadasjelzoTetel>();
 
         SzamoljLejaratot();
@@ -2226,6 +2329,7 @@ private bool _eszkozAzonositoDuplikalva =>
         _kivalasztottMunkaszam = item.Munkaszam;
         _munkaszamSzoveg = item.Munkaszam?.Szam ?? string.Empty;
         _lyukadasjelzoAdatok = item.LyukadasjelzoAdatok ?? new TulnyomasosLyukadasjelzoAdatok();
+        _folyadekosAdatok = item.FolyadekosLyukadasjelzoAdatok ?? new FolyadekosLyukadasjelzoAdatok();
         _lyukadasjelzoTetelek = item.LyukadasjelzoTetelekLista;
 
         // ÚJ: Egyedi lejáratok betöltése
@@ -2261,6 +2365,7 @@ private bool _eszkozAzonositoDuplikalva =>
         _munkaszamSzoveg = item.Munkaszam?.Szam ?? string.Empty;
         _masolasbol = true;
         _lyukadasjelzoAdatok = new TulnyomasosLyukadasjelzoAdatok(); // másolatnál új vizsgálati adatok
+        _folyadekosAdatok = new FolyadekosLyukadasjelzoAdatok();
         _lyukadasjelzoTetelek = new List<LyukadasjelzoTetel>(); // másolatnál új, üres tételek (PDF-ek nem másolódnak)
 
         SzamoljLejaratot();
@@ -2459,6 +2564,7 @@ private bool _eszkozAzonositoDuplikalva =>
         _manualisLejaratDatum = false;
         _masolasbol = false;   // ← ÚJ
         _lyukadasjelzoAdatok = new TulnyomasosLyukadasjelzoAdatok();
+        _folyadekosAdatok = new FolyadekosLyukadasjelzoAdatok();
     }
 
     private async Task MentesAsync()
@@ -2491,6 +2597,10 @@ private bool _eszkozAzonositoDuplikalva =>
         if (_szerkesztesAlatt.LyukadasjelzoAltipus == LyukadasjelzoAltipus.Tulnyomasos)
         {
             _szerkesztesAlatt.LyukadasjelzoAdatok = _lyukadasjelzoAdatok;
+        }
+        if (_szerkesztesAlatt.LyukadasjelzoAltipus == LyukadasjelzoAltipus.Folyadekos)
+        {
+            _szerkesztesAlatt.FolyadekosLyukadasjelzoAdatok = _folyadekosAdatok;
         }
         _szerkesztesAlatt.LyukadasjelzoTetelekLista = _lyukadasjelzoTetelek;
 
@@ -3411,6 +3521,83 @@ private bool _eszkozAzonositoDuplikalva =>
     }
 
     /// <summary>
+    /// A fő Hitelesítés Lyukadásjelző / Folyadékkal működtetett altípusához tartozó vizsgálati jegyzőkönyv
+    /// legenerálása, mentése és letöltése.
+    /// </summary>
+    private async Task FolyadekosLyukadasjelzoGeneralasAsync()
+    {
+        if (_szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null)
+        {
+            Snackbar.Add("Előbb add meg az ügyfelet és a telephelyet!", Severity.Warning);
+            return;
+        }
+
+        var ugyfel = _ugyfelek.FirstOrDefault(u => u.Id == _szerkesztesAlatt.UgyfelId.Value);
+        if (ugyfel is null)
+        {
+            Snackbar.Add("Ügyfél nem található!", Severity.Error);
+            return;
+        }
+
+        var telephely = _telephelyek.FirstOrDefault(t => t.Id == _szerkesztesAlatt.TelephelyId);
+
+        _folyadekosAdatok.VizsgalatHelye = telephely?.Cim ?? ugyfel.Cim ?? string.Empty;
+        _folyadekosAdatok.VizsgalatIdeje = _datum ?? DateTime.Today;
+        _folyadekosAdatok.MegbizoNev = ugyfel.Nev ?? string.Empty;
+        _folyadekosAdatok.EszkozAzonosito = _szerkesztesAlatt.EszkozAzonosito;
+        _folyadekosAdatok.KovetkezoVizsgalatIdopontja = _lejaratDatum;
+
+        try
+        {
+            var pdfBytes = await LyukadasjelzoPdfService.FolyadekosGeneralasAsync(_folyadekosAdatok);
+
+            var ceg = _elerhetoCegek.FirstOrDefault(c => c.Id == ugyfel.CegId);
+            var cegNev = ceg?.Nev ?? "Ismeretlen";
+            var fileName = $"jegyzokonyv_folyadekos_lyukadasjelzo_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+
+            using (var stream = new MemoryStream(pdfBytes))
+            {
+                var path = await FileStorageService.SaveHitelesitesFileAsync(
+                    stream,
+                    fileName,
+                    cegNev,
+                    ugyfel.Nev ?? "Ismeretlen",
+                    "Lyukadasjelzo_Folyadekos",
+                    new[] { ".pdf" },
+                    10
+                );
+
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    var paths = _szerkesztesAlatt.JegyzokonyvPathsLista;
+                    paths.Add(path);
+                    _szerkesztesAlatt.JegyzokonyvPathsLista = paths;
+                }
+            }
+
+            _szerkesztesAlatt.FolyadekosLyukadasjelzoAdatok = _folyadekosAdatok;
+            StateHasChanged();
+
+            if (_szerkesztesAlatt.Id > 0)
+            {
+                await HitelesitesService.UpdateAsync(_szerkesztesAlatt);
+                Snackbar.Add("Jegyzőkönyv legenerálva és mentve!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Jegyzőkönyv legenerálva! Mentsd el a hitelesítést a véglegesítéshez.", Severity.Success);
+            }
+
+            using var downloadRef = new DotNetStreamReference(new MemoryStream(pdfBytes));
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, downloadRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
     /// Új, üres lyukadásjelző tétel hozzáadása, hogy a felhasználó egy hitelesítésen belül
     /// több, önálló gyári számú lyukadásjelzőt tudjon felvinni.
     /// </summary>
@@ -3727,11 +3914,26 @@ private bool _eszkozAzonositoDuplikalva =>
         }
     }
 
+    /// <summary>
+    /// Megállapítja, hogy a megadott lyukadásjelző altípushoz van-e ténylegesen
+    /// elkészült vizsgálati jegyzőkönyv-sablon (PDF-generálás) a csoporttagi (közbenső)
+    /// jegyzőkönyv-kitöltés során. Jelenleg csak a Túlnyomásos altípushoz készült el
+    /// a csoporttagi inline kitöltés sablonja.
+    /// </summary>
+    private static bool LyukadasjelzoAltipusVanSablonja(LyukadasjelzoAltipus? altipus)
+        => altipus == LyukadasjelzoAltipus.Tulnyomasos;
+
     private async Task JegyzokonyvKitolteseAsync(CsoportTagSor sor)
     {
         if (_szerkesztesAlatt is null || _szerkesztesAlatt.UgyfelId is null)
         {
             Snackbar.Add("Előbb add meg az ügyfelet és a telephelyet!", Severity.Warning);
+            return;
+        }
+
+        if (!LyukadasjelzoAltipusVanSablonja(sor.LyukadasjelzoAltipus))
+        {
+            Snackbar.Add("Kitöltés nem lehetséges, mert ehhez az altípushoz még nincs jegyzőkönyv-sablon.", Severity.Warning);
             return;
         }
 

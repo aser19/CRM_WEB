@@ -95,6 +95,7 @@ public class UgyfelService : IUgyfelService
         existing.Email = ugyfel.Email;
         existing.Telefon = ugyfel.Telefon;
         existing.Aktiv = ugyfel.Aktiv;
+        existing.UgyfelCsoportId = ugyfel.UgyfelCsoportId;
         existing.Modositva = DateTime.UtcNow;
 
         if (_tenantService.IsInRole(FelhasznaloSzerepkor.Admin) && ugyfel.CegId > 0)

@@ -109,6 +109,20 @@ public class Hitelesites
     }
 
     /// <summary>
+    /// JSON formátumban tárolt "Folyadékkal működtetett lyukadásjelző" vizsgálati jegyzőkönyv adatok.
+    /// </summary>
+    public string? FolyadekosLyukadasjelzoAdatokJson { get; set; }
+
+    [NotMapped]
+    public FolyadekosLyukadasjelzoAdatok? FolyadekosLyukadasjelzoAdatok
+    {
+        get => string.IsNullOrWhiteSpace(FolyadekosLyukadasjelzoAdatokJson)
+            ? null
+            : JsonSerializer.Deserialize<FolyadekosLyukadasjelzoAdatok>(FolyadekosLyukadasjelzoAdatokJson);
+        set => FolyadekosLyukadasjelzoAdatokJson = value == null ? null : JsonSerializer.Serialize(value);
+    }
+
+    /// <summary>
     /// JSON formátumban tárolt lista, amely lehetővé teszi, hogy egy lyukadásjelző
     /// eszköztípusú hitelesítésen belül több, önálló gyári számú lyukadásjelzőt
     /// (saját adatlappal és saját PDF-jegyzőkönyvvel) lehessen rögzíteni.

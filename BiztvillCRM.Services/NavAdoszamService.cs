@@ -199,23 +199,24 @@ public class NavAdoszamService : INavAdoszamService
             if (taxpayer is null)
                 return Hiba("Az adószám nem található a NAV rendszerben.");
 
-            var szekhely = taxpayer
-                .Descendants(api + "taxpayerAddressItem")
-                .FirstOrDefault(x => x.Element(api + "taxpayerAddressType")?.Value == "HQ");
+            var cimek = taxpayer.Descendants(api + "taxpayerAddressItem").ToList();
+            var szekhely = cimek.FirstOrDefault(x => x.Descendants(api + "taxpayerAddressType").FirstOrDefault()?.Value == "HQ")
+                           ?? cimek.FirstOrDefault();
 
-            // A cím mezők (postalCode, city, streetName, stb.) a NAV válaszban nem közvetlenül
-            // a taxpayerAddressItem alatt, hanem egy beágyazott taxpayerAddress elemben vannak.
-            var cim = szekhely?.Element(api + "taxpayerAddress");
+            // A cím mezők (postalCode, city, streetName, stb.) a NAV válaszban a taxpayerAddressItem alatt
+            // több szintre is beágyazva lehetnek (taxpayerAddress -> detailedAddress/simpleAddress),
+            // ezért Descendants()-szel keresünk rájuk, függetlenül a pontos beágyazási mélységtől.
+            string? CimMezo(string nev) => szekhely?.Descendants(api + nev).FirstOrDefault()?.Value;
 
             return new NavAdoszamEredmeny
             {
                 Sikeres           = true,
                 CegNev            = taxpayer.Element(api + "taxpayerName")?.Value,
-                IranyitoSzam      = cim?.Element(api + "postalCode")?.Value,
-                Telepules         = cim?.Element(api + "city")?.Value,
-                Kozterulet        = cim?.Element(api + "streetName")?.Value,
-                KozteruletJellege = cim?.Element(api + "publicPlaceCategory")?.Value,
-                Hazszam           = cim?.Element(api + "number")?.Value,
+                IranyitoSzam      = CimMezo("postalCode"),
+                Telepules         = CimMezo("city"),
+                Kozterulet        = CimMezo("streetName"),
+                KozteruletJellege = CimMezo("publicPlaceCategory"),
+                Hazszam           = CimMezo("number"),
             };
         }
         catch (Exception ex)

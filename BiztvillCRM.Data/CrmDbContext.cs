@@ -12,6 +12,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
 
     // --- Törzsadatok ---
     public DbSet<Ugyfel> Ugyfelek { get; set; }
+    public DbSet<UgyfelCsoport> UgyfelCsoportok { get; set; }
     public DbSet<Telephely> Telephelyek { get; set; }
     public DbSet<Gyarto> Gyartok { get; set; }
     public DbSet<Munkaszam> Munkaszamok { get; set; }
@@ -189,6 +190,14 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.Property(e => e.Telefon).HasMaxLength(50);
             entity.Property(e => e.Cim).HasMaxLength(500);
             entity.HasOne(e => e.Ceg).WithMany(c => c.Ugyfelek).HasForeignKey(e => e.CegId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.UgyfelCsoport).WithMany(g => g.Tagok).HasForeignKey(e => e.UgyfelCsoportId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- UgyfelCsoport ---
+        modelBuilder.Entity<UgyfelCsoport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Nev).HasMaxLength(200);
         });
 
         // --- Telephely ---
@@ -273,6 +282,7 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : IdentityDbCo
             entity.HasMany(e => e.Tagek)
                   .WithMany()
                   .UsingEntity(j => j.ToTable("MeresTagKapcsolatok"));
+            entity.Ignore(e => e.KulsoJegyzokonyvPathsLista);
         });
 
         // --- MeresTag ---   ÚJ

@@ -28,10 +28,18 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
         tokenRek.UtolsoHasznalat = DateTime.UtcNow;
         await ctx.SaveChangesAsync();
 
-        var ugyfelId = tokenRek.UgyfelId;
+        // Ha az ügyfél egy ügyfélcsoport tagja (pl. ugyanaz a tulajdonos több néven/cégen kér
+        // jegyzőkönyvet), akkor a csoport összes tagjának adatait összesítve adjuk vissza.
+        var csoportId = tokenRek.Ugyfel?.UgyfelCsoportId;
+        var csoportTagok = csoportId.HasValue
+            ? await ctx.Ugyfelek.Where(u => u.UgyfelCsoportId == csoportId.Value).ToListAsync()
+            : new List<Ugyfel> { tokenRek.Ugyfel! };
+
+        var ugyfelIds = csoportTagok.Select(u => u.Id).ToList();
+        var ugyfelNevek = csoportTagok.ToDictionary(u => u.Id, u => u.Nev);
 
         var telephelyek = await ctx.Telephelyek
-            .Where(t => t.UgyfelId == ugyfelId)
+            .Where(t => ugyfelIds.Contains(t.UgyfelId))
             .OrderBy(t => t.Nev)
             .ToListAsync();
 
@@ -42,16 +50,23 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
             .Select(mj => mj.MellekletMeresId!.Value)
             .ToListAsync();
 
-        var meresek = await ctx.Meresek
+        var meresekQuery = ctx.Meresek
             .Include(m => m.MeresTipus)
-            .Where(m => m.UgyfelId == ugyfelId && !mellekletMeresIds.Contains(m.Id))
+            .Where(m => ugyfelIds.Contains(m.UgyfelId) && !mellekletMeresIds.Contains(m.Id));
+
+        if (!tartalmazzaInaktivakat)
+        {
+            meresekQuery = meresekQuery.Where(m => m.Aktiv);
+        }
+
+        var meresek = await meresekQuery
             .OrderByDescending(m => m.Datum)
             .ToListAsync();
 
         // Hitelesítések lekérdezése: aktív vagy összes az élettörténet kapcsoló alapján
         var hitelesitesekQuery = ctx.Hitelesitesek
             .Include(h => h.EszkozTipus)
-            .Where(h => h.UgyfelId == ugyfelId);
+            .Where(h => h.UgyfelId.HasValue && ugyfelIds.Contains(h.UgyfelId.Value));
 
         if (!tartalmazzaInaktivakat)
         {
@@ -74,17 +89,17 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
 
         var karbantartasok = await ctx.Karbantartasok
             .Include(k => k.KarbantartasTipus)
-            .Where(k => k.UgyfelId == ugyfelId)
+            .Where(k => ugyfelIds.Contains(k.UgyfelId))
             .OrderBy(k => k.KovetkezoDatum)
             .ToListAsync();
 
         var zonaterkepek = await ctx.Zonaterkepek
-            .Where(z => z.UgyfelId == ugyfelId && z.Aktiv)
+            .Where(z => ugyfelIds.Contains(z.UgyfelId) && z.Aktiv)
             .OrderByDescending(z => z.ErvenyessegVege)
             .ToListAsync();
 
         var kockazatertekelesek = await ctx.Kockazatertekelesek
-            .Where(k => k.UgyfelId == ugyfelId && k.Aktiv)
+            .Where(k => ugyfelIds.Contains(k.UgyfelId) && k.Aktiv)
             .OrderByDescending(k => k.ErtekelesDatuma)
             .ToListAsync();
 
@@ -93,6 +108,7 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
             UgyfelNev = tokenRek.Ugyfel?.Nev ?? "",
             Telephelyek = telephelyek.Select(tp => new TelephelyAdatok
             {
+                UgyfelNev = ugyfelNevek.TryGetValue(tp.UgyfelId, out var un) ? un : (tokenRek.Ugyfel?.Nev ?? ""),
                 Nev = tp.Nev ?? "",
                 Cim = tp.Cim ?? "",
                 Meresek = meresek
@@ -106,7 +122,10 @@ public class NyilvanosLekerdezesService : INyilvanosLekerdezesService
                         KovetkezoDatum = m.KovetkezoDatum,
                         Statusz = m.MeresStatusz.ToString(),
                         MellekletTipusKod = m.MeresTipus?.MellekletTipusKod,
-                        SablonId = m.MeresTipus?.SablonId
+                        SablonId = m.MeresTipus?.SablonId,
+                        Megjegyzes = m.Megjegyzes,
+                        VanJegyzokonyv = !string.IsNullOrWhiteSpace(m.JegyzokonyvAdatokJson),
+                        KulsoJegyzokonyvPaths = m.KulsoJegyzokonyvPathsLista
                     }).ToList(),
                 Hitelesitesek = hitelesitesek
                     .Where(h => h.TelephelyId == tp.Id)

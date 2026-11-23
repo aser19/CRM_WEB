@@ -11,6 +11,7 @@
 @inject ITenantService TenantService
 @inject ICegService CegService
 @inject INyilvanosLekerdezesService LekerdezesService
+@inject IUgyfelCsoportService UgyfelCsoportService
 @inject NavigationManager NavManager
 @inject IJSRuntime JS
 
@@ -178,6 +179,29 @@
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_szerkesztesAlatt.Cim" Label="Cím" />
                 </MudItem>
+                <MudItem xs="12" md="@(_ujCsoportLetrehozasa ? 6 : 12)">
+                    <MudSelect T="int" Value="_kivalasztottCsoportId" ValueChanged="OnCsoportValtozas" Label="Ügyfélcsoport (azonos tulajdonos más néven)">
+                        <MudSelectItem Value="0">(nincs csoport)</MudSelectItem>
+                        @foreach (var cs in _csoportok)
+                        {
+                            <MudSelectItem Value="@cs.Id">@cs.Nev</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Akkor állítsd be, ha ugyanaz az ügyfél más névre (más cégre) is kér jegyzőkönyvet -
+                        a tokenes lekérdezésnél így egy listában jelennek meg. Bármikor leválasztható, ha
+                        később külön ügyintézőhöz kerülnek a cégek.
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudCheckBox T="bool" @bind-Value="_ujCsoportLetrehozasa" Label="Új ügyfélcsoport létrehozása" Color="Color.Primary" />
+                </MudItem>
+                @if (_ujCsoportLetrehozasa)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_ujCsoportNev" Label="Új csoport neve (pl. a tulajdonos neve)" Immediate="true" />
+                    </MudItem>
+                }
                 <MudItem xs="12">
                     <MudSwitch @bind-Value="_szerkesztesAlatt.Aktiv" Label="Aktív" Color="Color.Primary" />
                 </MudItem>
@@ -308,6 +332,11 @@
     private bool _telephelyDialogNyitva = false;
     private Telephely? _ujTelephely;
     private int _kivalasztottCegId;
+
+    private List<UgyfelCsoport> _csoportok = new();
+    private int _kivalasztottCsoportId;
+    private bool _ujCsoportLetrehozasa;
+    private string _ujCsoportNev = string.Empty;
     private bool _isAdmin;
     private List<Ceg> _cegek = new();
     private bool _validacioMutatasa = false;
@@ -389,6 +418,7 @@
                 .ToList();
         }
         await BetoltesAsync();
+        _csoportok = await UgyfelCsoportService.GetAllAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -456,6 +486,9 @@
             CegId = cegId
         };
         _kivalasztottCegId = cegId;
+        _kivalasztottCsoportId = 0;
+        _ujCsoportLetrehozasa = false;
+        _ujCsoportNev = string.Empty;
         _validacioMutatasa = false;
         _eredetiAdoszam = null;
         _adoszamValtozottFigyelmezetes = false;
@@ -466,6 +499,9 @@
     {
         _szerkesztesAlatt = ugyfel.SekélyMásolat();
         _kivalasztottCegId = ugyfel.CegId;
+        _kivalasztottCsoportId = ugyfel.UgyfelCsoportId ?? 0;
+        _ujCsoportLetrehozasa = false;
+        _ujCsoportNev = string.Empty;
 
         _validacioMutatasa = false;
         _eredetiAdoszam = ugyfel.Adoszam;
@@ -481,6 +517,11 @@
         {
             _szerkesztesAlatt.CegId = ujCegId;
         }
+    }
+
+    private void OnCsoportValtozas(int ujCsoportId)
+    {
+        _kivalasztottCsoportId = ujCsoportId;
     }
 
     private void DialogBezarasa()
@@ -509,6 +550,14 @@
             {
                 _szerkesztesAlatt.CegId = _kivalasztottCegId;
             }
+
+            if (_ujCsoportLetrehozasa && !string.IsNullOrWhiteSpace(_ujCsoportNev))
+            {
+                var ujCsoport = await UgyfelCsoportService.CreateAsync(_ujCsoportNev);
+                _csoportok = await UgyfelCsoportService.GetAllAsync();
+                _kivalasztottCsoportId = ujCsoport.Id;
+            }
+            _szerkesztesAlatt.UgyfelCsoportId = _kivalasztottCsoportId > 0 ? _kivalasztottCsoportId : null;
 
             Ugyfel mentettUgyfel;
             if (ujUgyfel)

@@ -18,6 +18,14 @@ public class Ugyfel
     public int CegId { get; set; }
     public Ceg Ceg { get; set; } = null!;
 
+    /// <summary>
+    /// Ügyfélcsoport azonosítója: ha ugyanaz a valós ügyfél több névre (cégre) is kér jegyzőkönyvet
+    /// (pl. "Kiskutya Kft" és "FGR Kft"), ugyanazt a csoportot kell beállítani náluk. Ekkor a tokenes
+    /// lekérdezés a csoport összes tagjának adatait egy listában mutatja.
+    /// </summary>
+    public int? UgyfelCsoportId { get; set; }
+    public UgyfelCsoport? UgyfelCsoport { get; set; }
+
     // Navigációs property
     public List<Telephely> Telephelyek { get; set; } = new();
 
@@ -32,6 +40,7 @@ public class Ugyfel
         Telefon = Telefon,
         Aktiv = Aktiv,
         CegId = CegId,
+        UgyfelCsoportId = UgyfelCsoportId,
         Letrehozva = Letrehozva,
         Modositva = Modositva
     };

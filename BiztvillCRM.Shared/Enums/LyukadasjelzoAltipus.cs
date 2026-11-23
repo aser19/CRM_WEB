@@ -9,5 +9,6 @@ public enum LyukadasjelzoAltipus
     Tulnyomasos = 0,
     Tartalyos = 1,
     Belogatos = 2,
-    Egyeb = 3
+    Egyeb = 3,
+    Folyadekos = 4
 }

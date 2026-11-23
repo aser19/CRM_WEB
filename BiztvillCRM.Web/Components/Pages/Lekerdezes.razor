@@ -62,11 +62,11 @@
                 <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-1" />
                 @_eredmeny.UgyfelNev adatai
             </MudText>
-            <MudSwitch @bind-Value="_elettortenetMutat" 
+            <MudSwitch T="bool" Value="_elettortenetMutat" 
+                       ValueChanged="@(v => ElettortenetValtozas(v))"
                        Color="Color.Info" 
                        Label="Élettörténet (inaktívakkal)"
-                       ThumbIcon="@(_elettortenetMutat ? Icons.Material.Filled.History : Icons.Material.Filled.Visibility)"
-                       @onchange="OnElettortenetChange" />
+                       ThumbIcon="@(_elettortenetMutat ? Icons.Material.Filled.History : Icons.Material.Filled.Visibility)" />
         </MudStack>
 
         @foreach (var tp in _eredmeny.Telephelyek)
@@ -82,6 +82,10 @@
                             <div>
                                 <MudText Typo="Typo.subtitle1"><b>@tp.Nev</b></MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@tp.Cim</MudText>
+                                @if (!string.IsNullOrWhiteSpace(tp.UgyfelNev) && tp.UgyfelNev != _eredmeny.UgyfelNev)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Primary">@tp.UgyfelNev</MudText>
+                                }
                             </div>
                             <MudSpacer />
                             @if (tp.Meresek.Any())
@@ -118,12 +122,19 @@
                                     <MudTh>Típus</MudTh>
                                     <MudTh>Eredmény</MudTh>
                                     <MudTh>Következő</MudTh>
-                                    <MudTh>Státusz</MudTh>
                                     <MudTh>Dokumentum</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd>@context.Datum.ToString("yyyy.MM.dd")</MudTd>
-                                    <MudTd>@context.Tipus</MudTd>
+                                    <MudTd>
+                                        @context.Tipus
+                                        @if (!string.IsNullOrWhiteSpace(context.Megjegyzes))
+                                        {
+                                            <MudText Typo="Typo.inherit" Color="Color.Secondary" Style="display:inline;">
+                                                &nbsp;(@context.Megjegyzes)
+                                            </MudText>
+                                        }
+                                    </MudTd>
                                     <MudTd>
                                         <MudChip T="string" Size="Size.Small"
                                                  Color="@(context.Eredmeny == "MEGFELELT" ? Color.Success : context.Eredmeny == "NEM MEGFELELT" ? Color.Error : Color.Default)">
@@ -140,9 +151,8 @@
                                         }
                                         else { <span>–</span> }
                                     </MudTd>
-                                    <MudTd>@context.Statusz</MudTd>
                                     <MudTd>
-                                        @if (context.Statusz == "Elvegezve")
+                                        @if (context.VanJegyzokonyv)
                                         {
                                             <MudTooltip Text="PDF jegyzőkönyv letöltése">
                                                 <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
@@ -152,7 +162,19 @@
                                                                OnClick="@(() => MeresPdfLetoltesePublikus(context))" />
                                             </MudTooltip>
                                         }
-                                        else
+                                        @if (context.KulsoJegyzokonyvPaths.Any())
+                                        {
+                                            @foreach (var kulsoPath in context.KulsoJegyzokonyvPaths)
+                                            {
+                                                <MudTooltip Text="@($"Külső jegyzőkönyv letöltése: {Path.GetFileName(kulsoPath)}")">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.AttachFile"
+                                                                   Color="Color.Secondary"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => KulsoJegyzokonyvLetoltesePublikus(kulsoPath))" />
+                                                </MudTooltip>
+                                            }
+                                        }
+                                        @if (!context.VanJegyzokonyv && !context.KulsoJegyzokonyvPaths.Any())
                                         {
                                             <span>–</span>
                                         }
@@ -689,11 +711,6 @@
         await LekerdezesFuttatas();
     }
 
-    private async Task OnElettortenetChange()
-    {
-        await LekerdezesFuttatas();
-    }
-
     private bool _pdfLetoltesFolyamatban = false;
 
     private async Task MeresPdfLetoltesePublikus(MeresOsszefoglalo meres)
@@ -935,6 +952,33 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Hiba a munkalap letöltése során: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Download error: {ex}");
+        }
+    }
+
+    private async Task KulsoJegyzokonyvLetoltesePublikus(string kulsoPath)
+    {
+        try
+        {
+            var fullPath = FileStorageService.GetFullPath(kulsoPath);
+            if (!FileStorageService.FileExists(fullPath))
+            {
+                Snackbar.Add("A jegyzőkönyv fájl nem található.", Severity.Error);
+                return;
+            }
+
+            var stream = await FileStorageService.GetFileStreamAsync(fullPath);
+            var fileName = Path.GetFileName(kulsoPath);
+
+            using var streamRef = new DotNetStreamReference(stream);
+
+            await Task.Delay(100);
+
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hiba a jegyzőkönyv letöltése során: {ex.Message}", Severity.Error);
             Console.WriteLine($"Download error: {ex}");
         }
     }

@@ -29,6 +29,19 @@ public class LyukadasjelzoTetel
         set => LyukadasjelzoAdatokJson = System.Text.Json.JsonSerializer.Serialize(value);
     }
 
+    /// <summary>JSON formátumban tárolt "Folyadékkal működtetett lyukadásjelző" vizsgálati jegyzőkönyv adatok.</summary>
+    public string? FolyadekosLyukadasjelzoAdatokJson { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public FolyadekosLyukadasjelzoAdatok FolyadekosLyukadasjelzoAdatok
+    {
+        get => string.IsNullOrWhiteSpace(FolyadekosLyukadasjelzoAdatokJson)
+            ? new FolyadekosLyukadasjelzoAdatok()
+            : System.Text.Json.JsonSerializer.Deserialize<FolyadekosLyukadasjelzoAdatok>(FolyadekosLyukadasjelzoAdatokJson)
+              ?? new FolyadekosLyukadasjelzoAdatok();
+        set => FolyadekosLyukadasjelzoAdatokJson = System.Text.Json.JsonSerializer.Serialize(value);
+    }
+
     /// <summary>Legenerált vizsgálati jegyzőkönyv fájlok listája JSON formátumban.</summary>
     public string? JegyzokonyvPaths { get; set; }
 

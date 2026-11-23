@@ -96,6 +96,7 @@ builder.Services.AddScoped<ITenantService, BiztvillCRM.Web.Services.TenantServic
 
 // --- Szolgáltatások regisztrálása ---
 builder.Services.AddScoped<IUgyfelService, UgyfelService>();
+builder.Services.AddScoped<IUgyfelCsoportService, UgyfelCsoportService>();
 builder.Services.AddScoped<ITelephelyService, TelephelyService>();
 builder.Services.AddScoped<IGyartoService, GyartoService>();
 builder.Services.AddScoped<IEszkozService, EszkozService>();

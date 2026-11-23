@@ -171,6 +171,18 @@ public class CsoportTagLejaratReszlet
         set => LyukadasjelzoAdatokJson = value == null ? null : System.Text.Json.JsonSerializer.Serialize(value);
     }
 
+    /// <summary>JSON formátumban tárolt "Folyadékkal működtetett lyukadásjelző" vizsgálati jegyzőkönyv adatok ehhez a közbenső vizsgálathoz.</summary>
+    public string? FolyadekosLyukadasjelzoAdatokJson { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public FolyadekosLyukadasjelzoAdatok? FolyadekosLyukadasjelzoAdatok
+    {
+        get => string.IsNullOrWhiteSpace(FolyadekosLyukadasjelzoAdatokJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<FolyadekosLyukadasjelzoAdatok>(FolyadekosLyukadasjelzoAdatokJson);
+        set => FolyadekosLyukadasjelzoAdatokJson = value == null ? null : System.Text.Json.JsonSerializer.Serialize(value);
+    }
+
     /// <summary>
     /// JSON formátumban tárolt lista, amely lehetővé teszi, hogy egy lyukadásjelző
     /// közbenső vizsgálaton (csoporttagon) belül is több, önálló gyári számú

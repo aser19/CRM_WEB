@@ -10,6 +10,12 @@ public class UgyfelLekerdezesViewModel
 
 public class TelephelyAdatok
 {
+    /// <summary>
+    /// Annak az Ugyfel rekordnak a neve, amelyhez ez a telephely tartozik.
+    /// Akkor releváns, ha egy ügyfélcsoport (pl. ugyanaz a tulajdonos) több néven (cégen) is
+    /// szerepel a tokenes lekérdezésben - ilyenkor eltérhet az UgyfelLekerdezesViewModel.UgyfelNev-től.
+    /// </summary>
+    public string UgyfelNev { get; set; } = "";
     public string Nev { get; set; } = "";
     public string Cim { get; set; } = "";
     public List<MeresOsszefoglalo> Meresek { get; set; } = new();
@@ -29,6 +35,9 @@ public class MeresOsszefoglalo
     public string Statusz { get; set; } = "";
     public string? MellekletTipusKod { get; set; }
     public string? SablonId { get; set; }
+    public string? Megjegyzes { get; set; }
+    public bool VanJegyzokonyv { get; set; }
+    public List<string> KulsoJegyzokonyvPaths { get; set; } = new();
 }
 
 public class HitelesitesOsszefoglalo
