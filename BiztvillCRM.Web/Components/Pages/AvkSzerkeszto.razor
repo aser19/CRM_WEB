@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IJegyzokonyvWordService WordService
+@inject IAvkPdfService AvkPdfService
 @inject IJegyzokonyvOcrService OcrService
 
 <PageTitle>ÁVK Mérési Táblázat</PageTitle>
@@ -173,6 +174,13 @@ else
                 {
                     var foTipus = await MeresTipusService.GetByIdAsync(_foMeres.MeresTipusId);
                     _onalloMod = foTipus?.MellekletTipusKod == "AVK";
+
+                    if (string.IsNullOrWhiteSpace(_adatok.AvkJelentesTipusa))
+                    {
+                        _adatok.AvkJelentesTipusa = (foTipus?.Nev ?? "").Contains("időszakos", StringComparison.OrdinalIgnoreCase)
+                            ? "Időszakos felülvizsgálat"
+                            : "Használatba vételt megelőző";
+                    }
                 }
 
                 if (_melleklet.MellekletMeresId.HasValue)
@@ -231,13 +239,13 @@ else
             {
                 // === ÖNÁLLÓ AVK MENTÉS ===
                 await MeresService.MentesJegyzokonyvAdatokkalAsync(MeresId, _adatok);
-                var wordBytes = await WordService.GeneralasAsync(MeresId, _adatok, _sablonId);
-                if (wordBytes is { Length: > 0 })
+                var pdfBytes = await AvkPdfService.GeneralasAsync(MeresId, _adatok);
+                if (pdfBytes is { Length: > 0 })
                 {
-                    var fajlNev = $"AVK-{MeresId:D6}.docx";
+                    var fajlNev = $"AVK-{MeresId:D6}.pdf";
                     await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        wordBytes);
+                        "application/pdf",
+                        pdfBytes);
                 }
                 Snackbar.Add("AVK mérés elmentve!", Severity.Success);
                 Navigation.NavigateTo("/meresek");
@@ -268,13 +276,13 @@ else
 
                 await MellekletService.MentAvkAdatokAsync(melleklet.Id, _adatok);
 
-                var wordBytes = await WordService.GeneralasAsync(avkMeresId, _adatok, _sablonId);
-                if (wordBytes is { Length: > 0 })
+                var pdfBytes = await AvkPdfService.GeneralasAsync(avkMeresId, _adatok);
+                if (pdfBytes is { Length: > 0 })
                 {
-                    var fajlNev = $"AVK-Melleklet-{MellekletId:D6}.docx";
+                    var fajlNev = $"AVK-Melleklet-{MellekletId:D6}.pdf";
                     await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev,
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        wordBytes);
+                        "application/pdf",
+                        pdfBytes);
                 }
 
                 Snackbar.Add("AVK melléklet elmentve!", Severity.Success);

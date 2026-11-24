@@ -16,6 +16,7 @@
 @inject IFelulvizsgaloService FelulvizsgaloService
 @inject IMellekletJegyzokonyvService MellekletService
 @inject IHvmPdfService HvmPdfService
+@inject IAvkPdfService AvkPdfService
 @inject IJegyzokonyvWordService JegyzokonyvWordService
 @inject IMeresTipusService MeresTipusService
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
@@ -884,6 +885,25 @@
                     {
                         var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.pdf";
                         await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", hvmPdfBytes);
+                    }
+                }
+                else if (melleklet.Tipus == "AVK")
+                {
+                    var mellekletMeres = await MeresService.GetByIdPublicAsync(melleklet.MellekletMeresId!.Value);
+                    if (mellekletMeres == null)
+                        continue;
+
+                    var mellekletAdatok = new JegyzokonyvAdatok();
+                    if (!string.IsNullOrEmpty(mellekletMeres.JegyzokonyvAdatokJson))
+                        mellekletAdatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                            mellekletMeres.JegyzokonyvAdatokJson,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new JegyzokonyvAdatok();
+
+                    var avkPdfBytes = await AvkPdfService.GeneralasAsync(melleklet.MellekletMeresId.Value, mellekletAdatok);
+                    if (avkPdfBytes is { Length: > 0 })
+                    {
+                        var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.pdf";
+                        await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", avkPdfBytes);
                     }
                 }
                 else

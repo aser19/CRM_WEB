@@ -16,6 +16,7 @@
 @inject IHordozhatoPdfService HordozhatoPdfService
 @inject IRbPdfService RbPdfService
 @inject IHvmPdfService HvmPdfService
+@inject IAvkPdfService AvkPdfService
 @inject IEgyMeresPdfService EgyMeresPdfService
 @inject IVbfPdfService VbfPdfService
 @inject IVillamNemNormaPdfService VillamNemNormaPdfService
@@ -848,7 +849,7 @@
                                             <MudIconButton Icon="@Icons.Material.Filled.Download"
                                                            Color="Color.Success"
                                                            Size="Size.Small"
-                                                           Title="@(m.Tipus == "HVM" ? "PDF letöltése" : "Word letöltése")"
+                                                           Title="@(m.Tipus is "HVM" or "AVK" ? "PDF letöltése" : "Word letöltése")"
                                                            OnClick="@(async () => await MellekletWordLetoltes(m))" />
                                         }
                                         <MudButton Variant="Variant.Outlined"
@@ -2311,6 +2312,13 @@
             return;
         }
 
+        // AVK esetén a PDF service-t használjuk (a Word sablon helyett)
+        if (melleklet.Tipus == "AVK")
+        {
+            await MellekletAvkPdfLetoltes(melleklet);
+            return;
+        }
+
         try
         {
             var mellekletTipus = _tipusok.FirstOrDefault(t => t.MellekletTipusKod == melleklet.Tipus);
@@ -2358,6 +2366,33 @@
                 adatok = System.Text.Json.JsonSerializer.Deserialize<HvmAdatok>(friss.AdatokJson) ?? new HvmAdatok();
 
             var pdfBytes = await HvmPdfService.GeneralasAsync(melleklet.MellekletMeresId!.Value, adatok);
+
+            if (pdfBytes is { Length: > 0 })
+            {
+                var fajlNev = $"{melleklet.Szam.Replace("/", "-")}.pdf";
+                await JS.InvokeVoidAsync("downloadFileFromBytes", fajlNev, "application/pdf", pdfBytes);
+                Snackbar.Add("Letöltés indult!", Severity.Success);
+            }
+            else
+                Snackbar.Add("PDF dokumentum nem generálható.", Severity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"PDF letöltés hiba: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task MellekletAvkPdfLetoltes(MellekletJegyzokonyv melleklet)
+    {
+        try
+        {
+            var avkMeres = await MeresService.GetByIdAsync(melleklet.MellekletMeresId!.Value);
+            if (avkMeres == null) { Snackbar.Add("Mérés nem található!", Severity.Error); return; }
+
+            JegyzokonyvAdatok adatok = new();
+            if (!string.IsNullOrEmpty(avkMeres.JegyzokonyvAdatokJson))
+                adatok = System.Text.Json.JsonSerializer.Deserialize<JegyzokonyvAdatok>(
+                    avkMeres.JegyzokonyvAdatokJson,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+
+            var pdfBytes = await AvkPdfService.GeneralasAsync(melleklet.MellekletMeresId.Value, adatok);
 
             if (pdfBytes is { Length: > 0 })
             {

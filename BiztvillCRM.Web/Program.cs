@@ -155,6 +155,7 @@ builder.Services.AddScoped<IHordozhatoPdfService>(sp =>
 builder.Services.AddScoped<IVbfPdfService, VbfPdfService>();
 builder.Services.AddScoped<IVillamNemNormaPdfService, VillamNemNormaPdfService>();
 builder.Services.AddScoped<IEgyMeresPdfService, EgyMeresPdfService>();
+builder.Services.AddScoped<IAvkPdfService, AvkPdfService>();
 builder.Services.AddScoped<IKepzesTipusService, KepzesTipusService>(); // <-- ÚJ SZOLGÁLTATÁS
 builder.Services.AddScoped<ISugoService, SugoService>();
 builder.Services.AddScoped<IKepzesSzabalyService, KepzesSzabalyService>(); // <-- ÚJ SZOLGÁLTATÁS

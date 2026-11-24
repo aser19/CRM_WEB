@@ -193,6 +193,13 @@ public class JegyzokonyvAdatok
         !string.IsNullOrWhiteSpace(MatricaSorszamTol) && 
         !string.IsNullOrWhiteSpace(MatricaSorszamIg);
 
+    /// <summary>
+    /// Az ÁVK jegyzőkönyv PDF "A jelentés típusa" sorának szövege (pl. "Használatba vételt megelőző"
+    /// vagy "Időszakos felülvizsgálat"), a fő jegyzőkönyv mérés típusa alapján számítva mentéskor.
+    /// Üres érték esetén a PDF generálás alapértelmezett szöveget használ.
+    /// </summary>
+    public string? AvkJelentesTipusa { get; set; }
+
     // Műszerek
     public string? Muszer1Tipus { get; set; }
     public string? Muszer1GyariSzam { get; set; }
